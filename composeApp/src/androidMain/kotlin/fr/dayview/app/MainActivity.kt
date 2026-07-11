@@ -9,8 +9,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : ComponentActivity() {
     private lateinit var preferences: AndroidDayPreferences
@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
         } else {
             requestExactAfterNotificationPermission = false
         }
+        if (granted) restoreActiveFocusAlarm()
     }
     private val calendarPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -57,15 +58,17 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         DayViewWidget.updateAll(applicationContext)
-        if (::focusAlarmScheduler.isInitialized) restoreActiveFocusAlarm()
+        if (::focusAlarmScheduler.isInitialized) {
+            restoreActiveFocusAlarm()
+        }
     }
 
     private fun restoreActiveFocusAlarm() {
         val endMillis = preferences.loadPomodoroEndMillis() ?: return
         if (endMillis > System.currentTimeMillis()) {
             focusAlarmScheduler.schedule(endMillis, preferences.loadFocusIntention())
-        } else if (System.currentTimeMillis() - endMillis < 60 * 60_000L) {
-            focusAlarmScheduler.restoreBreakReminders(endMillis)
+        } else {
+            focusAlarmScheduler.restoreBreakReminders(endMillis, preferences.loadFocusIntention())
         }
     }
 

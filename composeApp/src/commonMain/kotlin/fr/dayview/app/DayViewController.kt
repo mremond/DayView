@@ -1,0 +1,236 @@
+package fr.dayview.app
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlin.time.Clock
+
+internal enum class DayViewDestination {
+    TODAY,
+    SETTINGS,
+}
+
+internal data class DayViewUiState(
+    val nowMillis: Long,
+    val startMinutes: Int,
+    val endMinutes: Int,
+    val showSeconds: Boolean,
+    val soundSettings: SoundSettings,
+    val goalTitle: String,
+    val goalDeadlineText: String,
+    val goalDeadlineMillis: Long?,
+    val pomodoroMinutes: Int,
+    val pomodoroEndMillis: Long?,
+    val focusIntention: String,
+    val netTimeSettings: NetTimeSettings = NetTimeSettings(),
+    val netCalendarPermission: Boolean = false,
+    val availableCalendars: List<CalendarInfo> = emptyList(),
+    val busyIntervals: List<BusyInterval> = emptyList(),
+    val lastFocusClosure: FocusClosureOutcome? = null,
+    val destination: DayViewDestination = DayViewDestination.TODAY,
+) {
+    private val dayNowMillis: Long
+        get() = if (showSeconds) nowMillis else nowMillis - nowMillis % 60_000L
+
+    val dayProgress: DayProgress
+        get() = calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
+
+    val pomodoroProgress: PomodoroProgress
+        get() = calculatePomodoroProgress(nowMillis, pomodoroMinutes, pomodoroEndMillis)
+
+    val focusIsActive: Boolean
+        get() = pomodoroEndMillis?.let { it > nowMillis } == true
+
+    /** Bornes absolues (millis) de la journée courante, pour la projection du temps net. */
+    val dayWindow: Pair<Long, Long>
+        get() = dayWindowMillis(dayNowMillis, startMinutes, endMinutes)
+
+    val busyArcsState: List<BusyArc>
+        get() = if (netTimeSettings.enabled) {
+            val (start, end) = dayWindow
+            busyArcs(start, end, busyIntervals)
+        } else {
+            emptyList()
+        }
+
+    val netTime: NetTime?
+        get() = if (netTimeSettings.enabled) {
+            val (start, end) = dayWindow
+            calculateNetTime(dayProgress, dayNowMillis, start, end, busyIntervals)
+        } else {
+            null
+        }
+}
+
+internal class DayViewController(
+    private val preferences: DayPreferences,
+    initialNowMillis: Long = Clock.System.now().toEpochMilliseconds(),
+) {
+    var state: DayViewUiState by mutableStateOf(preferences.snapshot().toUiState(initialNowMillis))
+        private set
+
+    fun tick(nowMillis: Long) {
+        state = state.copy(nowMillis = nowMillis)
+    }
+
+    fun openSettings() {
+        state = state.copy(destination = DayViewDestination.SETTINGS)
+    }
+
+    fun openToday() {
+        state = state.copy(destination = DayViewDestination.TODAY)
+    }
+
+    fun setStartMinutes(minutes: Int) {
+        val updated = minutes.coerceIn(0, state.endMinutes - 30)
+        state = state.copy(startMinutes = updated)
+        preferences.saveDayRange(updated, state.endMinutes)
+    }
+
+    fun setEndMinutes(minutes: Int) {
+        val updated = minutes.coerceIn(state.startMinutes + 30, 23 * 60 + 59)
+        state = state.copy(endMinutes = updated)
+        preferences.saveDayRange(state.startMinutes, updated)
+    }
+
+    fun setShowSeconds(enabled: Boolean) {
+        state = state.copy(showSeconds = enabled)
+        preferences.saveShowSeconds(enabled)
+    }
+
+    fun setSoundSettings(settings: SoundSettings) {
+        val normalized = settings.normalized()
+        state = state.copy(soundSettings = normalized)
+        preferences.saveSoundSettings(normalized)
+    }
+
+    fun setGoalTitle(value: String) {
+        val updated = value.take(80)
+        state = state.copy(goalTitle = updated)
+        preferences.saveGlobalGoal(updated, state.goalDeadlineMillis)
+    }
+
+    fun setGoalDeadlineText(value: String) {
+        state = state.copy(goalDeadlineText = value.take(16))
+    }
+
+    fun commitGoalDeadline() {
+        val parsed = parseGoalDeadline(state.goalDeadlineText)
+        if (parsed == null && state.goalDeadlineText.isNotBlank()) return
+        state = state.copy(goalDeadlineMillis = parsed)
+        preferences.saveGlobalGoal(state.goalTitle, parsed)
+    }
+
+    fun setFocusIntention(value: String) {
+        val updated = value.take(100)
+        state = state.copy(focusIntention = updated, lastFocusClosure = null)
+        preferences.saveFocusIntention(updated)
+    }
+
+    fun changePomodoroDuration(deltaMinutes: Int) {
+        if (state.pomodoroProgress.status == PomodoroStatus.ACTIVE) return
+        val updated = (state.pomodoroMinutes + deltaMinutes).coerceIn(5, 180)
+        state = state.copy(pomodoroMinutes = updated, pomodoroEndMillis = null)
+        preferences.savePomodoro(updated, null)
+    }
+
+    fun startPomodoro() {
+        if (state.focusIntention.isBlank()) return
+        val endMillis = state.nowMillis + state.pomodoroMinutes * 60_000L
+        state = state.copy(pomodoroEndMillis = endMillis, lastFocusClosure = null)
+        preferences.savePomodoro(state.pomodoroMinutes, endMillis)
+    }
+
+    fun stopPomodoro() {
+        state = state.copy(pomodoroEndMillis = null)
+        preferences.savePomodoro(state.pomodoroMinutes, null)
+    }
+
+    fun closePomodoro(outcome: FocusClosureOutcome) {
+        val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
+        val intentionChanged = updatedIntention != state.focusIntention
+        // State is set once, up front, so the two persistence calls below each
+        // trigger a re-entrant onPreferencesChanged that reconciles against the
+        // already-final state (a no-op). This relies on synchronous, main-thread
+        // preference notification; a combined multi-field save would be needed if
+        // persistence ever becomes asynchronous (e.g. a DataStore migration).
+        state = state.copy(
+            pomodoroEndMillis = null,
+            focusIntention = updatedIntention,
+            lastFocusClosure = outcome,
+        )
+        preferences.savePomodoro(state.pomodoroMinutes, null)
+        if (intentionChanged) preferences.saveFocusIntention(updatedIntention)
+    }
+
+    fun setNetTimeSettings(settings: NetTimeSettings) {
+        state = state.copy(netTimeSettings = settings)
+        preferences.saveNetTimeSettings(settings)
+    }
+
+    /** Injecte le résultat d'une lecture calendrier (hors thread UI). */
+    fun updateNetTimeData(
+        hasPermission: Boolean,
+        busyIntervals: List<BusyInterval>,
+        availableCalendars: List<CalendarInfo>,
+    ) {
+        state = state.copy(
+            netCalendarPermission = hasPermission,
+            busyIntervals = busyIntervals,
+            availableCalendars = availableCalendars,
+        )
+    }
+
+    fun onPreferencesChanged(snapshot: DayPreferencesSnapshot) {
+        state = state.withPersisted(snapshot)
+    }
+}
+
+private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
+    val safeStart = startMinutes.coerceIn(0, 23 * 60 + 29)
+    val safeEnd = endMinutes.coerceIn(safeStart + 30, 23 * 60 + 59)
+    return copy(
+        startMinutes = safeStart,
+        endMinutes = safeEnd,
+        soundSettings = soundSettings.normalized(),
+        goalTitle = goalTitle.take(80),
+        pomodoroMinutes = pomodoroMinutes.coerceIn(5, 180),
+        focusIntention = focusIntention.take(100),
+    )
+}
+
+private fun DayPreferencesSnapshot.toUiState(nowMillis: Long): DayViewUiState {
+    val safe = coerced()
+    return DayViewUiState(
+        nowMillis = nowMillis,
+        startMinutes = safe.startMinutes,
+        endMinutes = safe.endMinutes,
+        showSeconds = safe.showSeconds,
+        soundSettings = safe.soundSettings,
+        goalTitle = safe.goalTitle,
+        goalDeadlineText = safe.goalDeadlineMillis?.let(::formatGoalDeadline).orEmpty(),
+        goalDeadlineMillis = safe.goalDeadlineMillis,
+        pomodoroMinutes = safe.pomodoroMinutes,
+        pomodoroEndMillis = safe.pomodoroEndMillis,
+        focusIntention = safe.focusIntention,
+        netTimeSettings = safe.netTimeSettings,
+    )
+}
+
+private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayViewUiState {
+    val safe = snapshot.coerced()
+    return copy(
+        startMinutes = safe.startMinutes,
+        endMinutes = safe.endMinutes,
+        showSeconds = safe.showSeconds,
+        soundSettings = safe.soundSettings,
+        goalTitle = safe.goalTitle,
+        goalDeadlineMillis = safe.goalDeadlineMillis,
+        pomodoroMinutes = safe.pomodoroMinutes,
+        pomodoroEndMillis = safe.pomodoroEndMillis,
+        focusIntention = safe.focusIntention,
+        netTimeSettings = safe.netTimeSettings,
+        // Transient fields deliberately preserved: nowMillis, goalDeadlineText,
+        // lastFocusClosure, destination, and calendar read results.
+    )
+}

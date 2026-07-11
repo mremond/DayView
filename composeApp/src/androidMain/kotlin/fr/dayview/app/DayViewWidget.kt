@@ -10,8 +10,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.os.SystemClock
 import android.os.Build
+import android.os.SystemClock
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
@@ -138,11 +138,12 @@ class DayViewWidget : AppWidgetProvider() {
                 if (layout == DayViewWidgetLayout.COMPACT) View.GONE else View.VISIBLE,
             )
 
-            val showGoal = content.goal.isNotBlank() && when (layout) {
-                DayViewWidgetLayout.COMPACT -> false
-                DayViewWidgetLayout.MEDIUM -> content.focusEndMillis == null
-                DayViewWidgetLayout.LARGE -> true
-            }
+            val showGoal = content.goal.isNotBlank() &&
+                when (layout) {
+                    DayViewWidgetLayout.COMPACT -> false
+                    DayViewWidgetLayout.MEDIUM -> content.focusEndMillis == null
+                    DayViewWidgetLayout.LARGE -> true
+                }
             views.setViewVisibility(R.id.widget_goal, if (showGoal) View.VISIBLE else View.GONE)
             views.setTextViewText(R.id.widget_goal, context.getString(R.string.widget_goal, content.goal))
 
@@ -192,8 +193,7 @@ class DayViewWidget : AppWidgetProvider() {
             else -> context.getString(R.string.widget_day_remaining)
         }
 
-        private fun formatTime(hour: Int, minute: Int): String =
-            String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+        private fun formatTime(hour: Int, minute: Int): String = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
 
         private fun renderRing(context: Context, progress: DayProgress): Bitmap {
             val size = (112 * context.resources.displayMetrics.density).toInt().coerceAtLeast(112)

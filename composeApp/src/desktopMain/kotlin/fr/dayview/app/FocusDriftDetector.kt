@@ -96,6 +96,8 @@ internal class MacFrontmostApplicationProvider {
         return runtime.objc_msgSend(receiver, runtime.sel_registerName(selector))
     }
 
+    // JNA maps methods to native symbols by name, so these must match the C runtime.
+    @Suppress("ktlint:standard:function-naming")
     private interface ObjectiveCRuntime : Library {
         fun objc_getClass(name: String): Pointer?
         fun sel_registerName(name: String): Pointer

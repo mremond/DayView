@@ -1,7 +1,7 @@
 package fr.dayview.app
 
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -206,5 +206,71 @@ class GlobalGoalTest {
 
         // Ten years, including leap days in 2028 and 2032.
         assertEquals(3_652L * 10 * 3_600_000L, remaining)
+    }
+
+    @Test
+    fun goalSummaryJoinsTitleAndRemainingHours() {
+        val line = formatGoalSummaryLine(
+            title = "Livrer la v2",
+            deadlineMillis = 1_000L,
+            workingMillis = 12 * 3_600_000L,
+            deadlineReached = false,
+        )
+        assertEquals("Livrer la v2 · Encore 12 h", line)
+    }
+
+    @Test
+    fun goalSummaryShowsRemainingHoursWhenTitleBlank() {
+        val line = formatGoalSummaryLine(
+            title = "",
+            deadlineMillis = 1_000L,
+            workingMillis = 12 * 3_600_000L,
+            deadlineReached = false,
+        )
+        assertEquals("Encore 12 h", line)
+    }
+
+    @Test
+    fun goalSummaryShowsTitleOnlyWhenNoDeadline() {
+        val line = formatGoalSummaryLine(
+            title = "Livrer la v2",
+            deadlineMillis = null,
+            workingMillis = 0L,
+            deadlineReached = false,
+        )
+        assertEquals("Livrer la v2", line)
+    }
+
+    @Test
+    fun goalSummaryShowsDeadlineReached() {
+        val line = formatGoalSummaryLine(
+            title = "Livrer la v2",
+            deadlineMillis = 1_000L,
+            workingMillis = 0L,
+            deadlineReached = true,
+        )
+        assertEquals("Livrer la v2 · Échéance atteinte", line)
+    }
+
+    @Test
+    fun goalSummaryShowsLessThanAnHourWhenNoWorkingTimeLeft() {
+        val line = formatGoalSummaryLine(
+            title = "",
+            deadlineMillis = 1_000L,
+            workingMillis = 0L,
+            deadlineReached = false,
+        )
+        assertEquals("Moins d’une heure de travail", line)
+    }
+
+    @Test
+    fun goalSummaryEmptyWhenNothingSet() {
+        val line = formatGoalSummaryLine(
+            title = "",
+            deadlineMillis = null,
+            workingMillis = 0L,
+            deadlineReached = false,
+        )
+        assertEquals("", line)
     }
 }

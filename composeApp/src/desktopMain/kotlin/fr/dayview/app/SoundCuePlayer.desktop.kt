@@ -8,7 +8,9 @@ actual fun createSoundCuePlayer(): SoundCuePlayer = DesktopSoundCuePlayer()
 
 private class DesktopSoundCuePlayer : SoundCuePlayer {
     private val sounds = mutableMapOf<SoundCue, SoundCuePcm>()
+
     @Volatile private var currentLine: SourceDataLine? = null
+
     @Volatile private var closed = false
 
     override fun play(cue: SoundCue, volume: Float) {

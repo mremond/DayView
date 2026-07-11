@@ -3,7 +3,6 @@
     <style name="LaunchTheme" parent="@style/AppTheme">
         <item name="android:windowSplashScreenBackground">@color/dayview_splash_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/dayview_splash_icon</item>
-        <item name="android:windowSplashScreenBrandingImage">@drawable/dayview_splash_wordmark</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:statusBarColor">@color/dayview_splash_background</item>

@@ -136,4 +136,21 @@ class DesktopDayPreferencesTest {
 
         assertEquals("Finaliser la présentation", reloaded.loadFocusIntention())
     }
+
+    @Test
+    fun observersReceiveSnapshotsUntilTheyUnsubscribe() {
+        val observed = mutableListOf<DayPreferencesSnapshot>()
+        val stopObserving = preferences.observe(observed::add)
+
+        preferences.saveDayRange(7 * 60, 19 * 60)
+        preferences.saveFocusIntention("Préparer la démonstration")
+
+        assertEquals(3, observed.size)
+        assertEquals(7 * 60, observed.last().startMinutes)
+        assertEquals("Préparer la démonstration", observed.last().focusIntention)
+
+        stopObserving()
+        preferences.saveShowSeconds(false)
+        assertEquals(3, observed.size)
+    }
 }

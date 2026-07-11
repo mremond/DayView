@@ -45,9 +45,8 @@ fun calculatePomodoroProgress(
     )
 }
 
-fun formatPomodoroClock(progress: PomodoroProgress): String =
-    "${progress.remainingMinutes.toString().padStart(2, '0')}:" +
-        progress.remainingSeconds.toString().padStart(2, '0')
+fun formatPomodoroClock(progress: PomodoroProgress): String = "${progress.remainingMinutes.toString().padStart(2, '0')}:" +
+    progress.remainingSeconds.toString().padStart(2, '0')
 
 fun formatPomodoroCompactMinutes(progress: PomodoroProgress): String {
     val roundedMinutes = (progress.remainingMillis + 59_999L) / 60_000L

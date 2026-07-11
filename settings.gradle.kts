@@ -1,5 +1,3 @@
-rootProject.name = "DayView"
-
 pluginManagement {
     repositories {
         google()
@@ -8,7 +6,14 @@ pluginManagement {
     }
 }
 
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+rootProject.name = "DayView"
+
 dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
         google()
         mavenCentral()

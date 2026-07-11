@@ -1,13 +1,13 @@
 package fr.dayview.app
 
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Instant
 import kotlin.math.ceil
+import kotlin.time.Instant
 
 const val GOAL_DATE_PLACEHOLDER = "JJ/MM/AAAA HH:MM"
 
@@ -102,3 +102,13 @@ fun formatGoalWorkingHours(workingMillis: Long, deadlineReached: Boolean): Strin
     val hours = ceil(workingMillis / 3_600_000.0).toLong()
     return if (hours > 0) "Encore $hours h" else "Moins d’une heure de travail"
 }
+
+fun formatGoalSummaryLine(
+    title: String,
+    deadlineMillis: Long?,
+    workingMillis: Long,
+    deadlineReached: Boolean,
+): String = listOfNotNull(
+    title.ifBlank { null },
+    deadlineMillis?.let { formatGoalWorkingHours(workingMillis, deadlineReached) },
+).joinToString(" · ")

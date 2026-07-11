@@ -1,22 +1,22 @@
 package fr.dayview.app
 
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.window.application
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.window.rememberWindowState
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dayview_tray
 import fr.dayview.app.generated.resources.dayview_tray_monochrome
+import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 import kotlin.math.ceil
 import kotlin.time.Clock
 
@@ -27,6 +27,7 @@ fun main() = application {
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
     val focusResumeDetector = remember { FocusResumeDetector() }
+    val nudgeNotifier = remember { MacFocusNudgeNotifier() }
     val soundCuePlayer = remember { createSoundCuePlayer() }
     val soundAlertScheduler = remember { SoundAlertScheduler() }
     val breakReminderScheduler = remember { BreakReminderScheduler() }
@@ -35,39 +36,28 @@ fun main() = application {
     var focusDriftReminderId by remember { mutableStateOf<Long?>(null) }
     var focusResumeRitualId by remember { mutableStateOf<Long?>(null) }
     var nowMillis by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds()) }
-    var startMinutes by remember { mutableStateOf(preferences.loadStartMinutes()) }
-    var endMinutes by remember { mutableStateOf(preferences.loadEndMinutes()) }
-    var goalTitle by remember { mutableStateOf(preferences.loadGoalTitle()) }
-    var goalDeadline by remember { mutableStateOf(preferences.loadGoalDeadlineMillis()) }
-    var pomodoroMinutes by remember { mutableStateOf(preferences.loadPomodoroMinutes()) }
-    var pomodoroEnd by remember { mutableStateOf(preferences.loadPomodoroEndMillis()) }
-    var focusIntention by remember { mutableStateOf(preferences.loadFocusIntention()) }
-    var showSeconds by remember { mutableStateOf(preferences.loadShowSeconds()) }
+    var preferenceSnapshot by remember { mutableStateOf(preferences.snapshot()) }
     var monochromeMenuBarIcon by remember { mutableStateOf(preferences.loadMonochromeMenuBarIcon()) }
     var launchAtLogin by remember { mutableStateOf(loginLauncher.isEnabled()) }
+
+    DisposableEffect(preferences) {
+        val stopObserving = preferences.observe { preferenceSnapshot = it }
+        onDispose(stopObserving)
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
             val currentNowMillis = Clock.System.now().toEpochMilliseconds()
             nowMillis = currentNowMillis
-            val currentStartMinutes = preferences.loadStartMinutes()
-            val currentEndMinutes = preferences.loadEndMinutes()
-            startMinutes = currentStartMinutes
-            endMinutes = currentEndMinutes
-            goalTitle = preferences.loadGoalTitle()
-            goalDeadline = preferences.loadGoalDeadlineMillis()
-            pomodoroMinutes = preferences.loadPomodoroMinutes()
-            val currentPomodoroEnd = preferences.loadPomodoroEndMillis()
-            pomodoroEnd = currentPomodoroEnd
-            focusIntention = preferences.loadFocusIntention()
-            showSeconds = preferences.loadShowSeconds()
+            val currentPreferences = preferenceSnapshot
+            val currentPomodoroEnd = currentPreferences.pomodoroEndMillis
 
             val focusIsActive = currentPomodoroEnd != null && currentPomodoroEnd > currentNowMillis
-            val soundSettings = preferences.loadSoundSettings()
+            val soundSettings = currentPreferences.soundSettings
             val soundCue = soundAlertScheduler.observe(
                 nowMillis = currentNowMillis,
-                startMinutesOfDay = currentStartMinutes,
-                endMinutesOfDay = currentEndMinutes,
+                startMinutesOfDay = currentPreferences.startMinutes,
+                endMinutesOfDay = currentPreferences.endMinutes,
                 intervalMinutes = soundSettings.intervalMinutes,
             )
             if (soundCue != null && soundSettings.allowsDayCue(soundCue, focusIsActive)) {
@@ -91,8 +81,7 @@ fun main() = application {
                 isWindowVisible = true
             } else if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
                 focusDriftReminderId = currentNowMillis
-                isMiniWindowVisible = false
-                isWindowVisible = true
+                nudgeNotifier.notify(currentPreferences.focusIntention)
             } else if (!focusIsActive) {
                 focusDriftReminderId = null
                 focusResumeRitualId = null
@@ -101,6 +90,14 @@ fun main() = application {
         }
     }
 
+    val startMinutes = preferenceSnapshot.startMinutes
+    val endMinutes = preferenceSnapshot.endMinutes
+    val goalTitle = preferenceSnapshot.goalTitle
+    val goalDeadline = preferenceSnapshot.goalDeadlineMillis
+    val pomodoroMinutes = preferenceSnapshot.pomodoroMinutes
+    val pomodoroEnd = preferenceSnapshot.pomodoroEndMillis
+    val focusIntention = preferenceSnapshot.focusIntention
+    val showSeconds = preferenceSnapshot.showSeconds
     val dayProgress = calculateDayProgress(nowMillis, startMinutes, endMinutes)
     val dayStatus = if (dayProgress.isFinished) {
         "Journée terminée"
@@ -177,8 +174,8 @@ fun main() = application {
             title = "DayView",
         ) {
             window.minimumSize = java.awt.Dimension(420, 680)
-            LaunchedEffect(focusDriftReminderId, focusResumeRitualId) {
-                if (focusDriftReminderId != null || focusResumeRitualId != null) {
+            LaunchedEffect(focusResumeRitualId) {
+                if (focusResumeRitualId != null) {
                     window.toFront()
                     window.requestFocus()
                 }
