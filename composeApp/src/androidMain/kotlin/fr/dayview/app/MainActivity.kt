@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         preferences = AndroidDayPreferences(applicationContext)
         focusAlarmScheduler = FocusAlarmScheduler(applicationContext)
+        initCalendarSource(applicationContext)
         restoreActiveFocusAlarm()
         setContent {
             DayViewApp(
