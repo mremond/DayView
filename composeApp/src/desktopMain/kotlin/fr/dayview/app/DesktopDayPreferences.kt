@@ -5,17 +5,19 @@ import java.util.prefs.Preferences
 class DesktopDayPreferences internal constructor(
     private val storage: Preferences = Preferences.userNodeForPackage(DesktopDayPreferences::class.java),
 ) : DayPreferences {
-    private val observers = mutableSetOf<(DayPreferencesSnapshot) -> Unit>()
+    private val observers = mutableMapOf<Long, (DayPreferencesSnapshot) -> Unit>()
+    private var nextObserverId = 0L
 
     private fun preferencesChanged() {
         val updated = snapshot()
-        observers.toList().forEach { it(updated) }
+        observers.values.toList().forEach { it(updated) }
     }
 
     override fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
-        observers += observer
+        val observerId = nextObserverId++
+        observers[observerId] = observer
         observer(snapshot())
-        return { observers -= observer }
+        return { observers.remove(observerId) }
     }
 
     override fun loadStartMinutes(): Int = storage.getInt(KEY_START, DEFAULT_START)

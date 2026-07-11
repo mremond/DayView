@@ -8,18 +8,20 @@ class AndroidDayPreferences(
 ) : DayPreferences {
     private val appContext = context.applicationContext
     private val storage = context.getSharedPreferences("dayview_preferences", Context.MODE_PRIVATE)
-    private val observers = mutableSetOf<(DayPreferencesSnapshot) -> Unit>()
+    private val observers = mutableMapOf<Long, (DayPreferencesSnapshot) -> Unit>()
+    private var nextObserverId = 0L
 
     private fun preferencesChanged(updateWidgets: Boolean = false) {
         val updated = snapshot()
-        observers.toList().forEach { it(updated) }
+        observers.values.toList().forEach { it(updated) }
         if (updateWidgets && notifyWidgets) DayViewWidget.updateAll(appContext)
     }
 
     override fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
-        observers += observer
+        val observerId = nextObserverId++
+        observers[observerId] = observer
         observer(snapshot())
-        return { observers -= observer }
+        return { observers.remove(observerId) }
     }
 
     override fun loadStartMinutes(): Int = storage.getInt(KEY_START, DEFAULT_START)
