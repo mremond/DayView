@@ -30,7 +30,7 @@ jobs:
           mkdir -p dist
           cp composeApp/build/outputs/apk/release/composeApp-release.apk \
             "dist/DayView-${{ steps.version.outputs.version }}.apk"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android
           path: dist/*.apk
@@ -76,7 +76,7 @@ jobs:
           find composeApp/build/compose/binaries/main-release \
             -type f \( -name '*.deb' -o -name '*.rpm' \) -exec cp {} dist/ \;
           ls -la dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: dist/*
@@ -101,7 +101,7 @@ jobs:
         run: |
           mkdir -p dist
           cp composeApp/build/compose/binaries/main-release/dmg/DayView-*.dmg dist/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: dist/*.dmg
