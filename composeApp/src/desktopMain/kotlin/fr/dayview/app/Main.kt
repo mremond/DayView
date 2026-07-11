@@ -50,6 +50,7 @@ fun main() = application {
         }
     }
     var focusPresenceIntervals by remember { mutableStateOf(preferences.loadFocusPresence().second) }
+    var lastPresenceSaveMillis by remember { mutableLongStateOf(0L) }
 
     DisposableEffect(preferences) {
         val stopObserving = preferences.observe { preferenceSnapshot = it }
@@ -85,6 +86,7 @@ fun main() = application {
             } else {
                 null
             }
+            val onGoalBundleIds = currentPreferences.onGoalApps.map { it.bundleId }.toSet()
             if (shouldShowResumeRitual) {
                 focusResumeRitualId = currentNowMillis
                 focusDriftReminderId = null
@@ -95,7 +97,7 @@ fun main() = application {
                     focusIsActive,
                     currentNowMillis,
                     frontmostBundleId,
-                    currentPreferences.onGoalApps.map { it.bundleId }.toSet(),
+                    onGoalBundleIds,
                 )
             ) {
                 focusDriftReminderId = currentNowMillis
@@ -108,18 +110,19 @@ fun main() = application {
             val dayKey = Instant.fromEpochMilliseconds(currentNowMillis)
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .date.toEpochDays()
-            val classification = classifyFrontmost(
-                frontmostBundleId,
-                currentPreferences.onGoalApps.map { it.bundleId }.toSet(),
-            )
+            val classification = classifyFrontmost(frontmostBundleId, onGoalBundleIds)
             val updatedIntervals = if (focusIsActive) {
                 presenceAccumulator.observe(currentNowMillis, classification, dayKey)
             } else {
                 focusPresenceIntervals
             }
             if (updatedIntervals != focusPresenceIntervals) {
+                val structuralChange = updatedIntervals.size != focusPresenceIntervals.size
                 focusPresenceIntervals = updatedIntervals
-                preferences.saveFocusPresence(dayKey, updatedIntervals)
+                if (structuralChange || currentNowMillis - lastPresenceSaveMillis >= 30_000L) {
+                    preferences.saveFocusPresence(dayKey, updatedIntervals)
+                    lastPresenceSaveMillis = currentNowMillis
+                }
             }
             delay(1_000)
         }
