@@ -984,7 +984,7 @@ private fun CountdownCircle(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            val circleSize = minOf(maxWidth, maxHeight).coerceIn(260.dp, 510.dp)
+            val circleSize = minOf(maxWidth, maxHeight, 510.dp)
             Box(Modifier.size(circleSize), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val strokeWidth = size.minDimension * .055f

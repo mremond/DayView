@@ -207,8 +207,9 @@ fun main() = application {
             title = "DayView Mini",
             state = rememberWindowState(width = 360.dp, height = 520.dp),
             alwaysOnTop = true,
-            resizable = false,
+            resizable = true,
         ) {
+            window.minimumSize = java.awt.Dimension(300, 400)
             DayViewMiniApp(
                 progress = dayProgress,
                 showSeconds = showSeconds,
