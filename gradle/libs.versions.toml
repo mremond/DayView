@@ -6,6 +6,7 @@ datetime = "0.8.0"
 datastore = "1.2.1"
 lifecycle = "2.9.6"
 okio = "3.17.0"
+material3 = "1.11.0-alpha07"
 jna = "5.19.1"
 activityCompose = "1.13.0"
 coroutines = "1.11.0"
@@ -26,6 +27,7 @@ compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.re
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

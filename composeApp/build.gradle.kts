@@ -46,7 +46,7 @@ ktlint {
 }
 
 kotlin {
-    // Robolectric requires Java 21 to emulate compileSdk 36.
+    // Robolectric requires Java 21 to emulate the current compile SDK.
     jvmToolchain(21)
 
     androidTarget()
@@ -57,7 +57,7 @@ kotlin {
             dependencies {
                 implementation(libs.compose.runtime)
                 implementation(libs.compose.foundation)
-                implementation(compose.material3)
+                implementation(libs.compose.material3)
                 implementation(libs.compose.ui)
                 implementation(libs.compose.components.resources)
                 implementation(libs.kotlinx.coroutines.core)
@@ -103,7 +103,7 @@ compose.resources {
 
 android {
     namespace = "fr.dayview.app"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "fr.dayview.app"
