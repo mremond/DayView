@@ -113,21 +113,13 @@ class DesktopDayPreferences internal constructor(
 
     override fun loadFocusPresence(): Pair<Long, List<FocusPresenceInterval>> {
         val day = storage.getLong(KEY_FOCUS_PRESENCE_DAY, -1L)
-        val intervals = storage.get(KEY_FOCUS_PRESENCE, "")
-            .split("\n")
-            .mapNotNull { line ->
-                val parts = line.split(",")
-                val s = parts.getOrNull(0)?.toLongOrNull()
-                val e = parts.getOrNull(1)?.toLongOrNull()
-                if (parts.size == 2 && s != null && e != null) FocusPresenceInterval(s, e) else null
-            }
+        val intervals = decodeFocusPresence(storage.get(KEY_FOCUS_PRESENCE, ""))
         return day to intervals
     }
 
     override fun saveFocusPresence(dayKey: Long, intervals: List<FocusPresenceInterval>) {
         storage.putLong(KEY_FOCUS_PRESENCE_DAY, dayKey)
-        storage.put(KEY_FOCUS_PRESENCE, intervals.joinToString("\n") { "${it.startMillis},${it.endMillis}" })
-        preferencesChanged()
+        storage.put(KEY_FOCUS_PRESENCE, encodeFocusPresence(intervals))
     }
 
     private companion object {

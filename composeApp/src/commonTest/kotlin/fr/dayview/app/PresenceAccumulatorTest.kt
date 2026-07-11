@@ -70,4 +70,21 @@ class PresenceAccumulatorTest {
         val result = neutral(a, 200_000L)
         assertEquals(listOf(FocusPresenceInterval(0L, 130_000L)), result)
     }
+
+    @Test
+    fun endSessionClosesTheRunSoTheNextSessionStartsFresh() {
+        val a = PresenceAccumulator()
+        on(a, 0L)
+        on(a, 130_000L) // session 1: [0, 130000]
+        a.endSession() // focus ends
+        on(a, 3_730_000L) // session 2 starts an hour later
+        val result = on(a, 3_860_000L) // session 2 run to +130s
+        assertEquals(
+            listOf(
+                FocusPresenceInterval(0L, 130_000L),
+                FocusPresenceInterval(3_730_000L, 3_860_000L),
+            ),
+            result,
+        )
+    }
 }

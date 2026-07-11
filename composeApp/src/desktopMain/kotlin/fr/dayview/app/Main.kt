@@ -51,6 +51,7 @@ fun main() = application {
     }
     var focusPresenceIntervals by remember { mutableStateOf(preferences.loadFocusPresence().second) }
     var lastPresenceSaveMillis by remember { mutableLongStateOf(0L) }
+    var wasFocusActive by remember { mutableStateOf(false) }
 
     DisposableEffect(preferences) {
         val stopObserving = preferences.observe { preferenceSnapshot = it }
@@ -111,10 +112,10 @@ fun main() = application {
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .date.toEpochDays()
             val classification = classifyFrontmost(frontmostBundleId, onGoalBundleIds)
-            val updatedIntervals = if (focusIsActive) {
-                presenceAccumulator.observe(currentNowMillis, classification, dayKey)
-            } else {
-                focusPresenceIntervals
+            val updatedIntervals = when {
+                focusIsActive -> presenceAccumulator.observe(currentNowMillis, classification, dayKey)
+                wasFocusActive -> presenceAccumulator.endSession() // session just ended: close the run
+                else -> focusPresenceIntervals
             }
             if (updatedIntervals != focusPresenceIntervals) {
                 val structuralChange = updatedIntervals.size != focusPresenceIntervals.size
@@ -124,6 +125,7 @@ fun main() = application {
                     lastPresenceSaveMillis = currentNowMillis
                 }
             }
+            wasFocusActive = focusIsActive
             delay(1_000)
         }
     }

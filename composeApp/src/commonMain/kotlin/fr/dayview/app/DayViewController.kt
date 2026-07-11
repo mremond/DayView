@@ -330,6 +330,7 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
+        onGoalApps = safe.onGoalApps,
         // Transient fields deliberately preserved: nowMillis, goalDeadlineText,
         // goalStartText, lastFocusClosure, destination, and calendar read results.
     )

@@ -124,21 +124,14 @@ class AndroidDayPreferences(
 
     override fun loadFocusPresence(): Pair<Long, List<FocusPresenceInterval>> {
         val day = storage.getLong(KEY_FOCUS_PRESENCE_DAY, -1L)
-        val intervals = storage.getString(KEY_FOCUS_PRESENCE, "").orEmpty()
-            .split("\n")
-            .mapNotNull { line ->
-                val parts = line.split(",")
-                val s = parts.getOrNull(0)?.toLongOrNull()
-                val e = parts.getOrNull(1)?.toLongOrNull()
-                if (parts.size == 2 && s != null && e != null) FocusPresenceInterval(s, e) else null
-            }
+        val intervals = decodeFocusPresence(storage.getString(KEY_FOCUS_PRESENCE, "").orEmpty())
         return day to intervals
     }
 
     override fun saveFocusPresence(dayKey: Long, intervals: List<FocusPresenceInterval>) {
         storage.edit()
             .putLong(KEY_FOCUS_PRESENCE_DAY, dayKey)
-            .putString(KEY_FOCUS_PRESENCE, intervals.joinToString("\n") { "${it.startMillis},${it.endMillis}" })
+            .putString(KEY_FOCUS_PRESENCE, encodeFocusPresence(intervals))
             .apply()
     }
 

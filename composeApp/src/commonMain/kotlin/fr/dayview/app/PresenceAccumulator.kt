@@ -1,7 +1,21 @@
 package fr.dayview.app
 
-/** A stretch of continuous on-goal presence (local-day relative), for the ring arcs. */
+/**
+ * A stretch of continuous on-goal presence, for the ring arcs. The millis are absolute
+ * epoch millis (projected against the absolute day window), not local-day relative.
+ */
 data class FocusPresenceInterval(val startMillis: Long, val endMillis: Long)
+
+/** Serialize intervals to one `start,end` line each, for preference storage. */
+fun encodeFocusPresence(intervals: List<FocusPresenceInterval>): String = intervals.joinToString("\n") { "${it.startMillis},${it.endMillis}" }
+
+/** Inverse of [encodeFocusPresence]; skips blank / malformed lines. */
+fun decodeFocusPresence(encoded: String): List<FocusPresenceInterval> = encoded.split("\n").mapNotNull { line ->
+    val parts = line.split(",")
+    val s = parts.getOrNull(0)?.toLongOrNull()
+    val e = parts.getOrNull(1)?.toLongOrNull()
+    if (parts.size == 2 && s != null && e != null) FocusPresenceInterval(s, e) else null
+}
 
 /**
  * Builds today's intense-focus intervals from the per-tick on-goal classification.
@@ -26,6 +40,22 @@ class PresenceAccumulator(
         closed.clear()
         closed.addAll(intervals)
         openStart = null
+    }
+
+    /**
+     * Finalize the open run at a focus-session boundary: commit it if it meets the
+     * minimum, then clear it so the next session starts a fresh interval rather than
+     * bridging across the inactive gap. Returns the current closed intervals.
+     */
+    fun endSession(): List<FocusPresenceInterval> {
+        val start = openStart
+        if (start != null) {
+            if (lastOnGoalMillis - start >= minIntervalMillis) {
+                closed.add(FocusPresenceInterval(start, lastOnGoalMillis))
+            }
+            openStart = null
+        }
+        return closed.toList()
     }
 
     fun observe(
