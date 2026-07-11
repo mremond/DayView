@@ -106,6 +106,22 @@ val nativePackagingOutput = file("${System.getProperty("java.io.tmpdir")}/dayvie
 val cleanNativePackagingOutput by tasks.registering(Delete::class) {
     delete(nativePackagingOutput)
 }
+val customizePackagedDmg by tasks.registering(Exec::class) {
+    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-1.0.0.dmg")
+    val volumeIcon = rootProject.file("artwork/dayview.icns")
+
+    onlyIf {
+        System.getProperty("os.name").startsWith("Mac", ignoreCase = true) && packagedDmg.isFile
+    }
+    inputs.file(packagedDmg)
+    inputs.file(volumeIcon)
+    outputs.file(packagedDmg)
+    commandLine(
+        rootProject.file("scripts/customize_macos_dmg.sh").absolutePath,
+        packagedDmg.absolutePath,
+        volumeIcon.absolutePath,
+    )
+}
 val copyPackagedDmg by tasks.registering(Copy::class) {
     from(nativePackagingOutput.resolve("main/dmg"))
     into(layout.buildDirectory.dir("compose/binaries/main/dmg"))
@@ -115,8 +131,9 @@ tasks.matching { it.name == "createDistributable" }.configureEach {
     dependsOn(cleanNativePackagingOutput)
 }
 tasks.matching { it.name == "packageDmg" }.configureEach {
-    finalizedBy(copyPackagedDmg)
+    finalizedBy(customizePackagedDmg)
 }
+customizePackagedDmg.configure { finalizedBy(copyPackagedDmg) }
 
 val macFocusHelperOutput = layout.buildDirectory.file("generated/macosFocusStatusHelper/macos-focus-status-helper")
 val macFocusHelperOutputFile = macFocusHelperOutput.get().asFile

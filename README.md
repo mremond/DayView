@@ -66,6 +66,9 @@ Pour générer l’image macOS :
 ./gradlew :composeApp:packageDmg
 ```
 
+Le volume généré utilise l’icône DayView et présente l’application à côté d’un
+raccourci vers `/Applications`, afin de permettre son installation par glisser-déposer.
+
 ## Icône
 
 Le SVG maître, prévu comme référence pour les déclinaisons Android et macOS, se régénère sans dépendance externe :
