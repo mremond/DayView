@@ -1,0 +1,203 @@
+# Multiplatform release chain (macOS, Linux, Android)
+
+Date: 2026-07-11
+Status: Approved design
+
+## Goal
+
+Wire up automated release builds that fire when a version tag is pushed and
+produce installable artifacts for macOS, Linux, and Android, published to a
+single GitHub Release for the tag. This is the first release chain for the
+project; there is currently no CI and no git tags.
+
+## Context
+
+- Kotlin Multiplatform / Compose Multiplatform app (`DayView`). Targets
+  `androidTarget()` and `jvm("desktop")`.
+- Compose `1.11.1`, Kotlin `2.3.20`, AGP `8.12.3`. JDK 17 baseline.
+- GitHub remote: `git@github.com:mremond/DayView.git`. No `.github/workflows`.
+- Desktop packaging currently emits only macOS `.dmg`
+  (`targetFormats(TargetFormat.Dmg)`), with macOS-only native pieces: a Swift
+  `MacFocusStatusHelper` compiled via `xcrun`, JNA `Native.load("objc")`, and a
+  menu-bar tray. These are already guarded by `onlyIf { os == Mac }` (Gradle
+  tasks) and `System.getProperty("os.name").startsWith("Mac")` (runtime code),
+  so a Linux build compiles and launches with those features inactive.
+- Android currently builds only a debug APK; there is no release signing config.
+- Hardcoded version strings today: Android `versionCode = 1`,
+  `versionName = "1.0"`; Compose `packageVersion = "1.0.0"`; and the
+  `customizePackagedDmg` / `copyPackagedDmg` Gradle tasks reference the literal
+  path `main/dmg/DayView-1.0.0.dmg`.
+
+## Decisions
+
+Locked during brainstorming:
+
+- **Mechanism:** GitHub Actions triggered on tag push.
+- **Publish target:** GitHub Releases only. No store upload, no CI-only
+  artifacts.
+- **Signing:** Skipped for this first chain. Android release APK is signed with
+  the existing **debug** signing config so it stays sideload-installable; macOS
+  `.dmg` and Linux packages are unsigned.
+- **Toolchain:** JDK **21** (the repo's `ci.yml` and `jvmToolchain(21)` already
+  require it — Robolectric needs 21 for compileSdk 36). ktlint is enforced
+  repo-wide (`./gradlew ktlintCheck`), so all Gradle-script edits must be
+  ktlint-clean.
+- **Android minification:** the merged CI already enabled `isMinifyEnabled` +
+  `isShrinkResources` on the `release` build type and proves `assembleRelease`
+  builds; this chain keeps that and only adds the debug `signingConfig`.
+- **Linux formats:** `.deb` + `.rpm` (built directly by Compose) **and** a true
+  single-file `.AppImage`. Note: Compose's `TargetFormat.AppImage` is *not* a
+  Linux `.AppImage` — it maps to jpackage's `app-image` (a plain application
+  directory). The portable `.AppImage` is produced by a dedicated
+  `scripts/build_appimage.sh` that wraps Compose's app-image output with
+  `appimagetool` in the Linux CI job.
+- **Desktop build variant:** minified **release** builds for both macOS and
+  Linux (Compose `Release` packaging tasks, R8/ProGuard enabled).
+- **Android artifact:** APK (not AAB), debug-signed, not minified for this first
+  chain.
+- **Version wiring:** fixed in `build.gradle.kts` (approved), so the tag is the
+  single source of truth for all three platforms.
+
+## Architecture
+
+Single workflow `.github/workflows/release.yml`, trigger `on: push: tags: ['v*']`.
+Four jobs:
+
+```
+tag v1.2.0 pushed
+  ├─ job: android   (ubuntu-latest)  → DayView-1.2.0.apk
+  ├─ job: linux     (ubuntu-latest)  → DayView-1.2.0.AppImage, .deb, .rpm
+  ├─ job: macos     (macos-latest)   → DayView-1.2.0.dmg
+  └─ job: release   (needs: [android, linux, macos])
+                                      → GitHub Release for the tag, all artifacts attached
+```
+
+- Each build job uploads its output via `actions/upload-artifact`.
+- The `release` job downloads all artifacts and publishes the Release with
+  `softprops/action-gh-release` (creates the Release for the tag, attaches
+  files). No secrets required.
+- Common setup per build job: `actions/checkout`, `actions/setup-java`
+  (Temurin 21), `gradle/actions/setup-gradle` for caching. The Android job also
+  runs `android-actions/setup-android`.
+
+### Version derivation
+
+The workflow strips the leading `v` from the tag ref (`v1.2.0` → `1.2.0`) and
+passes it to every Gradle invocation as `-Pappversion=1.2.0`.
+
+`build.gradle.kts` reads the `appversion` project property with a default
+fallback of `"1.0.0"` (the repo's existing default) for local builds where the
+property is absent:
+
+- Android `versionName` = the version string.
+- Android `versionCode` = derived monotonic integer from the semver:
+  `major*10000 + minor*100 + patch` (e.g. `1.2.0` → `10200`). Non-numeric
+  pre-release suffixes are stripped before parsing.
+- Native package version (`.dmg`/`.deb`/`.rpm`) must be strictly numeric with a
+  major component ≥ 1 (jpackage constraint); any pre-release suffix or major-0
+  version is remapped to `1.0.0`. Release tags should therefore be `v1.x`+.
+- Compose `packageVersion` = the version string.
+
+### Gradle changes
+
+1. Read `appversion` once and expose the version string + derived
+   `versionCode`.
+2. Apply the version to Android `defaultConfig` and Compose
+   `nativeDistributions.packageVersion`.
+3. **Fix the hardcoded DMG path and switch to the release variant**:
+   `customizePackagedDmg` and `copyPackagedDmg` currently match the
+   `packageDmg` task and read the literal path `main/dmg/DayView-1.0.0.dmg`.
+   Rewire them to the release flow: match/finalize `packageReleaseDmg`, and
+   build the path from the configured `packageVersion` under the **release**
+   output subdirectory (`main-release/dmg/DayView-<version>.dmg`). The
+   `cleanNativePackagingOutput` dependency, currently keyed on
+   `createDistributable`, must also cover `createReleaseDistributable`.
+4. **Enable minification** for the desktop release build via
+   `compose.desktop.application.buildTypes.release.proguard`
+   (`isEnabled = true`) with a project ProGuard rules file. Keep rules are
+   required for: the `fr.dayview.app.MainKt` entry point; JNA
+   (`net.java.dev.jna` / `com.sun.jna.**`, which uses reflection + native
+   binding); and Compose's generated resources class
+   (`fr.dayview.app.generated.resources.**`). Additional keep rules are added
+   as verification surfaces missing-class / stripped-symbol failures.
+5. Expand desktop `targetFormats` to `TargetFormat.Dmg, TargetFormat.Deb,
+   TargetFormat.Rpm`. Compose only builds formats valid for the current OS, so
+   macOS runners produce the `.dmg` and Linux runners produce `.deb` + `.rpm`.
+   The single-file `.AppImage` is built separately (see item 7).
+7. **Make the `outputBaseDir` temp-dir override macOS-only.** It exists solely
+   to dodge a macOS iCloud/FinderInfo codesign issue; on Linux it would push
+   `.deb`/`.rpm`/app-image into `$TMPDIR`. Guard it with the `isMacOS` check so
+   Linux packaging lands in the standard `build/compose/binaries/main-release/`.
+8. **AppImage packaging (`scripts/build_appimage.sh`, new).** Takes Compose's
+   release app-image directory
+   (`build/compose/binaries/main-release/app/DayView`), a version, and a PNG
+   icon; assembles an `AppDir` (with `AppRun`, `DayView.desktop`, icon) and runs
+   `appimagetool --appimage-extract-and-run` to emit
+   `DayView-<version>.x86_64.AppImage`. The Linux CI job generates the PNG from
+   `artwork/dayview-icon-reference.svg` with `rsvg-convert`.
+6. Point the Android `release` build type at the existing **debug** signing
+   config, with a comment marking it temporary until a real upload keystore is
+   added. This keeps `assembleRelease` output installable via sideload. Android
+   minification stays off for this first chain.
+
+### Per-platform build commands
+
+- **Android** (`ubuntu-latest`): `./gradlew :composeApp:assembleRelease
+  -Pappversion=$VERSION`. Rename the output to `DayView-<version>.apk`.
+- **Linux** (`ubuntu-latest`): `apt-get install` `rpm`, `fakeroot`, `binutils`,
+  and `librsvg2-bin` (jpackage needs `rpm`/`fakeroot` for `.rpm`; `rsvg-convert`
+  renders the AppImage icon). Then `./gradlew
+  :composeApp:packageReleaseDistributionForCurrentOS -Pappversion=$VERSION` for
+  `.deb`/`.rpm`, followed by `scripts/build_appimage.sh` for the `.AppImage`.
+  Swift-helper and DMG tasks are skipped by their existing `onlyIf { Mac }`.
+- **macOS** (`macos-latest`): `./gradlew :composeApp:packageReleaseDmg
+  -Pappversion=$VERSION` (the `customizePackagedDmg`/`copyPackagedDmg`
+  finalizers are rewired to `packageReleaseDmg`). `xcrun`/Swift helper work on
+  the runner.
+
+Both desktop jobs use the `Release` packaging tasks, so the app is minified
+with R8/ProGuard.
+
+## Risks
+
+- **ProGuard stripping (both desktop platforms).** Minification can strip
+  classes reached only via reflection or native binding, causing the packaged
+  app to crash at launch. Highest-risk areas: JNA, the `MainKt` entry point,
+  and Compose's generated resources. Mitigation: the keep rules above, plus a
+  mandatory launch smoke test of the *minified* build before trusting the
+  chain (see Testing). This is the main new risk introduced by the release
+  variant.
+- **Linux runtime (Native.load).** Verified already safe:
+  `MacFrontmostApplicationProvider.bundleIdentifier()`
+  (`FocusDriftDetector.kt:83`) returns early on `!isMacOS` before touching the
+  lazy `Native.load("objc")` runtime, and is wrapped in `runCatching`. No code
+  change needed; covered by the Linux launch smoke test.
+
+## Testing / verification
+
+- **Local (this Mac):** confirm the Gradle changes still produce a working
+  minified `.dmg` and a release APK when a version is passed via `-Pappversion`,
+  e.g. `./gradlew :composeApp:packageReleaseDmg :composeApp:assembleRelease
+  -Pappversion=9.9.9` — check the artifact filenames carry the version and the
+  DMG customize/copy tasks still succeed against the `main-release/dmg` path.
+- **Minified launch smoke test (critical):** actually launch the minified
+  macOS build (`./gradlew :composeApp:runRelease -Pappversion=9.9.9`, or open
+  the packaged `.dmg` app) and exercise the tray, main window, and a Focus
+  session to confirm ProGuard didn't strip anything needed. Add keep rules
+  until it launches and runs cleanly.
+- **CI dry run:** push a throwaway tag (e.g. `v1.0.0-test`) once the workflow
+  lands and confirm all artifacts attach to the resulting Release. Delete the
+  test tag/Release afterward.
+- **Linux launch** cannot be fully exercised from the Mac; flag it as a manual
+  smoke test (download the AppImage on a Linux box and confirm the window opens
+  with Mac-only features inactive).
+
+## Scope boundaries (YAGNI)
+
+Explicitly out of scope, left as clean follow-up seams:
+
+- Google Play / any store upload; Android AAB.
+- macOS notarization and Developer-ID signing.
+- Real Android upload keystore (swap the debug signing config for secrets).
+- Windows target.
+- Changelog / release-notes generation.

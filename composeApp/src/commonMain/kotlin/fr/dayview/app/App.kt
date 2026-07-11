@@ -5,9 +5,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 @Composable
@@ -19,6 +26,7 @@ fun DayViewApp(
     onLaunchAtLoginChange: ((Boolean) -> Unit)? = null,
     onOpenMiniWindow: (() -> Unit)? = null,
     onFocusAlarmChange: (endMillis: Long?, intention: String) -> Unit = { _, _ -> },
+    onRequestCalendarPermission: (() -> Unit)? = null,
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
     showFocusResumeRitual: Boolean = false,
@@ -31,10 +39,55 @@ fun DayViewApp(
             val state = controller.state
             val soundPlayer = remember { createSoundCuePlayer() }
             val soundScheduler = remember { SoundAlertScheduler() }
+            val calendarSource = remember { createCalendarSource() }
+            val calendarScope = rememberCoroutineScope()
+            var calendarPermissionProbe by remember { mutableIntStateOf(0) }
 
             DisposableEffect(controller, preferences) {
                 val stopObserving = preferences.observe { controller.onPreferencesChanged(it) }
                 onDispose(stopObserving)
+            }
+
+            val netMinute = state.nowMillis / 60_000L
+            LaunchedEffect(
+                netMinute,
+                state.netTimeSettings,
+                state.startMinutes,
+                state.endMinutes,
+                calendarPermissionProbe,
+            ) {
+                val (permission, busy, calendars) = withContext(Dispatchers.Default) {
+                    if (!state.netTimeSettings.enabled) {
+                        Triple(false, emptyList<BusyInterval>(), emptyList<CalendarInfo>())
+                    } else {
+                        val granted = runCatching { calendarSource.hasPermission() }.getOrDefault(false)
+                        if (granted) {
+                            val (start, end) = dayWindowMillis(state.nowMillis, state.startMinutes, state.endMinutes)
+                            val intervals = runCatching {
+                                calendarSource.busyIntervals(start, end, state.netTimeSettings.includedCalendarIds)
+                            }.getOrDefault(emptyList())
+                            val available = runCatching { calendarSource.availableCalendars() }
+                                .getOrDefault(emptyList())
+                            Triple(true, intervals, available)
+                        } else {
+                            Triple(false, emptyList<BusyInterval>(), emptyList<CalendarInfo>())
+                        }
+                    }
+                }
+                controller.updateNetTimeData(permission, busy, calendars)
+            }
+
+            val onRequestCalendarAccess: () -> Unit = {
+                val platformHook = onRequestCalendarPermission
+                if (platformHook != null) {
+                    platformHook()
+                    calendarPermissionProbe++
+                } else {
+                    calendarScope.launch {
+                        withContext(Dispatchers.Default) { runCatching { calendarSource.requestPermission() } }
+                        calendarPermissionProbe++
+                    }
+                }
             }
             PlatformBackHandler(enabled = state.destination == DayViewDestination.SETTINGS) {
                 controller.openToday()
@@ -82,6 +135,7 @@ fun DayViewApp(
                     platformState = SettingsPlatformUiState(
                         monochromeMenuBarIcon = monochromeMenuBarIcon,
                         launchAtLogin = launchAtLogin,
+                        netTimeSupported = calendarSource.isSupported(),
                     ),
                     actions = SettingsScreenActions(
                         changeStartTime = { controller.setStartMinutes(it) },
@@ -93,6 +147,11 @@ fun DayViewApp(
                         previewSound = { cue ->
                             soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
                         },
+                        changeNetTimeSettings = {
+                            controller.setNetTimeSettings(it)
+                            calendarPermissionProbe++
+                        },
+                        requestCalendarPermission = onRequestCalendarAccess,
                         back = { controller.openToday() },
                     ),
                 )

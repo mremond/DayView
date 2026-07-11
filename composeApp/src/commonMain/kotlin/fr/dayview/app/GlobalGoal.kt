@@ -119,3 +119,13 @@ fun calculateGoalProgress(
     val elapsed = total - remaining
     return (elapsed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
 }
+
+fun formatGoalSummaryLine(
+    title: String,
+    deadlineMillis: Long?,
+    workingMillis: Long,
+    deadlineReached: Boolean,
+): String = listOfNotNull(
+    title.ifBlank { null },
+    deadlineMillis?.let { formatGoalWorkingHours(workingMillis, deadlineReached) },
+).joinToString(" · ")

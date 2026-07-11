@@ -16,6 +16,7 @@ class DayPreferencesTest {
         assertEquals(25, DefaultDayPreferences.loadPomodoroMinutes())
         assertNull(DefaultDayPreferences.loadPomodoroEndMillis())
         assertEquals("", DefaultDayPreferences.loadFocusIntention())
+        assertEquals(NetTimeSettings(), DefaultDayPreferences.loadNetTimeSettings())
     }
 
     @Test
@@ -26,6 +27,9 @@ class DayPreferencesTest {
         DefaultDayPreferences.saveGlobalGoal("Temporaire", 42L, 42L)
         DefaultDayPreferences.savePomodoro(50, 123L)
         DefaultDayPreferences.saveFocusIntention("Terminer le test")
+        DefaultDayPreferences.saveNetTimeSettings(
+            NetTimeSettings(enabled = true, includedCalendarIds = setOf("travail")),
+        )
 
         assertEquals(8 * 60, DefaultDayPreferences.loadStartMinutes())
         assertEquals(18 * 60, DefaultDayPreferences.loadEndMinutes())
@@ -36,5 +40,6 @@ class DayPreferencesTest {
         assertEquals(25, DefaultDayPreferences.loadPomodoroMinutes())
         assertNull(DefaultDayPreferences.loadPomodoroEndMillis())
         assertEquals("", DefaultDayPreferences.loadFocusIntention())
+        assertEquals(NetTimeSettings(), DefaultDayPreferences.loadNetTimeSettings())
     }
 }

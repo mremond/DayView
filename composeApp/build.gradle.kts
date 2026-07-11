@@ -11,9 +11,33 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
-// Single source of truth for the app version: Android versionName,
+// Single source of truth for the app version: Android versionName/versionCode,
 // the desktop package version, and the DMG customization task all derive from it.
-val appVersion = "1.0.0"
+// Overridable at release time via -Pappversion=<tag> (see .github/workflows/release.yml).
+val appVersion: String =
+    (findProperty("appversion") as String?)?.takeIf { it.isNotBlank() } ?: "1.0.0"
+
+// Android requires a monotonic integer; derive it from the semver core.
+fun deriveVersionCode(version: String): Int {
+    val core = version.substringBefore('-').substringBefore('+')
+    val parts = core.split('.')
+    val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
+    val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+    val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
+    return (major * 10_000 + minor * 100 + patch).coerceAtLeast(1)
+}
+val appVersionCode: Int = deriveVersionCode(appVersion)
+
+// jpackage (dmg/deb/rpm) requires a strictly numeric X.Y.Z whose first component
+// is >= 1; map any pre-release suffix or major-0 version to a valid numeric version.
+val appPackageVersion: String =
+    appVersion.substringBefore('-').substringBefore('+').let { core ->
+        val major = core.substringBefore('.').toIntOrNull() ?: 0
+        if (major < 1) "1.0.0" else core
+    }
+
+val isMacHost: Boolean =
+    System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
 
 ktlint {
     filter {
@@ -79,12 +103,16 @@ android {
         applicationId = "fr.dayview.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
+        versionCode = appVersionCode
         versionName = appVersion
     }
 
     buildTypes {
         release {
+            // TEMPORARY: sign with the debug key so the release APK installs via
+            // sideload from a GitHub Release. Replace with a real upload keystore
+            // (GitHub secrets) before any Play distribution.
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -103,21 +131,30 @@ compose.desktop {
     application {
         mainClass = "fr.dayview.app.MainKt"
 
+        buildTypes.release.proguard {
+            isEnabled.set(true)
+            obfuscate.set(false)
+            configurationFiles.from(project.file("proguard-desktop.pro"))
+        }
+
         nativeDistributions {
             // Building an app bundle inside an iCloud/FileProvider-backed Documents
             // folder makes macOS attach com.apple.FinderInfo while jpackage is still
             // running. codesign rejects that attribute, so package in a local temp
-            // directory and copy only the completed DMG back into build/.
-            outputBaseDir.set(
-                layout.dir(
-                    providers.provider {
-                        file("${System.getProperty("java.io.tmpdir")}/dayview-compose-package")
-                    },
-                ),
-            )
-            targetFormats(TargetFormat.Dmg)
+            // directory and copy only the completed DMG back into build/. This only
+            // applies to macOS; on Linux it would push .deb/.rpm/app-image into $TMPDIR.
+            if (isMacHost) {
+                outputBaseDir.set(
+                    layout.dir(
+                        providers.provider {
+                            file("${System.getProperty("java.io.tmpdir")}/dayview-compose-package")
+                        },
+                    ),
+                )
+            }
+            targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "DayView"
-            packageVersion = appVersion
+            packageVersion = appPackageVersion
             description = "Une représentation visuelle du temps qu'il reste aujourd'hui."
             vendor = "DayView"
             macOS {
@@ -133,7 +170,7 @@ val cleanNativePackagingOutput by tasks.registering(Delete::class) {
     delete(nativePackagingOutput)
 }
 val customizePackagedDmg by tasks.registering(Exec::class) {
-    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-$appVersion.dmg")
+    val packagedDmg = nativePackagingOutput.resolve("main-release/dmg/DayView-$appPackageVersion.dmg")
     val volumeIcon = rootProject.file("artwork/dayview.icns")
 
     onlyIf {
@@ -149,14 +186,14 @@ val customizePackagedDmg by tasks.registering(Exec::class) {
     )
 }
 val copyPackagedDmg by tasks.registering(Copy::class) {
-    from(nativePackagingOutput.resolve("main/dmg"))
-    into(layout.buildDirectory.dir("compose/binaries/main/dmg"))
+    from(nativePackagingOutput.resolve("main-release/dmg"))
+    into(layout.buildDirectory.dir("compose/binaries/main-release/dmg"))
 }
 
-tasks.matching { it.name == "createDistributable" }.configureEach {
+tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable") }.configureEach {
     dependsOn(cleanNativePackagingOutput)
 }
-tasks.matching { it.name == "packageDmg" }.configureEach {
+tasks.matching { it.name == "packageReleaseDmg" }.configureEach {
     finalizedBy(customizePackagedDmg)
 }
 customizePackagedDmg.configure { finalizedBy(copyPackagedDmg) }
@@ -181,6 +218,26 @@ val compileMacFocusStatusHelper by tasks.registering(Exec::class) {
     )
 }
 
+val macEventKitHelperOutput = layout.buildDirectory.file("generated/macosFocusStatusHelper/macos-eventkit-helper")
+val macEventKitHelperOutputFile = macEventKitHelperOutput.get().asFile
+macEventKitHelperOutputFile.parentFile.mkdirs()
+val compileMacEventKitHelper by tasks.registering(Exec::class) {
+    onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
+    inputs.file(rootProject.file("scripts/MacEventKitHelper.swift"))
+    outputs.file(macEventKitHelperOutput)
+    commandLine(
+        "xcrun",
+        "swiftc",
+        rootProject.file("scripts/MacEventKitHelper.swift").absolutePath,
+        "-O",
+        "-framework",
+        "EventKit",
+        "-o",
+        macEventKitHelperOutputFile.absolutePath,
+    )
+}
+
 tasks.matching { it.name in setOf("desktopProcessResources", "desktopTestProcessResources") }.configureEach {
     dependsOn(compileMacFocusStatusHelper)
+    dependsOn(compileMacEventKitHelper)
 }

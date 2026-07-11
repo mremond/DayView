@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -30,8 +31,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +52,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -58,8 +64,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.atan2
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 internal data class DayViewScreenActions(
@@ -129,7 +139,15 @@ internal fun DayViewScreen(
                         modifier = Modifier.weight(1.15f).fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        CountdownCircle(progress, state.showSeconds, Modifier.weight(1f).fillMaxWidth())
+                        CountdownCircle(
+                            progress,
+                            state.showSeconds,
+                            Modifier.weight(1f).fillMaxWidth(),
+                            busyArcs = state.busyArcsState,
+                            netTime = state.netTime,
+                            windowStartMillis = state.dayWindow.first,
+                            windowEndMillis = state.dayWindow.second,
+                        )
                         Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
                             title = state.goalTitle,
@@ -165,42 +183,289 @@ internal fun DayViewScreen(
                     )
                 }
             } else {
-                CountdownCircle(progress, state.showSeconds, Modifier.fillMaxWidth().height(compactCountdownHeight))
-                Spacer(Modifier.height(12.dp))
-                GlobalGoalPanel(
-                    title = state.goalTitle,
-                    deadlineText = state.goalDeadlineText,
-                    deadlineMillis = state.goalDeadlineMillis,
-                    startText = state.goalStartText,
-                    startMillis = state.goalStartMillis,
-                    nowMillis = state.nowMillis,
-                    workStartMinutes = progress.startHour * 60 + progress.startMinute,
-                    workEndMinutes = progress.endHour * 60 + progress.endMinute,
-                    onTitleChange = actions.changeGoalTitle,
-                    onDeadlineChange = actions.changeGoalDeadline,
-                    onDeadlineCommit = actions.commitGoalDeadline,
-                    onStartChange = actions.changeGoalStart,
-                    onStartCommit = actions.commitGoalStart,
+                CountdownCircle(
+                    progress,
+                    state.showSeconds,
+                    Modifier.fillMaxWidth().height(compactCountdownHeight),
+                    busyArcs = state.busyArcsState,
+                    netTime = state.netTime,
+                    windowStartMillis = state.dayWindow.first,
+                    windowEndMillis = state.dayWindow.second,
                 )
-                Spacer(Modifier.height(18.dp))
-                SidePanel(
-                    progress = progress,
-                    pomodoro = pomodoro,
-                    focusIntention = state.focusIntention,
-                    lastFocusClosure = state.lastFocusClosure,
-                    onFocusIntentionChange = actions.changeFocusIntention,
-                    showFocusDriftReminder = reminders.showDriftReminder,
-                    onDismissFocusDriftReminder = reminders.dismissDriftReminder,
-                    showFocusResumeRitual = reminders.showResumeRitual,
-                    onDismissFocusResumeRitual = reminders.dismissResumeRitual,
-                    onPomodoroDurationChange = actions.changePomodoroDuration,
-                    onPomodoroStart = actions.startPomodoro,
-                    onPomodoroStop = actions.stopPomodoro,
-                    onPomodoroClose = actions.closePomodoro,
-                    modifier = Modifier.fillMaxWidth(),
+                Spacer(Modifier.height(12.dp))
+                CompactTodayContent(
+                    state = state,
+                    actions = actions,
+                    reminders = reminders,
                 )
             }
         }
+    }
+}
+
+private enum class CompactSheet { FOCUS, GOAL }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CompactTodayContent(
+    state: DayViewUiState,
+    actions: DayViewScreenActions,
+    reminders: FocusReminderUiState,
+) {
+    val colors = LocalDayViewColors.current
+    val progress = state.dayProgress
+    val pomodoro = state.pomodoroProgress
+    var openSheet by remember { mutableStateOf<CompactSheet?>(null) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = when {
+                !progress.hasStarted -> "La journée n’a pas commencé."
+                progress.isFinished -> "Le temps prévu est écoulé."
+                progress.remainingRatio < .2f -> "La journée touche à sa fin."
+                else -> "Gardez le cap, sans pression."
+            },
+            color = colors.muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(16.dp))
+
+        CompactGoalRow(
+            title = state.goalTitle,
+            deadlineMillis = state.goalDeadlineMillis,
+            nowMillis = state.nowMillis,
+            workStartMinutes = progress.startHour * 60 + progress.startMinute,
+            workEndMinutes = progress.endHour * 60 + progress.endMinute,
+            onClick = { openSheet = CompactSheet.GOAL },
+        )
+        Spacer(Modifier.height(14.dp))
+
+        if (pomodoro.status == PomodoroStatus.IDLE) {
+            FocusEntryButton(
+                lastClosure = state.lastFocusClosure,
+                onClick = { openSheet = CompactSheet.FOCUS },
+            )
+        } else {
+            FocusPanel(
+                progress = pomodoro,
+                intention = state.focusIntention,
+                lastClosure = state.lastFocusClosure,
+                onIntentionChange = actions.changeFocusIntention,
+                showDriftReminder = reminders.showDriftReminder,
+                onDismissDriftReminder = reminders.dismissDriftReminder,
+                showResumeRitual = reminders.showResumeRitual,
+                onDismissResumeRitual = reminders.dismissResumeRitual,
+                onDurationChange = actions.changePomodoroDuration,
+                onStart = actions.startPomodoro,
+                onStop = actions.stopPomodoro,
+                onClose = actions.closePomodoro,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).background(if (progress.isFinished) colors.red else colors.mint, CircleShape))
+            Spacer(Modifier.width(9.dp))
+            Text(
+                if (progress.isFinished) "0 % de la journée disponible" else "${progress.percentageRemaining} % de la journée disponible",
+                color = colors.muted,
+                fontSize = 12.sp,
+            )
+        }
+    }
+
+    if (openSheet == CompactSheet.FOCUS) {
+        ModalBottomSheet(
+            onDismissRequest = { openSheet = null },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = colors.panel,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp)
+                    .imePadding(),
+            ) {
+                Text("FOCUS", color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                Spacer(Modifier.height(14.dp))
+                FocusCreationContent(
+                    progress = pomodoro,
+                    intention = state.focusIntention,
+                    lastClosure = state.lastFocusClosure,
+                    onIntentionChange = actions.changeFocusIntention,
+                    onDurationChange = actions.changePomodoroDuration,
+                    onStart = {
+                        actions.startPomodoro()
+                        openSheet = null
+                    },
+                )
+            }
+        }
+    }
+
+    if (openSheet == CompactSheet.GOAL) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                actions.commitGoalDeadline()
+                openSheet = null
+            },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = colors.panel,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp)
+                    .imePadding(),
+            ) {
+                GoalEditorContent(
+                    title = state.goalTitle,
+                    deadlineText = state.goalDeadlineText,
+                    onTitleChange = actions.changeGoalTitle,
+                    onDeadlineChange = actions.changeGoalDeadline,
+                    onDeadlineCommit = actions.commitGoalDeadline,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactGoalRow(
+    title: String,
+    deadlineMillis: Long?,
+    nowMillis: Long,
+    workStartMinutes: Int,
+    workEndMinutes: Int,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    val hasGoal = title.isNotBlank() || deadlineMillis != null
+    val workingMillis = remember(nowMillis / 60_000, deadlineMillis, workStartMinutes, workEndMinutes) {
+        deadlineMillis?.let {
+            calculateGoalWorkingMillis(
+                nowMillis = nowMillis,
+                deadlineMillis = it,
+                startMinutesOfDay = workStartMinutes,
+                endMinutesOfDay = workEndMinutes,
+            )
+        } ?: 0L
+    }
+    Row(
+        modifier = Modifier.widthIn(max = 430.dp).fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(14.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (hasGoal) {
+            Text("OBJECTIF", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                formatGoalSummaryLine(
+                    title = title,
+                    deadlineMillis = deadlineMillis,
+                    workingMillis = workingMillis,
+                    deadlineReached = deadlineMillis != null && deadlineMillis <= nowMillis,
+                ),
+                color = colors.cloud,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Text(
+                "+ Définir un objectif",
+                color = colors.muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusEntryButton(
+    lastClosure: FocusClosureOutcome?,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Column(
+        modifier = Modifier.widthIn(max = 430.dp).fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (lastClosure != null) {
+            FocusClosureChip(lastClosure)
+        }
+        FocusActionButton(
+            "DÉMARRER UN FOCUS",
+            colors.amber,
+            modifier = Modifier.fillMaxWidth(),
+            filled = true,
+            onClick = onClick,
+        )
+    }
+}
+
+@Composable
+private fun FocusClosureChip(outcome: FocusClosureOutcome) {
+    val colors = LocalDayViewColors.current
+    val closureLabel = when (outcome) {
+        FocusClosureOutcome.COMPLETED -> "TERMINÉ"
+        FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
+        FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
+    }
+    Text(
+        "FOCUS CLÔTURÉ · $closureLabel",
+        color = colors.mint,
+        fontSize = 9.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = .9.sp,
+    )
+    Spacer(Modifier.height(10.dp))
+}
+
+@Composable
+private fun GoalEditorContent(
+    title: String,
+    deadlineText: String,
+    onTitleChange: (String) -> Unit,
+    onDeadlineChange: (String) -> Unit,
+    onDeadlineCommit: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    val deadlineIsValid = deadlineText.isBlank() || parseGoalDeadline(deadlineText) != null
+    Text("OBJECTIF GLOBAL", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+    Spacer(Modifier.height(12.dp))
+    GoalTextField(
+        value = title,
+        semanticLabel = "Objectif du jour",
+        placeholder = "Que voulez-vous accomplir ?",
+        onValueChange = onTitleChange,
+        imeAction = ImeAction.Next,
+    )
+    Spacer(Modifier.height(9.dp))
+    GoalTextField(
+        value = deadlineText,
+        semanticLabel = "Date limite de l’objectif",
+        placeholder = GOAL_DATE_PLACEHOLDER,
+        onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
+        isError = !deadlineIsValid,
+        keyboardType = KeyboardType.Number,
+        onFocusLost = onDeadlineCommit,
+    )
+    if (!deadlineIsValid) {
+        Spacer(Modifier.height(6.dp))
+        Text("Format attendu : $GOAL_DATE_PLACEHOLDER", color = colors.red, fontSize = 10.sp)
     }
 }
 
@@ -246,6 +511,10 @@ internal fun CountdownCircle(
     progress: DayProgress,
     showSeconds: Boolean,
     modifier: Modifier = Modifier,
+    busyArcs: List<BusyArc> = emptyList(),
+    netTime: NetTime? = null,
+    windowStartMillis: Long = 0L,
+    windowEndMillis: Long = 0L,
 ) {
     val colors = LocalDayViewColors.current
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
@@ -257,6 +526,7 @@ internal fun CountdownCircle(
         },
         label = "accent",
     )
+    var hoveredBusy by remember { mutableStateOf<HoveredBusyArc?>(null) }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         BoxWithConstraints(
@@ -264,7 +534,28 @@ internal fun CountdownCircle(
             contentAlignment = Alignment.Center,
         ) {
             val circleSize = minOf(maxWidth, maxHeight, 510.dp)
-            Box(Modifier.size(circleSize), contentAlignment = Alignment.Center) {
+            val circleModifier = if (busyArcs.isEmpty()) {
+                Modifier.size(circleSize)
+            } else {
+                Modifier.size(circleSize).pointerInput(busyArcs) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val position = event.changes.firstOrNull()?.position
+                            if (event.type == PointerEventType.Exit || position == null) {
+                                hoveredBusy = null
+                            } else if (
+                                event.type == PointerEventType.Move ||
+                                event.type == PointerEventType.Enter
+                            ) {
+                                hoveredBusy = hitTestBusyArc(position, size.width, size.height, busyArcs)
+                                    ?.let { HoveredBusyArc(it, position) }
+                            }
+                        }
+                    }
+                }
+            }
+            Box(circleModifier, contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val strokeWidth = size.minDimension * .055f
                     val inset = strokeWidth / 2 + 4.dp.toPx()
@@ -279,6 +570,18 @@ internal fun CountdownCircle(
                         size = arcSize,
                         style = Stroke(strokeWidth, cap = StrokeCap.Round),
                     )
+
+                    busyArcs.forEach { arc ->
+                        drawArc(
+                            color = colors.overlay.copy(alpha = .35f),
+                            startAngle = arc.startAngleDegrees,
+                            sweepAngle = arc.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(strokeWidth, cap = StrokeCap.Butt),
+                        )
+                    }
 
                     repeat(24) { index ->
                         val angle = Math.toRadians(index * 15.0 - 90.0)
@@ -357,11 +660,89 @@ internal fun CountdownCircle(
                                 letterSpacing = .8.sp,
                             )
                         }
+                        if (netTime != null && netTime.busyRemainingMillis > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Net ${formatDurationHm(netTime.netRemainingMillis)}",
+                                color = colors.mint,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = .5.sp,
+                            )
+                            Text(
+                                "${formatDurationHm(netTime.busyRemainingMillis)} occupé",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                letterSpacing = .5.sp,
+                            )
+                        }
+                    }
+                }
+
+                hoveredBusy?.let { hovered ->
+                    val arc = hovered.arc
+                    val startLabel = formatClockHm(
+                        angleToMillis(arc.startAngleDegrees, windowStartMillis, windowEndMillis),
+                    )
+                    val endLabel = formatClockHm(
+                        angleToMillis(
+                            arc.startAngleDegrees + arc.sweepDegrees,
+                            windowStartMillis,
+                            windowEndMillis,
+                        ),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset {
+                                IntOffset(
+                                    hovered.position.x.roundToInt() + 14,
+                                    hovered.position.y.roundToInt() + 14,
+                                )
+                            }
+                            .background(colors.panel, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Column {
+                            val titles = arc.titles.filter { it.isNotBlank() }
+                            if (titles.isEmpty()) {
+                                Text("Occupé", color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            } else {
+                                titles.forEach { title ->
+                                    Text(title, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            Text(
+                                "$startLabel – $endLabel",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                letterSpacing = .5.sp,
+                            )
+                        }
                     }
                 }
             }
         }
     }
+}
+
+private data class HoveredBusyArc(val arc: BusyArc, val position: Offset)
+
+/** Renvoie l'arc occupé sous le pointeur, ou null si le pointeur n'est pas sur l'anneau. */
+private fun hitTestBusyArc(
+    position: Offset,
+    width: Int,
+    height: Int,
+    busyArcs: List<BusyArc>,
+): BusyArc? {
+    val cx = width / 2f
+    val cy = height / 2f
+    val dx = position.x - cx
+    val dy = position.y - cy
+    val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
+    if (radiusFraction !in 0.70f..1.02f) return null
+    val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+    return busyArcs.firstOrNull { arcContainsAngle(it, angle) }
 }
 
 @Composable
@@ -644,74 +1025,82 @@ private fun FocusPanel(
                 )
             }
         } else {
-            if (lastClosure != null) {
-                val closureLabel = when (lastClosure) {
-                    FocusClosureOutcome.COMPLETED -> "TERMINÉ"
-                    FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
-                    FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
-                }
-                Text(
-                    "FOCUS CLÔTURÉ · $closureLabel",
-                    color = colors.mint,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = .9.sp,
-                )
-                Spacer(Modifier.height(10.dp))
-            }
-            Text(
-                "À LA FIN DE CE FOCUS, J’AURAI…",
-                color = colors.muted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
+            FocusCreationContent(
+                progress = progress,
+                intention = intention,
+                lastClosure = lastClosure,
+                onIntentionChange = onIntentionChange,
+                onDurationChange = onDurationChange,
+                onStart = onStart,
             )
-            Spacer(Modifier.height(7.dp))
-            GoalTextField(
-                value = intention,
-                semanticLabel = "Intention du Focus",
-                placeholder = "Ex. terminé le plan de la présentation",
-                onValueChange = onIntentionChange,
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                TimeButton(
-                    label = "−",
-                    enabled = progress.durationMinutes > 5,
-                    onClickLabel = "Diminuer la durée du Focus de 5 minutes",
-                    valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
-                ) { onDurationChange(-5) }
-                Spacer(Modifier.width(18.dp))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
-                    Text("MINUTES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                }
-                Spacer(Modifier.width(18.dp))
-                TimeButton(
-                    label = "+",
-                    enabled = progress.durationMinutes < 180,
-                    onClickLabel = "Augmenter la durée du Focus de 5 minutes",
-                    valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
-                ) { onDurationChange(5) }
-            }
-            Spacer(Modifier.height(13.dp))
-            FocusActionButton(
-                "DÉMARRER LE FOCUS",
-                colors.amber,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = intention.isNotBlank(),
-                filled = true,
-                onClick = onStart,
-            )
-            if (intention.isBlank()) {
-                Spacer(Modifier.height(7.dp))
-                Text("Écrivez une intention pour démarrer.", color = colors.muted, fontSize = 10.sp)
-            }
         }
+    }
+}
+
+@Composable
+private fun FocusCreationContent(
+    progress: PomodoroProgress,
+    intention: String,
+    lastClosure: FocusClosureOutcome?,
+    onIntentionChange: (String) -> Unit,
+    onDurationChange: (Int) -> Unit,
+    onStart: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    if (lastClosure != null) {
+        FocusClosureChip(lastClosure)
+    }
+    Text(
+        "À LA FIN DE CE FOCUS, J’AURAI…",
+        color = colors.muted,
+        fontSize = 9.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp,
+    )
+    Spacer(Modifier.height(7.dp))
+    GoalTextField(
+        value = intention,
+        semanticLabel = "Intention du Focus",
+        placeholder = "Ex. terminé le plan de la présentation",
+        onValueChange = onIntentionChange,
+    )
+    Spacer(Modifier.height(12.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        TimeButton(
+            label = "−",
+            enabled = progress.durationMinutes > 5,
+            onClickLabel = "Diminuer la durée du Focus de 5 minutes",
+            valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+        ) { onDurationChange(-5) }
+        Spacer(Modifier.width(18.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
+            Text("MINUTES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        }
+        Spacer(Modifier.width(18.dp))
+        TimeButton(
+            label = "+",
+            enabled = progress.durationMinutes < 180,
+            onClickLabel = "Augmenter la durée du Focus de 5 minutes",
+            valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+        ) { onDurationChange(5) }
+    }
+    Spacer(Modifier.height(13.dp))
+    FocusActionButton(
+        "DÉMARRER LE FOCUS",
+        colors.amber,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = intention.isNotBlank(),
+        filled = true,
+        onClick = onStart,
+    )
+    if (intention.isBlank()) {
+        Spacer(Modifier.height(7.dp))
+        Text("Écrivez une intention pour démarrer.", color = colors.muted, fontSize = 10.sp)
     }
 }
 

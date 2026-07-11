@@ -250,4 +250,70 @@ class GlobalGoalTest {
         val deadline = millis("2026-01-07T18:00")
         assertEquals(0.5f, calculateGoalProgress(now, start, deadline, 8 * 60, 18 * 60, zone), 0.001f)
     }
+
+    @Test
+    fun goalSummaryJoinsTitleAndRemainingHours() {
+        val line = formatGoalSummaryLine(
+            title = "Livrer la v2",
+            deadlineMillis = 1_000L,
+            workingMillis = 12 * 3_600_000L,
+            deadlineReached = false,
+        )
+        assertEquals("Livrer la v2 · Encore 12 h", line)
+    }
+
+    @Test
+    fun goalSummaryShowsRemainingHoursWhenTitleBlank() {
+        val line = formatGoalSummaryLine(
+            title = "",
+            deadlineMillis = 1_000L,
+            workingMillis = 12 * 3_600_000L,
+            deadlineReached = false,
+        )
+        assertEquals("Encore 12 h", line)
+    }
+
+    @Test
+    fun goalSummaryShowsTitleOnlyWhenNoDeadline() {
+        val line = formatGoalSummaryLine(
+            title = "Livrer la v2",
+            deadlineMillis = null,
+            workingMillis = 0L,
+            deadlineReached = false,
+        )
+        assertEquals("Livrer la v2", line)
+    }
+
+    @Test
+    fun goalSummaryShowsDeadlineReached() {
+        val line = formatGoalSummaryLine(
+            title = "Livrer la v2",
+            deadlineMillis = 1_000L,
+            workingMillis = 0L,
+            deadlineReached = true,
+        )
+        assertEquals("Livrer la v2 · Échéance atteinte", line)
+    }
+
+    @Test
+    fun goalSummaryShowsLessThanAnHourWhenNoWorkingTimeLeft() {
+        val line = formatGoalSummaryLine(
+            title = "",
+            deadlineMillis = 1_000L,
+            workingMillis = 0L,
+            deadlineReached = false,
+        )
+        assertEquals("Moins d’une heure de travail", line)
+    }
+
+    @Test
+    fun goalSummaryEmptyWhenNothingSet() {
+        val line = formatGoalSummaryLine(
+            title = "",
+            deadlineMillis = null,
+            workingMillis = 0L,
+            deadlineReached = false,
+        )
+        assertEquals("", line)
+    }
 }

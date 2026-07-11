@@ -311,6 +311,33 @@ class DayViewControllerTest {
 
         stopObserving()
     }
+
+    @Test
+    fun selfWritesReconcileWithoutClobberingStateOrDrafts() {
+        val preferences = InMemoryDayPreferences()
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val stopObserving = preferences.observe(controller::onPreferencesChanged)
+
+        // An unsaved draft plus a persisting edit: the persisting edit's re-entrant
+        // reconcile must keep both the draft and the just-written value.
+        controller.setGoalDeadlineText("25/12/2026 19:45")
+        controller.setGoalTitle("Publier la version 1")
+
+        assertEquals("Publier la version 1", controller.state.goalTitle)
+        assertEquals("25/12/2026 19:45", controller.state.goalDeadlineText)
+
+        // closePomodoro persists twice (pomodoro then intention); the reconcile
+        // between the two saves must not revert the final intention/outcome.
+        controller.setFocusIntention("Préparer la démonstration")
+        controller.startPomodoro()
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        assertEquals("", controller.state.focusIntention)
+        assertEquals(FocusClosureOutcome.COMPLETED, controller.state.lastFocusClosure)
+        assertEquals(null, controller.state.pomodoroEndMillis)
+
+        stopObserving()
+    }
 }
 
 private class InMemoryDayPreferences(
@@ -342,6 +369,7 @@ private class InMemoryDayPreferences(
     override fun loadPomodoroMinutes(): Int = current.pomodoroMinutes
     override fun loadPomodoroEndMillis(): Long? = current.pomodoroEndMillis
     override fun loadFocusIntention(): String = current.focusIntention
+    override fun loadNetTimeSettings(): NetTimeSettings = current.netTimeSettings
 
     override fun saveDayRange(startMinutes: Int, endMinutes: Int) {
         current = current.copy(startMinutes = startMinutes, endMinutes = endMinutes)
@@ -370,6 +398,11 @@ private class InMemoryDayPreferences(
 
     override fun saveFocusIntention(intention: String) {
         current = current.copy(focusIntention = intention)
+        emit()
+    }
+
+    override fun saveNetTimeSettings(settings: NetTimeSettings) {
+        current = current.copy(netTimeSettings = settings)
         emit()
     }
 }
