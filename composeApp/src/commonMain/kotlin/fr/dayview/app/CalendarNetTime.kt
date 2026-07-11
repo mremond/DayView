@@ -109,6 +109,12 @@ fun angleToMillis(angleDegrees: Float, windowStartMillis: Long, windowEndMillis:
     return windowStartMillis + (fraction * (windowEndMillis - windowStartMillis)).toLong()
 }
 
+/** Vrai si l'angle (degrés, convention drawArc) tombe dans le balayage de l'arc, wraparound compris. */
+fun arcContainsAngle(arc: BusyArc, angleDegrees: Float): Boolean {
+    val delta = (((angleDegrees - arc.startAngleDegrees) % 360f) + 360f) % 360f
+    return delta <= arc.sweepDegrees
+}
+
 fun busyArcs(
     windowStartMillis: Long,
     windowEndMillis: Long,

@@ -31,6 +31,17 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun mergeAbsorbsFullyContainedInterval() {
+        val merged = mergeBusyIntervals(
+            listOf(interval(100, 500, "Bloc"), interval(200, 300, "Interne")),
+        )
+        assertEquals(1, merged.size)
+        assertEquals(100, merged[0].startMillis)
+        assertEquals(500, merged[0].endMillis) // la borne du conteneur n'est pas rognée
+        assertEquals(listOf("Bloc", "Interne"), merged[0].titles)
+    }
+
+    @Test
     fun dayWindowReturnsAbsoluteBounds() {
         val zone = TimeZone.of("Europe/Paris")
         val noon = LocalDateTime(2026, 7, 11, 12, 0)
@@ -59,6 +70,57 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun netTimeIgnoresBusyEntirelyInPast() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone).toEpochMilliseconds()
+        val (start, end) = dayWindowMillis(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        val busy = listOf(interval(start + 3_600_000, start + 2 * 3_600_000, "Matin")) // 09:00-10:00
+        val net = calculateNetTime(progress, noon, start, end, busy)
+        assertEquals(0, net.busyRemainingMillis)
+        assertEquals(progress.remainingMillis, net.netRemainingMillis)
+        assertEquals((end - start) - 3_600_000, net.netDayMillis)
+    }
+
+    @Test
+    fun netTimeCountsOnlyFutureHalfOfStraddlingBusy() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone).toEpochMilliseconds()
+        val (start, end) = dayWindowMillis(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        // Réunion 11:30-12:30, à cheval sur midi -> seule la moitié future compte comme restante.
+        val busy = listOf(interval(noon - 1_800_000, noon + 1_800_000, "Point"))
+        val net = calculateNetTime(progress, noon, start, end, busy)
+        assertEquals(1_800_000, net.busyRemainingMillis)
+        assertEquals((end - start) - 3_600_000, net.netDayMillis) // l'heure entière est déduite du jour
+    }
+
+    @Test
+    fun netTimeClipsBusyExtendingBeyondWindow() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone).toEpochMilliseconds()
+        val (start, end) = dayWindowMillis(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        // 17:00-19:00 : seule l'heure interne (17:00-18:00) compte.
+        val busy = listOf(interval(end - 3_600_000, end + 3_600_000, "Soirée"))
+        val net = calculateNetTime(progress, noon, start, end, busy)
+        assertEquals(3_600_000, net.busyRemainingMillis)
+        assertEquals((end - start) - 3_600_000, net.netDayMillis)
+    }
+
+    @Test
+    fun netTimeWithoutBusyEqualsGross() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone).toEpochMilliseconds()
+        val (start, end) = dayWindowMillis(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        val net = calculateNetTime(progress, noon, start, end, emptyList())
+        assertEquals(0, net.busyRemainingMillis)
+        assertEquals(progress.remainingMillis, net.netRemainingMillis)
+        assertEquals(end - start, net.netDayMillis)
+    }
+
+    @Test
     fun busyArcsProjectAtElapsedFraction() {
         // Fenêtre 0..1000. Plage 250..500 -> quart..moitié.
         val arcs = busyArcs(0, 1000, listOf(interval(250, 500, "X")))
@@ -73,6 +135,25 @@ class CalendarNetTimeTest {
         val arcs = busyArcs(0, 1000, listOf(interval(-200, 200, "Y")))
         assertEquals(-90f, arcs[0].startAngleDegrees)
         assertEquals(0.2f * 360f, arcs[0].sweepDegrees)
+    }
+
+    @Test
+    fun busyArcsHandleDegenerateWindow() {
+        assertEquals(emptyList(), busyArcs(500, 500, listOf(interval(400, 600, "Z"))))
+    }
+
+    @Test
+    fun arcContainsAngleHandlesSweepAndWraparound() {
+        // Arc bas-gauche 200°..240°.
+        val arc = BusyArc(startAngleDegrees = 200f, sweepDegrees = 40f, titles = listOf("R"))
+        assertEquals(true, arcContainsAngle(arc, 220f))
+        // atan2 renvoie 220° comme -140° : le wraparound doit quand même l'inclure.
+        assertEquals(true, arcContainsAngle(arc, -140f))
+        assertEquals(false, arcContainsAngle(arc, 100f))
+        // Arc au sommet, à cheval sur la frontière -90°.
+        val topArc = BusyArc(startAngleDegrees = -110f, sweepDegrees = 40f, titles = emptyList())
+        assertEquals(true, arcContainsAngle(topArc, -90f))
+        assertEquals(false, arcContainsAngle(topArc, 0f))
     }
 
     @Test

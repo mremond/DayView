@@ -1517,10 +1517,7 @@ private fun hitTestBusyArc(
     val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
     if (radiusFraction !in 0.70f..1.02f) return null
     val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-    return busyArcs.firstOrNull { arc ->
-        val delta = (((angle - arc.startAngleDegrees) % 360f) + 360f) % 360f
-        delta <= arc.sweepDegrees
-    }
+    return busyArcs.firstOrNull { arcContainsAngle(it, angle) }
 }
 
 @Composable
