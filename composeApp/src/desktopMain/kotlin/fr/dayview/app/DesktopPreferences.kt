@@ -20,10 +20,10 @@ private val monochromeKey = booleanPreferencesKey(KEY_MONOCHROME)
 
 class DesktopPreferences(
     private val dataStore: DataStore<Preferences>,
-) {
+) : DayPreferences {
     private val store = DayPreferencesStore(dataStore)
-    val snapshots: Flow<DayPreferencesSnapshot> get() = store.snapshots
-    suspend fun persist(snapshot: DayPreferencesSnapshot) = store.persist(snapshot)
+    override val snapshots: Flow<DayPreferencesSnapshot> get() = store.snapshots
+    override suspend fun persist(snapshot: DayPreferencesSnapshot) = store.persist(snapshot)
 
     val monochromeMenuBarIcon: Flow<Boolean> = dataStore.data.map { it[monochromeKey] ?: false }
     suspend fun loadMonochromeMenuBarIcon(): Boolean = monochromeMenuBarIcon.first()

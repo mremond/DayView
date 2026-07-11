@@ -69,9 +69,10 @@ internal data class DayViewUiState(
 internal class DayViewController(
     private val preferences: DayPreferences,
     private val scope: CoroutineScope,
+    initialSnapshot: DayPreferencesSnapshot,
     initialNowMillis: Long = Clock.System.now().toEpochMilliseconds(),
 ) {
-    var state: DayViewUiState by mutableStateOf(preferences.snapshot().toUiState(initialNowMillis))
+    var state: DayViewUiState by mutableStateOf(initialSnapshot.toUiState(initialNowMillis))
         private set
 
     // Count of our own persists still running. While any is in flight, every

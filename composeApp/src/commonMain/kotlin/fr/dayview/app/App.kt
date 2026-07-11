@@ -13,7 +13,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
@@ -36,7 +38,8 @@ fun DayViewApp(
     DayViewTheme { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
             val scope = rememberCoroutineScope()
-            val controller = remember(preferences) { DayViewController(preferences, scope) }
+            val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
+            val controller = remember(preferences) { DayViewController(preferences, scope, initialSnapshot) }
             val state = controller.state
             val soundPlayer = remember { createSoundCuePlayer() }
             val soundScheduler = remember { SoundAlertScheduler() }
@@ -44,9 +47,8 @@ fun DayViewApp(
             val calendarScope = rememberCoroutineScope()
             var calendarPermissionProbe by remember { mutableIntStateOf(0) }
 
-            DisposableEffect(controller, preferences) {
-                val stopObserving = preferences.observe { controller.onPreferencesChanged(it) }
-                onDispose(stopObserving)
+            LaunchedEffect(preferences) {
+                preferences.snapshots.collect { controller.onPreferencesChanged(it) }
             }
 
             val netMinute = state.nowMillis / 60_000L

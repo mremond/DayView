@@ -16,6 +16,8 @@ import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
@@ -60,18 +62,18 @@ class DayViewWidget : AppWidgetProvider() {
         }
 
         private fun update(context: Context, manager: AppWidgetManager, widgetId: Int) {
-            val preferences = AndroidDayPreferences(context, notifyWidgets = false)
+            val snap = runBlocking { DayViewPreferences.get(context).snapshots.first() }
             val now = System.currentTimeMillis()
             val progress = calculateDayProgress(
                 nowMillis = now,
-                startMinutesOfDay = preferences.loadStartMinutes(),
-                endMinutesOfDay = preferences.loadEndMinutes(),
+                startMinutesOfDay = snap.startMinutes,
+                endMinutesOfDay = snap.endMinutes,
             )
             val content = WidgetContent(
                 progress = progress,
-                goal = preferences.loadGoalTitle().trim(),
-                focusEndMillis = preferences.loadPomodoroEndMillis()?.takeIf { it > now },
-                focusIntention = preferences.loadFocusIntention().trim(),
+                goal = snap.goalTitle.trim(),
+                focusEndMillis = snap.pomodoroEndMillis?.takeIf { it > now },
+                focusIntention = snap.focusIntention.trim(),
                 nowMillis = now,
                 ring = renderRing(context, progress),
             )

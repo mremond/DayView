@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Tray
@@ -16,12 +17,16 @@ import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dayview_tray
 import fr.dayview.app.generated.resources.dayview_tray_monochrome
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.ceil
 import kotlin.time.Clock
 
 fun main() = application {
-    val preferences = remember { DesktopDayPreferences() }
+    val preferences = remember { desktopDayPreferences() }
+    val scope = rememberCoroutineScope()
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
@@ -36,13 +41,12 @@ fun main() = application {
     var focusDriftReminderId by remember { mutableStateOf<Long?>(null) }
     var focusResumeRitualId by remember { mutableStateOf<Long?>(null) }
     var nowMillis by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds()) }
-    var preferenceSnapshot by remember { mutableStateOf(preferences.snapshot()) }
-    var monochromeMenuBarIcon by remember { mutableStateOf(preferences.loadMonochromeMenuBarIcon()) }
+    var preferenceSnapshot by remember { mutableStateOf(runBlocking { preferences.snapshots.first() }) }
+    var monochromeMenuBarIcon by remember { mutableStateOf(runBlocking { preferences.loadMonochromeMenuBarIcon() }) }
     var launchAtLogin by remember { mutableStateOf(loginLauncher.isEnabled()) }
 
-    DisposableEffect(preferences) {
-        val stopObserving = preferences.observe { preferenceSnapshot = it }
-        onDispose(stopObserving)
+    LaunchedEffect(preferences) {
+        preferences.snapshots.collect { preferenceSnapshot = it }
     }
 
     LaunchedEffect(Unit) {
@@ -185,7 +189,7 @@ fun main() = application {
                 monochromeMenuBarIcon = monochromeMenuBarIcon,
                 onMonochromeMenuBarIconChange = { monochrome ->
                     monochromeMenuBarIcon = monochrome
-                    preferences.saveMonochromeMenuBarIcon(monochrome)
+                    scope.launch { preferences.saveMonochromeMenuBarIcon(monochrome) }
                 },
                 launchAtLogin = launchAtLogin.takeIf { loginLauncher.isAvailable() },
                 onLaunchAtLoginChange = { enabled ->
@@ -222,13 +226,23 @@ fun main() = application {
                 pomodoro = pomodoro,
                 focusIntention = focusIntention,
                 onStartFocus = { intention ->
-                    preferences.saveFocusIntention(intention.trim().take(100))
-                    preferences.savePomodoro(
-                        pomodoroMinutes,
-                        focusStartEndMillis(nowMillis, pomodoroMinutes),
-                    )
+                    scope.launch {
+                        val s = preferences.snapshots.first()
+                        preferences.persist(
+                            s.copy(
+                                focusIntention = intention.trim().take(100),
+                                pomodoroMinutes = pomodoroMinutes,
+                                pomodoroEndMillis = focusStartEndMillis(nowMillis, pomodoroMinutes),
+                            ),
+                        )
+                    }
                 },
-                onStopFocus = { preferences.savePomodoro(pomodoroMinutes, null) },
+                onStopFocus = {
+                    scope.launch {
+                        val s = preferences.snapshots.first()
+                        preferences.persist(s.copy(pomodoroMinutes = pomodoroMinutes, pomodoroEndMillis = null))
+                    }
+                },
             )
         }
     }
