@@ -41,14 +41,16 @@ compileSdk 36) and the Android SDK.
   messages. Commit messages describe the change only.
 - **Never** add any reference to Claude, Anthropic, or an AI assistant in pull requests.
   Focus the pull request on a clear summary of the change. Do not add test plans.
+- **Do not reference internal working documents** (design specs, implementation plans,
+  or anything under `docs/superpowers/`) in commit messages or pull requests. These are
+  private planning artifacts; describe the change on its own terms.
 - Before committing, verify tests and lint pass without errors or stderr:
   `./gradlew ktlintCheck :composeApp:testDebugUnitTest :composeApp:desktopTest`.
 
 ## Release Process
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds and attaches to a
-GitHub Release: macOS `.dmg`, Linux `.deb`/`.rpm`/`.AppImage`, Android `.apk`. Design:
-[docs/superpowers/specs/2026-07-11-multiplatform-release-chain-design.md](../docs/superpowers/specs/2026-07-11-multiplatform-release-chain-design.md).
+GitHub Release: macOS `.dmg`, Linux `.deb`/`.rpm`/`.AppImage`, Android `.apk`.
 
 - Native packages require a numeric major version >= 1: tag releases as `v1.x`+.
 - **Pre-flight before tagging:** tests and lint green; `git log origin/main..HEAD` shows
