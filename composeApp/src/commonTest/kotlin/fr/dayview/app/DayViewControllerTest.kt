@@ -202,6 +202,20 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun loadingADeadlineWithoutAStartBackfillsAndPersistsTheStart() {
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalTitle = "Livrer la Plaie", goalDeadlineMillis = deadline),
+        )
+
+        val controller = testController(preferences, 5_000L)
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(formatGoalDeadline(5_000L), controller.state.goalStartText)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
     fun clearingTheDeadlineClearsTheStart() {
         val deadline = parseGoalDeadline("24/12/2026 18:30")!!
         val preferences = InMemoryDayPreferences(

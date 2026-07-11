@@ -28,6 +28,25 @@ class GlobalGoalTest {
     }
 
     @Test
+    fun shortDateDropsTheYearAndTimeWithFrenchMonths() {
+        assertEquals("11 juil.", formatGoalDateShort(millis("2026-07-11T08:00"), zone))
+        assertEquals("20 juil.", formatGoalDateShort(millis("2026-07-20T10:30"), zone))
+        assertEquals("1 août", formatGoalDateShort(millis("2026-08-01T23:59"), zone))
+    }
+
+    @Test
+    fun shortDateCoversEveryMonthAbbreviation() {
+        val expected = listOf(
+            "5 janv.", "5 févr.", "5 mars", "5 avr.", "5 mai", "5 juin",
+            "5 juil.", "5 août", "5 sept.", "5 oct.", "5 nov.", "5 déc.",
+        )
+        (1..12).forEach { month ->
+            val label = formatGoalDateShort(millis("2026-${month.toString().padStart(2, '0')}-05T12:00"), zone)
+            assertEquals(expected[month - 1], label)
+        }
+    }
+
+    @Test
     fun invalidCalendarDateIsRejected() {
         assertNull(parseGoalDeadline("31/02/2026 18:30", zone))
         assertNull(parseGoalDeadline("29/02/2026 18:30", zone))
