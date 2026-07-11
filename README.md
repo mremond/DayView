@@ -2,6 +2,8 @@
 
 DayView rend visible le temps restant avant la fin de journée. Le cercle se consume au fil des heures afin de réduire la *time blindness*, sans transformer le temps en source de pression. Les heures de début et de fin sont réglables et conservées entre deux lancements.
 
+![DayView interface on macOS](docs/images/dayview-macos.png)
+
 ## Plateformes
 
 - Android 7.0 et versions ultérieures
