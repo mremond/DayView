@@ -30,14 +30,20 @@ positive time.
 
 ### 1. Event log (wire format)
 
-Contributing apps append one JSON object per line (JSONL) to a per-day file:
+Each contributing app owns a **directory** and appends one JSON object per line (JSONL)
+to a per-day file inside it:
 
 ```
-~/.local/share/dayview/usage/YYYY-MM-DD.jsonl
+~/.local/share/dayview/usage/<source>/YYYY-MM-DD.jsonl
+   e.g.  ~/.local/share/dayview/usage/draftline/2026-07-11.jsonl
 ```
 
-Per-day files make "read today" and "prune old days" trivial. The file is append-only
-and never rewritten by DayView.
+A directory per app means every app writes only its own files — no cross-app write
+contention and no torn/interleaved appends from two apps hitting one file. Keeping the
+per-day split inside each app's directory preserves a cheap "read today"
+(`usage/*/YYYY-MM-DD.jsonl`) and trivial pruning (drop old dated files). Files are
+append-only and never rewritten by DayView. The app is responsible for creating its own
+directory.
 
 ```jsonc
 { "v": 1, "source": "draftline", "kind": "focus",
@@ -94,9 +100,10 @@ expect fun createUsageSource(): UsageSource
 
 Implementations:
 
-- **Desktop**: `JsonlUsageSource` — reads today's `*.jsonl`, parses lines, filters to
-  `kind == "focus"`, maps to `FocusInterval`. Tolerant parser: skips malformed lines,
-  unknown kinds, unknown versions.
+- **Desktop**: `JsonlUsageSource` — globs today's per-app files
+  (`usage/*/YYYY-MM-DD.jsonl`), parses lines, filters to `kind == "focus"`, maps to
+  `FocusInterval`. Tolerant parser: skips malformed lines, unknown kinds, unknown
+  versions. A missing `usage/` directory yields an empty list.
 - **Android**: `NoopUsageSource`.
 
 `FocusInterval` is intentionally shaped like `BusyInterval` (`startMillis`, `endMillis`,
@@ -132,17 +139,18 @@ running, no coupling beyond the documented schema.
 
 ```
 Draftline session ends
-  └─ append {kind:"focus", ...} to ~/.local/share/dayview/usage/2026-07-11.jsonl
+  └─ append {kind:"focus", ...} to ~/.local/share/dayview/usage/draftline/2026-07-11.jsonl
                                              │
 DayView refresh cycle ─ createUsageSource().focusIntervals(window)
-  └─ JsonlUsageSource reads today's file, parses, filters kind=="focus"
+  └─ JsonlUsageSource globs usage/*/2026-07-11.jsonl, parses, filters kind=="focus"
        └─ merge + clip + sum ─ focusedTodayMillis
             └─ focus arcs (accent) + "Focused today" readout + hover label
 ```
 
 ## Error handling
 
-- Missing file / empty file → empty list (feature simply shows nothing).
+- Missing `usage/` directory, no per-app files, or empty file → empty list (feature
+  simply shows nothing).
 - Malformed line, unknown `kind`, unknown `v` → skip that line, keep going.
 - Zero-length or inverted interval (`endedAt <= startedAt`) → skip.
 - Intervals partly outside the window → clipped, same as busy intervals.
