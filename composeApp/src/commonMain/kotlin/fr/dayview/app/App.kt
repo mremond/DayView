@@ -105,6 +105,8 @@ private enum class DayViewDestination {
 @Composable
 fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
+    monochromeMenuBarIcon: Boolean? = null,
+    onMonochromeMenuBarIconChange: ((Boolean) -> Unit)? = null,
     onOpenMiniWindow: (() -> Unit)? = null,
     onFocusAlarmChange: (endMillis: Long?, intention: String) -> Unit = { _, _ -> },
     showFocusDriftReminder: Boolean = false,
@@ -217,6 +219,8 @@ fun DayViewApp(
                         showSeconds = enabled
                         preferences.saveShowSeconds(enabled)
                     },
+                    monochromeMenuBarIcon = monochromeMenuBarIcon,
+                    onMonochromeMenuBarIconChange = onMonochromeMenuBarIconChange,
                     soundSettings = soundSettings,
                     onSoundSettingsChange = { updated ->
                         soundSettings = updated.normalized()
@@ -617,6 +621,8 @@ private fun SettingsScreen(
     onMoveEnd: (Int) -> Unit,
     showSeconds: Boolean,
     onShowSecondsChange: (Boolean) -> Unit,
+    monochromeMenuBarIcon: Boolean?,
+    onMonochromeMenuBarIconChange: ((Boolean) -> Unit)?,
     soundSettings: SoundSettings,
     onSoundSettingsChange: (SoundSettings) -> Unit,
     onPreviewSound: (SoundCue) -> Unit,
@@ -719,6 +725,39 @@ private fun SettingsScreen(
                         checked = showSeconds,
                         onCheckedChange = onShowSecondsChange,
                     )
+                }
+                if (monochromeMenuBarIcon != null && onMonochromeMenuBarIconChange != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .background(colors.panel, RoundedCornerShape(18.dp))
+                            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                            .clickable { onMonochromeMenuBarIconChange(!monochromeMenuBarIcon) }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "ICÔNE DE BARRE DE MENU SANS COULEUR",
+                                color = colors.cloud,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Utilise une icône monochrome plus discrète dans la barre de menu.",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Switch(
+                            checked = monochromeMenuBarIcon,
+                            onCheckedChange = onMonochromeMenuBarIconChange,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(24.dp))
                 SoundSettingsPanel(

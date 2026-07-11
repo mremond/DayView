@@ -22,6 +22,7 @@ class DesktopDayPreferencesTest {
         assertEquals(8 * 60, preferences.loadStartMinutes())
         assertEquals(18 * 60, preferences.loadEndMinutes())
         assertEquals(true, preferences.loadShowSeconds())
+        assertEquals(false, preferences.loadMonochromeMenuBarIcon())
         assertEquals(SoundSettings(), preferences.loadSoundSettings())
         assertEquals("", preferences.loadGoalTitle())
         assertNull(preferences.loadGoalDeadlineMillis())
@@ -47,6 +48,15 @@ class DesktopDayPreferencesTest {
         val reloaded = DesktopDayPreferences(storage)
 
         assertEquals(false, reloaded.loadShowSeconds())
+    }
+
+    @Test
+    fun monochromeMenuBarIconPreferenceSurvivesANewPreferencesInstance() {
+        preferences.saveMonochromeMenuBarIcon(true)
+
+        val reloaded = DesktopDayPreferences(storage)
+
+        assertEquals(true, reloaded.loadMonochromeMenuBarIcon())
     }
 
     @Test

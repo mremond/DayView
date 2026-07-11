@@ -21,6 +21,12 @@ class DesktopDayPreferences internal constructor(
         storage.putBoolean(KEY_SHOW_SECONDS, showSeconds)
     }
 
+    fun loadMonochromeMenuBarIcon(): Boolean = storage.getBoolean(KEY_MONOCHROME_MENU_BAR_ICON, false)
+
+    fun saveMonochromeMenuBarIcon(monochrome: Boolean) {
+        storage.putBoolean(KEY_MONOCHROME_MENU_BAR_ICON, monochrome)
+    }
+
     override fun loadSoundSettings(): SoundSettings = SoundSettings(
         enabled = storage.getBoolean(KEY_SOUND_ENABLED, false),
         startCueEnabled = storage.getBoolean(KEY_SOUND_START, true),
@@ -70,6 +76,7 @@ class DesktopDayPreferences internal constructor(
         const val KEY_START = "start_minutes"
         const val KEY_END = "end_minutes"
         const val KEY_SHOW_SECONDS = "show_seconds"
+        const val KEY_MONOCHROME_MENU_BAR_ICON = "monochrome_menu_bar_icon"
         const val KEY_SOUND_ENABLED = "sound_enabled"
         const val KEY_SOUND_START = "sound_start"
         const val KEY_SOUND_INTERVAL = "sound_interval"

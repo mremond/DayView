@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dayview_tray
+import fr.dayview.app.generated.resources.dayview_tray_monochrome
 import kotlin.math.ceil
 import kotlin.time.Clock
 
@@ -40,6 +41,7 @@ fun main() = application {
     var pomodoroEnd by remember { mutableStateOf(preferences.loadPomodoroEndMillis()) }
     var focusIntention by remember { mutableStateOf(preferences.loadFocusIntention()) }
     var showSeconds by remember { mutableStateOf(preferences.loadShowSeconds()) }
+    var monochromeMenuBarIcon by remember { mutableStateOf(preferences.loadMonochromeMenuBarIcon()) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -131,7 +133,9 @@ fun main() = application {
     }
 
     Tray(
-        icon = painterResource(Res.drawable.dayview_tray),
+        icon = painterResource(
+            if (monochromeMenuBarIcon) Res.drawable.dayview_tray_monochrome else Res.drawable.dayview_tray,
+        ),
         tooltip = dayStatus,
         onAction = {
             if (!isMiniWindowVisible) isWindowVisible = true
@@ -170,6 +174,11 @@ fun main() = application {
             }
             DayViewApp(
                 preferences = preferences,
+                monochromeMenuBarIcon = monochromeMenuBarIcon,
+                onMonochromeMenuBarIconChange = { monochrome ->
+                    monochromeMenuBarIcon = monochrome
+                    preferences.saveMonochromeMenuBarIcon(monochrome)
+                },
                 onOpenMiniWindow = {
                     isWindowVisible = false
                     isMiniWindowVisible = true
