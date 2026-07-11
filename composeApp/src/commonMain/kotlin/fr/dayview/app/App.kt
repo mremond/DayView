@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -478,12 +479,14 @@ private fun DayViewScreen(
 ) {
     val colors = LocalDayViewColors.current
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.radialGradient(
-                colors = listOf(colors.glow, colors.ink),
-                radius = 950f,
-            ),
-        ),
+        modifier = Modifier.fillMaxSize()
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(colors.glow, colors.ink),
+                    radius = 950f,
+                ),
+            )
+            .imePadding(),
     ) {
         val wide = maxWidth >= 780.dp
         val pageModifier = if (wide) {

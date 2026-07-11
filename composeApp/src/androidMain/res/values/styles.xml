@@ -8,4 +8,12 @@
         <item name="android:navigationBarColor">#F4F2EC</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+
+    <style name="LaunchTheme" parent="@style/AppTheme">
+        <item name="android:windowBackground">@drawable/dayview_splash_legacy</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@color/dayview_splash_background</item>
+        <item name="android:navigationBarColor">@color/dayview_splash_background</item>
+    </style>
 </resources>
