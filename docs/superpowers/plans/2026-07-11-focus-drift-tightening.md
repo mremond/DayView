@@ -1155,7 +1155,7 @@ Map it in `toUiState` if the snapshot ever carries it (it does not here — Main
 
 - [ ] **Step 2: Wire the accumulator in `Main.kt`**
 
-Add imports for `kotlinx.datetime` (`Instant`, `TimeZone`, `toLocalDateTime`) consistent with the codebase, and near the other `remember`s:
+Add imports for `kotlinx.datetime` (`TimeZone`, `toLocalDateTime`) consistent with the codebase, and near the other `remember`s:
 
 ```kotlin
     val presenceAccumulator = remember {
@@ -1165,30 +1165,33 @@ Add imports for `kotlinx.datetime` (`Instant`, `TimeZone`, `toLocalDateTime`) co
         }
     }
     var focusPresenceIntervals by remember { mutableStateOf(preferences.loadFocusPresence().second) }
+    var lastPresenceSaveMillis by remember { mutableLongStateOf(0L) }
 ```
 
-Inside the loop, after `frontmostBundleId` is computed and the drift branch runs, add accumulation (runs every tick; only persists on change):
+Inside the loop, after `frontmostBundleId` is computed and the drift branch runs, add accumulation. The in-memory state updates every tick when it changes (cheap, drives the live arc at the same cadence as the clock), but **persistence is throttled** — the in-progress interval's `endMillis` grows every tick, so an unconditional write would hit the prefs store and fan out observers once per second for the whole session. Persist only on a structural change (an interval closed or a day rollover changed the list size) or at most once per 30 s:
 
 ```kotlin
+            val onGoalBundleIds = currentPreferences.onGoalApps.map { it.bundleId }.toSet()
             val dayKey = kotlin.time.Instant.fromEpochMilliseconds(currentNowMillis)
                 .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-                .date.toEpochDays().toLong()
-            val classification = classifyFrontmost(
-                frontmostBundleId,
-                currentPreferences.onGoalApps.map { it.bundleId }.toSet(),
-            )
+                .date.toEpochDays()
+            val classification = classifyFrontmost(frontmostBundleId, onGoalBundleIds)
             val updatedIntervals = if (focusIsActive) {
                 presenceAccumulator.observe(currentNowMillis, classification, dayKey)
             } else {
                 focusPresenceIntervals
             }
             if (updatedIntervals != focusPresenceIntervals) {
+                val structuralChange = updatedIntervals.size != focusPresenceIntervals.size
                 focusPresenceIntervals = updatedIntervals
-                preferences.saveFocusPresence(dayKey, updatedIntervals)
+                if (structuralChange || currentNowMillis - lastPresenceSaveMillis >= 30_000L) {
+                    preferences.saveFocusPresence(dayKey, updatedIntervals)
+                    lastPresenceSaveMillis = currentNowMillis
+                }
             }
 ```
 
-(Compute `frontmostBundleId` before this block; when `!focusIsActive` it is already `null`, so `classification` is `NEUTRAL` and the accumulator is not called.)
+`onGoalBundleIds` is hoisted so the same set feeds both `focusDriftDetector.observe(...)` (Task B3) and `classifyFrontmost(...)`. When `!focusIsActive`, `frontmostBundleId` is already `null`, so `classification` is `NEUTRAL` and the accumulator is not called. Note `.date.toEpochDays()` returns `Long` in this kotlinx-datetime version — no `.toLong()` needed.
 
 - [ ] **Step 3: Push intervals into the rendered state**
 
