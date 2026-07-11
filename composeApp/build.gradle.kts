@@ -154,6 +154,26 @@ val compileMacFocusStatusHelper by tasks.registering(Exec::class) {
     )
 }
 
+val macEventKitHelperOutput = layout.buildDirectory.file("generated/macosFocusStatusHelper/macos-eventkit-helper")
+val macEventKitHelperOutputFile = macEventKitHelperOutput.get().asFile
+macEventKitHelperOutputFile.parentFile.mkdirs()
+val compileMacEventKitHelper by tasks.registering(Exec::class) {
+    onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
+    inputs.file(rootProject.file("scripts/MacEventKitHelper.swift"))
+    outputs.file(macEventKitHelperOutput)
+    commandLine(
+        "xcrun",
+        "swiftc",
+        rootProject.file("scripts/MacEventKitHelper.swift").absolutePath,
+        "-O",
+        "-framework",
+        "EventKit",
+        "-o",
+        macEventKitHelperOutputFile.absolutePath,
+    )
+}
+
 tasks.matching { it.name in setOf("desktopProcessResources", "desktopTestProcessResources") }.configureEach {
     dependsOn(compileMacFocusStatusHelper)
+    dependsOn(compileMacEventKitHelper)
 }
