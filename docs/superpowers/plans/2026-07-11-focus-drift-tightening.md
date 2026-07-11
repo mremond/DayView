@@ -772,6 +772,7 @@ class PresenceAccumulatorTest {
     fun briefBlipUnderBridgeDoesNotSplitTheInterval() {
         val a = PresenceAccumulator()
         on(a, 0L)
+        on(a, 120_000L)                // on-goal through 2 min (lastOnGoal = 120s)
         neutral(a, 140_000L)           // 20s blip (< 30s bridge), interval still open
         val result = on(a, 150_000L)   // back on-goal, one continuous interval
         assertEquals(listOf(FocusPresenceInterval(0L, 150_000L)), result)
