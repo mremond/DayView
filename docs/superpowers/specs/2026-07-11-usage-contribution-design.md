@@ -22,6 +22,28 @@ meetings"; focus time answers "how much of my day did I spend well".
 Out of scope for v1 (see Roadmap): goal-progress events, the scrobbler server, Android
 transport, cross-device aggregation.
 
+## Non-goals / relationship to focus drift
+
+This feature is **retrospective, positive-presence accounting**. It is deliberately *not*
+a real-time distraction detector, and must not be mistaken for one.
+
+- **Not a real-time signal.** Contributing apps append a `focus` event when a session
+  *ends*, and DayView reads on its refresh cycle. During a session — and during a
+  distraction — nothing is written. Absence in the log is ambiguous (distracted vs. no
+  work planned vs. app closed), so the log cannot answer "am I distracted right now".
+- **Real-time distraction is already handled elsewhere.** `FocusDriftDetector`
+  (`desktopMain`) observes the macOS frontmost app every second from `Main.kt` and fires
+  the focus-drift nudge (see
+  `docs/superpowers/specs/2026-07-11-distraction-nudge-notification-design.md`). It has
+  **no dependency on the usage log**, and this feature adds none. The two are orthogonal
+  layers: drift detection measures *absence/churn* live; usage contribution measures
+  *presence* after the fact.
+- **Live contributed presence is a roadmap concern, not v1.** Letting a contributing app
+  feed *live* "actively working now" signal (e.g. typing-vs-idle inside Draftline, which
+  the OS frontmost app alone cannot see) would require an open-session **heartbeat** event
+  kind plus a **push transport** — i.e. the scrobbler server in the Roadmap, not the local
+  file. v1 excludes both.
+
 ## Architecture
 
 The feature reuses the pattern established by the net-time feature (`CalendarSource` →
@@ -200,4 +222,7 @@ than replacing it.
    activity), plus an `HttpUsageSource` implementing the same `UsageSource` contract.
    Unlocks cross-device and cross-app aggregation, and the Android transport the local
    file cannot cleanly provide. No model changes — it is a second implementation of the
-   existing interface.
+   existing interface. This is also the transport for **live contributed presence**: an
+   open-session heartbeat kind pushed to the endpoint lets DayView know an app is being
+   worked in *right now* (see Non-goals), sharpening focus-drift detection beyond what OS
+   frontmost-app observation alone can see.
