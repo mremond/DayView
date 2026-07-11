@@ -22,6 +22,27 @@ class AndroidDayPreferences(context: Context) : DayPreferences {
         storage.edit().putBoolean(KEY_SHOW_SECONDS, showSeconds).apply()
     }
 
+    override fun loadSoundSettings(): SoundSettings = SoundSettings(
+        enabled = storage.getBoolean(KEY_SOUND_ENABLED, false),
+        startCueEnabled = storage.getBoolean(KEY_SOUND_START, true),
+        intervalCueEnabled = storage.getBoolean(KEY_SOUND_INTERVAL, true),
+        endCueEnabled = storage.getBoolean(KEY_SOUND_END, true),
+        intervalMinutes = storage.getInt(KEY_SOUND_INTERVAL_MINUTES, 60),
+        volumePercent = storage.getInt(KEY_SOUND_VOLUME, 40),
+    ).normalized()
+
+    override fun saveSoundSettings(settings: SoundSettings) {
+        val safe = settings.normalized()
+        storage.edit()
+            .putBoolean(KEY_SOUND_ENABLED, safe.enabled)
+            .putBoolean(KEY_SOUND_START, safe.startCueEnabled)
+            .putBoolean(KEY_SOUND_INTERVAL, safe.intervalCueEnabled)
+            .putBoolean(KEY_SOUND_END, safe.endCueEnabled)
+            .putInt(KEY_SOUND_INTERVAL_MINUTES, safe.intervalMinutes)
+            .putInt(KEY_SOUND_VOLUME, safe.volumePercent)
+            .apply()
+    }
+
     override fun loadGoalTitle(): String = storage.getString(KEY_GOAL_TITLE, "").orEmpty()
 
     override fun loadGoalDeadlineMillis(): Long? =
@@ -56,6 +77,12 @@ class AndroidDayPreferences(context: Context) : DayPreferences {
         const val KEY_START = "start_minutes"
         const val KEY_END = "end_minutes"
         const val KEY_SHOW_SECONDS = "show_seconds"
+        const val KEY_SOUND_ENABLED = "sound_enabled"
+        const val KEY_SOUND_START = "sound_start"
+        const val KEY_SOUND_INTERVAL = "sound_interval"
+        const val KEY_SOUND_END = "sound_end"
+        const val KEY_SOUND_INTERVAL_MINUTES = "sound_interval_minutes"
+        const val KEY_SOUND_VOLUME = "sound_volume"
         const val KEY_GOAL_TITLE = "goal_title"
         const val KEY_GOAL_DEADLINE = "goal_deadline"
         const val NO_DEADLINE = -1L

@@ -11,6 +11,8 @@ L’interface et la logique métier sont partagées avec Kotlin Multiplatform et
 L’apparence claire ou sombre suit automatiquement le thème du système sur Android et macOS.
 Sur macOS, DayView reste accessible depuis la barre des menus. Fermer sa fenêtre la masque sans arrêter le décompte ; le menu permet de la rouvrir ou de quitter complètement l’application.
 
+Le mode mini-fenêtre, accessible depuis l’en-tête ou la barre des menus, garde au-dessus des autres applications une vue compacte de l’anneau et du décompte du jour. Il rappelle aussi l’objectif global et ajoute automatiquement le temps restant ainsi que l’intention lorsqu’un Focus est en cours.
+
 ## Lancer le projet
 
 Prérequis : JDK 17 ou plus récent et Android SDK 36.
@@ -62,3 +64,7 @@ Si DayView retrouve une session encore active après son relancement ou le réve
 ## Principe du calcul
 
 La journée utilise les heures de début et de fin choisies (08:00–18:00 par défaut) dans le fuseau local de l’appareil. Le cercle reste plein avant le début, se consume pendant la plage définie, puis atteint zéro à la fin. Les changements d’heure sont correctement pris en compte.
+
+## Repères sonores
+
+Les repères sonores, désactivés par défaut, se configurent dans l’écran Réglages. DayView peut jouer un bol au début de la journée, un tintement toutes les 30 à 180 minutes et un gong à la fin. Chaque repère peut être désactivé séparément, préécouté et joué au volume choisi. Les sons sont synthétisés localement et ne nécessitent aucun fichier audio ni service réseau.

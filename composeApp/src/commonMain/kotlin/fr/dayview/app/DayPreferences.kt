@@ -6,6 +6,8 @@ interface DayPreferences {
     fun saveDayRange(startMinutes: Int, endMinutes: Int)
     fun loadShowSeconds(): Boolean
     fun saveShowSeconds(showSeconds: Boolean)
+    fun loadSoundSettings(): SoundSettings
+    fun saveSoundSettings(settings: SoundSettings)
     fun loadGoalTitle(): String
     fun loadGoalDeadlineMillis(): Long?
     fun saveGlobalGoal(title: String, deadlineMillis: Long?)
@@ -22,6 +24,8 @@ object DefaultDayPreferences : DayPreferences {
     override fun saveDayRange(startMinutes: Int, endMinutes: Int) = Unit
     override fun loadShowSeconds(): Boolean = true
     override fun saveShowSeconds(showSeconds: Boolean) = Unit
+    override fun loadSoundSettings(): SoundSettings = SoundSettings()
+    override fun saveSoundSettings(settings: SoundSettings) = Unit
     override fun loadGoalTitle(): String = ""
     override fun loadGoalDeadlineMillis(): Long? = null
     override fun saveGlobalGoal(title: String, deadlineMillis: Long?) = Unit

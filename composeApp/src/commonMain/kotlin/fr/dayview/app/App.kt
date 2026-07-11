@@ -34,6 +34,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -103,10 +104,12 @@ private enum class DayViewDestination {
 @Composable
 fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
+    onOpenMiniWindow: (() -> Unit)? = null,
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
     showFocusResumeRitual: Boolean = false,
     onDismissFocusResumeRitual: () -> Unit = {},
+    scheduleSoundAlerts: Boolean = true,
 ) {
     val isDark = isSystemInDarkTheme()
     val colors = if (isDark) DarkDayViewColors else LightDayViewColors
@@ -154,6 +157,13 @@ fun DayViewApp(
             }
             var destination by remember { mutableStateOf(DayViewDestination.TODAY) }
             var showSeconds by remember(preferences) { mutableStateOf(preferences.loadShowSeconds()) }
+            var soundSettings by remember(preferences) { mutableStateOf(preferences.loadSoundSettings()) }
+            val soundPlayer = remember { createSoundCuePlayer() }
+            val soundScheduler = remember { SoundAlertScheduler() }
+
+            DisposableEffect(soundPlayer) {
+                onDispose { soundPlayer.close() }
+            }
 
             LaunchedEffect(showSeconds, pomodoroEndMillis) {
                 while (true) {
@@ -171,6 +181,19 @@ fun DayViewApp(
             val dayNowMillis = if (showSeconds) nowMillis else nowMillis - nowMillis % 60_000L
             val progress = calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
             val pomodoro = calculatePomodoroProgress(nowMillis, pomodoroMinutes, pomodoroEndMillis)
+            LaunchedEffect(nowMillis, startMinutes, endMinutes, soundSettings, scheduleSoundAlerts) {
+                if (scheduleSoundAlerts) {
+                    val cue = soundScheduler.observe(
+                        nowMillis = nowMillis,
+                        startMinutesOfDay = startMinutes,
+                        endMinutesOfDay = endMinutes,
+                        intervalMinutes = soundSettings.intervalMinutes,
+                    )
+                    if (cue != null && soundSettings.allows(cue)) {
+                        soundPlayer.play(cue, soundSettings.volumePercent / 100f)
+                    }
+                }
+            }
             val onMoveStart: (Int) -> Unit = { delta ->
                 startMinutes = (startMinutes + delta).coerceIn(0, endMinutes - 30)
                 preferences.saveDayRange(startMinutes, endMinutes)
@@ -190,6 +213,14 @@ fun DayViewApp(
                         showSeconds = enabled
                         preferences.saveShowSeconds(enabled)
                     },
+                    soundSettings = soundSettings,
+                    onSoundSettingsChange = { updated ->
+                        soundSettings = updated.normalized()
+                        preferences.saveSoundSettings(soundSettings)
+                    },
+                    onPreviewSound = { cue ->
+                        soundPlayer.play(cue, soundSettings.volumePercent / 100f)
+                    },
                     onBack = { destination = DayViewDestination.TODAY },
                 )
             } else {
@@ -197,6 +228,7 @@ fun DayViewApp(
                     progress = progress,
                     showSeconds = showSeconds,
                     onOpenSettings = { destination = DayViewDestination.SETTINGS },
+                    onOpenMiniWindow = onOpenMiniWindow,
                     goalTitle = goalTitle,
                     goalDeadlineText = goalDeadlineText,
                     goalDeadlineMillis = goalDeadlineMillis,
@@ -247,10 +279,166 @@ fun DayViewApp(
 }
 
 @Composable
+fun DayViewMiniApp(
+    progress: DayProgress,
+    showSeconds: Boolean,
+    nowMillis: Long,
+    goalTitle: String,
+    goalDeadlineMillis: Long?,
+    pomodoro: PomodoroProgress,
+    focusIntention: String,
+) {
+    val isDark = isSystemInDarkTheme()
+    val colors = if (isDark) DarkDayViewColors else LightDayViewColors
+    val colorScheme = if (isDark) {
+        darkColorScheme(
+            primary = colors.mint,
+            background = colors.ink,
+            surface = colors.panel,
+            onBackground = colors.cloud,
+            onSurface = colors.cloud,
+            error = colors.red,
+        )
+    } else {
+        lightColorScheme(
+            primary = colors.mint,
+            background = colors.ink,
+            surface = colors.panel,
+            onBackground = colors.cloud,
+            onSurface = colors.cloud,
+            error = colors.red,
+        )
+    }
+
+    CompositionLocalProvider(LocalDayViewColors provides colors) {
+        MaterialTheme(colorScheme = colorScheme) {
+            Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(colors.glow, colors.ink),
+                                radius = 650f,
+                            ),
+                        )
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CountdownCircle(
+                        progress = progress,
+                        showSeconds = showSeconds,
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                    )
+                    MiniGoal(
+                        title = goalTitle,
+                        deadlineMillis = goalDeadlineMillis,
+                        nowMillis = nowMillis,
+                        workStartMinutes = progress.startHour * 60 + progress.startMinute,
+                        workEndMinutes = progress.endHour * 60 + progress.endMinute,
+                    )
+                    if (pomodoro.status == PomodoroStatus.ACTIVE) {
+                        Spacer(Modifier.height(10.dp))
+                        MiniFocus(pomodoro, focusIntention)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniGoal(
+    title: String,
+    deadlineMillis: Long?,
+    nowMillis: Long,
+    workStartMinutes: Int,
+    workEndMinutes: Int,
+) {
+    val colors = LocalDayViewColors.current
+    val remaining = deadlineMillis?.let {
+        formatGoalWorkingHours(
+            workingMillis = calculateGoalWorkingMillis(
+                nowMillis = nowMillis,
+                deadlineMillis = it,
+                startMinutesOfDay = workStartMinutes,
+                endMinutesOfDay = workEndMinutes,
+            ),
+            deadlineReached = it <= nowMillis,
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(15.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(15.dp))
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "OBJECTIF GLOBAL",
+                color = colors.mint,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                title.ifBlank { "Aucun objectif défini" },
+                color = if (title.isBlank()) colors.muted else colors.cloud,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+            )
+        }
+        remaining?.let {
+            Spacer(Modifier.width(12.dp))
+            Text(it, color = colors.muted, fontSize = 10.sp)
+        }
+    }
+}
+
+@Composable
+private fun MiniFocus(progress: PomodoroProgress, intention: String) {
+    val colors = LocalDayViewColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
+            .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "FOCUS EN COURS",
+                color = colors.amber,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.1.sp,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                intention.ifBlank { "Une seule chose à la fois" },
+                color = colors.cloud,
+                fontSize = 12.sp,
+                maxLines = 1,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(
+            formatPomodoroClock(progress),
+            color = colors.cloud,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Light,
+        )
+    }
+}
+
+@Composable
 private fun DayViewScreen(
     progress: DayProgress,
     showSeconds: Boolean,
     onOpenSettings: () -> Unit,
+    onOpenMiniWindow: (() -> Unit)?,
     goalTitle: String,
     goalDeadlineText: String,
     goalDeadlineMillis: Long?,
@@ -288,7 +476,7 @@ private fun DayViewScreen(
             modifier = pageModifier,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Header(onOpenSettings)
+            Header(onOpenSettings, onOpenMiniWindow)
             Spacer(Modifier.height(if (wide) 28.dp else 18.dp))
 
             if (wide) {
@@ -363,7 +551,7 @@ private fun DayViewScreen(
 }
 
 @Composable
-private fun Header(onOpenSettings: () -> Unit) {
+private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) {
     val colors = LocalDayViewColors.current
     Row(
         modifier = Modifier.fillMaxWidth().widthIn(max = 1040.dp),
@@ -373,6 +561,17 @@ private fun Header(onOpenSettings: () -> Unit) {
         Spacer(Modifier.width(10.dp))
         Text("DAYVIEW", color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
         Spacer(Modifier.weight(1f))
+        onOpenMiniWindow?.let {
+            Text(
+                "MINI",
+                color = colors.muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.4.sp,
+                modifier = Modifier.clickable(onClick = it).padding(vertical = 10.dp, horizontal = 4.dp),
+            )
+            Spacer(Modifier.width(18.dp))
+        }
         Text(
             "RÉGLAGES",
             color = colors.muted,
@@ -391,6 +590,9 @@ private fun SettingsScreen(
     onMoveEnd: (Int) -> Unit,
     showSeconds: Boolean,
     onShowSecondsChange: (Boolean) -> Unit,
+    soundSettings: SoundSettings,
+    onSoundSettingsChange: (SoundSettings) -> Unit,
+    onPreviewSound: (SoundCue) -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
@@ -491,6 +693,12 @@ private fun SettingsScreen(
                         onCheckedChange = onShowSecondsChange,
                     )
                 }
+                Spacer(Modifier.height(24.dp))
+                SoundSettingsPanel(
+                    settings = soundSettings,
+                    onSettingsChange = onSoundSettingsChange,
+                    onPreview = onPreviewSound,
+                )
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Les changements sont enregistrés automatiquement et s’appliquent à tous les jours.",
@@ -501,6 +709,154 @@ private fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SoundSettingsPanel(
+    settings: SoundSettings,
+    onSettingsChange: (SoundSettings) -> Unit,
+    onPreview: (SoundCue) -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Text("SONS", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "Des repères doux pour sentir le temps sans surveiller l’écran.",
+        color = colors.muted,
+        fontSize = 13.sp,
+        lineHeight = 19.sp,
+    )
+    Spacer(Modifier.height(14.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .clickable { onSettingsChange(settings.copy(enabled = !settings.enabled)) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("REPÈRES SONORES", color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Spacer(Modifier.height(4.dp))
+            Text("Désactivés par défaut.", color = colors.muted, fontSize = 11.sp)
+        }
+        Switch(checked = settings.enabled, onCheckedChange = { onSettingsChange(settings.copy(enabled = it)) })
+    }
+
+    if (settings.enabled) {
+        Spacer(Modifier.height(10.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .background(colors.panel, RoundedCornerShape(18.dp))
+                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+        ) {
+            SoundCueSettingRow(
+                label = "DÉBUT DE JOURNÉE",
+                detail = "Bol clair",
+                checked = settings.startCueEnabled,
+                onCheckedChange = { onSettingsChange(settings.copy(startCueEnabled = it)) },
+                onPreview = { onPreview(SoundCue.DAY_START) },
+            )
+            SettingsDivider()
+            SoundCueSettingRow(
+                label = "REPÈRE INTERMÉDIAIRE",
+                detail = "Tintement léger",
+                checked = settings.intervalCueEnabled,
+                onCheckedChange = { onSettingsChange(settings.copy(intervalCueEnabled = it)) },
+                onPreview = { onPreview(SoundCue.INTERVAL) },
+            )
+            if (settings.intervalCueEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("TOUTES LES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Spacer(Modifier.weight(1f))
+                    TimeButton("−", enabled = settings.intervalMinutes > 30) {
+                        onSettingsChange(settings.copy(intervalMinutes = settings.intervalMinutes - 30))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("${settings.intervalMinutes} min", color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.width(10.dp))
+                    TimeButton("+", enabled = settings.intervalMinutes < 180) {
+                        onSettingsChange(settings.copy(intervalMinutes = settings.intervalMinutes + 30))
+                    }
+                }
+            }
+            SettingsDivider()
+            SoundCueSettingRow(
+                label = "FIN DE JOURNÉE",
+                detail = "Gong grave",
+                checked = settings.endCueEnabled,
+                onCheckedChange = { onSettingsChange(settings.copy(endCueEnabled = it)) },
+                onPreview = { onPreview(SoundCue.DAY_END) },
+            )
+            SettingsDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text("VOLUME", color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                    Spacer(Modifier.height(3.dp))
+                    Text("${settings.volumePercent} %", color = colors.cloud, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                }
+                Spacer(Modifier.weight(1f))
+                TimeButton("−", enabled = settings.volumePercent > 10) {
+                    onSettingsChange(settings.copy(volumePercent = settings.volumePercent - 10))
+                }
+                Spacer(Modifier.width(8.dp))
+                TimeButton("+", enabled = settings.volumePercent < 100) {
+                    onSettingsChange(settings.copy(volumePercent = settings.volumePercent + 10))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SoundCueSettingRow(
+    label: String,
+    detail: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onPreview: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Spacer(Modifier.height(3.dp))
+            Text(detail, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        }
+        PreviewSoundButton(onPreview)
+        Spacer(Modifier.width(10.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun PreviewSoundButton(onClick: () -> Unit) {
+    val colors = LocalDayViewColors.current
+    Box(
+        modifier = Modifier.background(colors.mint.copy(alpha = .12f), RoundedCornerShape(9.dp))
+            .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(9.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("ÉCOUTER", color = colors.mint, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    val colors = LocalDayViewColors.current
+    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.overlay.copy(alpha = .06f)))
 }
 
 @Composable

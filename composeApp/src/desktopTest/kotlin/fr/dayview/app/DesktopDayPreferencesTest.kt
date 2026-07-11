@@ -22,6 +22,7 @@ class DesktopDayPreferencesTest {
         assertEquals(8 * 60, preferences.loadStartMinutes())
         assertEquals(18 * 60, preferences.loadEndMinutes())
         assertEquals(true, preferences.loadShowSeconds())
+        assertEquals(SoundSettings(), preferences.loadSoundSettings())
         assertEquals("", preferences.loadGoalTitle())
         assertNull(preferences.loadGoalDeadlineMillis())
         assertEquals(25, preferences.loadPomodoroMinutes())
@@ -46,6 +47,21 @@ class DesktopDayPreferencesTest {
         val reloaded = DesktopDayPreferences(storage)
 
         assertEquals(false, reloaded.loadShowSeconds())
+    }
+
+    @Test
+    fun soundSettingsSurviveANewPreferencesInstance() {
+        val settings = SoundSettings(
+            enabled = true,
+            startCueEnabled = false,
+            intervalMinutes = 90,
+            volumePercent = 60,
+        )
+        preferences.saveSoundSettings(settings)
+
+        val reloaded = DesktopDayPreferences(storage)
+
+        assertEquals(settings, reloaded.loadSoundSettings())
     }
 
     @Test

@@ -9,7 +9,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.window.application
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import fr.dayview.app.generated.resources.Res
@@ -23,7 +25,10 @@ fun main() = application {
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
     val focusResumeDetector = remember { FocusResumeDetector() }
+    val soundCuePlayer = remember { createSoundCuePlayer() }
+    val soundAlertScheduler = remember { SoundAlertScheduler() }
     var isWindowVisible by remember { mutableStateOf(true) }
+    var isMiniWindowVisible by remember { mutableStateOf(false) }
     var focusDriftReminderId by remember { mutableStateOf<Long?>(null) }
     var focusResumeRitualId by remember { mutableStateOf<Long?>(null) }
     var nowMillis by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds()) }
@@ -34,19 +39,34 @@ fun main() = application {
     var pomodoroMinutes by remember { mutableStateOf(preferences.loadPomodoroMinutes()) }
     var pomodoroEnd by remember { mutableStateOf(preferences.loadPomodoroEndMillis()) }
     var focusIntention by remember { mutableStateOf(preferences.loadFocusIntention()) }
+    var showSeconds by remember { mutableStateOf(preferences.loadShowSeconds()) }
 
     LaunchedEffect(Unit) {
         while (true) {
             val currentNowMillis = Clock.System.now().toEpochMilliseconds()
             nowMillis = currentNowMillis
-            startMinutes = preferences.loadStartMinutes()
-            endMinutes = preferences.loadEndMinutes()
+            val currentStartMinutes = preferences.loadStartMinutes()
+            val currentEndMinutes = preferences.loadEndMinutes()
+            startMinutes = currentStartMinutes
+            endMinutes = currentEndMinutes
             goalTitle = preferences.loadGoalTitle()
             goalDeadline = preferences.loadGoalDeadlineMillis()
             pomodoroMinutes = preferences.loadPomodoroMinutes()
             val currentPomodoroEnd = preferences.loadPomodoroEndMillis()
             pomodoroEnd = currentPomodoroEnd
             focusIntention = preferences.loadFocusIntention()
+            showSeconds = preferences.loadShowSeconds()
+
+            val soundSettings = preferences.loadSoundSettings()
+            val soundCue = soundAlertScheduler.observe(
+                nowMillis = currentNowMillis,
+                startMinutesOfDay = currentStartMinutes,
+                endMinutesOfDay = currentEndMinutes,
+                intervalMinutes = soundSettings.intervalMinutes,
+            )
+            if (soundCue != null && soundSettings.allows(soundCue)) {
+                soundCuePlayer.play(soundCue, soundSettings.volumePercent / 100f)
+            }
 
             val focusIsActive = currentPomodoroEnd != null && currentPomodoroEnd > currentNowMillis
             val shouldShowResumeRitual = focusResumeDetector.observe(focusIsActive, currentNowMillis)
@@ -58,9 +78,11 @@ fun main() = application {
             if (shouldShowResumeRitual) {
                 focusResumeRitualId = currentNowMillis
                 focusDriftReminderId = null
+                isMiniWindowVisible = false
                 isWindowVisible = true
             } else if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
                 focusDriftReminderId = currentNowMillis
+                isMiniWindowVisible = false
                 isWindowVisible = true
             } else if (!focusIsActive) {
                 focusDriftReminderId = null
@@ -102,20 +124,34 @@ fun main() = application {
         )
     }
     DisposableEffect(Unit) {
-        onDispose { focusStatusItem.close() }
+        onDispose {
+            focusStatusItem.close()
+            soundCuePlayer.close()
+        }
     }
 
     Tray(
         icon = painterResource(Res.drawable.dayview_tray),
         tooltip = dayStatus,
-        onAction = { isWindowVisible = true },
+        onAction = {
+            if (!isMiniWindowVisible) isWindowVisible = true
+        },
     ) {
         focusStatus?.let { Item(it, enabled = false, onClick = {}) }
         Item(dayStatus, enabled = false, onClick = {})
         goalStatus?.let { Item(it, enabled = false, onClick = {}) }
         Separator()
+        Item(if (isMiniWindowVisible) "Ouvrir la fenêtre complète" else "Afficher la mini-fenêtre") {
+            isMiniWindowVisible = !isMiniWindowVisible
+            isWindowVisible = !isMiniWindowVisible
+        }
         Item(if (isWindowVisible) "Masquer DayView" else "Ouvrir DayView") {
-            isWindowVisible = !isWindowVisible
+            if (isWindowVisible) {
+                isWindowVisible = false
+            } else {
+                isMiniWindowVisible = false
+                isWindowVisible = true
+            }
         }
         Item("Quitter DayView", onClick = ::exitApplication)
     }
@@ -134,10 +170,35 @@ fun main() = application {
             }
             DayViewApp(
                 preferences = preferences,
+                onOpenMiniWindow = {
+                    isWindowVisible = false
+                    isMiniWindowVisible = true
+                },
                 showFocusDriftReminder = focusDriftReminderId != null,
                 onDismissFocusDriftReminder = { focusDriftReminderId = null },
                 showFocusResumeRitual = focusResumeRitualId != null,
                 onDismissFocusResumeRitual = { focusResumeRitualId = null },
+                scheduleSoundAlerts = false,
+            )
+        }
+    }
+
+    if (isMiniWindowVisible) {
+        Window(
+            onCloseRequest = { isMiniWindowVisible = false },
+            title = "DayView Mini",
+            state = rememberWindowState(width = 360.dp, height = 520.dp),
+            alwaysOnTop = true,
+            resizable = false,
+        ) {
+            DayViewMiniApp(
+                progress = dayProgress,
+                showSeconds = showSeconds,
+                nowMillis = nowMillis,
+                goalTitle = goalTitle,
+                goalDeadlineMillis = goalDeadline,
+                pomodoro = pomodoro,
+                focusIntention = focusIntention,
             )
         }
     }
