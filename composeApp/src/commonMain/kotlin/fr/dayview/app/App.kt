@@ -291,15 +291,25 @@ private fun DayViewScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(64.dp),
                 ) {
-                    CountdownCircle(progress, showSeconds, Modifier.weight(1.15f))
+                    Column(
+                        modifier = Modifier.weight(1.15f).fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        CountdownCircle(progress, showSeconds, Modifier.weight(1f).fillMaxWidth())
+                        Spacer(Modifier.height(12.dp))
+                        GlobalGoalPanel(
+                            title = goalTitle,
+                            deadlineText = goalDeadlineText,
+                            deadlineMillis = goalDeadlineMillis,
+                            nowMillis = nowMillis,
+                            workStartMinutes = progress.startHour * 60 + progress.startMinute,
+                            workEndMinutes = progress.endHour * 60 + progress.endMinute,
+                            onTitleChange = onGoalTitleChange,
+                            onDeadlineChange = onGoalDeadlineChange,
+                        )
+                    }
                     SidePanel(
                         progress = progress,
-                        goalTitle = goalTitle,
-                        goalDeadlineText = goalDeadlineText,
-                        goalDeadlineMillis = goalDeadlineMillis,
-                        nowMillis = nowMillis,
-                        onGoalTitleChange = onGoalTitleChange,
-                        onGoalDeadlineChange = onGoalDeadlineChange,
                         pomodoro = pomodoro,
                         focusIntention = focusIntention,
                         onFocusIntentionChange = onFocusIntentionChange,
@@ -313,15 +323,20 @@ private fun DayViewScreen(
                 }
             } else {
                 CountdownCircle(progress, showSeconds, Modifier.fillMaxWidth().height(340.dp))
+                Spacer(Modifier.height(12.dp))
+                GlobalGoalPanel(
+                    title = goalTitle,
+                    deadlineText = goalDeadlineText,
+                    deadlineMillis = goalDeadlineMillis,
+                    nowMillis = nowMillis,
+                    workStartMinutes = progress.startHour * 60 + progress.startMinute,
+                    workEndMinutes = progress.endHour * 60 + progress.endMinute,
+                    onTitleChange = onGoalTitleChange,
+                    onDeadlineChange = onGoalDeadlineChange,
+                )
                 Spacer(Modifier.height(18.dp))
                 SidePanel(
                     progress = progress,
-                    goalTitle = goalTitle,
-                    goalDeadlineText = goalDeadlineText,
-                    goalDeadlineMillis = goalDeadlineMillis,
-                    nowMillis = nowMillis,
-                    onGoalTitleChange = onGoalTitleChange,
-                    onGoalDeadlineChange = onGoalDeadlineChange,
                     pomodoro = pomodoro,
                     focusIntention = focusIntention,
                     onFocusIntentionChange = onFocusIntentionChange,
@@ -604,12 +619,6 @@ private fun CountdownCircle(
 @Composable
 private fun SidePanel(
     progress: DayProgress,
-    goalTitle: String,
-    goalDeadlineText: String,
-    goalDeadlineMillis: Long?,
-    nowMillis: Long,
-    onGoalTitleChange: (String) -> Unit,
-    onGoalDeadlineChange: (String) -> Unit,
     pomodoro: PomodoroProgress,
     focusIntention: String,
     onFocusIntentionChange: (String) -> Unit,
@@ -657,17 +666,6 @@ private fun SidePanel(
                 fontSize = 12.sp,
             )
         }
-        Spacer(Modifier.height(14.dp))
-        GlobalGoalPanel(
-            title = goalTitle,
-            deadlineText = goalDeadlineText,
-            deadlineMillis = goalDeadlineMillis,
-            nowMillis = nowMillis,
-            workStartMinutes = progress.startHour * 60 + progress.startMinute,
-            workEndMinutes = progress.endHour * 60 + progress.endMinute,
-            onTitleChange = onGoalTitleChange,
-            onDeadlineChange = onGoalDeadlineChange,
-        )
         Spacer(Modifier.height(22.dp))
     }
 }
@@ -897,19 +895,45 @@ private fun GlobalGoalPanel(
                 )
             }
         }
-        Spacer(Modifier.height(12.dp))
-        GoalTextField(
-            value = title,
-            placeholder = "Que voulez-vous accomplir ?",
-            onValueChange = onTitleChange,
-        )
-        Spacer(Modifier.height(9.dp))
-        GoalTextField(
-            value = deadlineText,
-            placeholder = GOAL_DATE_PLACEHOLDER,
-            onValueChange = onDeadlineChange,
-            isError = !deadlineIsValid,
-        )
+        Spacer(Modifier.height(10.dp))
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            if (maxWidth >= 360.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                ) {
+                    GoalTextField(
+                        value = title,
+                        placeholder = "Que voulez-vous accomplir ?",
+                        onValueChange = onTitleChange,
+                        modifier = Modifier.weight(1f),
+                    )
+                    GoalTextField(
+                        value = deadlineText,
+                        placeholder = GOAL_DATE_PLACEHOLDER,
+                        onValueChange = onDeadlineChange,
+                        isError = !deadlineIsValid,
+                        modifier = Modifier.width(148.dp),
+                    )
+                }
+            } else {
+                Column {
+                    GoalTextField(
+                        value = title,
+                        placeholder = "Que voulez-vous accomplir ?",
+                        onValueChange = onTitleChange,
+                    )
+                    Spacer(Modifier.height(9.dp))
+                    GoalTextField(
+                        value = deadlineText,
+                        placeholder = GOAL_DATE_PLACEHOLDER,
+                        onValueChange = onDeadlineChange,
+                        isError = !deadlineIsValid,
+                    )
+                }
+            }
+        }
         if (!deadlineIsValid) {
             Spacer(Modifier.height(6.dp))
             Text("Format attendu : $GOAL_DATE_PLACEHOLDER", color = colors.red, fontSize = 10.sp)
@@ -923,6 +947,7 @@ private fun GoalTextField(
     placeholder: String,
     onValueChange: (String) -> Unit,
     isError: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
     BasicTextField(
@@ -931,7 +956,7 @@ private fun GoalTextField(
         singleLine = true,
         textStyle = TextStyle(color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium),
         cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
             .background(colors.overlay.copy(alpha = .045f), RoundedCornerShape(10.dp))
             .border(
                 width = 1.dp,
