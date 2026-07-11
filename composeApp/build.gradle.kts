@@ -29,10 +29,12 @@ fun deriveVersionCode(version: String): Int {
 val appVersionCode: Int = deriveVersionCode(appVersion)
 
 // jpackage (dmg/deb/rpm) requires a strictly numeric X.Y.Z whose first component
-// is >= 1; map any pre-release suffix or 0.0.0 to a valid numeric version.
+// is >= 1; map any pre-release suffix or major-0 version to a valid numeric version.
 val appPackageVersion: String =
-    appVersion.substringBefore('-').substringBefore('+')
-        .let { core -> if (core.isBlank() || core == "0.0.0") "1.0.0" else core }
+    appVersion.substringBefore('-').substringBefore('+').let { core ->
+        val major = core.substringBefore('.').toIntOrNull() ?: 0
+        if (major < 1) "1.0.0" else core
+    }
 
 val isMacHost: Boolean =
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
