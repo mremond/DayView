@@ -889,7 +889,7 @@ private fun GlobalGoalPanel(
                 }
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "${(progress * 100).roundToInt()} %",
+                    "${(animatedProgress * 100).roundToInt()} %",
                     color = colors.muted,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
