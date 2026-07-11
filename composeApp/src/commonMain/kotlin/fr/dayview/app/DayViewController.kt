@@ -48,14 +48,14 @@ internal class DayViewController(
 
     fun openToday(): DayViewUiState = update { copy(destination = DayViewDestination.TODAY) }
 
-    fun moveStart(deltaMinutes: Int): DayViewUiState = update {
-        val updated = (startMinutes + deltaMinutes).coerceIn(0, endMinutes - 30)
+    fun setStartMinutes(minutes: Int): DayViewUiState = update {
+        val updated = minutes.coerceIn(0, endMinutes - 30)
         preferences.saveDayRange(updated, endMinutes)
         copy(startMinutes = updated)
     }
 
-    fun moveEnd(deltaMinutes: Int): DayViewUiState = update {
-        val updated = (endMinutes + deltaMinutes).coerceIn(startMinutes + 30, 23 * 60 + 59)
+    fun setEndMinutes(minutes: Int): DayViewUiState = update {
+        val updated = minutes.coerceIn(startMinutes + 30, 23 * 60 + 59)
         preferences.saveDayRange(startMinutes, updated)
         copy(endMinutes = updated)
     }

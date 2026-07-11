@@ -137,8 +137,8 @@ fun DayViewApp(
                             launchAtLogin = launchAtLogin,
                         ),
                         actions = SettingsScreenActions(
-                            moveStart = { state = controller.moveStart(it) },
-                            moveEnd = { state = controller.moveEnd(it) },
+                            changeStartTime = { state = controller.setStartMinutes(it) },
+                            changeEndTime = { state = controller.setEndMinutes(it) },
                             changeShowSeconds = { state = controller.setShowSeconds(it) },
                             changeMonochromeMenuBarIcon = onMonochromeMenuBarIconChange,
                             changeLaunchAtLogin = onLaunchAtLoginChange,

@@ -73,8 +73,8 @@ internal data class SettingsPlatformUiState(
 )
 
 internal data class SettingsScreenActions(
-    val moveStart: (Int) -> Unit,
-    val moveEnd: (Int) -> Unit,
+    val changeStartTime: (Int) -> Unit,
+    val changeEndTime: (Int) -> Unit,
     val changeShowSeconds: (Boolean) -> Unit,
     val changeMonochromeMenuBarIcon: ((Boolean) -> Unit)?,
     val changeLaunchAtLogin: ((Boolean) -> Unit)?,
@@ -91,6 +91,7 @@ internal fun SettingsScreen(
 ) {
     val colors = LocalDayViewColors.current
     val progress = state.dayProgress
+    val timePicker = rememberTimePickerLauncher()
     Box(
         modifier = Modifier.fillMaxSize()
             .background(
@@ -145,18 +146,26 @@ internal fun SettingsScreen(
                         label = "DÉBUT DE JOURNÉE",
                         hour = progress.startHour,
                         minute = progress.startMinute,
-                        canDecrease = progress.startHour > 0 || progress.startMinute > 0,
-                        canIncrease = progress.startHour * 60 + progress.startMinute < progress.endHour * 60 + progress.endMinute - 30,
-                        onMove = actions.moveStart,
+                        onClick = {
+                            timePicker.show(
+                                initialMinutes = state.startMinutes,
+                                allowedMinutes = 0..state.endMinutes - 30,
+                                onTimeSelected = actions.changeStartTime,
+                            )
+                        },
                     )
                     Box(Modifier.fillMaxWidth().height(1.dp).background(colors.overlay.copy(alpha = .06f)))
                     TimePreferenceRow(
                         label = "FIN DE JOURNÉE",
                         hour = progress.endHour,
                         minute = progress.endMinute,
-                        canDecrease = progress.endHour * 60 + progress.endMinute > progress.startHour * 60 + progress.startMinute + 30,
-                        canIncrease = progress.endHour < 23 || progress.endMinute < 29,
-                        onMove = actions.moveEnd,
+                        onClick = {
+                            timePicker.show(
+                                initialMinutes = state.endMinutes,
+                                allowedMinutes = state.startMinutes + 30..23 * 60 + 59,
+                                onTimeSelected = actions.changeEndTime,
+                            )
+                        },
                     )
                 }
                 Spacer(Modifier.height(24.dp))
@@ -450,13 +459,17 @@ private fun TimePreferenceRow(
     label: String,
     hour: Int,
     minute: Int,
-    canDecrease: Boolean,
-    canIncrease: Boolean,
-    onMove: (Int) -> Unit,
+    onClick: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth()
+            .clickable(
+                role = Role.Button,
+                onClickLabel = "Modifier $label",
+                onClick = onClick,
+            )
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column {
@@ -470,10 +483,13 @@ private fun TimePreferenceRow(
             )
         }
         Spacer(Modifier.weight(1f))
-        TimeButton("−", enabled = canDecrease) { onMove(-30) }
-        Spacer(Modifier.width(8.dp))
-        TimeButton("+", enabled = canIncrease) { onMove(30) }
+        Text(
+            "MODIFIER",
+            color = colors.mint,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+        )
     }
 }
-
 

@@ -33,8 +33,8 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences()
         val controller = DayViewController(preferences, initialNowMillis = 10_000L)
 
-        controller.moveStart(-30)
-        controller.moveEnd(30)
+        controller.setStartMinutes(7 * 60 + 30)
+        controller.setEndMinutes(18 * 60 + 30)
         controller.setShowSeconds(false)
         controller.setGoalTitle("Publier la version 1")
         controller.setFocusIntention("Écrire les notes de version")
@@ -46,6 +46,21 @@ class DayViewControllerTest {
         assertEquals("Publier la version 1", preferences.current.goalTitle)
         assertEquals("Écrire les notes de version", preferences.current.focusIntention)
         assertEquals(30, preferences.current.pomodoroMinutes)
+    }
+
+    @Test
+    fun controllerConstrainsTimesSelectedByThePlatformPicker() {
+        val preferences = InMemoryDayPreferences()
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+
+        controller.setStartMinutes(20 * 60)
+        assertEquals(17 * 60 + 30, controller.state.startMinutes)
+
+        controller.setEndMinutes(6 * 60)
+        assertEquals(18 * 60, controller.state.endMinutes)
+
+        controller.setEndMinutes(23 * 60 + 59)
+        assertEquals(23 * 60 + 59, controller.state.endMinutes)
     }
 
     @Test
