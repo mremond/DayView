@@ -1,5 +1,8 @@
 package fr.dayview.app
 
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -25,5 +28,33 @@ class CalendarNetTimeTest {
     fun mergeDropsEmptyOrInvertedIntervals() {
         val merged = mergeBusyIntervals(listOf(interval(500, 500), interval(700, 600)))
         assertEquals(emptyList(), merged)
+    }
+
+    @Test
+    fun dayWindowReturnsAbsoluteBounds() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0)
+            .toInstant(zone).toEpochMilliseconds()
+        val (start, end) = dayWindowMillis(noon, 8 * 60, 18 * 60, zone)
+        assertEquals(4L * 3_600_000, noon - start) // 08:00 -> 4 h avant midi
+        assertEquals(6L * 3_600_000, end - noon) // 18:00 -> 6 h après midi
+    }
+
+    @Test
+    fun netTimeSubtractsBusyStillAhead() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0)
+            .toInstant(zone).toEpochMilliseconds()
+        val (start, end) = dayWindowMillis(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        // Réunion 09:00-10:00 (passée) + 14:00-15:30 (à venir)
+        val busy = listOf(
+            interval(start + 1L * 3_600_000, start + 2L * 3_600_000, "Standup"),
+            interval(noon + 2L * 3_600_000, noon + 3L * 3_600_000 + 1_800_000, "Atelier"),
+        )
+        val net = calculateNetTime(progress, noon, start, end, busy)
+        assertEquals(3_600_000 + 1_800_000L, net.busyRemainingMillis) // 1 h 30 à venir
+        assertEquals(progress.remainingMillis - net.busyRemainingMillis, net.netRemainingMillis)
+        assertEquals((end - start) - (3_600_000 + 3_600_000 + 1_800_000L), net.netDayMillis)
     }
 }
