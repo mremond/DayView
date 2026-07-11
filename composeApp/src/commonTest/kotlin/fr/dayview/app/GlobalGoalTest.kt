@@ -13,6 +13,13 @@ class GlobalGoalTest {
     private val zone = TimeZone.of("Europe/Paris")
 
     @Test
+    fun deadlineInputIsFormattedForTheNumericKeyboard() {
+        assertEquals("24/12/2026 18:30", formatGoalDeadlineInput("241220261830"))
+        assertEquals("24/12/2026 18:30", formatGoalDeadlineInput("24/12/2026 18:30"))
+        assertEquals("24/1", formatGoalDeadlineInput("241"))
+    }
+
+    @Test
     fun deadlineRoundTripsThroughTheFrenchDisplayFormat() {
         val parsed = parseGoalDeadline("24/12/2026 18:30", zone)
 

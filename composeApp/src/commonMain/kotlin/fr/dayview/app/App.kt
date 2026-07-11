@@ -8,7 +8,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -32,6 +36,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -47,12 +52,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -161,6 +171,9 @@ fun DayViewApp(
             }
             var lastFocusClosure by remember { mutableStateOf<FocusClosureOutcome?>(null) }
             var destination by remember { mutableStateOf(DayViewDestination.TODAY) }
+            PlatformBackHandler(enabled = destination == DayViewDestination.SETTINGS) {
+                destination = DayViewDestination.TODAY
+            }
             var showSeconds by remember(preferences) { mutableStateOf(preferences.loadShowSeconds()) }
             var soundSettings by remember(preferences) { mutableStateOf(preferences.loadSoundSettings()) }
             val soundPlayer = remember { createSoundCuePlayer() }
@@ -491,9 +504,11 @@ private fun DayViewScreen(
                     radius = 950f,
                 ),
             )
+            .safeDrawingPadding()
             .imePadding(),
     ) {
         val wide = maxWidth >= 780.dp
+        val compactCountdownHeight = (maxWidth - 48.dp).coerceIn(240.dp, 320.dp)
         val pageModifier = if (wide) {
             Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 28.dp)
         } else {
@@ -548,7 +563,7 @@ private fun DayViewScreen(
                     )
                 }
             } else {
-                CountdownCircle(progress, showSeconds, Modifier.fillMaxWidth().height(340.dp))
+                CountdownCircle(progress, showSeconds, Modifier.fillMaxWidth().height(compactCountdownHeight))
                 Spacer(Modifier.height(12.dp))
                 GlobalGoalPanel(
                     title = goalTitle,
@@ -600,7 +615,9 @@ private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) 
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 1.4.sp,
-                modifier = Modifier.clickable(onClick = it).padding(vertical = 10.dp, horizontal = 4.dp),
+                modifier = Modifier.minimumInteractiveComponentSize()
+                    .clickable(role = Role.Button, onClick = it)
+                    .padding(vertical = 10.dp, horizontal = 4.dp),
             )
             Spacer(Modifier.width(18.dp))
         }
@@ -610,7 +627,9 @@ private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) 
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.4.sp,
-            modifier = Modifier.clickable(onClick = onOpenSettings).padding(vertical = 10.dp, horizontal = 4.dp),
+            modifier = Modifier.minimumInteractiveComponentSize()
+                .clickable(role = Role.Button, onClick = onOpenSettings)
+                .padding(vertical = 10.dp, horizontal = 4.dp),
         )
     }
 }
@@ -631,12 +650,14 @@ private fun SettingsScreen(
 ) {
     val colors = LocalDayViewColors.current
     Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.radialGradient(
-                colors = listOf(colors.glow, colors.ink),
-                radius = 950f,
-            ),
-        ),
+        modifier = Modifier.fillMaxSize()
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(colors.glow, colors.ink),
+                    radius = 950f,
+                ),
+            )
+            .safeDrawingPadding(),
     ) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -653,7 +674,9 @@ private fun SettingsScreen(
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.2.sp,
-                    modifier = Modifier.clickable(onClick = onBack).padding(vertical = 10.dp, horizontal = 4.dp),
+                    modifier = Modifier.minimumInteractiveComponentSize()
+                        .clickable(role = Role.Button, onClick = onBack)
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
                 )
                 Spacer(Modifier.weight(1f))
                 Text("RÉGLAGES", color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
@@ -701,7 +724,11 @@ private fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                         .background(colors.panel, RoundedCornerShape(18.dp))
                         .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                        .clickable { onShowSecondsChange(!showSeconds) }
+                        .toggleable(
+                            value = showSeconds,
+                            role = Role.Switch,
+                            onValueChange = onShowSecondsChange,
+                        )
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -724,7 +751,7 @@ private fun SettingsScreen(
                     Spacer(Modifier.width(16.dp))
                     Switch(
                         checked = showSeconds,
-                        onCheckedChange = onShowSecondsChange,
+                        onCheckedChange = null,
                     )
                 }
                 if (monochromeMenuBarIcon != null && onMonochromeMenuBarIconChange != null) {
@@ -733,7 +760,11 @@ private fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                             .background(colors.panel, RoundedCornerShape(18.dp))
                             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                            .clickable { onMonochromeMenuBarIconChange(!monochromeMenuBarIcon) }
+                            .toggleable(
+                                value = monochromeMenuBarIcon,
+                                role = Role.Switch,
+                                onValueChange = onMonochromeMenuBarIconChange,
+                            )
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -756,7 +787,7 @@ private fun SettingsScreen(
                         Spacer(Modifier.width(16.dp))
                         Switch(
                             checked = monochromeMenuBarIcon,
-                            onCheckedChange = onMonochromeMenuBarIconChange,
+                            onCheckedChange = null,
                         )
                     }
                 }
@@ -798,7 +829,11 @@ private fun SoundSettingsPanel(
         modifier = Modifier.fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-            .clickable { onSettingsChange(settings.copy(enabled = !settings.enabled)) }
+            .toggleable(
+                value = settings.enabled,
+                role = Role.Switch,
+                onValueChange = { onSettingsChange(settings.copy(enabled = it)) },
+            )
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -807,7 +842,7 @@ private fun SoundSettingsPanel(
             Spacer(Modifier.height(4.dp))
             Text("Désactivés par défaut.", color = colors.muted, fontSize = 11.sp)
         }
-        Switch(checked = settings.enabled, onCheckedChange = { onSettingsChange(settings.copy(enabled = it)) })
+        Switch(checked = settings.enabled, onCheckedChange = null)
     }
 
     if (settings.enabled) {
@@ -910,9 +945,10 @@ private fun SoundCueSettingRow(
 private fun PreviewSoundButton(onClick: () -> Unit) {
     val colors = LocalDayViewColors.current
     Box(
-        modifier = Modifier.background(colors.mint.copy(alpha = .12f), RoundedCornerShape(9.dp))
+        modifier = Modifier.minimumInteractiveComponentSize()
+            .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(9.dp))
             .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(9.dp))
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -1385,9 +1421,10 @@ private fun FocusActionButton(
         else -> color
     }
     Box(
-        modifier = modifier.background(backgroundColor, RoundedCornerShape(12.dp))
+        modifier = modifier.minimumInteractiveComponentSize()
+            .background(backgroundColor, RoundedCornerShape(12.dp))
             .border(1.dp, color.copy(alpha = if (enabled) .38f else .1f), RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -1397,8 +1434,8 @@ private fun FocusActionButton(
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = .8.sp,
-            maxLines = 1,
-            softWrap = false,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -1460,13 +1497,15 @@ private fun GlobalGoalPanel(
                         value = title,
                         placeholder = "Que voulez-vous accomplir ?",
                         onValueChange = onTitleChange,
+                        imeAction = ImeAction.Next,
                         modifier = Modifier.weight(1f),
                     )
                     GoalTextField(
                         value = deadlineText,
                         placeholder = GOAL_DATE_PLACEHOLDER,
-                        onValueChange = onDeadlineChange,
+                        onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
                         isError = !deadlineIsValid,
+                        keyboardType = KeyboardType.Number,
                         modifier = Modifier.width(148.dp),
                     )
                 }
@@ -1476,13 +1515,15 @@ private fun GlobalGoalPanel(
                         value = title,
                         placeholder = "Que voulez-vous accomplir ?",
                         onValueChange = onTitleChange,
+                        imeAction = ImeAction.Next,
                     )
                     Spacer(Modifier.height(9.dp))
                     GoalTextField(
                         value = deadlineText,
                         placeholder = GOAL_DATE_PLACEHOLDER,
-                        onValueChange = onDeadlineChange,
+                        onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
                         isError = !deadlineIsValid,
+                        keyboardType = KeyboardType.Number,
                     )
                 }
             }
@@ -1500,13 +1541,21 @@ private fun GoalTextField(
     placeholder: String,
     onValueChange: (String) -> Unit,
     isError: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Done,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
+    val focusManager = LocalFocusManager.current
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        keyboardActions = KeyboardActions(
+            onNext = { focusManager.moveFocus(FocusDirection.Next) },
+            onDone = { focusManager.clearFocus() },
+        ),
         textStyle = TextStyle(color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium),
         cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
         modifier = modifier.fillMaxWidth()
@@ -1562,9 +1611,14 @@ private fun TimeButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     val colors = LocalDayViewColors.current
     val color = if (enabled) colors.cloud else colors.muted.copy(alpha = .4f)
     Box(
-        modifier = Modifier.size(42.dp)
+        modifier = Modifier.size(48.dp)
             .background(colors.overlay.copy(alpha = if (enabled) .08f else .025f), CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(
+                enabled = enabled,
+                onClickLabel = if (label == "−") "Diminuer" else "Augmenter",
+                role = Role.Button,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = color, fontSize = 23.sp, fontWeight = FontWeight.Light)

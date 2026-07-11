@@ -11,6 +11,20 @@ import kotlin.math.ceil
 
 const val GOAL_DATE_PLACEHOLDER = "JJ/MM/AAAA HH:MM"
 
+fun formatGoalDeadlineInput(value: String): String {
+    val digits = value.filter(Char::isDigit).take(12)
+    return buildString {
+        digits.forEachIndexed { index, digit ->
+            when (index) {
+                2, 4 -> append('/')
+                8 -> append(' ')
+                10 -> append(':')
+            }
+            append(digit)
+        }
+    }
+}
+
 fun parseGoalDeadline(
     value: String,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
