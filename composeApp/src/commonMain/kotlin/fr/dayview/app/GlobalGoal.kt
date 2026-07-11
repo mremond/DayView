@@ -103,6 +103,23 @@ fun formatGoalWorkingHours(workingMillis: Long, deadlineReached: Boolean): Strin
     return if (hours > 0) "Encore $hours h" else "Moins d’une heure de travail"
 }
 
+fun calculateGoalProgress(
+    nowMillis: Long,
+    startMillis: Long,
+    deadlineMillis: Long,
+    startMinutesOfDay: Int,
+    endMinutesOfDay: Int,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Float {
+    if (nowMillis >= deadlineMillis) return 1f
+    val total = calculateGoalWorkingMillis(startMillis, deadlineMillis, startMinutesOfDay, endMinutesOfDay, timeZone)
+    if (total <= 0L) return 0f
+    val effectiveNow = maxOf(nowMillis, startMillis)
+    val remaining = calculateGoalWorkingMillis(effectiveNow, deadlineMillis, startMinutesOfDay, endMinutesOfDay, timeZone)
+    val elapsed = total - remaining
+    return (elapsed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+}
+
 fun formatGoalSummaryLine(
     title: String,
     deadlineMillis: Long?,

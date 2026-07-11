@@ -73,10 +73,13 @@ class AndroidDayPreferences(
 
     override fun loadGoalDeadlineMillis(): Long? = storage.getLong(KEY_GOAL_DEADLINE, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
 
-    override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
+    override fun loadGoalStartMillis(): Long? = storage.getLong(KEY_GOAL_START, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
+
+    override fun saveGlobalGoal(title: String, deadlineMillis: Long?, startMillis: Long?) {
         storage.edit()
             .putString(KEY_GOAL_TITLE, title)
             .putLong(KEY_GOAL_DEADLINE, deadlineMillis ?: NO_DEADLINE)
+            .putLong(KEY_GOAL_START, startMillis ?: NO_DEADLINE)
             .apply()
         refreshWidgets()
     }
@@ -125,6 +128,7 @@ class AndroidDayPreferences(
         const val KEY_SOUND_VOLUME = "sound_volume"
         const val KEY_GOAL_TITLE = "goal_title"
         const val KEY_GOAL_DEADLINE = "goal_deadline"
+        const val KEY_GOAL_START = "goal_start"
         const val NO_DEADLINE = -1L
         const val KEY_POMODORO_MINUTES = "pomodoro_minutes"
         const val KEY_POMODORO_END = "pomodoro_end"

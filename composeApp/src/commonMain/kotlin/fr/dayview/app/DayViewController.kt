@@ -19,6 +19,8 @@ internal data class DayViewUiState(
     val goalTitle: String,
     val goalDeadlineText: String,
     val goalDeadlineMillis: Long?,
+    val goalStartText: String,
+    val goalStartMillis: Long?,
     val pomodoroMinutes: Int,
     val pomodoroEndMillis: Long?,
     val focusIntention: String,
@@ -107,7 +109,7 @@ internal class DayViewController(
     fun setGoalTitle(value: String) {
         val updated = value.take(80)
         state = state.copy(goalTitle = updated)
-        preferences.saveGlobalGoal(updated, state.goalDeadlineMillis)
+        preferences.saveGlobalGoal(updated, state.goalDeadlineMillis, state.goalStartMillis)
     }
 
     fun setGoalDeadlineText(value: String) {
@@ -117,8 +119,30 @@ internal class DayViewController(
     fun commitGoalDeadline() {
         val parsed = parseGoalDeadline(state.goalDeadlineText)
         if (parsed == null && state.goalDeadlineText.isNotBlank()) return
-        state = state.copy(goalDeadlineMillis = parsed)
-        preferences.saveGlobalGoal(state.goalTitle, parsed)
+        val existingStart = state.goalStartMillis
+        val start = when {
+            parsed == null -> null
+            existingStart == null || existingStart >= parsed -> state.nowMillis
+            else -> existingStart
+        }
+        state = state.copy(
+            goalDeadlineMillis = parsed,
+            goalStartMillis = start,
+            goalStartText = start?.let(::formatGoalDeadline).orEmpty(),
+        )
+        preferences.saveGlobalGoal(state.goalTitle, parsed, start)
+    }
+
+    fun setGoalStartText(value: String) {
+        state = state.copy(goalStartText = value.take(16))
+    }
+
+    fun commitGoalStart() {
+        val deadline = state.goalDeadlineMillis ?: return
+        val parsed = parseGoalDeadline(state.goalStartText) ?: return
+        if (parsed >= deadline) return
+        state = state.copy(goalStartMillis = parsed)
+        preferences.saveGlobalGoal(state.goalTitle, deadline, parsed)
     }
 
     fun setFocusIntention(value: String) {
@@ -210,6 +234,8 @@ private fun DayPreferencesSnapshot.toUiState(nowMillis: Long): DayViewUiState {
         goalTitle = safe.goalTitle,
         goalDeadlineText = safe.goalDeadlineMillis?.let(::formatGoalDeadline).orEmpty(),
         goalDeadlineMillis = safe.goalDeadlineMillis,
+        goalStartText = safe.goalStartMillis?.let(::formatGoalDeadline).orEmpty(),
+        goalStartMillis = safe.goalStartMillis,
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
@@ -226,11 +252,12 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         soundSettings = safe.soundSettings,
         goalTitle = safe.goalTitle,
         goalDeadlineMillis = safe.goalDeadlineMillis,
+        goalStartMillis = safe.goalStartMillis,
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
         // Transient fields deliberately preserved: nowMillis, goalDeadlineText,
-        // lastFocusClosure, destination, and calendar read results.
+        // goalStartText, lastFocusClosure, destination, and calendar read results.
     )
 }

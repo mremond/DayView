@@ -26,6 +26,7 @@ class DesktopDayPreferencesTest {
         assertEquals(SoundSettings(), preferences.loadSoundSettings())
         assertEquals("", preferences.loadGoalTitle())
         assertNull(preferences.loadGoalDeadlineMillis())
+        assertNull(preferences.loadGoalStartMillis())
         assertEquals(25, preferences.loadPomodoroMinutes())
         assertNull(preferences.loadPomodoroEndMillis())
         assertEquals("", preferences.loadFocusIntention())
@@ -88,23 +89,25 @@ class DesktopDayPreferencesTest {
 
     @Test
     fun globalGoalSurvivesANewPreferencesInstance() {
-        preferences.saveGlobalGoal("Livrer DayView", 1_800_000_000_000L)
+        preferences.saveGlobalGoal("Livrer DayView", 1_800_000_000_000L, 1_700_000_000_000L)
 
         val reloaded = DesktopDayPreferences(storage)
 
         assertEquals("Livrer DayView", reloaded.loadGoalTitle())
         assertEquals(1_800_000_000_000L, reloaded.loadGoalDeadlineMillis())
+        assertEquals(1_700_000_000_000L, reloaded.loadGoalStartMillis())
     }
 
     @Test
     fun clearingDeadlineKeepsTitleAndPersistsNull() {
-        preferences.saveGlobalGoal("Objectif sans date", 1_800_000_000_000L)
-        preferences.saveGlobalGoal("Objectif sans date", null)
+        preferences.saveGlobalGoal("Objectif sans date", 1_800_000_000_000L, 1_700_000_000_000L)
+        preferences.saveGlobalGoal("Objectif sans date", null, null)
 
         val reloaded = DesktopDayPreferences(storage)
 
         assertEquals("Objectif sans date", reloaded.loadGoalTitle())
         assertNull(reloaded.loadGoalDeadlineMillis())
+        assertNull(reloaded.loadGoalStartMillis())
     }
 
     @Test

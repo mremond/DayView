@@ -183,6 +183,121 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun committingADeadlineDefaultsTheStartToNow() {
+        val preferences = InMemoryDayPreferences()
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalDeadlineText("24/12/2026 18:30")
+        controller.commitGoalDeadline()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
+    fun clearingTheDeadlineClearsTheStart() {
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 1_000L),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalDeadlineText("")
+        controller.commitGoalDeadline()
+
+        assertEquals(null, controller.state.goalStartMillis)
+        assertEquals(null, preferences.current.goalStartMillis)
+    }
+
+    @Test
+    fun editingAnExistingDeadlineKeepsTheStart() {
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 1_000L),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalDeadlineText("26/12/2026 18:30")
+        controller.commitGoalDeadline()
+
+        assertEquals(1_000L, controller.state.goalStartMillis)
+    }
+
+    @Test
+    fun editingTheDeadlineBeforeAnExistingStartResetsTheStartToNow() {
+        val start = parseGoalDeadline("20/12/2026 09:00")!!
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = start),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalDeadlineText("15/12/2026 18:30")
+        controller.commitGoalDeadline()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
+    fun commitGoalStartPersistsAValidEarlierStart() {
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 5_000L),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalStartText("01/12/2026 09:00")
+        controller.commitGoalStart()
+
+        val expected = parseGoalDeadline("01/12/2026 09:00")!!
+        assertEquals(expected, controller.state.goalStartMillis)
+        assertEquals(expected, preferences.current.goalStartMillis)
+    }
+
+    @Test
+    fun commitGoalStartRejectsAStartOnOrAfterTheDeadline() {
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 5_000L),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalStartText("25/12/2026 09:00")
+        controller.commitGoalStart()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
+    fun commitGoalStartIsANoOpWhenNoDeadlineIsSet() {
+        val preferences = InMemoryDayPreferences(DayPreferencesSnapshot(goalStartMillis = 5_000L))
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalStartText("01/12/2026 09:00")
+        controller.commitGoalStart()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
+    fun commitGoalStartIgnoresUnparseableInput() {
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 5_000L),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalStartText("pas une date")
+        controller.commitGoalStart()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
     fun externalSaveReachesTheControllerThroughObserve() {
         val preferences = InMemoryDayPreferences()
         val controller = DayViewController(preferences, initialNowMillis = 10_000L)
@@ -250,6 +365,7 @@ private class InMemoryDayPreferences(
     override fun loadSoundSettings(): SoundSettings = current.soundSettings
     override fun loadGoalTitle(): String = current.goalTitle
     override fun loadGoalDeadlineMillis(): Long? = current.goalDeadlineMillis
+    override fun loadGoalStartMillis(): Long? = current.goalStartMillis
     override fun loadPomodoroMinutes(): Int = current.pomodoroMinutes
     override fun loadPomodoroEndMillis(): Long? = current.pomodoroEndMillis
     override fun loadFocusIntention(): String = current.focusIntention
@@ -270,8 +386,8 @@ private class InMemoryDayPreferences(
         emit()
     }
 
-    override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
-        current = current.copy(goalTitle = title, goalDeadlineMillis = deadlineMillis)
+    override fun saveGlobalGoal(title: String, deadlineMillis: Long?, startMillis: Long?) {
+        current = current.copy(goalTitle = title, goalDeadlineMillis = deadlineMillis, goalStartMillis = startMillis)
         emit()
     }
 

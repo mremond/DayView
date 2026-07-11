@@ -208,6 +208,49 @@ class GlobalGoalTest {
         assertEquals(3_652L * 10 * 3_600_000L, remaining)
     }
 
+    private fun millis(iso: String): Long = LocalDateTime.parse(iso).toInstant(zone).toEpochMilliseconds()
+
+    @Test
+    fun goalProgressIsZeroBeforeAndAtTheStart() {
+        val start = millis("2026-01-05T08:00")
+        val deadline = millis("2026-01-05T18:00")
+        assertEquals(0f, calculateGoalProgress(start, start, deadline, 8 * 60, 18 * 60, zone))
+        val before = millis("2026-01-04T20:00")
+        assertEquals(0f, calculateGoalProgress(before, start, deadline, 8 * 60, 18 * 60, zone))
+    }
+
+    @Test
+    fun goalProgressReachesHalfwayAcrossOneWorkingDay() {
+        val start = millis("2026-01-05T08:00")
+        val now = millis("2026-01-05T13:00")
+        val deadline = millis("2026-01-05T18:00")
+        assertEquals(0.5f, calculateGoalProgress(now, start, deadline, 8 * 60, 18 * 60, zone), 0.001f)
+    }
+
+    @Test
+    fun goalProgressIsFullAtOrAfterTheDeadline() {
+        val start = millis("2026-01-05T08:00")
+        val deadline = millis("2026-01-05T18:00")
+        assertEquals(1f, calculateGoalProgress(deadline, start, deadline, 8 * 60, 18 * 60, zone))
+        val after = millis("2026-01-06T09:00")
+        assertEquals(1f, calculateGoalProgress(after, start, deadline, 8 * 60, 18 * 60, zone))
+    }
+
+    @Test
+    fun goalProgressIsZeroWhenStartEqualsDeadline() {
+        val moment = millis("2026-01-05T12:00")
+        assertEquals(0f, calculateGoalProgress(moment - 1, moment, moment, 8 * 60, 18 * 60, zone))
+    }
+
+    @Test
+    fun goalProgressReachesHalfwayAcrossAMultiDaySpan() {
+        // Three working days (10h each = 30h). Halfway = 15h = one full day + 5h into the second.
+        val start = millis("2026-01-05T08:00")
+        val now = millis("2026-01-06T13:00")
+        val deadline = millis("2026-01-07T18:00")
+        assertEquals(0.5f, calculateGoalProgress(now, start, deadline, 8 * 60, 18 * 60, zone), 0.001f)
+    }
+
     @Test
     fun goalSummaryJoinsTitleAndRemainingHours() {
         val line = formatGoalSummaryLine(
