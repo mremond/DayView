@@ -8,8 +8,11 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 class DesktopDataStoreTest {
+    private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
+
     private val tempDir = File(System.getProperty("java.io.tmpdir"), "dayview-ds-test-${System.nanoTime()}").apply { mkdirs() }
     private val legacyNode = Preferences.userRoot().node("fr/dayview/app/test-${System.nanoTime()}")
 
@@ -37,7 +40,7 @@ class DesktopDataStoreTest {
 
         assertEquals(9 * 60, snapshot.startMinutes)
         assertEquals("Legacy goal", snapshot.goalTitle)
-        assertEquals(123_456_789L, snapshot.goalStartMillis)
+        assertEquals(t(123_456_789L), snapshot.goalStart)
         assertTrue(snapshot.netTimeSettings.enabled)
         assertEquals(setOf("cal-a", "cal-b"), snapshot.netTimeSettings.includedCalendarIds)
         assertTrue(prefs.loadMonochromeMenuBarIcon())
@@ -50,8 +53,8 @@ class DesktopDataStoreTest {
             file = File(tempDir, "dayview.preferences_pb"),
         )
         val intervals = listOf(
-            FocusPresenceInterval(1_000L, 2_000L),
-            FocusPresenceInterval(5_000L, 9_000L),
+            FocusPresenceInterval(t(1_000L), t(2_000L)),
+            FocusPresenceInterval(t(5_000L), t(9_000L)),
         )
         prefs.saveFocusPresence(19_000L, intervals)
 

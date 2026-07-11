@@ -3,6 +3,7 @@ package fr.dayview.app
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.time.Instant
 
 data class DayPreferencesSnapshot(
     val startMinutes: Int = 8 * 60,
@@ -10,10 +11,10 @@ data class DayPreferencesSnapshot(
     val showSeconds: Boolean = true,
     val soundSettings: SoundSettings = SoundSettings(),
     val goalTitle: String = "",
-    val goalDeadlineMillis: Long? = null,
-    val goalStartMillis: Long? = null,
+    val goalDeadline: Instant? = null,
+    val goalStart: Instant? = null,
     val pomodoroMinutes: Int = 25,
-    val pomodoroEndMillis: Long? = null,
+    val pomodoroEnd: Instant? = null,
     val focusIntention: String = "",
     val netTimeSettings: NetTimeSettings = NetTimeSettings(),
     val onGoalApps: Set<AppRef> = emptySet(),

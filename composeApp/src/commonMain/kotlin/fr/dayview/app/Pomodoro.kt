@@ -1,5 +1,12 @@
 package fr.dayview.app
 
+import kotlin.math.ceil
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
+import kotlin.time.Instant
+
 enum class PomodoroStatus { IDLE, ACTIVE, BREAK }
 
 enum class FocusClosureOutcome(val keepsIntention: Boolean) {
@@ -15,33 +22,33 @@ fun focusIntentionAfterClosure(
 
 data class PomodoroProgress(
     val durationMinutes: Int,
-    val remainingMillis: Long,
+    val remaining: Duration,
     val remainingRatio: Float,
     val status: PomodoroStatus,
-    val breakElapsedMillis: Long = 0L,
+    val breakElapsed: Duration = Duration.ZERO,
 ) {
-    val remainingMinutes: Long get() = remainingMillis / 60_000
-    val remainingSeconds: Long get() = (remainingMillis / 1_000) % 60
+    val remainingMinutes: Long get() = remaining.inWholeMinutes
+    val remainingSeconds: Long get() = remaining.inWholeSeconds % 60
 }
 
 fun calculatePomodoroProgress(
-    nowMillis: Long,
+    now: Instant,
     durationMinutes: Int,
-    endMillis: Long?,
+    end: Instant?,
 ): PomodoroProgress {
     val safeDuration = durationMinutes.coerceIn(5, 180)
-    val durationMillis = safeDuration * 60_000L
-    if (endMillis == null) {
-        return PomodoroProgress(safeDuration, durationMillis, 1f, PomodoroStatus.IDLE)
+    val duration = safeDuration.minutes
+    if (end == null) {
+        return PomodoroProgress(safeDuration, duration, 1f, PomodoroStatus.IDLE)
     }
 
-    val remaining = (endMillis - nowMillis).coerceIn(0, durationMillis)
+    val remaining = (end - now).coerceIn(Duration.ZERO, duration)
     return PomodoroProgress(
         durationMinutes = safeDuration,
-        remainingMillis = remaining,
-        remainingRatio = remaining.toFloat() / durationMillis,
-        status = if (remaining == 0L) PomodoroStatus.BREAK else PomodoroStatus.ACTIVE,
-        breakElapsedMillis = (nowMillis - endMillis).coerceAtLeast(0L),
+        remaining = remaining,
+        remainingRatio = (remaining / duration).toFloat(),
+        status = if (remaining == Duration.ZERO) PomodoroStatus.BREAK else PomodoroStatus.ACTIVE,
+        breakElapsed = (now - end).coerceAtLeast(Duration.ZERO),
     )
 }
 
@@ -49,32 +56,32 @@ fun formatPomodoroClock(progress: PomodoroProgress): String = "${progress.remain
     progress.remainingSeconds.toString().padStart(2, '0')
 
 fun formatPomodoroCompactMinutes(progress: PomodoroProgress): String {
-    val roundedMinutes = (progress.remainingMillis + 59_999L) / 60_000L
+    val roundedMinutes = ceil(progress.remaining.toDouble(DurationUnit.MINUTES)).toLong()
     return "${roundedMinutes}m"
 }
 
 fun formatBreakClock(progress: PomodoroProgress): String {
-    val elapsedMinutes = progress.breakElapsedMillis / 60_000L
-    val elapsedSeconds = (progress.breakElapsedMillis / 1_000L) % 60L
+    val elapsedMinutes = progress.breakElapsed.inWholeMinutes
+    val elapsedSeconds = progress.breakElapsed.inWholeSeconds % 60L
     return "${elapsedMinutes.toString().padStart(2, '0')}:" +
         elapsedSeconds.toString().padStart(2, '0')
 }
 
 class BreakReminderScheduler {
-    private var previousMillis: Long? = null
-    private var previousBreakStartMillis: Long? = null
+    private var previous: Instant? = null
+    private var previousBreakStart: Instant? = null
 
-    fun observe(nowMillis: Long, breakStartMillis: Long?): Boolean {
-        val previous = previousMillis
-        val previousBreakStart = previousBreakStartMillis
-        previousMillis = nowMillis
-        previousBreakStartMillis = breakStartMillis
-        if (breakStartMillis == null || previous == null || nowMillis <= previous) return false
-        if (previousBreakStart != breakStartMillis) return false
+    fun observe(now: Instant, breakStart: Instant?): Boolean {
+        val previousObservation = previous
+        val previousStart = previousBreakStart
+        previous = now
+        previousBreakStart = breakStart
+        if (breakStart == null || previousObservation == null || now <= previousObservation) return false
+        if (previousStart != breakStart) return false
 
         for (minutes in REMINDER_INTERVAL_MINUTES..MAX_BREAK_REMINDER_MINUTES step REMINDER_INTERVAL_MINUTES) {
-            val threshold = breakStartMillis + minutes * 60_000L
-            if (previous < threshold && nowMillis >= threshold && nowMillis - threshold <= MAX_ALERT_LATENESS_MILLIS) {
+            val threshold = breakStart + minutes.minutes
+            if (previousObservation < threshold && now >= threshold && now - threshold <= MAX_ALERT_LATENESS) {
                 return true
             }
         }
@@ -84,6 +91,6 @@ class BreakReminderScheduler {
     private companion object {
         const val REMINDER_INTERVAL_MINUTES = 10
         const val MAX_BREAK_REMINDER_MINUTES = 60
-        const val MAX_ALERT_LATENESS_MILLIS = 90_000L
+        val MAX_ALERT_LATENESS = 90.seconds
     }
 }

@@ -7,12 +7,14 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.ceil
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
 import kotlin.time.Instant
 
 fun parseGoalDeadline(
     value: String,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-): Long? {
+): Instant? {
     val match = Regex("""^(\d{2})/(\d{2})/(\d{4})\s+(\d{2}):(\d{2})$""").matchEntire(value.trim())
         ?: return null
     val (day, month, year, hour, minute) = match.destructured
@@ -23,15 +25,15 @@ fun parseGoalDeadline(
         // Some time zones skip local times during the spring clock change.
         // Reject those values instead of silently moving the user's deadline.
         require(instant.toLocalDateTime(timeZone) == local)
-        instant.toEpochMilliseconds()
+        instant
     }.getOrNull()
 }
 
 fun formatGoalDeadline(
-    epochMillis: Long,
+    instant: Instant,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): String {
-    val value = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
+    val value = instant.toLocalDateTime(timeZone)
     return "${value.day.toString().padStart(2, '0')}/" +
         "${(value.month.ordinal + 1).toString().padStart(2, '0')}/${value.year} " +
         "${value.hour.toString().padStart(2, '0')}:${value.minute.toString().padStart(2, '0')}"
@@ -44,34 +46,34 @@ private val FRENCH_SHORT_MONTHS = listOf(
 
 /** Glanceable date-only label, e.g. "11 juil.". No year, no time. */
 fun formatGoalDateShort(
-    epochMillis: Long,
+    instant: Instant,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): String {
-    val value = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
+    val value = instant.toLocalDateTime(timeZone)
     return "${value.day} ${FRENCH_SHORT_MONTHS[value.month.ordinal]}"
 }
 
 /**
- * UTC-midnight millis of the local calendar day of [epochMillis] — the value a
+ * UTC-midnight millis of the local calendar day of [instant] — the value a
  * Material3 DatePicker expects for [androidx.compose.material3.rememberDatePickerState].
  */
 fun goalPickerDateMillis(
-    epochMillis: Long,
+    instant: Instant,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): Long {
-    val date = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone).date
+    val date = instant.toLocalDateTime(timeZone).date
     return LocalDateTime(date.year, date.month, date.day, 0, 0).toInstant(TimeZone.UTC).toEpochMilliseconds()
 }
 
 fun goalPickerHour(
-    epochMillis: Long,
+    instant: Instant,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-): Int = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone).hour
+): Int = instant.toLocalDateTime(timeZone).hour
 
 fun goalPickerMinute(
-    epochMillis: Long,
+    instant: Instant,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-): Int = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone).minute
+): Int = instant.toLocalDateTime(timeZone).minute
 
 /**
  * Canonical `dd/MM/yyyy HH:mm` string from a DatePicker's selected day (UTC-midnight
@@ -88,14 +90,14 @@ fun formatGoalPickerInput(
         "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
 }
 
-fun calculateGoalWorkingMillis(
-    nowMillis: Long,
-    deadlineMillis: Long,
+fun calculateGoalWorkingTime(
+    now: Instant,
+    deadline: Instant,
     startMinutesOfDay: Int,
     endMinutesOfDay: Int,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-): Long {
-    if (deadlineMillis <= nowMillis) return 0
+): Duration {
+    if (deadline <= now) return Duration.ZERO
 
     val safeStart = startMinutesOfDay.coerceIn(0, 23 * 60 + 29)
     val safeEnd = endMinutesOfDay.coerceIn(safeStart + 30, 23 * 60 + 59)
@@ -103,10 +105,9 @@ fun calculateGoalWorkingMillis(
     val startMinute = safeStart % 60
     val endHour = safeEnd / 60
     val endMinute = safeEnd % 60
-    val deadline = Instant.fromEpochMilliseconds(deadlineMillis)
-    var date = Instant.fromEpochMilliseconds(nowMillis).toLocalDateTime(timeZone).date
+    var date = now.toLocalDateTime(timeZone).date
     val deadlineDate = deadline.toLocalDateTime(timeZone).date
-    var totalMillis = 0L
+    var total = Duration.ZERO
 
     while (date <= deadlineDate) {
         val workStart = LocalDateTime(
@@ -115,52 +116,52 @@ fun calculateGoalWorkingMillis(
             day = date.day,
             hour = startHour,
             minute = startMinute,
-        ).toInstant(timeZone).toEpochMilliseconds()
+        ).toInstant(timeZone)
         val workEnd = LocalDateTime(
             year = date.year,
             month = date.month,
             day = date.day,
             hour = endHour,
             minute = endMinute,
-        ).toInstant(timeZone).toEpochMilliseconds()
-        val overlapStart = maxOf(nowMillis, workStart)
-        val overlapEnd = minOf(deadlineMillis, workEnd)
-        if (overlapEnd > overlapStart) totalMillis += overlapEnd - overlapStart
+        ).toInstant(timeZone)
+        val overlapStart = maxOf(now, workStart)
+        val overlapEnd = minOf(deadline, workEnd)
+        if (overlapEnd > overlapStart) total += overlapEnd - overlapStart
         date = date.plus(1, DateTimeUnit.DAY)
     }
 
-    return totalMillis
+    return total
 }
 
-fun formatGoalWorkingHours(workingMillis: Long, deadlineReached: Boolean): String {
+fun formatGoalWorkingHours(working: Duration, deadlineReached: Boolean): String {
     if (deadlineReached) return "Échéance atteinte"
-    val hours = ceil(workingMillis / 3_600_000.0).toLong()
+    val hours = ceil(working.toDouble(DurationUnit.HOURS)).toLong()
     return if (hours > 0) "Encore $hours h" else "Moins d’une heure de travail"
 }
 
 fun calculateGoalProgress(
-    nowMillis: Long,
-    startMillis: Long,
-    deadlineMillis: Long,
+    now: Instant,
+    start: Instant,
+    deadline: Instant,
     startMinutesOfDay: Int,
     endMinutesOfDay: Int,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): Float {
-    if (nowMillis >= deadlineMillis) return 1f
-    val total = calculateGoalWorkingMillis(startMillis, deadlineMillis, startMinutesOfDay, endMinutesOfDay, timeZone)
-    if (total <= 0L) return 0f
-    val effectiveNow = maxOf(nowMillis, startMillis)
-    val remaining = calculateGoalWorkingMillis(effectiveNow, deadlineMillis, startMinutesOfDay, endMinutesOfDay, timeZone)
+    if (now >= deadline) return 1f
+    val total = calculateGoalWorkingTime(start, deadline, startMinutesOfDay, endMinutesOfDay, timeZone)
+    if (total <= Duration.ZERO) return 0f
+    val effectiveNow = maxOf(now, start)
+    val remaining = calculateGoalWorkingTime(effectiveNow, deadline, startMinutesOfDay, endMinutesOfDay, timeZone)
     val elapsed = total - remaining
-    return (elapsed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+    return (elapsed / total).toFloat().coerceIn(0f, 1f)
 }
 
 fun formatGoalSummaryLine(
     title: String,
-    deadlineMillis: Long?,
-    workingMillis: Long,
+    deadline: Instant?,
+    working: Duration,
     deadlineReached: Boolean,
 ): String = listOfNotNull(
     title.ifBlank { null },
-    deadlineMillis?.let { formatGoalWorkingHours(workingMillis, deadlineReached) },
+    deadline?.let { formatGoalWorkingHours(working, deadlineReached) },
 ).joinToString(" · ")

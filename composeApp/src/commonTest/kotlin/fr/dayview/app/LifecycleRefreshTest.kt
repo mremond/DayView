@@ -9,13 +9,16 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LifecycleRefreshTest {
+    private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
+
     @Test
     fun ticksWithTheCurrentClockOnEachResume() = runTest {
-        var clock = 1_000L
-        val ticks = mutableListOf<Long>()
+        var clock = t(1_000L)
+        val ticks = mutableListOf<Instant>()
         val events = MutableSharedFlow<Lifecycle.Event>(extraBufferCapacity = 8)
 
         val job = launch { refreshClockOnResume(events, now = { clock }, tick = { ticks += it }) }
@@ -27,21 +30,21 @@ class LifecycleRefreshTest {
         runCurrent()
 
         // A later resume must read the clock again, not replay the first value.
-        clock = 2_000L
+        clock = t(2_000L)
         events.emit(Lifecycle.Event.ON_PAUSE)
         events.emit(Lifecycle.Event.ON_RESUME)
         runCurrent()
 
         job.cancel()
-        assertEquals(listOf(1_000L, 2_000L), ticks)
+        assertEquals(listOf(t(1_000L), t(2_000L)), ticks)
     }
 
     @Test
     fun ignoresNonResumeEvents() = runTest {
-        val ticks = mutableListOf<Long>()
+        val ticks = mutableListOf<Instant>()
         val events = MutableSharedFlow<Lifecycle.Event>(extraBufferCapacity = 8)
 
-        val job = launch { refreshClockOnResume(events, now = { 42L }, tick = { ticks += it }) }
+        val job = launch { refreshClockOnResume(events, now = { t(42L) }, tick = { ticks += it }) }
         runCurrent()
 
         listOf(

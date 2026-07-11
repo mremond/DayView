@@ -5,10 +5,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.roundToInt
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
 data class DayProgress(
-    val remainingMillis: Long,
+    val remaining: Duration,
     val remainingRatio: Float,
     val elapsedRatio: Float,
     val startHour: Int,
@@ -18,23 +20,22 @@ data class DayProgress(
     val hasStarted: Boolean,
     val isFinished: Boolean,
 ) {
-    val remainingHours: Long get() = remainingMillis / 3_600_000
-    val remainingMinutes: Long get() = (remainingMillis / 60_000) % 60
-    val remainingSeconds: Long get() = (remainingMillis / 1_000) % 60
+    val remainingHours: Long get() = remaining.inWholeHours
+    val remainingMinutes: Long get() = remaining.inWholeMinutes % 60
+    val remainingSeconds: Long get() = remaining.inWholeSeconds % 60
     val percentageRemaining: Int get() = (remainingRatio * 100).roundToInt()
 }
 
 fun currentMomentAngleDegrees(remainingRatio: Float): Float = -90f + (1f - remainingRatio.coerceIn(0f, 1f)) * 360f
 
 fun calculateDayProgress(
-    nowMillis: Long,
+    now: Instant,
     startMinutesOfDay: Int,
     endMinutesOfDay: Int,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): DayProgress {
     val safeStartMinutes = startMinutesOfDay.coerceIn(0, 23 * 60 + 29)
     val safeEndMinutes = endMinutesOfDay.coerceIn(safeStartMinutes + 30, 23 * 60 + 59)
-    val now = Instant.fromEpochMilliseconds(nowMillis)
     val localNow = now.toLocalDateTime(timeZone)
     val startHour = safeStartMinutes / 60
     val startMinute = safeStartMinutes % 60
@@ -55,21 +56,19 @@ fun calculateDayProgress(
         minute = endMinute,
     ).toInstant(timeZone)
 
-    val startMillis = start.toEpochMilliseconds()
-    val endMillis = end.toEpochMilliseconds()
-    val duration = (endMillis - startMillis).coerceAtLeast(1)
-    val remaining = (endMillis - nowMillis).coerceIn(0, duration)
-    val remainingRatio = remaining.toFloat() / duration.toFloat()
+    val duration = (end - start).coerceAtLeast(1.milliseconds)
+    val remaining = (end - now).coerceIn(Duration.ZERO, duration)
+    val remainingRatio = (remaining / duration).toFloat()
 
     return DayProgress(
-        remainingMillis = remaining,
+        remaining = remaining,
         remainingRatio = remainingRatio,
         elapsedRatio = 1f - remainingRatio,
         startHour = startHour,
         startMinute = startMinute,
         endHour = endHour,
         endMinute = endMinute,
-        hasStarted = nowMillis >= startMillis,
-        isFinished = remaining == 0L,
+        hasStarted = now >= start,
+        isFinished = remaining == Duration.ZERO,
     )
 }

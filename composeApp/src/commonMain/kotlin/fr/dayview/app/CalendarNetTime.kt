@@ -4,22 +4,23 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration
 import kotlin.time.Instant
 
 data class BusyInterval(
-    val startMillis: Long,
-    val endMillis: Long,
+    val start: Instant,
+    val end: Instant,
     val titles: List<String> = emptyList(),
 )
 
 fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
-    val sorted = intervals.filter { it.endMillis > it.startMillis }.sortedBy { it.startMillis }
+    val sorted = intervals.filter { it.end > it.start }.sortedBy { it.start }
     val merged = mutableListOf<BusyInterval>()
     for (interval in sorted) {
         val last = merged.lastOrNull()
-        if (last != null && interval.startMillis <= last.endMillis) {
+        if (last != null && interval.start <= last.end) {
             merged[merged.lastIndex] = last.copy(
-                endMillis = maxOf(last.endMillis, interval.endMillis),
+                end = maxOf(last.end, interval.end),
                 titles = last.titles + interval.titles,
             )
         } else {
@@ -30,55 +31,55 @@ fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
 }
 
 data class NetTime(
-    val netDayMillis: Long,
-    val netRemainingMillis: Long,
-    val busyRemainingMillis: Long,
+    val netDay: Duration,
+    val netRemaining: Duration,
+    val busyRemaining: Duration,
 )
 
-fun dayWindowMillis(
-    nowMillis: Long,
+fun dayWindow(
+    now: Instant,
     startMinutesOfDay: Int,
     endMinutesOfDay: Int,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-): Pair<Long, Long> {
+): Pair<Instant, Instant> {
     val safeStart = startMinutesOfDay.coerceIn(0, 23 * 60 + 29)
     val safeEnd = endMinutesOfDay.coerceIn(safeStart + 30, 23 * 60 + 59)
-    val localNow = Instant.fromEpochMilliseconds(nowMillis).toLocalDateTime(timeZone)
+    val localNow = now.toLocalDateTime(timeZone)
     fun at(minutes: Int) = LocalDateTime(
         year = localNow.year,
         month = localNow.month,
         day = localNow.day,
         hour = minutes / 60,
         minute = minutes % 60,
-    ).toInstant(timeZone).toEpochMilliseconds()
+    ).toInstant(timeZone)
     return at(safeStart) to at(safeEnd)
 }
 
-private fun overlapMillis(start: Long, end: Long, from: Long, to: Long): Long = (minOf(end, to) - maxOf(start, from)).coerceAtLeast(0)
+private fun overlap(start: Instant, end: Instant, from: Instant, to: Instant): Duration = (minOf(end, to) - maxOf(start, from)).coerceAtLeast(Duration.ZERO)
 
 fun calculateNetTime(
     progress: DayProgress,
-    nowMillis: Long,
-    windowStartMillis: Long,
-    windowEndMillis: Long,
+    now: Instant,
+    windowStart: Instant,
+    windowEnd: Instant,
     busy: List<BusyInterval>,
 ): NetTime {
     val clipped = mergeBusyIntervals(
         busy.map {
             it.copy(
-                startMillis = it.startMillis.coerceIn(windowStartMillis, windowEndMillis),
-                endMillis = it.endMillis.coerceIn(windowStartMillis, windowEndMillis),
+                start = it.start.coerceIn(windowStart, windowEnd),
+                end = it.end.coerceIn(windowStart, windowEnd),
             )
         },
     )
-    val totalBusy = clipped.sumOf { it.endMillis - it.startMillis }
-    val aheadFrom = nowMillis.coerceIn(windowStartMillis, windowEndMillis)
-    val busyRemaining = clipped.sumOf { overlapMillis(it.startMillis, it.endMillis, aheadFrom, windowEndMillis) }
-    val windowDuration = (windowEndMillis - windowStartMillis).coerceAtLeast(0)
+    val totalBusy = clipped.fold(Duration.ZERO) { acc, it -> acc + (it.end - it.start) }
+    val aheadFrom = now.coerceIn(windowStart, windowEnd)
+    val busyRemaining = clipped.fold(Duration.ZERO) { acc, it -> acc + overlap(it.start, it.end, aheadFrom, windowEnd) }
+    val windowDuration = (windowEnd - windowStart).coerceAtLeast(Duration.ZERO)
     return NetTime(
-        netDayMillis = (windowDuration - totalBusy).coerceAtLeast(0),
-        netRemainingMillis = (progress.remainingMillis - busyRemaining).coerceAtLeast(0),
-        busyRemainingMillis = busyRemaining,
+        netDay = (windowDuration - totalBusy).coerceAtLeast(Duration.ZERO),
+        netRemaining = (progress.remaining - busyRemaining).coerceAtLeast(Duration.ZERO),
+        busyRemaining = busyRemaining,
     )
 }
 
@@ -89,23 +90,23 @@ data class BusyArc(
 )
 
 /** Durée « H h MM » (ou « MM min » sous une heure) pour l'affichage du temps net. */
-fun formatDurationHm(millis: Long): String {
-    val totalMinutes = (millis / 60_000L).coerceAtLeast(0)
+fun formatDurationHm(duration: Duration): String {
+    val totalMinutes = duration.inWholeMinutes.coerceAtLeast(0)
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     return if (hours > 0) "$hours h ${minutes.toString().padStart(2, '0')}" else "$minutes min"
 }
 
 /** Heure locale « HH:mm » d'un instant, pour l'overlay de survol. */
-fun formatClockHm(epochMillis: Long, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
-    val value = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
+fun formatClockHm(instant: Instant, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+    val value = instant.toLocalDateTime(timeZone)
     return "${value.hour.toString().padStart(2, '0')}:${value.minute.toString().padStart(2, '0')}"
 }
 
-/** Instant (millis) correspondant à un angle d'arc dans la fenêtre [start, end]. */
-fun angleToMillis(angleDegrees: Float, windowStartMillis: Long, windowEndMillis: Long): Long {
+/** Instant correspondant à un angle d'arc dans la fenêtre [start, end]. */
+fun angleToInstant(angleDegrees: Float, windowStart: Instant, windowEnd: Instant): Instant {
     val fraction = ((angleDegrees + 90f) / 360f).coerceIn(0f, 1f)
-    return windowStartMillis + (fraction * (windowEndMillis - windowStartMillis)).toLong()
+    return windowStart + (windowEnd - windowStart) * fraction.toDouble()
 }
 
 /** Vrai si l'angle (degrés, convention drawArc) tombe dans le balayage de l'arc, wraparound compris. */
@@ -115,23 +116,23 @@ fun arcContainsAngle(arc: BusyArc, angleDegrees: Float): Boolean {
 }
 
 fun busyArcs(
-    windowStartMillis: Long,
-    windowEndMillis: Long,
+    windowStart: Instant,
+    windowEnd: Instant,
     busy: List<BusyInterval>,
 ): List<BusyArc> {
-    val duration = (windowEndMillis - windowStartMillis).toFloat()
-    if (duration <= 0f) return emptyList()
+    val total = windowEnd - windowStart
+    if (total <= Duration.ZERO) return emptyList()
     val clipped = mergeBusyIntervals(
         busy.map {
             it.copy(
-                startMillis = it.startMillis.coerceIn(windowStartMillis, windowEndMillis),
-                endMillis = it.endMillis.coerceIn(windowStartMillis, windowEndMillis),
+                start = it.start.coerceIn(windowStart, windowEnd),
+                end = it.end.coerceIn(windowStart, windowEnd),
             )
         },
     )
     return clipped.map {
-        val fStart = (it.startMillis - windowStartMillis) / duration
-        val fEnd = (it.endMillis - windowStartMillis) / duration
+        val fStart = ((it.start - windowStart) / total).toFloat()
+        val fEnd = ((it.end - windowStart) / total).toFloat()
         BusyArc(
             startAngleDegrees = -90f + fStart * 360f,
             sweepDegrees = (fEnd - fStart) * 360f,
@@ -147,26 +148,26 @@ data class FocusArc(
 
 private fun clipToWindow(
     intervals: List<FocusPresenceInterval>,
-    windowStartMillis: Long,
-    windowEndMillis: Long,
+    windowStart: Instant,
+    windowEnd: Instant,
 ): List<FocusPresenceInterval> = intervals.map {
     FocusPresenceInterval(
-        startMillis = it.startMillis.coerceIn(windowStartMillis, windowEndMillis),
-        endMillis = it.endMillis.coerceIn(windowStartMillis, windowEndMillis),
+        start = it.start.coerceIn(windowStart, windowEnd),
+        end = it.end.coerceIn(windowStart, windowEnd),
     )
-}.filter { it.endMillis > it.startMillis }
+}.filter { it.end > it.start }
 
 /** Project intense-focus intervals to ring arcs (same convention as [busyArcs]). */
 fun focusArcs(
-    windowStartMillis: Long,
-    windowEndMillis: Long,
+    windowStart: Instant,
+    windowEnd: Instant,
     intervals: List<FocusPresenceInterval>,
 ): List<FocusArc> {
-    val duration = (windowEndMillis - windowStartMillis).toFloat()
-    if (duration <= 0f) return emptyList()
-    return clipToWindow(intervals, windowStartMillis, windowEndMillis).map {
-        val fStart = (it.startMillis - windowStartMillis) / duration
-        val fEnd = (it.endMillis - windowStartMillis) / duration
+    val total = windowEnd - windowStart
+    if (total <= Duration.ZERO) return emptyList()
+    return clipToWindow(intervals, windowStart, windowEnd).map {
+        val fStart = ((it.start - windowStart) / total).toFloat()
+        val fEnd = ((it.end - windowStart) / total).toFloat()
         FocusArc(
             startAngleDegrees = -90f + fStart * 360f,
             sweepDegrees = (fEnd - fStart) * 360f,
@@ -175,9 +176,9 @@ fun focusArcs(
 }
 
 /** Total intense-focus time within the day window. */
-fun focusedMillis(
-    windowStartMillis: Long,
-    windowEndMillis: Long,
+fun focusedTime(
+    windowStart: Instant,
+    windowEnd: Instant,
     intervals: List<FocusPresenceInterval>,
-): Long = clipToWindow(intervals, windowStartMillis, windowEndMillis)
-    .sumOf { it.endMillis - it.startMillis }
+): Duration = clipToWindow(intervals, windowStart, windowEnd)
+    .fold(Duration.ZERO) { acc, it -> acc + (it.end - it.start) }

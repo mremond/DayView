@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.time.Instant
 
 internal enum class DayViewWidgetLayout(val layoutResource: Int) {
     COMPACT(R.layout.dayview_widget_compact),
@@ -85,14 +86,14 @@ class DayViewWidget : AppWidgetProvider() {
         ) {
             val now = System.currentTimeMillis()
             val progress = calculateDayProgress(
-                nowMillis = now,
+                now = Instant.fromEpochMilliseconds(now),
                 startMinutesOfDay = snapshot.startMinutes,
                 endMinutesOfDay = snapshot.endMinutes,
             )
             val content = WidgetContent(
                 progress = progress,
                 goal = snapshot.goalTitle.trim(),
-                focusEndMillis = snapshot.pomodoroEndMillis?.takeIf { it > now },
+                focusEndMillis = snapshot.pomodoroEnd?.toEpochMilliseconds()?.takeIf { it > now },
                 focusIntention = snapshot.focusIntention.trim(),
                 nowMillis = now,
                 ring = renderRing(context, progress),

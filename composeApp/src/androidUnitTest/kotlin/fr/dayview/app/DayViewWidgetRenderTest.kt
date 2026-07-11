@@ -33,7 +33,7 @@ class DayViewWidgetRenderTest {
 
         DayViewWidget.render(
             context,
-            DayPreferencesSnapshot(goalTitle = "Ship the widget fix", pomodoroEndMillis = null),
+            DayPreferencesSnapshot(goalTitle = "Ship the widget fix", pomodoroEnd = null),
         )
 
         val goal = shadowManager.getViewFor(widgetId).findViewById<TextView>(R.id.widget_goal)

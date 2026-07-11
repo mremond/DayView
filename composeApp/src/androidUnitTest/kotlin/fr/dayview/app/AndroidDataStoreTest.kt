@@ -9,6 +9,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 @RunWith(RobolectricTestRunner::class)
 class AndroidDataStoreTest {
@@ -27,7 +28,7 @@ class AndroidDataStoreTest {
 
         assertEquals(9 * 60, snapshot.startMinutes)
         assertEquals("Legacy goal", snapshot.goalTitle)
-        assertEquals(123_456_789L, snapshot.goalStartMillis)
+        assertEquals(Instant.fromEpochMilliseconds(123_456_789L), snapshot.goalStart)
         assertTrue(snapshot.netTimeSettings.enabled)
         assertEquals(setOf("cal-a", "cal-b"), snapshot.netTimeSettings.includedCalendarIds)
     }

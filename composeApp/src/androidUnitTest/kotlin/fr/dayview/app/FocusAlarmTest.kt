@@ -21,6 +21,7 @@ import org.robolectric.shadows.ShadowNotificationManager
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
@@ -181,7 +182,7 @@ class FocusAlarmTest {
             preferences.persist(
                 seed.copy(
                     pomodoroMinutes = 25,
-                    pomodoroEndMillis = System.currentTimeMillis() - 1_000L,
+                    pomodoroEnd = Instant.fromEpochMilliseconds(System.currentTimeMillis() - 1_000L),
                     focusIntention = "Continuer la proposition",
                 ),
             )
@@ -194,7 +195,7 @@ class FocusAlarmTest {
         )
 
         val reloaded = runBlocking { preferences.snapshots.first() }
-        val endMillis = requireNotNull(reloaded.pomodoroEndMillis)
+        val endMillis = requireNotNull(reloaded.pomodoroEnd).toEpochMilliseconds()
         assertTrue(endMillis >= beforeResume + 25 * 60_000L)
         assertEquals("Continuer la proposition", reloaded.focusIntention)
         assertEquals(endMillis, nextAlarm().getTriggerAtMs())
@@ -207,7 +208,7 @@ class FocusAlarmTest {
         val endMillis = System.currentTimeMillis() + 25 * 60_000L
         runBlocking {
             val seed = preferences.snapshots.first()
-            preferences.persist(seed.copy(pomodoroMinutes = 25, pomodoroEndMillis = endMillis))
+            preferences.persist(seed.copy(pomodoroMinutes = 25, pomodoroEnd = Instant.fromEpochMilliseconds(endMillis)))
         }
         scheduler.schedule(endMillis, "Arrêter proprement")
 
@@ -217,7 +218,7 @@ class FocusAlarmTest {
         )
 
         val reloaded = runBlocking { preferences.snapshots.first() }
-        assertEquals(null, reloaded.pomodoroEndMillis)
+        assertEquals(null, reloaded.pomodoroEnd)
         assertEquals(0, shadowAlarms.scheduledAlarms.size)
         val notifications: ShadowNotificationManager = extract(
             context.getSystemService(NotificationManager::class.java),

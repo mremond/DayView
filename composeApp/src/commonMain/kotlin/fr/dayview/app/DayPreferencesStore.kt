@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlin.time.Instant
 
 internal object DayPreferenceKeys {
     const val START = "start_minutes"
@@ -68,10 +69,10 @@ class DayPreferencesStore(
             prefs[soundIntervalMinutesKey] = snapshot.soundSettings.intervalMinutes
             prefs[soundVolumeKey] = snapshot.soundSettings.volumePercent
             prefs[goalTitleKey] = snapshot.goalTitle
-            prefs[goalDeadlineKey] = snapshot.goalDeadlineMillis ?: DayPreferenceKeys.NO_DEADLINE
-            prefs[goalStartKey] = snapshot.goalStartMillis ?: DayPreferenceKeys.NO_DEADLINE
+            prefs[goalDeadlineKey] = snapshot.goalDeadline?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
+            prefs[goalStartKey] = snapshot.goalStart?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
             prefs[pomodoroMinutesKey] = snapshot.pomodoroMinutes
-            prefs[pomodoroEndKey] = snapshot.pomodoroEndMillis ?: DayPreferenceKeys.NO_DEADLINE
+            prefs[pomodoroEndKey] = snapshot.pomodoroEnd?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
             prefs[focusIntentionKey] = snapshot.focusIntention
             prefs[netTimeEnabledKey] = snapshot.netTimeSettings.enabled
             prefs[netTimeCalendarsKey] = snapshot.netTimeSettings.includedCalendarIds.joinToString("\n")
@@ -95,10 +96,16 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
             volumePercent = this[soundVolumeKey] ?: 40,
         ),
         goalTitle = this[goalTitleKey] ?: defaults.goalTitle,
-        goalDeadlineMillis = this[goalDeadlineKey]?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE },
-        goalStartMillis = this[goalStartKey]?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE },
+        goalDeadline = this[goalDeadlineKey]
+            ?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE }
+            ?.let(Instant::fromEpochMilliseconds),
+        goalStart = this[goalStartKey]
+            ?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE }
+            ?.let(Instant::fromEpochMilliseconds),
         pomodoroMinutes = this[pomodoroMinutesKey] ?: defaults.pomodoroMinutes,
-        pomodoroEndMillis = this[pomodoroEndKey]?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE },
+        pomodoroEnd = this[pomodoroEndKey]
+            ?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE }
+            ?.let(Instant::fromEpochMilliseconds),
         focusIntention = this[focusIntentionKey] ?: defaults.focusIntention,
         netTimeSettings = NetTimeSettings(
             enabled = this[netTimeEnabledKey] ?: false,

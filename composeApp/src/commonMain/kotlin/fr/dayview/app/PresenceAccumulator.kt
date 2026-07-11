@@ -1,34 +1,42 @@
 package fr.dayview.app
 
-/**
- * A stretch of continuous on-goal presence, for the ring arcs. The millis are absolute
- * epoch millis (projected against the absolute day window), not local-day relative.
- */
-data class FocusPresenceInterval(val startMillis: Long, val endMillis: Long)
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
-/** Serialize intervals to one `start,end` line each, for preference storage. */
-fun encodeFocusPresence(intervals: List<FocusPresenceInterval>): String = intervals.joinToString("\n") { "${it.startMillis},${it.endMillis}" }
+/**
+ * A stretch of continuous on-goal presence, for the ring arcs. The instants are absolute
+ * (projected against the absolute day window), not local-day relative.
+ */
+data class FocusPresenceInterval(val start: Instant, val end: Instant)
+
+/** Serialize intervals to one `start,end` line each (epoch millis), for preference storage. */
+fun encodeFocusPresence(intervals: List<FocusPresenceInterval>): String = intervals.joinToString("\n") { "${it.start.toEpochMilliseconds()},${it.end.toEpochMilliseconds()}" }
 
 /** Inverse of [encodeFocusPresence]; skips blank / malformed lines. */
 fun decodeFocusPresence(encoded: String): List<FocusPresenceInterval> = encoded.split("\n").mapNotNull { line ->
     val parts = line.split(",")
     val s = parts.getOrNull(0)?.toLongOrNull()
     val e = parts.getOrNull(1)?.toLongOrNull()
-    if (parts.size == 2 && s != null && e != null) FocusPresenceInterval(s, e) else null
+    if (parts.size == 2 && s != null && e != null) {
+        FocusPresenceInterval(Instant.fromEpochMilliseconds(s), Instant.fromEpochMilliseconds(e))
+    } else {
+        null
+    }
 }
 
 /**
  * Builds today's intense-focus intervals from the per-tick on-goal classification.
- * On-goal ticks extend the open interval; off-goal/neutral gaps shorter than [bridgeMillis]
- * are tolerated; a longer gap closes it; intervals below [minIntervalMillis] are discarded.
+ * On-goal ticks extend the open interval; off-goal/neutral gaps shorter than [bridge]
+ * are tolerated; a longer gap closes it; intervals below [minInterval] are discarded.
  */
 class PresenceAccumulator(
-    private val bridgeMillis: Long = 30_000L,
-    private val minIntervalMillis: Long = 120_000L,
+    private val bridge: Duration = 30.seconds,
+    private val minInterval: Duration = 120.seconds,
 ) {
     private val closed = mutableListOf<FocusPresenceInterval>()
-    private var openStart: Long? = null
-    private var lastOnGoalMillis: Long = 0L
+    private var openStart: Instant? = null
+    private var lastOnGoal: Instant? = null
     private var currentDayKey: Long = Long.MIN_VALUE
 
     /** Seed closed intervals for [dayKey] at startup (persisted state). */
@@ -49,9 +57,10 @@ class PresenceAccumulator(
      */
     fun endSession(): List<FocusPresenceInterval> {
         val start = openStart
-        if (start != null) {
-            if (lastOnGoalMillis - start >= minIntervalMillis) {
-                closed.add(FocusPresenceInterval(start, lastOnGoalMillis))
+        val last = lastOnGoal
+        if (start != null && last != null) {
+            if (last - start >= minInterval) {
+                closed.add(FocusPresenceInterval(start, last))
             }
             openStart = null
         }
@@ -59,7 +68,7 @@ class PresenceAccumulator(
     }
 
     fun observe(
-        nowMillis: Long,
+        now: Instant,
         state: OnGoalState,
         dayKey: Long,
     ): List<FocusPresenceInterval> {
@@ -67,18 +76,19 @@ class PresenceAccumulator(
             currentDayKey = dayKey
             closed.clear()
             openStart = null
-            lastOnGoalMillis = 0L
+            lastOnGoal = null
         }
         when (state) {
             OnGoalState.ON_GOAL -> {
-                if (openStart == null) openStart = nowMillis
-                lastOnGoalMillis = nowMillis
+                if (openStart == null) openStart = now
+                lastOnGoal = now
             }
             OnGoalState.OFF_GOAL, OnGoalState.NEUTRAL -> {
                 val start = openStart
-                if (start != null && nowMillis - lastOnGoalMillis >= bridgeMillis) {
-                    if (lastOnGoalMillis - start >= minIntervalMillis) {
-                        closed.add(FocusPresenceInterval(start, lastOnGoalMillis))
+                val last = lastOnGoal
+                if (start != null && last != null && now - last >= bridge) {
+                    if (last - start >= minInterval) {
+                        closed.add(FocusPresenceInterval(start, last))
                     }
                     openStart = null
                 }
@@ -89,8 +99,9 @@ class PresenceAccumulator(
 
     private fun snapshotIntervals(): List<FocusPresenceInterval> {
         val start = openStart
-        if (start != null && lastOnGoalMillis - start >= minIntervalMillis) {
-            return closed + FocusPresenceInterval(start, lastOnGoalMillis)
+        val last = lastOnGoal
+        if (start != null && last != null && last - start >= minInterval) {
+            return closed + FocusPresenceInterval(start, last)
         }
         return closed.toList()
     }

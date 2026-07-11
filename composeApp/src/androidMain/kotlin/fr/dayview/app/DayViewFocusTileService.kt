@@ -11,6 +11,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlin.time.Instant
 
 internal enum class FocusTileAction {
     OPEN_APP,
@@ -47,7 +48,7 @@ class DayViewFocusTileService : TileService() {
             val preferences = DayViewPreferences.get(applicationContext)
             val now = System.currentTimeMillis()
             val snap = runBlocking { preferences.snapshots.first() }
-            val tileState = focusTileState(snap.pomodoroEndMillis, now)
+            val tileState = focusTileState(snap.pomodoroEnd?.toEpochMilliseconds(), now)
             when (
                 focusTileAction(
                     state = tileState,
@@ -58,7 +59,9 @@ class DayViewFocusTileService : TileService() {
                 FocusTileAction.OPEN_APP -> openDayView()
                 FocusTileAction.START_FOCUS -> {
                     val endMillis = now + snap.pomodoroMinutes.coerceIn(5, 180) * 60_000L
-                    runBlocking { preferences.persist(snap.copy(pomodoroEndMillis = endMillis)) }
+                    runBlocking {
+                        preferences.persist(snap.copy(pomodoroEnd = Instant.fromEpochMilliseconds(endMillis)))
+                    }
                     FocusAlarmScheduler(applicationContext).schedule(
                         endMillis,
                         snap.focusIntention,
@@ -73,7 +76,7 @@ class DayViewFocusTileService : TileService() {
         val tile = qsTile ?: return
         val snap = runBlocking { DayViewPreferences.get(applicationContext).snapshots.first() }
         val tileState = focusTileState(
-            snap.pomodoroEndMillis,
+            snap.pomodoroEnd?.toEpochMilliseconds(),
             System.currentTimeMillis(),
         )
         tile.state = if (tileState == FocusTileState.IDLE) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE

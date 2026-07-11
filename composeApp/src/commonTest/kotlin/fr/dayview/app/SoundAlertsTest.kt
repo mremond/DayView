@@ -6,6 +6,7 @@ import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.time.Instant
 
 class SoundAlertsTest {
     private val utc = TimeZone.UTC
@@ -59,5 +60,5 @@ class SoundAlertsTest {
         assertEquals(true, settings.allowsDayCue(SoundCue.INTERVAL, focusIsActive = false))
     }
 
-    private fun at(hour: Int, minute: Int, second: Int = 0): Long = LocalDateTime(2026, 7, 11, hour, minute, second).toInstant(utc).toEpochMilliseconds()
+    private fun at(hour: Int, minute: Int, second: Int = 0): Instant = LocalDateTime(2026, 7, 11, hour, minute, second).toInstant(utc)
 }

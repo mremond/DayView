@@ -7,6 +7,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.sin
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 enum class SoundCue {
@@ -43,50 +44,50 @@ data class SoundSettings(
 class SoundAlertScheduler(
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
-    private var previousMillis: Long? = null
+    private var previous: Instant? = null
 
     fun observe(
-        nowMillis: Long,
+        now: Instant,
         startMinutesOfDay: Int,
         endMinutesOfDay: Int,
         intervalMinutes: Int,
     ): SoundCue? {
-        val previous = previousMillis
-        previousMillis = nowMillis
-        if (previous == null || nowMillis <= previous) return null
+        val previousObservation = previous
+        previous = now
+        if (previousObservation == null || now <= previousObservation) return null
 
-        val localNow = Instant.fromEpochMilliseconds(nowMillis).toLocalDateTime(timeZone)
+        val localNow = now.toLocalDateTime(timeZone)
         val startMinutes = startMinutesOfDay.coerceIn(0, 23 * 60 + 29)
         val endMinutes = endMinutesOfDay.coerceIn(startMinutes + 30, 23 * 60 + 59)
         val interval = intervalMinutes.coerceIn(30, 180)
-        fun at(minutes: Int): Long = LocalDateTime(
+        fun at(minutes: Int): Instant = LocalDateTime(
             year = localNow.year,
             month = localNow.month,
             day = localNow.day,
             hour = minutes / 60,
             minute = minutes % 60,
-        ).toInstant(timeZone).toEpochMilliseconds()
+        ).toInstant(timeZone)
 
-        val endMillis = at(endMinutes)
-        if (crossedRecently(previous, nowMillis, endMillis)) return SoundCue.DAY_END
+        val endInstant = at(endMinutes)
+        if (crossedRecently(previousObservation, now, endInstant)) return SoundCue.DAY_END
 
-        val startMillis = at(startMinutes)
-        if (crossedRecently(previous, nowMillis, startMillis)) return SoundCue.DAY_START
+        val startInstant = at(startMinutes)
+        if (crossedRecently(previousObservation, now, startInstant)) return SoundCue.DAY_START
 
         var markerMinutes = startMinutes + interval
-        var latestMarker: Long? = null
+        var latestMarker: Instant? = null
         while (markerMinutes < endMinutes) {
-            val markerMillis = at(markerMinutes)
-            if (crossedRecently(previous, nowMillis, markerMillis)) latestMarker = markerMillis
+            val markerInstant = at(markerMinutes)
+            if (crossedRecently(previousObservation, now, markerInstant)) latestMarker = markerInstant
             markerMinutes += interval
         }
         return if (latestMarker != null) SoundCue.INTERVAL else null
     }
 
-    private fun crossedRecently(previous: Long, now: Long, threshold: Long): Boolean = previous < threshold && now >= threshold && now - threshold <= MAX_ALERT_LATENESS_MILLIS
+    private fun crossedRecently(previous: Instant, now: Instant, threshold: Instant): Boolean = previous < threshold && now >= threshold && now - threshold <= MAX_ALERT_LATENESS
 
     private companion object {
-        const val MAX_ALERT_LATENESS_MILLIS = 90_000L
+        val MAX_ALERT_LATENESS = 90.seconds
     }
 }
 

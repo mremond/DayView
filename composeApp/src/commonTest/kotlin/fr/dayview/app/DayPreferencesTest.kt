@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 class DayPreferencesTest {
     @Test
@@ -23,10 +24,10 @@ class DayPreferencesTest {
             showSeconds = false,
             soundSettings = SoundSettings(enabled = true),
             goalTitle = "Temporaire",
-            goalDeadlineMillis = 42L,
-            goalStartMillis = 42L,
+            goalDeadline = Instant.fromEpochMilliseconds(42L),
+            goalStart = Instant.fromEpochMilliseconds(42L),
             pomodoroMinutes = 50,
-            pomodoroEndMillis = 123L,
+            pomodoroEnd = Instant.fromEpochMilliseconds(123L),
             focusIntention = "Terminer le test",
             netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("travail")),
         )
