@@ -9,7 +9,7 @@ private class WidgetRefreshingPreferences(
     override val snapshots = delegate.snapshots
     override suspend fun persist(snapshot: DayPreferencesSnapshot) {
         delegate.persist(snapshot)
-        DayViewWidget.updateAll(appContext)
+        DayViewWidget.render(appContext, snapshot)
     }
 }
 
