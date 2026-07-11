@@ -4,6 +4,7 @@ compose = "1.11.1"
 agp = "8.12.3"
 datetime = "0.7.1"
 datastore = "1.2.1"
+okio = "3.17.0"
 material3 = "1.11.0-alpha07"
 jna = "5.17.0"
 activityCompose = "1.11.0"
@@ -26,6 +27,7 @@ compose-material3 = { module = "org.jetbrains.compose.material3:material3", vers
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+okio-fakefilesystem = { module = "com.squareup.okio:okio-fakefilesystem", version.ref = "okio" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

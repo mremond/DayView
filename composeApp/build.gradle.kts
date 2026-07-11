@@ -69,6 +69,7 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.okio.fakefilesystem)
             }
         }
         val androidMain by getting {
