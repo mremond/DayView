@@ -21,11 +21,43 @@ Prérequis : JDK 17 ou plus récent et Android SDK 36.
 ./gradlew :composeApp:run
 ```
 
-Pour Android, ouvrez le dossier dans Android Studio et lancez la configuration `composeApp`, ou utilisez :
+### Android sur un appareil physique
+
+Activez les **Options pour les développeurs** puis le **Débogage USB** sur l’appareil. Branchez-le, acceptez la demande d’autorisation et vérifiez qu’il apparaît avec l’état `device` :
+
+```bash
+adb devices
+```
+
+Pour compiler puis installer directement la version debug :
 
 ```bash
 ./gradlew :composeApp:installDebug
 ```
+
+L’application peut ensuite être lancée depuis l’appareil ou en ligne de commande :
+
+```bash
+adb shell am start -n fr.dayview.app/.MainActivity
+```
+
+Pour produire l’APK sans l’installer :
+
+```bash
+./gradlew :composeApp:assembleDebug
+```
+
+L’APK est généré dans `composeApp/build/outputs/apk/debug/composeApp-debug.apk`. Il peut être installé ou mis à jour manuellement avec :
+
+```bash
+adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
+```
+
+Au premier démarrage d’un Focus, Android demande l’autorisation d’envoyer des notifications puis, selon la version du système, l’accès **Alarmes et rappels**. Ces deux autorisations sont nécessaires pour recevoir une notification sonore précise lorsque DayView n’est plus au premier plan.
+
+Il est également possible d’ouvrir le projet dans Android Studio et de lancer la configuration `composeApp`.
+
+### macOS
 
 Pour générer l’image macOS :
 
