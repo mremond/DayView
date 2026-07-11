@@ -66,7 +66,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 private data class DayViewColors(
@@ -200,6 +202,45 @@ fun DayViewApp(
 
             val dayNowMillis = if (showSeconds) nowMillis else nowMillis - nowMillis % 60_000L
             val progress = calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
+
+            val calendarSource = remember { createCalendarSource() }
+            var netTimeSettings by remember(preferences) { mutableStateOf(preferences.loadNetTimeSettings()) }
+            var availableCalendars by remember { mutableStateOf<List<CalendarInfo>>(emptyList()) }
+            var busyIntervalsState by remember { mutableStateOf<List<BusyInterval>>(emptyList()) }
+            val netMinute = dayNowMillis / 60_000L
+            LaunchedEffect(netMinute, netTimeSettings, startMinutes, endMinutes) {
+                val (intervals, calendars) = withContext(Dispatchers.Default) {
+                    val granted = netTimeSettings.enabled &&
+                        runCatching { calendarSource.hasPermission() }.getOrDefault(false)
+                    if (granted) {
+                        val (ws, we) = dayWindowMillis(dayNowMillis, startMinutes, endMinutes)
+                        val busy = runCatching {
+                            calendarSource.busyIntervals(ws, we, netTimeSettings.includedCalendarIds)
+                        }.getOrDefault(emptyList())
+                        val cals = runCatching { calendarSource.availableCalendars() }
+                            .getOrDefault(emptyList())
+                        busy to cals
+                    } else {
+                        emptyList<BusyInterval>() to emptyList<CalendarInfo>()
+                    }
+                }
+                busyIntervalsState = intervals
+                availableCalendars = calendars
+            }
+            val netWindow = remember(netMinute, startMinutes, endMinutes) {
+                dayWindowMillis(dayNowMillis, startMinutes, endMinutes)
+            }
+            val busyArcsState = remember(busyIntervalsState, netWindow) {
+                busyArcs(netWindow.first, netWindow.second, busyIntervalsState)
+            }
+            val netTime = remember(progress, busyIntervalsState, netWindow, netTimeSettings.enabled) {
+                if (netTimeSettings.enabled) {
+                    calculateNetTime(progress, dayNowMillis, netWindow.first, netWindow.second, busyIntervalsState)
+                } else {
+                    null
+                }
+            }
+
             val pomodoro = calculatePomodoroProgress(nowMillis, pomodoroMinutes, pomodoroEndMillis)
             val focusIsActive = pomodoroEndMillis?.let { it > nowMillis } == true
             LaunchedEffect(nowMillis, startMinutes, endMinutes, soundSettings, scheduleSoundAlerts, focusIsActive) {
@@ -252,6 +293,10 @@ fun DayViewApp(
                 DayViewScreen(
                     progress = progress,
                     showSeconds = showSeconds,
+                    busyArcs = busyArcsState,
+                    netTime = netTime,
+                    windowStartMillis = netWindow.first,
+                    windowEndMillis = netWindow.second,
                     onOpenSettings = { destination = DayViewDestination.SETTINGS },
                     onOpenMiniWindow = onOpenMiniWindow,
                     goalTitle = goalTitle,
@@ -368,6 +413,10 @@ fun DayViewMiniApp(
                     CountdownCircle(
                         progress = progress,
                         showSeconds = showSeconds,
+                        busyArcs = emptyList(),
+                        netTime = null,
+                        windowStartMillis = 0L,
+                        windowEndMillis = 0L,
                         modifier = Modifier.fillMaxWidth().weight(1f),
                     )
                     MiniGoal(
@@ -479,6 +528,10 @@ private fun MiniFocus(progress: PomodoroProgress, intention: String) {
 private fun DayViewScreen(
     progress: DayProgress,
     showSeconds: Boolean,
+    busyArcs: List<BusyArc>,
+    netTime: NetTime?,
+    windowStartMillis: Long,
+    windowEndMillis: Long,
     onOpenSettings: () -> Unit,
     onOpenMiniWindow: (() -> Unit)?,
     goalTitle: String,
@@ -537,7 +590,15 @@ private fun DayViewScreen(
                         modifier = Modifier.weight(1.15f).fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        CountdownCircle(progress, showSeconds, Modifier.weight(1f).fillMaxWidth())
+                        CountdownCircle(
+                            progress,
+                            showSeconds,
+                            busyArcs,
+                            netTime,
+                            windowStartMillis,
+                            windowEndMillis,
+                            Modifier.weight(1f).fillMaxWidth(),
+                        )
                         Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
                             title = goalTitle,
@@ -568,7 +629,15 @@ private fun DayViewScreen(
                     )
                 }
             } else {
-                CountdownCircle(progress, showSeconds, Modifier.fillMaxWidth().height(compactCountdownHeight))
+                CountdownCircle(
+                    progress,
+                    showSeconds,
+                    busyArcs,
+                    netTime,
+                    windowStartMillis,
+                    windowEndMillis,
+                    Modifier.fillMaxWidth().height(compactCountdownHeight),
+                )
                 Spacer(Modifier.height(12.dp))
                 GlobalGoalPanel(
                     title = goalTitle,
@@ -1010,6 +1079,10 @@ private fun SettingsDivider() {
 private fun CountdownCircle(
     progress: DayProgress,
     showSeconds: Boolean,
+    busyArcs: List<BusyArc>,
+    netTime: NetTime?,
+    windowStartMillis: Long,
+    windowEndMillis: Long,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
@@ -1044,6 +1117,18 @@ private fun CountdownCircle(
                         size = arcSize,
                         style = Stroke(strokeWidth, cap = StrokeCap.Round),
                     )
+
+                    busyArcs.forEach { arc ->
+                        drawArc(
+                            color = colors.overlay.copy(alpha = .35f),
+                            startAngle = arc.startAngleDegrees,
+                            sweepAngle = arc.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(strokeWidth, cap = StrokeCap.Butt),
+                        )
+                    }
 
                     repeat(24) { index ->
                         val angle = Math.toRadians(index * 15.0 - 90.0)
