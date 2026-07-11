@@ -221,6 +221,14 @@ fun main() = application {
                 goalDeadlineMillis = goalDeadline,
                 pomodoro = pomodoro,
                 focusIntention = focusIntention,
+                onStartFocus = { intention ->
+                    preferences.saveFocusIntention(intention.trim().take(100))
+                    preferences.savePomodoro(
+                        pomodoroMinutes,
+                        focusStartEndMillis(nowMillis, pomodoroMinutes),
+                    )
+                },
+                onStopFocus = { preferences.savePomodoro(pomodoroMinutes, null) },
             )
         }
     }

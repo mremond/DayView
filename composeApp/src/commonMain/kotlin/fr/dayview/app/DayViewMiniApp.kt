@@ -2,6 +2,10 @@ package fr.dayview.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,16 +13,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,35 +41,64 @@ fun DayViewMiniApp(
     goalDeadlineMillis: Long?,
     pomodoro: PomodoroProgress,
     focusIntention: String,
+    onStartFocus: (String) -> Unit,
+    onStopFocus: () -> Unit,
 ) {
     DayViewTheme { colors ->
+        var showIntentionModal by remember { mutableStateOf(false) }
+        var draftIntention by remember(focusIntention) { mutableStateOf(focusIntention) }
+
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(colors.glow, colors.ink),
-                            radius = 650f,
-                        ),
+            Box(Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(colors.glow, colors.ink),
+                                radius = 650f,
+                            ),
+                        )
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CountdownCircle(
+                        progress = progress,
+                        showSeconds = showSeconds,
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                     )
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                CountdownCircle(
-                    progress = progress,
-                    showSeconds = showSeconds,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                )
-                MiniGoal(
-                    title = goalTitle,
-                    deadlineMillis = goalDeadlineMillis,
-                    nowMillis = nowMillis,
-                    workStartMinutes = progress.startHour * 60 + progress.startMinute,
-                    workEndMinutes = progress.endHour * 60 + progress.endMinute,
-                )
-                if (pomodoro.status != PomodoroStatus.IDLE) {
+                    MiniGoal(
+                        title = goalTitle,
+                        deadlineMillis = goalDeadlineMillis,
+                        nowMillis = nowMillis,
+                        workStartMinutes = progress.startHour * 60 + progress.startMinute,
+                        workEndMinutes = progress.endHour * 60 + progress.endMinute,
+                    )
                     Spacer(Modifier.height(10.dp))
-                    MiniFocus(pomodoro, focusIntention)
+                    if (pomodoro.status == PomodoroStatus.IDLE) {
+                        MiniFocusStart(
+                            onClick = {
+                                draftIntention = focusIntention
+                                showIntentionModal = true
+                            },
+                        )
+                    } else {
+                        MiniFocus(
+                            progress = pomodoro,
+                            intention = focusIntention,
+                            onStop = onStopFocus,
+                        )
+                    }
+                }
+                if (showIntentionModal) {
+                    FocusIntentionModal(
+                        intention = draftIntention,
+                        onIntentionChange = { draftIntention = it },
+                        onStart = {
+                            onStartFocus(draftIntention)
+                            showIntentionModal = false
+                        },
+                        onDismiss = { showIntentionModal = false },
+                    )
                 }
             }
         }
@@ -119,7 +157,43 @@ private fun MiniGoal(
 }
 
 @Composable
-private fun MiniFocus(progress: PomodoroProgress, intention: String) {
+private fun MiniFocusStart(onClick: () -> Unit) {
+    val colors = LocalDayViewColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
+            .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
+            .clickable(role = Role.Button, onClickLabel = "Démarrer un focus", onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "DÉMARRER UN FOCUS",
+                color = colors.amber,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.1.sp,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                "Une seule chose à la fois",
+                color = colors.muted,
+                fontSize = 12.sp,
+                maxLines = 1,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Text("+", color = colors.amber, fontSize = 26.sp, fontWeight = FontWeight.Light)
+    }
+}
+
+@Composable
+private fun MiniFocus(
+    progress: PomodoroProgress,
+    intention: String,
+    onStop: () -> Unit,
+) {
     val colors = LocalDayViewColors.current
     val isBreak = progress.status == PomodoroStatus.BREAK
     Row(
@@ -152,5 +226,99 @@ private fun MiniFocus(progress: PomodoroProgress, intention: String) {
             fontSize = 24.sp,
             fontWeight = FontWeight.Light,
         )
+        Spacer(Modifier.width(12.dp))
+        MiniStopButton(onStop)
+    }
+}
+
+@Composable
+private fun MiniStopButton(onStop: () -> Unit) {
+    val colors = LocalDayViewColors.current
+    Box(
+        modifier = Modifier.size(40.dp)
+            .background(colors.overlay.copy(alpha = .08f), CircleShape)
+            .clickable(role = Role.Button, onClickLabel = "Arrêter le focus", onClick = onStop),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier.size(12.dp)
+                .background(colors.red.copy(alpha = .85f), RoundedCornerShape(2.dp)),
+        )
+    }
+}
+
+@Composable
+private fun FocusIntentionModal(
+    intention: String,
+    onIntentionChange: (String) -> Unit,
+    onStart: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Box(
+        modifier = Modifier.fillMaxSize()
+            .background(colors.ink.copy(alpha = .6f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .background(colors.panel, RoundedCornerShape(18.dp))
+                .border(1.dp, colors.overlay.copy(alpha = .08f), RoundedCornerShape(18.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(18.dp),
+        ) {
+            Text(
+                "FOCUS",
+                color = colors.amber,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.3.sp,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "À LA FIN DE CE FOCUS, J’AURAI…",
+                color = colors.muted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+            )
+            Spacer(Modifier.height(8.dp))
+            GoalTextField(
+                value = intention,
+                semanticLabel = "Intention du Focus",
+                placeholder = "Ex. terminé le plan de la présentation",
+                onValueChange = onIntentionChange,
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                FocusActionButton(
+                    "ANNULER",
+                    colors.muted,
+                    modifier = Modifier.weight(1f),
+                    onClick = onDismiss,
+                )
+                FocusActionButton(
+                    "DÉMARRER",
+                    colors.amber,
+                    modifier = Modifier.weight(1f),
+                    enabled = intention.isNotBlank(),
+                    filled = true,
+                    onClick = onStart,
+                )
+            }
+        }
     }
 }
