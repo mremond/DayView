@@ -1290,3 +1290,23 @@ git commit -m "feat: draw intense-focus arcs and Focused today on the ring"
 - **Shared classifier** (`classifyFrontmost`) is the single source of on/off/neutral truth — do not re-derive it in the accumulator or the detector.
 - **Android** compiles against every new `DayPreferences` method but returns empty; no arcs, no detection there (by design).
 - The `objc_msgSend` index-selector call in Task A3 is the one native subtlety — if JNA's symbol mapping complains, use the overload fallback noted in that task.
+
+## Post-review corrections (applied during execution)
+
+Two design gaps surfaced in review and were corrected in the shipped code; the task
+text above predates them:
+
+- **Persistence throttle (C4):** the in-progress interval's `endMillis` grows every tick,
+  so an unconditional `saveFocusPresence` on every change wrote once per second. The loop
+  now persists only on a structural change (interval-list size differs) or at most once
+  per 30 s (`lastPresenceSaveMillis`). See the updated C4 Step 2.
+- **Session-boundary finalize (C1/C4):** `observe` is only ticked while a focus session is
+  active, so the open run bridged across the gap between two same-day sessions. Fix: a new
+  `PresenceAccumulator.endSession()` closes the open run (commit if ≥ min, then null
+  `openStart`), called from `Main.kt` on the `focusIsActive` true→false falling edge
+  (tracked via a remembered `wasFocusActive`). `observe`'s per-tick logic is unchanged —
+  a per-tick gap threshold was rejected because the accumulator tests use sparse ticks to
+  represent continuous runs.
+- **Shared presence codec (C3):** `encodeFocusPresence`/`decodeFocusPresence` live in
+  `commonMain` (`PresenceAccumulator.kt`) and are used by both preference impls, matching
+  the `OnGoalApps` codec precedent rather than duplicating the parse in each impl.
