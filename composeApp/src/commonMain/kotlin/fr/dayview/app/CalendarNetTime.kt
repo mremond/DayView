@@ -139,3 +139,45 @@ fun busyArcs(
         )
     }
 }
+
+data class FocusArc(
+    val startAngleDegrees: Float,
+    val sweepDegrees: Float,
+)
+
+private fun clipToWindow(
+    intervals: List<FocusPresenceInterval>,
+    windowStartMillis: Long,
+    windowEndMillis: Long,
+): List<FocusPresenceInterval> = intervals.map {
+    FocusPresenceInterval(
+        startMillis = it.startMillis.coerceIn(windowStartMillis, windowEndMillis),
+        endMillis = it.endMillis.coerceIn(windowStartMillis, windowEndMillis),
+    )
+}.filter { it.endMillis > it.startMillis }
+
+/** Project intense-focus intervals to ring arcs (same convention as [busyArcs]). */
+fun focusArcs(
+    windowStartMillis: Long,
+    windowEndMillis: Long,
+    intervals: List<FocusPresenceInterval>,
+): List<FocusArc> {
+    val duration = (windowEndMillis - windowStartMillis).toFloat()
+    if (duration <= 0f) return emptyList()
+    return clipToWindow(intervals, windowStartMillis, windowEndMillis).map {
+        val fStart = (it.startMillis - windowStartMillis) / duration
+        val fEnd = (it.endMillis - windowStartMillis) / duration
+        FocusArc(
+            startAngleDegrees = -90f + fStart * 360f,
+            sweepDegrees = (fEnd - fStart) * 360f,
+        )
+    }
+}
+
+/** Total intense-focus time within the day window. */
+fun focusedMillis(
+    windowStartMillis: Long,
+    windowEndMillis: Long,
+    intervals: List<FocusPresenceInterval>,
+): Long = clipToWindow(intervals, windowStartMillis, windowEndMillis)
+    .sumOf { it.endMillis - it.startMillis }
