@@ -89,6 +89,10 @@ L’icône macOS `.icns`, utilisée par le Dock et le DMG, est générée à tou
 
 Un objectif à plus long terme peut être renseigné avec une échéance au format `JJ/MM/AAAA HH:MM`. Son intitulé et son échéance sont sauvegardés localement, comme les heures de la journée. Son décompte est exprimé en heures de travail et additionne uniquement les plages comprises entre les heures quotidiennes de début et de fin.
 
+## Temps net
+
+Le temps net, désactivé par défaut, se configure dans l’écran Réglages. Une fois activé et l’accès au calendrier accordé (lecture seule), DayView soustrait du temps restant les plages marquées comme **occupé** dans les calendriers choisis et les grise sur le cercle. Le grand chiffre brut reste inchangé : le temps net s’affiche en information secondaire, sous le décompte. Seuls les événements « occupé » comptent ; les événements « disponible », tentatifs et journée entière sont ignorés, et les plages qui se chevauchent sont fusionnées. Sur les plateformes à pointeur, survoler un arc grisé affiche le nom de l’événement et ses horaires. La lecture reste strictement locale : seules les bornes horaires servent au calcul, le titre n’est utilisé que pour l’affichage au survol, et aucune donnée n’est envoyée sur le réseau. Sur Android, l’accès repose sur le Calendar Provider ; sur macOS, sur EventKit.
+
 ## Focus
 
 Le minuteur Focus permet de s’engager sur un slot de 25 minutes par défaut, réglable par pas de 5 minutes. Une intention concrète doit être renseignée avant le démarrage et reste visible pendant toute la session. Son échéance et son intention sont conservées localement : le décompte continue lorsque la fenêtre est masquée ou l’application relancée. Sur Android, une alarme système déclenche une notification sonore à la fin même lorsque l’application n’est plus au premier plan. Sur macOS, le temps restant est également visible dans la barre des menus.
