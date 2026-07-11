@@ -70,6 +70,13 @@ To generate the macOS disk image:
 
 The generated volume uses the DayView icon and displays the application next to a shortcut to `/Applications`, allowing it to be installed by drag and drop.
 
+To build the disk image and install it locally in one step, overwriting any previous
+copy in `/Applications`:
+
+```bash
+./gradlew :composeApp:installMac
+```
+
 ## Icon
 
 The master SVG, intended as the reference for the Android and macOS variants, can be regenerated without external dependencies:

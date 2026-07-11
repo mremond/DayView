@@ -202,6 +202,20 @@ val copyPackagedDmg by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("compose/binaries/main-release/dmg"))
 }
 
+// Local install: build the DMG, then copy DayView.app into /Applications, replacing
+// any previous copy. Handy for testing the exact packaged artifact on this machine.
+val installMac by tasks.registering(Exec::class) {
+    group = "distribution"
+    description = "Package the DMG and install DayView.app into /Applications (macOS only)."
+    dependsOn("packageDmg")
+    onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
+    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-$appPackageVersion.dmg")
+    commandLine(
+        rootProject.file("scripts/install_macos_local.sh").absolutePath,
+        packagedDmg.absolutePath,
+    )
+}
+
 tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable") }.configureEach {
     dependsOn(cleanNativePackagingOutput)
 }
