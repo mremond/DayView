@@ -28,7 +28,15 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 import kotlin.time.Instant
 
-fun main() = application {
+fun main() {
+    // The macOS application menu (next to the Apple logo) shows the JVM main-class name
+    // ("MainKt") when DayView runs unbundled via Gradle. Set the AWT application name
+    // before the toolkit initialises so the menu reads "DayView" instead.
+    System.setProperty("apple.awt.application.name", "DayView")
+    runApplication()
+}
+
+private fun runApplication() = application {
     val preferences = remember { desktopDayPreferences() }
     val scope = rememberCoroutineScope()
     val loginLauncher = remember { MacLoginLauncher() }
