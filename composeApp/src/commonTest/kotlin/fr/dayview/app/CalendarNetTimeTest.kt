@@ -74,4 +74,12 @@ class CalendarNetTimeTest {
         assertEquals(-90f, arcs[0].startAngleDegrees)
         assertEquals(0.2f * 360f, arcs[0].sweepDegrees)
     }
+
+    @Test
+    fun noopCalendarSourceIsInertAndSafe() {
+        assertEquals(false, NoopCalendarSource.isSupported())
+        assertEquals(false, NoopCalendarSource.hasPermission())
+        assertEquals(emptyList(), NoopCalendarSource.availableCalendars())
+        assertEquals(emptyList(), NoopCalendarSource.busyIntervals(0, 1000, emptySet()))
+    }
 }
