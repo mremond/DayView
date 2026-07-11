@@ -63,6 +63,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.androidx.datastore.preferences.core)
+                implementation(libs.jetbrains.lifecycle.runtime.compose)
             }
         }
         val commonTest by getting {
