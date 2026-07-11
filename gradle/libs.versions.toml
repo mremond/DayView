@@ -4,6 +4,7 @@ compose = "1.11.1"
 agp = "9.2.1"
 datetime = "0.7.1"
 datastore = "1.2.1"
+lifecycle = "2.9.6"
 okio = "3.17.0"
 material3 = "1.11.0-alpha07"
 jna = "5.17.0"
@@ -18,6 +19,7 @@ androidx-datastore-preferences-core = { module = "androidx.datastore:datastore-p
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
+jetbrains-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }

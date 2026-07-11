@@ -11,6 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.eventFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -108,6 +110,17 @@ fun DayViewApp(
                     }
                     delay(refreshDelay)
                 }
+            }
+            // The ticker above relies on a coroutine delay that does not advance
+            // during device deep sleep, so the shown time can lag after the screen
+            // wakes. Re-read the clock on every resume to correct it immediately.
+            val lifecycle = LocalLifecycleOwner.current.lifecycle
+            LaunchedEffect(lifecycle, controller) {
+                refreshClockOnResume(
+                    events = lifecycle.eventFlow,
+                    now = { Clock.System.now().toEpochMilliseconds() },
+                    tick = controller::tick,
+                )
             }
             LaunchedEffect(
                 state.nowMillis,
