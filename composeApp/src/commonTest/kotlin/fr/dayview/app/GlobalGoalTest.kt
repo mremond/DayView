@@ -13,13 +13,6 @@ class GlobalGoalTest {
     private val zone = TimeZone.of("Europe/Paris")
 
     @Test
-    fun deadlineInputIsFormattedForTheNumericKeyboard() {
-        assertEquals("24/12/2026 18:30", formatGoalDeadlineInput("241220261830"))
-        assertEquals("24/12/2026 18:30", formatGoalDeadlineInput("24/12/2026 18:30"))
-        assertEquals("24/1", formatGoalDeadlineInput("241"))
-    }
-
-    @Test
     fun deadlineRoundTripsThroughTheFrenchDisplayFormat() {
         val parsed = parseGoalDeadline("24/12/2026 18:30", zone)
 
@@ -44,6 +37,33 @@ class GlobalGoalTest {
             val label = formatGoalDateShort(millis("2026-${month.toString().padStart(2, '0')}-05T12:00"), zone)
             assertEquals(expected[month - 1], label)
         }
+    }
+
+    @Test
+    fun pickerFieldsRoundTripBackToTheCanonicalLocalString() {
+        // For any local instant, seeding the pickers then rebuilding the input must
+        // reproduce the same canonical dd/MM/yyyy HH:mm the deadline display uses.
+        for (tz in listOf(zone, TimeZone.of("Asia/Kathmandu"), TimeZone.UTC, TimeZone.of("America/Los_Angeles"))) {
+            for (iso in listOf("2026-07-11T08:00", "2026-01-01T00:00", "2026-12-31T23:59", "2026-03-30T02:30")) {
+                val millis = LocalDateTime.parse(iso).toInstant(tz).toEpochMilliseconds()
+                val rebuilt = formatGoalPickerInput(
+                    goalPickerDateMillis(millis, tz),
+                    goalPickerHour(millis, tz),
+                    goalPickerMinute(millis, tz),
+                )
+                assertEquals(formatGoalDeadline(millis, tz), rebuilt, "tz=$tz iso=$iso")
+            }
+        }
+    }
+
+    @Test
+    fun pickerDateMillisIsUtcMidnightRegardlessOfLocalOffset() {
+        // 11 juil. 08:00 in Paris (UTC+2) still yields UTC-midnight of 11 juil.
+        val millis = LocalDateTime.parse("2026-07-11T08:00").toInstant(zone).toEpochMilliseconds()
+        val utcMidnight = LocalDateTime.parse("2026-07-11T00:00").toInstant(TimeZone.UTC).toEpochMilliseconds()
+        assertEquals(utcMidnight, goalPickerDateMillis(millis, zone))
+        assertEquals(8, goalPickerHour(millis, zone))
+        assertEquals(0, goalPickerMinute(millis, zone))
     }
 
     @Test

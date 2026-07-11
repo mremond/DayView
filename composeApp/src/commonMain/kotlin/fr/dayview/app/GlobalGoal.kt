@@ -9,22 +9,6 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.math.ceil
 import kotlin.time.Instant
 
-const val GOAL_DATE_PLACEHOLDER = "JJ/MM/AAAA HH:MM"
-
-fun formatGoalDeadlineInput(value: String): String {
-    val digits = value.filter(Char::isDigit).take(12)
-    return buildString {
-        digits.forEachIndexed { index, digit ->
-            when (index) {
-                2, 4 -> append('/')
-                8 -> append(' ')
-                10 -> append(':')
-            }
-            append(digit)
-        }
-    }
-}
-
 fun parseGoalDeadline(
     value: String,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -65,6 +49,43 @@ fun formatGoalDateShort(
 ): String {
     val value = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
     return "${value.day} ${FRENCH_SHORT_MONTHS[value.month.ordinal]}"
+}
+
+/**
+ * UTC-midnight millis of the local calendar day of [epochMillis] — the value a
+ * Material3 DatePicker expects for [androidx.compose.material3.rememberDatePickerState].
+ */
+fun goalPickerDateMillis(
+    epochMillis: Long,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Long {
+    val date = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone).date
+    return LocalDateTime(date.year, date.month, date.day, 0, 0).toInstant(TimeZone.UTC).toEpochMilliseconds()
+}
+
+fun goalPickerHour(
+    epochMillis: Long,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Int = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone).hour
+
+fun goalPickerMinute(
+    epochMillis: Long,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Int = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone).minute
+
+/**
+ * Canonical `dd/MM/yyyy HH:mm` string from a DatePicker's selected day (UTC-midnight
+ * millis) plus a TimeInput's hour/minute, ready to feed [parseGoalDeadline].
+ */
+fun formatGoalPickerInput(
+    selectedUtcDateMillis: Long,
+    hour: Int,
+    minute: Int,
+): String {
+    val date = Instant.fromEpochMilliseconds(selectedUtcDateMillis).toLocalDateTime(TimeZone.UTC).date
+    return "${date.day.toString().padStart(2, '0')}/" +
+        "${(date.month.ordinal + 1).toString().padStart(2, '0')}/${date.year} " +
+        "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
 }
 
 fun calculateGoalWorkingMillis(
