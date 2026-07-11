@@ -160,6 +160,18 @@ compose.desktop {
             macOS {
                 bundleID = "fr.dayview.app"
                 iconFile.set(rootProject.layout.projectDirectory.file("artwork/dayview.icns"))
+                // DayView spawns the EventKit helper as a child process, so macOS attributes
+                // the calendar request to this app bundle. Without the usage description the
+                // system denies access silently (no prompt). Keep it in sync with
+                // scripts/MacEventKitHelper-Info.plist.
+                infoPlist {
+                    extraKeysRawXml = """
+                        <key>NSCalendarsFullAccessUsageDescription</key>
+                        <string>DayView lit votre calendrier en lecture seule pour soustraire les plages occupées du temps qu'il vous reste aujourd'hui.</string>
+                        <key>NSCalendarsUsageDescription</key>
+                        <string>DayView lit votre calendrier en lecture seule pour soustraire les plages occupées du temps qu'il vous reste aujourd'hui.</string>
+                    """.trimIndent()
+                }
             }
         }
     }
@@ -224,6 +236,8 @@ macEventKitHelperOutputFile.parentFile.mkdirs()
 val compileMacEventKitHelper by tasks.registering(Exec::class) {
     onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
     inputs.file(rootProject.file("scripts/MacEventKitHelper.swift"))
+    // Embedding the usage-description plist changes the binary, so re-run when it changes.
+    inputs.file(rootProject.file("scripts/MacEventKitHelper-Info.plist"))
     outputs.file(macEventKitHelperOutput)
     commandLine(
         "xcrun",
@@ -232,6 +246,13 @@ val compileMacEventKitHelper by tasks.registering(Exec::class) {
         "-O",
         "-framework",
         "EventKit",
+        // macOS 14+ refuses calendar access unless the requesting binary carries an
+        // NSCalendarsFullAccessUsageDescription. Embed an __info_plist section so the
+        // helper (extracted and run outside any app bundle) can trigger the TCC prompt.
+        "-Xlinker", "-sectcreate",
+        "-Xlinker", "__TEXT",
+        "-Xlinker", "__info_plist",
+        "-Xlinker", rootProject.file("scripts/MacEventKitHelper-Info.plist").absolutePath,
         "-o",
         macEventKitHelperOutputFile.absolutePath,
     )

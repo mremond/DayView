@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>fr.dayview.app.eventkit-helper</string>
+    <key>CFBundleName</key>
+    <string>DayView Calendar Helper</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>DayView lit votre calendrier en lecture seule pour soustraire les plages occupées du temps qu'il vous reste aujourd'hui.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>DayView lit votre calendrier en lecture seule pour soustraire les plages occupées du temps qu'il vous reste aujourd'hui.</string>
+</dict>
+</plist>
