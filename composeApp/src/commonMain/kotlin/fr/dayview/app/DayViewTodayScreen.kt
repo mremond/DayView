@@ -643,15 +643,31 @@ internal fun CountdownCircle(
 
                     if (animatedRemaining > 0f) {
                         val momentAngle = currentMomentAngleDegrees(animatedRemaining)
-                        drawArc(
-                            brush = Brush.sweepGradient(listOf(accent.copy(alpha = .62f), accent)),
-                            startAngle = momentAngle,
-                            sweepAngle = animatedRemaining * 360f,
-                            useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(strokeWidth, cap = StrokeCap.Round),
-                        )
+                        // Before the day starts the ring is complete and "intact": draw it in a
+                        // uniform colour. The sweep gradient only makes sense once there is a
+                        // leading edge (the moment marker) to give relief; on a full 360° ring it
+                        // would surface a visible seam where its two ends meet.
+                        if (progress.hasStarted) {
+                            drawArc(
+                                brush = Brush.sweepGradient(listOf(accent.copy(alpha = .62f), accent)),
+                                startAngle = momentAngle,
+                                sweepAngle = animatedRemaining * 360f,
+                                useCenter = false,
+                                topLeft = Offset(inset, inset),
+                                size = arcSize,
+                                style = Stroke(strokeWidth, cap = StrokeCap.Round),
+                            )
+                        } else {
+                            drawArc(
+                                color = accent,
+                                startAngle = momentAngle,
+                                sweepAngle = animatedRemaining * 360f,
+                                useCenter = false,
+                                topLeft = Offset(inset, inset),
+                                size = arcSize,
+                                style = Stroke(strokeWidth, cap = StrokeCap.Round),
+                            )
+                        }
 
                         if (progress.hasStarted && !progress.isFinished) {
                             val angleRadians = Math.toRadians(momentAngle.toDouble())
