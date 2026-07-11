@@ -35,6 +35,34 @@ render 512 icon_256x256@2x.png
 render 512 icon_512x512.png
 render 1024 icon_512x512@2x.png
 
-iconutil -c icns "$ICONSET_DIR" -o "$OUTPUT_ICNS"
+if ! iconutil -c icns -o "$OUTPUT_ICNS" "$ICONSET_DIR"; then
+  echo "iconutil rejected the valid iconset; trying the Pillow fallback." >&2
+  python3 - "$ICONSET_DIR" "$OUTPUT_ICNS" <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    from PIL import Image
+except ImportError as error:
+    raise SystemExit(
+        "iconutil failed and the Pillow fallback is unavailable "
+        "(python3 -m pip install Pillow)."
+    ) from error
+
+iconset = Path(sys.argv[1])
+output = Path(sys.argv[2])
+files = [
+    "icon_16x16@2x.png",
+    "icon_32x32@2x.png",
+    "icon_128x128.png",
+    "icon_128x128@2x.png",
+    "icon_256x256@2x.png",
+    "icon_512x512.png",
+]
+images = [Image.open(iconset / filename) for filename in files]
+master = Image.open(iconset / "icon_512x512@2x.png")
+master.save(output, append_images=images)
+PY
+fi
 xattr -c "$OUTPUT_ICNS" 2>/dev/null || true
 echo "Generated $OUTPUT_ICNS"

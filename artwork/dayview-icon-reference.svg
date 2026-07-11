@@ -16,40 +16,41 @@
       <stop offset="1" stop-color="#43BE93"/>
     </linearGradient>
     <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="18.43" result="blur"/>
+      <feGaussianBlur stdDeviation="14.83" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
     <clipPath id="appIconMask">
-      <rect width="1024" height="1024" rx="225.28"/>
+      <rect width="824.00" height="824.00" rx="181.28"/>
     </clipPath>
   </defs>
 
-  <g clip-path="url(#appIconMask)">
-  <!-- Transparent rounded corners follow the macOS application-icon shape. -->
-  <rect width="1024" height="1024" fill="url(#backgroundGlow)"/>
+  <!-- The transparent outer canvas is the macOS app-icon safe margin. -->
+  <g transform="translate(100.00 100.00)"
+     clip-path="url(#appIconMask)">
+  <rect width="824.00" height="824.00" fill="url(#backgroundGlow)"/>
 
   <!-- Quiet inner disc improves recognition at notification-icon sizes. -->
-  <circle cx="512.00" cy="512.00" r="255.04"
+  <circle cx="412.00" cy="412.00" r="205.23"
           fill="#0B0D12" fill-opacity="0.50"/>
 
   <!-- The complete day, shown as a subtle track. -->
-  <circle cx="512.00" cy="512.00" r="336.00"
+  <circle cx="412.00" cy="412.00" r="270.38"
           fill="none" stroke="#FFFFFF" stroke-opacity="0.10"
-          stroke-width="88.00"/>
+          stroke-width="70.81"/>
 
   <!-- Remaining time. Rotation puts the start at twelve o'clock. -->
-  <circle cx="512.00" cy="512.00" r="336.00"
+  <circle cx="412.00" cy="412.00" r="270.38"
           fill="none" stroke="url(#timeGradient)"
-          stroke-width="88.00" stroke-linecap="round"
-          stroke-dasharray="1551.70 559.45"
-          transform="rotate(5.40 512.00 512.00)"
+          stroke-width="70.81" stroke-linecap="round"
+          stroke-dasharray="1248.63 450.19"
+          transform="rotate(5.40 412.00 412.00)"
           filter="url(#softGlow)"/>
 
   <!-- A small warm marker identifies the start of the remaining arc: now. -->
-  <circle cx="846.51" cy="543.62" r="29.92"
+  <circle cx="681.18" cy="437.44" r="24.08"
           fill="#FFB86B"/>
   </g>
 </svg>

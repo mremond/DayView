@@ -20,12 +20,17 @@ def build_svg(
     accent: str,
     marker: str,
 ) -> str:
-    center = size / 2
-    outer_radius = size * 0.328125
-    ring_width = size * 0.0859375
+    # macOS app icons are rendered inside a padded canvas. Keeping the artwork
+    # close to 80% of the source canvas prevents the rounded square from looking
+    # larger than system icons in the Dock, Finder and System Settings.
+    artwork_size = size * 0.8046875
+    artwork_origin = (size - artwork_size) / 2
+    center = artwork_size / 2
+    outer_radius = artwork_size * 0.328125
+    ring_width = artwork_size * 0.0859375
     inner_radius = outer_radius - ring_width * 0.92
     marker_radius = ring_width * 0.34
-    corner_radius = size * 0.22
+    corner_radius = artwork_size * 0.22
 
     # The visible arc represents the time still available. Its open quarter is
     # the portion of the day that has already been consumed.
@@ -58,20 +63,21 @@ def build_svg(
       <stop offset="1" stop-color="#43BE93"/>
     </linearGradient>
     <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="{size * 0.018:.2f}" result="blur"/>
+      <feGaussianBlur stdDeviation="{artwork_size * 0.018:.2f}" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
     <clipPath id="appIconMask">
-      <rect width="{size}" height="{size}" rx="{corner_radius:.2f}"/>
+      <rect width="{artwork_size:.2f}" height="{artwork_size:.2f}" rx="{corner_radius:.2f}"/>
     </clipPath>
   </defs>
 
-  <g clip-path="url(#appIconMask)">
-  <!-- Transparent rounded corners follow the macOS application-icon shape. -->
-  <rect width="{size}" height="{size}" fill="url(#backgroundGlow)"/>
+  <!-- The transparent outer canvas is the macOS app-icon safe margin. -->
+  <g transform="translate({artwork_origin:.2f} {artwork_origin:.2f})"
+     clip-path="url(#appIconMask)">
+  <rect width="{artwork_size:.2f}" height="{artwork_size:.2f}" fill="url(#backgroundGlow)"/>
 
   <!-- Quiet inner disc improves recognition at notification-icon sizes. -->
   <circle cx="{center:.2f}" cy="{center:.2f}" r="{inner_radius:.2f}"
