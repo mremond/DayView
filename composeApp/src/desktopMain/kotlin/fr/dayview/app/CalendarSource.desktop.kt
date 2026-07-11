@@ -7,7 +7,6 @@ import java.io.OutputStreamWriter
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
-import java.util.concurrent.TimeUnit
 
 /** Passerelle EventKit macOS pilotée par un petit processus accessoire. */
 private class MacEventKitCalendarSource : CalendarSource {
@@ -24,27 +23,25 @@ private class MacEventKitCalendarSource : CalendarSource {
         command("REQUEST")
     }
 
-    override fun availableCalendars(): List<CalendarInfo> =
-        commandUntilEnd("CALENDARS").mapNotNull { line ->
-            val parts = line.split('\t')
-            if (parts.size >= 2) CalendarInfo(parts[0], parts[1]) else null
-        }
+    override fun availableCalendars(): List<CalendarInfo> = commandUntilEnd("CALENDARS").mapNotNull { line ->
+        val parts = line.split('\t')
+        if (parts.size >= 2) CalendarInfo(parts[0], parts[1]) else null
+    }
 
     override fun busyIntervals(
         windowStartMillis: Long,
         windowEndMillis: Long,
         includedCalendarIds: Set<String>,
-    ): List<BusyInterval> =
-        commandUntilEnd("BUSY $windowStartMillis $windowEndMillis").mapNotNull { line ->
-            val parts = line.split('\t')
-            if (parts.size < 3) return@mapNotNull null
-            val start = parts[0].toLongOrNull() ?: return@mapNotNull null
-            val end = parts[1].toLongOrNull() ?: return@mapNotNull null
-            val calId = parts[2]
-            if (includedCalendarIds.isNotEmpty() && calId !in includedCalendarIds) return@mapNotNull null
-            val title = parts.getOrNull(3).orEmpty()
-            BusyInterval(start, end, if (title.isBlank()) emptyList() else listOf(title))
-        }
+    ): List<BusyInterval> = commandUntilEnd("BUSY $windowStartMillis $windowEndMillis").mapNotNull { line ->
+        val parts = line.split('\t')
+        if (parts.size < 3) return@mapNotNull null
+        val start = parts[0].toLongOrNull() ?: return@mapNotNull null
+        val end = parts[1].toLongOrNull() ?: return@mapNotNull null
+        val calId = parts[2]
+        if (includedCalendarIds.isNotEmpty() && calId !in includedCalendarIds) return@mapNotNull null
+        val title = parts.getOrNull(3).orEmpty()
+        BusyInterval(start, end, if (title.isBlank()) emptyList() else listOf(title))
+    }
 
     private fun ensureHelper(): Boolean {
         if (!isMacOS) return false
@@ -65,7 +62,11 @@ private class MacEventKitCalendarSource : CalendarSource {
     private fun command(cmd: String): List<String> {
         if (!ensureHelper()) return emptyList()
         return runCatching {
-            writer!!.apply { write(cmd); newLine(); flush() }
+            writer!!.apply {
+                write(cmd)
+                newLine()
+                flush()
+            }
             listOfNotNull(reader!!.readLine())
         }.getOrDefault(emptyList())
     }
@@ -74,7 +75,11 @@ private class MacEventKitCalendarSource : CalendarSource {
     private fun commandUntilEnd(cmd: String): List<String> {
         if (!ensureHelper()) return emptyList()
         return runCatching {
-            writer!!.apply { write(cmd); newLine(); flush() }
+            writer!!.apply {
+                write(cmd)
+                newLine()
+                flush()
+            }
             val lines = mutableListOf<String>()
             while (true) {
                 val line = reader!!.readLine() ?: break
@@ -111,5 +116,4 @@ private class MacEventKitCalendarSource : CalendarSource {
 
 private val isMacOS: Boolean = System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
 
-actual fun createCalendarSource(): CalendarSource =
-    if (isMacOS) MacEventKitCalendarSource() else NoopCalendarSource
+actual fun createCalendarSource(): CalendarSource = if (isMacOS) MacEventKitCalendarSource() else NoopCalendarSource

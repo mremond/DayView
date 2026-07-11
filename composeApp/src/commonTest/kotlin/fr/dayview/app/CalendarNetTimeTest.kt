@@ -7,8 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class CalendarNetTimeTest {
-    private fun interval(start: Long, end: Long, vararg titles: String) =
-        BusyInterval(start, end, titles.toList())
+    private fun interval(start: Long, end: Long, vararg titles: String) = BusyInterval(start, end, titles.toList())
 
     @Test
     fun mergeCombinesOverlappingAndTouchingIntervals() {
@@ -168,7 +167,9 @@ class CalendarNetTimeTest {
         val zone = TimeZone.of("Europe/Paris")
         val (start, end) = dayWindowMillis(
             LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone).toEpochMilliseconds(),
-            8 * 60, 18 * 60, zone,
+            8 * 60,
+            18 * 60,
+            zone,
         )
         // Milieu de la fenêtre 08:00–18:00 -> 13:00, à l'angle 90° (-90 + 0.5*360).
         assertEquals("13:00", formatClockHm(angleToMillis(90f, start, end), zone))

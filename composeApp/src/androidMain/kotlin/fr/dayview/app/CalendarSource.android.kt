@@ -15,9 +15,8 @@ fun initCalendarSource(context: Context) {
 private class AndroidCalendarSource(private val context: Context) : CalendarSource {
     override fun isSupported() = true
 
-    override fun hasPermission() =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
-            PackageManager.PERMISSION_GRANTED
+    override fun hasPermission() = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
+        PackageManager.PERMISSION_GRANTED
 
     // La demande d'autorisation est déclenchée par l'UI (ActivityResult) ; ici on ne fait rien.
     override fun requestPermission() = Unit
@@ -31,7 +30,9 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
                 CalendarContract.Calendars._ID,
                 CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
             ),
-            null, null, null,
+            null,
+            null,
+            null,
         )?.use { c ->
             while (c.moveToNext()) {
                 out += CalendarInfo(id = c.getLong(0).toString(), displayName = c.getString(1) ?: "")
@@ -74,5 +75,4 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
     }
 }
 
-actual fun createCalendarSource(): CalendarSource =
-    appContext?.let { AndroidCalendarSource(it) } ?: NoopCalendarSource
+actual fun createCalendarSource(): CalendarSource = appContext?.let { AndroidCalendarSource(it) } ?: NoopCalendarSource

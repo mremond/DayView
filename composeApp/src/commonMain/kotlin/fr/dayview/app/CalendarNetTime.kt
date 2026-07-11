@@ -54,8 +54,7 @@ fun dayWindowMillis(
     return at(safeStart) to at(safeEnd)
 }
 
-private fun overlapMillis(start: Long, end: Long, from: Long, to: Long): Long =
-    (minOf(end, to) - maxOf(start, from)).coerceAtLeast(0)
+private fun overlapMillis(start: Long, end: Long, from: Long, to: Long): Long = (minOf(end, to) - maxOf(start, from)).coerceAtLeast(0)
 
 fun calculateNetTime(
     progress: DayProgress,
