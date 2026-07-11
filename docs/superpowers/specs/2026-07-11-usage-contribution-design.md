@@ -10,6 +10,21 @@ This is a **new, additive dimension**: focused time is shown on top of the day, 
 **not** reduce remaining or net time. Busy time answers "how much of my day is eaten by
 meetings"; focus time answers "how much of my day did I spend well".
 
+> **Superseded in part — read this first.** Since this spec was drafted, the
+> **focus-drift tightening spec**
+> (`docs/superpowers/specs/2026-07-11-focus-drift-tightening-design.md`) delivers the
+> on-goal **intense-focus arcs** and the **"Focused today"** total directly from DayView's
+> own 1 s frontmost sampling — no app contribution. That is the primary path and ships
+> first. This spec's remaining, *distinct* value is therefore narrowed to what
+> frontmost observation cannot see:
+> - **frontmost-but-idle** precision (an on-goal app is in front, but the user is idle —
+>   only the app's own activity reveals this),
+> - **non-foreground work** (background / CLI / MCP processes with no frontmost window),
+> - **cross-device** aggregation and the **goal-progress** kind (Roadmap).
+>
+> The focus arcs described in §4 below are, for on-goal foreground apps, now owned by the
+> focus-drift spec; treat §4 here as the *idle-refined* enhancement layered on top later.
+
 ## Scope (v1)
 
 - **Desktop only.** Android ships a `Noop` implementation; nothing is lost, nothing is
