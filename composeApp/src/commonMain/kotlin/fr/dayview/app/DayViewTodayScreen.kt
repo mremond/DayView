@@ -1173,7 +1173,7 @@ private fun FocusCreationContent(
 }
 
 @Composable
-private fun FocusActionButton(
+internal fun FocusActionButton(
     label: String,
     color: Color,
     modifier: Modifier = Modifier,
@@ -1372,7 +1372,7 @@ private fun GlobalGoalPanel(
 }
 
 @Composable
-private fun GoalTextField(
+internal fun GoalTextField(
     value: String,
     semanticLabel: String,
     placeholder: String,
