@@ -131,8 +131,12 @@ de `main()`.
 
 ## Tests
 
-- **`MacFocusNudgeNotifier`** : test dans `desktopTest` sur le modèle de `MacFocusStatusItemTest` —
-  `return` immédiat hors macOS, sinon appel de fumée `notify("…")` vérifiant l'absence d'exception.
+- **`MacFocusNudgeNotifier`** : tests dans `desktopTest` gardés par macOS (`return` immédiat
+  ailleurs). Le notifieur expose deux coutures testables — `buildNotification(intention)` (construit
+  la `NSUserNotification` et la renvoie) et `readString(receiver, selector)` (relit une propriété
+  `NSString`) — pour **asserter le round-trip** titre/corps à travers le runtime Objective-C
+  (résolution des sélecteurs, `alloc/init`, marshalling UTF-8 des accents), plus un test que
+  `notify(...)` ne lève pas.
 - **Détection** : couverte par les tests existants de `FocusDriftDetectorTest` ; inchangée.
 - **Vérification manuelle (macOS, `.app` packagé)** : déclencher une dispersion → observer
   l'apparition de la notification, l'absence de vol de focus à la détection, et le retour de DayView

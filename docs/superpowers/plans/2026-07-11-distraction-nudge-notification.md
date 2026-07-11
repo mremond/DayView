@@ -29,7 +29,7 @@
 - **Create** `composeApp/src/desktopTest/kotlin/fr/dayview/app/FocusNudgeCopyTest.kt`
   - Tests unitaires déterministes de `FocusNudgeCopy.body(...)` (tournent sur toute plateforme).
 - **Create** `composeApp/src/desktopTest/kotlin/fr/dayview/app/MacFocusNudgeNotifierTest.kt`
-  - Test de fumée gardé par macOS (modèle `MacFocusStatusItemTest`).
+  - Tests gardés par macOS qui **assertent le round-trip** titre/corps de la notification à travers le runtime Objective-C (via `buildNotification` + `readString`), plus un test que `notify(...)` ne lève pas.
 - **Modify** `composeApp/src/desktopMain/kotlin/fr/dayview/app/Main.kt`
   - Instancier le notifieur, l'appeler à la détection de dispersion, retirer le vol de focus sur ce chemin.
 
@@ -124,10 +124,12 @@ git commit -m "feat: add focus-drift notification copy helper"
 - Produces:
   - `internal class MacFocusNudgeNotifier()`
   - `fun MacFocusNudgeNotifier.notify(intention: String)` — poste une notification native macOS ; no-op silencieux hors macOS ; toute erreur native avalée.
+  - `internal fun MacFocusNudgeNotifier.buildNotification(intention: String): Pointer?` — couture testable : construit la `NSUserNotification` (titre + corps) et la renvoie ; `null` hors macOS ou si un appel natif échoue.
+  - `internal fun MacFocusNudgeNotifier.readString(receiver: Pointer, selector: String): String?` — couture testable : relit une propriété `NSString` (getter sans argument) en `String` Kotlin, sur le modèle de `MacFrontmostApplicationProvider.bundleIdentifier()`.
 
-**Note TDD :** la partie native ne peut pas être vérifiée par un test unitaire (pas de banner assertable, erreurs avalées). Comme `MacFocusStatusItemTest`, on écrit un **test de fumée** gardé par macOS qui garantit chargement de classe + absence de crash synchrone. La vérification réelle est manuelle (Task 3, `.app` packagé).
+**Note test :** plutôt qu'un test de fumée sans assertion, on rend la construction de la notification **testable pour de vrai**. `buildNotification(...)` renvoie la `NSUserNotification` et `readString(...)` relit ses propriétés, ce qui permet d'**asserter le round-trip** titre/corps à travers le runtime Objective-C — cela vérifie la résolution des sélecteurs, `alloc/init`, et surtout le marshalling **UTF-8 des accents** (le point le plus risqué). Le test reste gardé par macOS (code natif). L'**affichage** de la bannière et le comportement de clic restent, eux, vérifiés manuellement (Task 3, `.app` packagé).
 
-- [ ] **Step 1: Écrire le test de fumée**
+- [ ] **Step 1: Écrire les tests (round-trip réel)**
 
 Créer `composeApp/src/desktopTest/kotlin/fr/dayview/app/MacFocusNudgeNotifierTest.kt` :
 
@@ -135,15 +137,34 @@ Créer `composeApp/src/desktopTest/kotlin/fr/dayview/app/MacFocusNudgeNotifierTe
 package fr.dayview.app
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class MacFocusNudgeNotifierTest {
     @Test
-    fun deliversNudgeNotificationWithoutError() {
+    fun buildsNotificationWithTitleAndProvidedBody() {
         if (!System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) return
 
         val notifier = MacFocusNudgeNotifier()
-        notifier.notify("Terminer le rapport")
-        notifier.notify("")
+        val notification = assertNotNull(notifier.buildNotification("Terminer le rapport"))
+        assertEquals("Reviens à l'essentiel", notifier.readString(notification, "title"))
+        assertEquals("Terminer le rapport", notifier.readString(notification, "informativeText"))
+    }
+
+    @Test
+    fun fallsBackToDefaultBodyWhenIntentionBlank() {
+        if (!System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) return
+
+        val notifier = MacFocusNudgeNotifier()
+        val notification = assertNotNull(notifier.buildNotification("   "))
+        assertEquals("Une seule chose à la fois.", notifier.readString(notification, "informativeText"))
+    }
+
+    @Test
+    fun deliverDoesNotThrow() {
+        if (!System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) return
+
+        MacFocusNudgeNotifier().notify("Terminer le rapport")
     }
 }
 ```
@@ -171,18 +192,33 @@ import com.sun.jna.Pointer
  */
 internal class MacFocusNudgeNotifier {
     fun notify(intention: String) {
-        if (!isMacOS) return
-        runCatching { deliver(FocusNudgeCopy.TITLE, FocusNudgeCopy.body(intention)) }
+        val notification = buildNotification(intention) ?: return
+        runCatching {
+            val centerClass = runtime.objc_getClass("NSUserNotificationCenter")
+            val center = message(centerClass, "defaultUserNotificationCenter")
+            messageWithObject(center, "deliverNotification:", notification)
+        }
     }
 
-    private fun deliver(title: String, body: String) {
-        val notificationClass = runtime.objc_getClass("NSUserNotification") ?: return
-        val notification = message(message(notificationClass, "alloc"), "init") ?: return
-        setString(notification, "setTitle:", title)
-        setString(notification, "setInformativeText:", body)
-        val centerClass = runtime.objc_getClass("NSUserNotificationCenter") ?: return
-        val center = message(centerClass, "defaultUserNotificationCenter") ?: return
-        messageWithObject(center, "deliverNotification:", notification)
+    /** Construit la NSUserNotification (titre + corps) ; null hors macOS ou si un appel natif échoue. Exposé pour les tests. */
+    internal fun buildNotification(intention: String): Pointer? {
+        if (!isMacOS) return null
+        return runCatching {
+            val notificationClass = runtime.objc_getClass("NSUserNotification")
+            val notification = message(message(notificationClass, "alloc"), "init")
+            if (notification != null) {
+                setString(notification, "setTitle:", FocusNudgeCopy.TITLE)
+                setString(notification, "setInformativeText:", FocusNudgeCopy.body(intention))
+            }
+            notification
+        }.getOrNull()
+    }
+
+    /** Relit une propriété NSString (getter sans argument) en String Kotlin. Exposé pour les tests. */
+    internal fun readString(receiver: Pointer, selector: String): String? {
+        val value = message(receiver, selector) ?: return null
+        val utf8 = message(value, "UTF8String") ?: return null
+        return utf8.getString(0, Charsets.UTF_8.name())
     }
 
     private fun setString(receiver: Pointer, selector: String, value: String) {
@@ -229,7 +265,7 @@ Note : placer les trois `import com.sun.jna.*` en tête de fichier (après `pack
 - [ ] **Step 4: Lancer le test et vérifier qu'il passe**
 
 Run: `./gradlew :composeApp:desktopTest --tests "fr.dayview.app.MacFocusNudgeNotifierTest"`
-Expected: PASS (sur macOS, la notification est délivrée sans exception ; hors macOS, `return` immédiat).
+Expected: PASS (3 tests). Sur macOS : le round-trip titre/corps est asserté et la livraison ne lève pas. Hors macOS : les trois tests `return` immédiatement (gardés).
 
 - [ ] **Step 5: ktlint**
 
