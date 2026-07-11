@@ -57,4 +57,21 @@ class CalendarNetTimeTest {
         assertEquals(progress.remainingMillis - net.busyRemainingMillis, net.netRemainingMillis)
         assertEquals((end - start) - (3_600_000 + 3_600_000 + 1_800_000L), net.netDayMillis)
     }
+
+    @Test
+    fun busyArcsProjectAtElapsedFraction() {
+        // Fenêtre 0..1000. Plage 250..500 -> quart..moitié.
+        val arcs = busyArcs(0, 1000, listOf(interval(250, 500, "X")))
+        assertEquals(1, arcs.size)
+        assertEquals(-90f + 0.25f * 360f, arcs[0].startAngleDegrees)
+        assertEquals(0.25f * 360f, arcs[0].sweepDegrees)
+        assertEquals(listOf("X"), arcs[0].titles)
+    }
+
+    @Test
+    fun busyArcsClipToWindow() {
+        val arcs = busyArcs(0, 1000, listOf(interval(-200, 200, "Y")))
+        assertEquals(-90f, arcs[0].startAngleDegrees)
+        assertEquals(0.2f * 360f, arcs[0].sweepDegrees)
+    }
 }

@@ -82,3 +82,35 @@ fun calculateNetTime(
         busyRemainingMillis = busyRemaining,
     )
 }
+
+data class BusyArc(
+    val startAngleDegrees: Float,
+    val sweepDegrees: Float,
+    val titles: List<String>,
+)
+
+fun busyArcs(
+    windowStartMillis: Long,
+    windowEndMillis: Long,
+    busy: List<BusyInterval>,
+): List<BusyArc> {
+    val duration = (windowEndMillis - windowStartMillis).toFloat()
+    if (duration <= 0f) return emptyList()
+    val clipped = mergeBusyIntervals(
+        busy.map {
+            it.copy(
+                startMillis = it.startMillis.coerceIn(windowStartMillis, windowEndMillis),
+                endMillis = it.endMillis.coerceIn(windowStartMillis, windowEndMillis),
+            )
+        },
+    )
+    return clipped.map {
+        val fStart = (it.startMillis - windowStartMillis) / duration
+        val fEnd = (it.endMillis - windowStartMillis) / duration
+        BusyArc(
+            startAngleDegrees = -90f + fStart * 360f,
+            sweepDegrees = (fEnd - fStart) * 360f,
+            titles = it.titles,
+        )
+    }
+}
