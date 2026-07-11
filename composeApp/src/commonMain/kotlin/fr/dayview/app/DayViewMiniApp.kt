@@ -31,6 +31,22 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.focus_cancel_button
+import fr.dayview.app.generated.resources.focus_intention_label
+import fr.dayview.app.generated.resources.focus_intention_placeholder
+import fr.dayview.app.generated.resources.focus_intention_prompt
+import fr.dayview.app.generated.resources.focus_section
+import fr.dayview.app.generated.resources.focus_start_button
+import fr.dayview.app.generated.resources.focus_start_short_button
+import fr.dayview.app.generated.resources.focus_state_break_active
+import fr.dayview.app.generated.resources.goal_section_title
+import fr.dayview.app.generated.resources.mini_focus_active
+import fr.dayview.app.generated.resources.mini_focus_single_thing
+import fr.dayview.app.generated.resources.mini_no_goal
+import fr.dayview.app.generated.resources.mini_start_focus_label
+import fr.dayview.app.generated.resources.mini_stop_focus_label
+import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
 
 @Composable
@@ -116,7 +132,7 @@ private fun MiniGoal(
 ) {
     val colors = LocalDayViewColors.current
     val remaining = deadline?.let {
-        formatGoalWorkingHours(
+        goalWorkingTimeLabel(
             working = calculateGoalWorkingTime(
                 now = now,
                 deadline = it,
@@ -135,7 +151,7 @@ private fun MiniGoal(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "OBJECTIF GLOBAL",
+                stringResource(Res.string.goal_section_title),
                 color = colors.mint,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -143,7 +159,7 @@ private fun MiniGoal(
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                title.ifBlank { "Aucun objectif défini" },
+                title.ifBlank { stringResource(Res.string.mini_no_goal) },
                 color = if (title.isBlank()) colors.muted else colors.cloud,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -164,13 +180,13 @@ private fun MiniFocusStart(onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
             .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
             .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
-            .clickable(role = Role.Button, onClickLabel = "Démarrer un focus", onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_start_focus_label), onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "DÉMARRER UN FOCUS",
+                stringResource(Res.string.focus_start_button),
                 color = colors.amber,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -178,7 +194,7 @@ private fun MiniFocusStart(onClick: () -> Unit) {
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                "Une seule chose à la fois",
+                stringResource(Res.string.mini_focus_single_thing),
                 color = colors.muted,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -206,7 +222,7 @@ private fun MiniFocus(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                if (isBreak) "PAUSE EN COURS" else "FOCUS EN COURS",
+                if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
                 color = if (isBreak) colors.mint else colors.amber,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -214,7 +230,7 @@ private fun MiniFocus(
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                intention.ifBlank { "Une seule chose à la fois" },
+                intention.ifBlank { stringResource(Res.string.mini_focus_single_thing) },
                 color = colors.cloud,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -238,7 +254,7 @@ private fun MiniStopButton(onStop: () -> Unit) {
     Box(
         modifier = Modifier.size(40.dp)
             .background(colors.overlay.copy(alpha = .08f), CircleShape)
-            .clickable(role = Role.Button, onClickLabel = "Arrêter le focus", onClick = onStop),
+            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_stop_focus_label), onClick = onStop),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -279,7 +295,7 @@ private fun FocusIntentionModal(
                 .padding(18.dp),
         ) {
             Text(
-                "FOCUS",
+                stringResource(Res.string.focus_section),
                 color = colors.amber,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
@@ -287,7 +303,7 @@ private fun FocusIntentionModal(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "À LA FIN DE CE FOCUS, J’AURAI…",
+                stringResource(Res.string.focus_intention_prompt),
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -296,8 +312,8 @@ private fun FocusIntentionModal(
             Spacer(Modifier.height(8.dp))
             GoalTextField(
                 value = intention,
-                semanticLabel = "Intention du Focus",
-                placeholder = "Ex. terminé le plan de la présentation",
+                semanticLabel = stringResource(Res.string.focus_intention_label),
+                placeholder = stringResource(Res.string.focus_intention_placeholder),
                 onValueChange = onIntentionChange,
             )
             Spacer(Modifier.height(14.dp))
@@ -306,13 +322,13 @@ private fun FocusIntentionModal(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 FocusActionButton(
-                    "ANNULER",
+                    stringResource(Res.string.focus_cancel_button),
                     colors.muted,
                     modifier = Modifier.weight(1f),
                     onClick = onDismiss,
                 )
                 FocusActionButton(
-                    "DÉMARRER",
+                    stringResource(Res.string.focus_start_short_button),
                     colors.amber,
                     modifier = Modifier.weight(1f),
                     enabled = intention.isNotBlank(),

@@ -34,6 +34,62 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.calendar_no_name
+import fr.dayview.app.generated.resources.day_end
+import fr.dayview.app.generated.resources.day_start
+import fr.dayview.app.generated.resources.interval_minutes
+import fr.dayview.app.generated.resources.modify
+import fr.dayview.app.generated.resources.modify_label
+import fr.dayview.app.generated.resources.settings_add_app
+import fr.dayview.app.generated.resources.settings_add_apps
+import fr.dayview.app.generated.resources.settings_autosave_note
+import fr.dayview.app.generated.resources.settings_back
+import fr.dayview.app.generated.resources.settings_calendar_permission_prompt
+import fr.dayview.app.generated.resources.settings_calendars
+import fr.dayview.app.generated.resources.settings_close
+import fr.dayview.app.generated.resources.settings_day_description
+import fr.dayview.app.generated.resources.settings_disabled_default_m
+import fr.dayview.app.generated.resources.settings_disabled_default_p
+import fr.dayview.app.generated.resources.settings_grant_calendar_access
+import fr.dayview.app.generated.resources.settings_launch_at_login
+import fr.dayview.app.generated.resources.settings_launch_at_login_description
+import fr.dayview.app.generated.resources.settings_monochrome_icon
+import fr.dayview.app.generated.resources.settings_monochrome_icon_description
+import fr.dayview.app.generated.resources.settings_net_time_description
+import fr.dayview.app.generated.resources.settings_net_time_footnote
+import fr.dayview.app.generated.resources.settings_net_time_toggle
+import fr.dayview.app.generated.resources.settings_no_apps_available
+import fr.dayview.app.generated.resources.settings_no_apps_selected
+import fr.dayview.app.generated.resources.settings_no_calendars
+import fr.dayview.app.generated.resources.settings_on_goal_description
+import fr.dayview.app.generated.resources.settings_remove
+import fr.dayview.app.generated.resources.settings_remove_app
+import fr.dayview.app.generated.resources.settings_section_day
+import fr.dayview.app.generated.resources.settings_section_display
+import fr.dayview.app.generated.resources.settings_section_net_time
+import fr.dayview.app.generated.resources.settings_section_on_goal
+import fr.dayview.app.generated.resources.settings_section_sounds
+import fr.dayview.app.generated.resources.settings_show_seconds
+import fr.dayview.app.generated.resources.settings_show_seconds_description
+import fr.dayview.app.generated.resources.settings_sound_cues
+import fr.dayview.app.generated.resources.settings_sounds_description
+import fr.dayview.app.generated.resources.settings_title
+import fr.dayview.app.generated.resources.sound_day_end_detail
+import fr.dayview.app.generated.resources.sound_day_start_detail
+import fr.dayview.app.generated.resources.sound_every
+import fr.dayview.app.generated.resources.sound_interval_decrease
+import fr.dayview.app.generated.resources.sound_interval_detail
+import fr.dayview.app.generated.resources.sound_interval_increase
+import fr.dayview.app.generated.resources.sound_interval_label
+import fr.dayview.app.generated.resources.sound_interval_value
+import fr.dayview.app.generated.resources.sound_preview
+import fr.dayview.app.generated.resources.sound_volume
+import fr.dayview.app.generated.resources.volume_decrease
+import fr.dayview.app.generated.resources.volume_increase
+import fr.dayview.app.generated.resources.volume_percent
+import fr.dayview.app.generated.resources.volume_value
+import org.jetbrains.compose.resources.stringResource
 
 internal data class SettingsPlatformUiState(
     val monochromeMenuBarIcon: Boolean?,
@@ -86,7 +142,7 @@ internal fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "‹  AUJOURD’HUI",
+                    stringResource(Res.string.settings_back),
                     color = colors.muted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -96,15 +152,15 @@ internal fun SettingsScreen(
                         .padding(vertical = 10.dp, horizontal = 4.dp),
                 )
                 Spacer(Modifier.weight(1f))
-                Text("RÉGLAGES", color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
+                Text(stringResource(Res.string.settings_title), color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
             }
 
             Spacer(Modifier.height(48.dp))
             Column(modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)) {
-                Text("JOURNÉE", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                Text(stringResource(Res.string.settings_section_day), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Définissez la plage utilisée pour représenter le temps disponible chaque jour.",
+                    stringResource(Res.string.settings_day_description),
                     color = colors.muted,
                     fontSize = 13.sp,
                     lineHeight = 19.sp,
@@ -117,7 +173,7 @@ internal fun SettingsScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
                     TimePreferenceRow(
-                        label = "DÉBUT DE JOURNÉE",
+                        label = stringResource(Res.string.day_start),
                         hour = progress.startHour,
                         minute = progress.startMinute,
                         onClick = {
@@ -130,7 +186,7 @@ internal fun SettingsScreen(
                     )
                     Box(Modifier.fillMaxWidth().height(1.dp).background(colors.overlay.copy(alpha = .06f)))
                     TimePreferenceRow(
-                        label = "FIN DE JOURNÉE",
+                        label = stringResource(Res.string.day_end),
                         hour = progress.endHour,
                         minute = progress.endMinute,
                         onClick = {
@@ -143,7 +199,7 @@ internal fun SettingsScreen(
                     )
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("AFFICHAGE", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                Text(stringResource(Res.string.settings_section_display), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth()
@@ -159,7 +215,7 @@ internal fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "AFFICHER LES SECONDES",
+                            stringResource(Res.string.settings_show_seconds),
                             color = colors.cloud,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -167,7 +223,7 @@ internal fun SettingsScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Désactivez-les pour un affichage plus calme et moins de rafraîchissements.",
+                            stringResource(Res.string.settings_show_seconds_description),
                             color = colors.muted,
                             fontSize = 11.sp,
                             lineHeight = 16.sp,
@@ -198,7 +254,7 @@ internal fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "ICÔNE DE BARRE DE MENU SANS COULEUR",
+                                stringResource(Res.string.settings_monochrome_icon),
                                 color = colors.cloud,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -206,7 +262,7 @@ internal fun SettingsScreen(
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                "Utilise une icône monochrome plus discrète dans la barre de menu.",
+                                stringResource(Res.string.settings_monochrome_icon_description),
                                 color = colors.muted,
                                 fontSize = 11.sp,
                                 lineHeight = 16.sp,
@@ -235,7 +291,7 @@ internal fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "OUVRIR À LA CONNEXION",
+                                stringResource(Res.string.settings_launch_at_login),
                                 color = colors.cloud,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -243,7 +299,7 @@ internal fun SettingsScreen(
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                "Lance automatiquement DayView à l’ouverture de votre session.",
+                                stringResource(Res.string.settings_launch_at_login_description),
                                 color = colors.muted,
                                 fontSize = 11.sp,
                                 lineHeight = 16.sp,
@@ -282,7 +338,7 @@ internal fun SettingsScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "Les changements sont enregistrés automatiquement et s’appliquent à tous les jours.",
+                    stringResource(Res.string.settings_autosave_note),
                     color = colors.muted,
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
@@ -301,10 +357,10 @@ private fun NetTimeSettingsPanel(
     onRequestPermission: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Text("TEMPS NET", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Text(stringResource(Res.string.settings_section_net_time), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
     Spacer(Modifier.height(8.dp))
     Text(
-        "Soustrait les plages occupées de votre calendrier et les grise sur le cercle.",
+        stringResource(Res.string.settings_net_time_description),
         color = colors.muted,
         fontSize = 13.sp,
         lineHeight = 19.sp,
@@ -323,9 +379,9 @@ private fun NetTimeSettingsPanel(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("CALCUL DU TEMPS NET", color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Text(stringResource(Res.string.settings_net_time_toggle), color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
             Spacer(Modifier.height(4.dp))
-            Text("Désactivé par défaut.", color = colors.muted, fontSize = 11.sp)
+            Text(stringResource(Res.string.settings_disabled_default_m), color = colors.muted, fontSize = 11.sp)
         }
         Switch(checked = settings.enabled, onCheckedChange = null)
     }
@@ -340,7 +396,7 @@ private fun NetTimeSettingsPanel(
                     .padding(16.dp),
             ) {
                 Text(
-                    "DayView a besoin d’accéder à votre calendrier, en lecture seule.",
+                    stringResource(Res.string.settings_calendar_permission_prompt),
                     color = colors.cloud,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -355,7 +411,7 @@ private fun NetTimeSettingsPanel(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "AUTORISER L’ACCÈS AU CALENDRIER",
+                        stringResource(Res.string.settings_grant_calendar_access),
                         color = colors.mint,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -371,7 +427,7 @@ private fun NetTimeSettingsPanel(
                     .padding(horizontal = 16.dp, vertical = 6.dp),
             ) {
                 Text(
-                    "CALENDRIERS",
+                    stringResource(Res.string.settings_calendars),
                     color = colors.muted,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
@@ -380,7 +436,7 @@ private fun NetTimeSettingsPanel(
                 )
                 if (calendars.isEmpty()) {
                     Text(
-                        "Aucun calendrier disponible.",
+                        stringResource(Res.string.settings_no_calendars),
                         color = colors.muted,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(bottom = 12.dp),
@@ -391,7 +447,7 @@ private fun NetTimeSettingsPanel(
                         val included = settings.includedCalendarIds.isEmpty() ||
                             calendar.id in settings.includedCalendarIds
                         NetTimeCalendarRow(
-                            name = calendar.displayName.ifBlank { "Sans nom" },
+                            name = calendar.displayName.ifBlank { stringResource(Res.string.calendar_no_name) },
                             checked = included,
                             onCheckedChange = { checked ->
                                 onSettingsChange(
@@ -412,7 +468,7 @@ private fun NetTimeSettingsPanel(
         }
         Spacer(Modifier.height(10.dp))
         Text(
-            "Seuls les événements marqués occupé (hors journée entière) sont soustraits.",
+            stringResource(Res.string.settings_net_time_footnote),
             color = colors.muted,
             fontSize = 11.sp,
             lineHeight = 16.sp,
@@ -445,10 +501,10 @@ private fun OnGoalAppsPanel(
     onOnGoalAppsChange: (Set<AppRef>) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Text("APPLICATIONS DE L’OBJECTIF", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Text(stringResource(Res.string.settings_section_on_goal), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
     Spacer(Modifier.height(8.dp))
     Text(
-        "Ces applications comptent comme du travail sur l’objectif pendant une session de focus.",
+        stringResource(Res.string.settings_on_goal_description),
         color = colors.muted,
         fontSize = 13.sp,
         lineHeight = 19.sp,
@@ -462,7 +518,7 @@ private fun OnGoalAppsPanel(
     ) {
         if (onGoalApps.isEmpty()) {
             Text(
-                "Aucune application sélectionnée.",
+                stringResource(Res.string.settings_no_apps_selected),
                 color = colors.muted,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(vertical = 12.dp),
@@ -488,7 +544,7 @@ private fun OnGoalAppsPanel(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            if (showPicker) "FERMER" else "AJOUTER DES APPLICATIONS",
+            if (showPicker) stringResource(Res.string.settings_close) else stringResource(Res.string.settings_add_apps),
             color = colors.mint,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -506,7 +562,7 @@ private fun OnGoalAppsPanel(
         ) {
             if (candidates.isEmpty()) {
                 Text(
-                    "Aucune application disponible.",
+                    stringResource(Res.string.settings_no_apps_available),
                     color = colors.muted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 12.dp),
@@ -518,7 +574,7 @@ private fun OnGoalAppsPanel(
                         modifier = Modifier.fillMaxWidth()
                             .clickable(
                                 role = Role.Button,
-                                onClickLabel = "Ajouter ${app.displayName}",
+                                onClickLabel = stringResource(Res.string.settings_add_app, app.displayName),
                                 onClick = { onOnGoalAppsChange(onGoalApps + app) },
                             )
                             .padding(vertical = 10.dp),
@@ -546,10 +602,10 @@ private fun OnGoalAppRow(
         Text(name, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier.minimumInteractiveComponentSize()
-                .clickable(role = Role.Button, onClickLabel = "Retirer $name", onClick = onRemove)
+                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.settings_remove_app, name), onClick = onRemove)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
         ) {
-            Text("RETIRER", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(stringResource(Res.string.settings_remove), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         }
     }
 }
@@ -561,10 +617,10 @@ private fun SoundSettingsPanel(
     onPreview: (SoundCue) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Text("SONS", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Text(stringResource(Res.string.settings_section_sounds), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
     Spacer(Modifier.height(8.dp))
     Text(
-        "Des repères doux pour sentir le temps sans surveiller l’écran.",
+        stringResource(Res.string.settings_sounds_description),
         color = colors.muted,
         fontSize = 13.sp,
         lineHeight = 19.sp,
@@ -583,9 +639,9 @@ private fun SoundSettingsPanel(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("REPÈRES SONORES", color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Text(stringResource(Res.string.settings_sound_cues), color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
             Spacer(Modifier.height(4.dp))
-            Text("Désactivés par défaut.", color = colors.muted, fontSize = 11.sp)
+            Text(stringResource(Res.string.settings_disabled_default_p), color = colors.muted, fontSize = 11.sp)
         }
         Switch(checked = settings.enabled, onCheckedChange = null)
     }
@@ -599,16 +655,16 @@ private fun SoundSettingsPanel(
                 .padding(horizontal = 16.dp, vertical = 6.dp),
         ) {
             SoundCueSettingRow(
-                label = "DÉBUT DE JOURNÉE",
-                detail = "Bol clair",
+                label = stringResource(Res.string.day_start),
+                detail = stringResource(Res.string.sound_day_start_detail),
                 checked = settings.startCueEnabled,
                 onCheckedChange = { onSettingsChange(settings.copy(startCueEnabled = it)) },
                 onPreview = { onPreview(SoundCue.DAY_START) },
             )
             SettingsDivider()
             SoundCueSettingRow(
-                label = "REPÈRE INTERMÉDIAIRE",
-                detail = "Tintement léger",
+                label = stringResource(Res.string.sound_interval_label),
+                detail = stringResource(Res.string.sound_interval_detail),
                 checked = settings.intervalCueEnabled,
                 onCheckedChange = { onSettingsChange(settings.copy(intervalCueEnabled = it)) },
                 onPreview = { onPreview(SoundCue.INTERVAL) },
@@ -620,24 +676,24 @@ private fun SoundSettingsPanel(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("TOUTES LES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text(stringResource(Res.string.sound_every), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(Modifier.weight(1f))
                     TimeButton(
                         label = "−",
                         enabled = currentIndex > 0,
-                        onClickLabel = "Diminuer l’intervalle des rappels",
-                        valueDescription = "Intervalle des rappels : ${settings.intervalMinutes} minutes",
+                        onClickLabel = stringResource(Res.string.sound_interval_decrease),
+                        valueDescription = stringResource(Res.string.sound_interval_value, settings.intervalMinutes.toString()),
                     ) {
                         onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex - 1]))
                     }
                     Spacer(Modifier.width(10.dp))
-                    Text("${settings.intervalMinutes} min", color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.interval_minutes, settings.intervalMinutes.toString()), color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.width(10.dp))
                     TimeButton(
                         label = "+",
                         enabled = currentIndex < choices.lastIndex,
-                        onClickLabel = "Augmenter l’intervalle des rappels",
-                        valueDescription = "Intervalle des rappels : ${settings.intervalMinutes} minutes",
+                        onClickLabel = stringResource(Res.string.sound_interval_increase),
+                        valueDescription = stringResource(Res.string.sound_interval_value, settings.intervalMinutes.toString()),
                     ) {
                         onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex + 1]))
                     }
@@ -645,8 +701,8 @@ private fun SoundSettingsPanel(
             }
             SettingsDivider()
             SoundCueSettingRow(
-                label = "FIN DE JOURNÉE",
-                detail = "Gong grave",
+                label = stringResource(Res.string.day_end),
+                detail = stringResource(Res.string.sound_day_end_detail),
                 checked = settings.endCueEnabled,
                 onCheckedChange = { onSettingsChange(settings.copy(endCueEnabled = it)) },
                 onPreview = { onPreview(SoundCue.DAY_END) },
@@ -657,16 +713,16 @@ private fun SoundSettingsPanel(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text("VOLUME", color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                    Text(stringResource(Res.string.sound_volume), color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                     Spacer(Modifier.height(3.dp))
-                    Text("${settings.volumePercent} %", color = colors.cloud, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.volume_percent, settings.volumePercent.toString()), color = colors.cloud, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 }
                 Spacer(Modifier.weight(1f))
                 TimeButton(
                     label = "−",
                     enabled = settings.volumePercent > 10,
-                    onClickLabel = "Diminuer le volume de 10 %",
-                    valueDescription = "Volume : ${settings.volumePercent} %",
+                    onClickLabel = stringResource(Res.string.volume_decrease),
+                    valueDescription = stringResource(Res.string.volume_value, settings.volumePercent.toString()),
                 ) {
                     onSettingsChange(settings.copy(volumePercent = settings.volumePercent - 10))
                 }
@@ -674,8 +730,8 @@ private fun SoundSettingsPanel(
                 TimeButton(
                     label = "+",
                     enabled = settings.volumePercent < 100,
-                    onClickLabel = "Augmenter le volume de 10 %",
-                    valueDescription = "Volume : ${settings.volumePercent} %",
+                    onClickLabel = stringResource(Res.string.volume_increase),
+                    valueDescription = stringResource(Res.string.volume_value, settings.volumePercent.toString()),
                 ) {
                     onSettingsChange(settings.copy(volumePercent = settings.volumePercent + 10))
                 }
@@ -719,7 +775,7 @@ private fun PreviewSoundButton(onClick: () -> Unit) {
             .padding(horizontal = 10.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text("ÉCOUTER", color = colors.mint, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
+        Text(stringResource(Res.string.sound_preview), color = colors.mint, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
     }
 }
 
@@ -741,7 +797,7 @@ private fun TimePreferenceRow(
         modifier = Modifier.fillMaxWidth()
             .clickable(
                 role = Role.Button,
-                onClickLabel = "Modifier $label",
+                onClickLabel = stringResource(Res.string.modify_label, label),
                 onClick = onClick,
             )
             .padding(vertical = 10.dp),
@@ -759,7 +815,7 @@ private fun TimePreferenceRow(
         }
         Spacer(Modifier.weight(1f))
         Text(
-            "MODIFIER",
+            stringResource(Res.string.modify),
             color = colors.mint,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,

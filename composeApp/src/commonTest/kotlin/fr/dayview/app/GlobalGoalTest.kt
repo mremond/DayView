@@ -5,7 +5,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
@@ -18,7 +17,6 @@ class GlobalGoalTest {
     private val zone = TimeZone.of("Europe/Paris")
 
     private fun at(iso: String): Instant = LocalDateTime.parse(iso).toInstant(zone)
-    private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
 
     @Test
     fun deadlineRoundTripsThroughTheFrenchDisplayFormat() {
@@ -121,7 +119,7 @@ class GlobalGoalTest {
 
         // Monday 12–18, Tuesday 08–18, Wednesday 08–12.
         assertEquals(20.hours, remaining)
-        assertEquals("Encore 20 h", formatGoalWorkingHours(remaining, deadlineReached = false))
+        assertEquals(GoalWorkingTime.HoursRemaining(20), goalWorkingTime(remaining, deadlineReached = false))
     }
 
     @Test
@@ -152,7 +150,7 @@ class GlobalGoalTest {
         val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
         assertEquals(Duration.ZERO, remaining)
-        assertEquals("Moins d’une heure de travail", formatGoalWorkingHours(remaining, deadlineReached = false))
+        assertEquals(GoalWorkingTime.LessThanAnHour, goalWorkingTime(remaining, deadlineReached = false))
     }
 
     @Test
@@ -171,7 +169,7 @@ class GlobalGoalTest {
 
         assertEquals(Duration.ZERO, calculateGoalWorkingTime(now, now, 8 * 60, 18 * 60, zone))
         assertEquals(Duration.ZERO, calculateGoalWorkingTime(now, now - 1.milliseconds, 8 * 60, 18 * 60, zone))
-        assertEquals("Échéance atteinte", formatGoalWorkingHours(Duration.ZERO, deadlineReached = true))
+        assertEquals(GoalWorkingTime.DeadlineReached, goalWorkingTime(Duration.ZERO, deadlineReached = true))
     }
 
     @Test
@@ -216,10 +214,9 @@ class GlobalGoalTest {
 
     @Test
     fun displayRoundsAnyPartialHourUp() {
-        assertEquals("Encore 1 h", formatGoalWorkingHours(1.milliseconds, deadlineReached = false))
-        assertEquals("Encore 1 h", formatGoalWorkingHours(1.hours, deadlineReached = false))
-        assertEquals("Encore 2 h", formatGoalWorkingHours(1.hours + 1.milliseconds, deadlineReached = false))
-        assertFalse(formatGoalWorkingHours(1.hours + 1.milliseconds, false).contains("j"))
+        assertEquals(GoalWorkingTime.HoursRemaining(1), goalWorkingTime(1.milliseconds, deadlineReached = false))
+        assertEquals(GoalWorkingTime.HoursRemaining(1), goalWorkingTime(1.hours, deadlineReached = false))
+        assertEquals(GoalWorkingTime.HoursRemaining(2), goalWorkingTime(1.hours + 1.milliseconds, deadlineReached = false))
     }
 
     @Test
@@ -300,9 +297,7 @@ class GlobalGoalTest {
     fun goalSummaryJoinsTitleAndRemainingHours() {
         val line = formatGoalSummaryLine(
             title = "Livrer la v2",
-            deadline = t(1_000L),
-            working = 12.hours,
-            deadlineReached = false,
+            workingHoursLabel = "Encore 12 h",
         )
         assertEquals("Livrer la v2 · Encore 12 h", line)
     }
@@ -311,9 +306,7 @@ class GlobalGoalTest {
     fun goalSummaryShowsRemainingHoursWhenTitleBlank() {
         val line = formatGoalSummaryLine(
             title = "",
-            deadline = t(1_000L),
-            working = 12.hours,
-            deadlineReached = false,
+            workingHoursLabel = "Encore 12 h",
         )
         assertEquals("Encore 12 h", line)
     }
@@ -322,9 +315,7 @@ class GlobalGoalTest {
     fun goalSummaryShowsTitleOnlyWhenNoDeadline() {
         val line = formatGoalSummaryLine(
             title = "Livrer la v2",
-            deadline = null,
-            working = Duration.ZERO,
-            deadlineReached = false,
+            workingHoursLabel = null,
         )
         assertEquals("Livrer la v2", line)
     }
@@ -333,9 +324,7 @@ class GlobalGoalTest {
     fun goalSummaryShowsDeadlineReached() {
         val line = formatGoalSummaryLine(
             title = "Livrer la v2",
-            deadline = t(1_000L),
-            working = Duration.ZERO,
-            deadlineReached = true,
+            workingHoursLabel = "Échéance atteinte",
         )
         assertEquals("Livrer la v2 · Échéance atteinte", line)
     }
@@ -344,9 +333,7 @@ class GlobalGoalTest {
     fun goalSummaryShowsLessThanAnHourWhenNoWorkingTimeLeft() {
         val line = formatGoalSummaryLine(
             title = "",
-            deadline = t(1_000L),
-            working = Duration.ZERO,
-            deadlineReached = false,
+            workingHoursLabel = "Moins d’une heure de travail",
         )
         assertEquals("Moins d’une heure de travail", line)
     }
@@ -355,9 +342,7 @@ class GlobalGoalTest {
     fun goalSummaryEmptyWhenNothingSet() {
         val line = formatGoalSummaryLine(
             title = "",
-            deadline = null,
-            working = Duration.ZERO,
-            deadlineReached = false,
+            workingHoursLabel = null,
         )
         assertEquals("", line)
     }
