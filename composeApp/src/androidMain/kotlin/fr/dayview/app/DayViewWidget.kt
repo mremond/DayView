@@ -11,11 +11,27 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.os.SystemClock
+import android.os.Build
+import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
+import androidx.annotation.RequiresApi
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
+
+internal enum class DayViewWidgetLayout(val layoutResource: Int) {
+    COMPACT(R.layout.dayview_widget_compact),
+    MEDIUM(R.layout.dayview_widget),
+    LARGE(R.layout.dayview_widget_large),
+}
+
+internal fun selectDayViewWidgetLayout(widthDp: Int, heightDp: Int): DayViewWidgetLayout = when {
+    widthDp <= 0 || heightDp <= 0 -> DayViewWidgetLayout.MEDIUM
+    widthDp < 230 || heightDp < 115 -> DayViewWidgetLayout.COMPACT
+    widthDp >= 300 && heightDp >= 170 -> DayViewWidgetLayout.LARGE
+    else -> DayViewWidgetLayout.MEDIUM
+}
 
 class DayViewWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -51,7 +67,47 @@ class DayViewWidget : AppWidgetProvider() {
                 startMinutesOfDay = preferences.loadStartMinutes(),
                 endMinutesOfDay = preferences.loadEndMinutes(),
             )
-            val views = RemoteViews(context.packageName, R.layout.dayview_widget)
+            val content = WidgetContent(
+                progress = progress,
+                goal = preferences.loadGoalTitle().trim(),
+                focusEndMillis = preferences.loadPomodoroEndMillis()?.takeIf { it > now },
+                focusIntention = preferences.loadFocusIntention().trim(),
+                nowMillis = now,
+                ring = renderRing(context, progress),
+            )
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                manager.updateAppWidget(widgetId, responsiveViews(context, widgetId, content))
+            } else {
+                val options = manager.getAppWidgetOptions(widgetId)
+                val layout = selectDayViewWidgetLayout(
+                    widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH),
+                    heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT),
+                )
+                manager.updateAppWidget(widgetId, createViews(context, widgetId, layout, content))
+            }
+        }
+
+        @RequiresApi(Build.VERSION_CODES.S)
+        private fun responsiveViews(
+            context: Context,
+            widgetId: Int,
+            content: WidgetContent,
+        ): RemoteViews = RemoteViews(
+            mapOf(
+                SizeF(180f, 90f) to createViews(context, widgetId, DayViewWidgetLayout.COMPACT, content),
+                SizeF(230f, 115f) to createViews(context, widgetId, DayViewWidgetLayout.MEDIUM, content),
+                SizeF(300f, 170f) to createViews(context, widgetId, DayViewWidgetLayout.LARGE, content),
+            ),
+        )
+
+        private fun createViews(
+            context: Context,
+            widgetId: Int,
+            layout: DayViewWidgetLayout,
+            content: WidgetContent,
+        ): RemoteViews {
+            val views = RemoteViews(context.packageName, layout.layoutResource)
             val openApp = PendingIntent.getActivity(
                 context,
                 widgetId,
@@ -62,55 +118,66 @@ class DayViewWidget : AppWidgetProvider() {
             )
 
             views.setOnClickPendingIntent(R.id.widget_root, openApp)
-            views.setImageViewBitmap(R.id.widget_ring, renderRing(context, progress))
+            views.setImageViewBitmap(R.id.widget_ring, content.ring)
             views.setContentDescription(
                 R.id.widget_ring,
-                context.getString(R.string.widget_ring_description, progress.percentageRemaining),
+                context.getString(R.string.widget_ring_description, content.progress.percentageRemaining),
             )
-            views.setTextViewText(R.id.widget_remaining, formatRemaining(progress))
-            views.setTextViewText(R.id.widget_day_status, formatDayStatus(context, progress))
+            views.setTextViewText(R.id.widget_remaining, formatRemaining(content.progress))
+            views.setTextViewText(R.id.widget_day_status, formatDayStatus(context, content.progress))
             views.setTextViewText(
                 R.id.widget_day_range,
                 context.getString(
                     R.string.widget_day_range,
-                    formatTime(progress.startHour, progress.startMinute),
-                    formatTime(progress.endHour, progress.endMinute),
+                    formatTime(content.progress.startHour, content.progress.startMinute),
+                    formatTime(content.progress.endHour, content.progress.endMinute),
                 ),
             )
+            views.setViewVisibility(
+                R.id.widget_day_range,
+                if (layout == DayViewWidgetLayout.COMPACT) View.GONE else View.VISIBLE,
+            )
 
-            val goal = preferences.loadGoalTitle().trim()
-            views.setViewVisibility(R.id.widget_goal, if (goal.isBlank()) View.GONE else View.VISIBLE)
-            views.setTextViewText(R.id.widget_goal, context.getString(R.string.widget_goal, goal))
+            val showGoal = content.goal.isNotBlank() && when (layout) {
+                DayViewWidgetLayout.COMPACT -> false
+                DayViewWidgetLayout.MEDIUM -> content.focusEndMillis == null
+                DayViewWidgetLayout.LARGE -> true
+            }
+            views.setViewVisibility(R.id.widget_goal, if (showGoal) View.VISIBLE else View.GONE)
+            views.setTextViewText(R.id.widget_goal, context.getString(R.string.widget_goal, content.goal))
 
-            val focusEnd = preferences.loadPomodoroEndMillis()
-            val focusIsActive = focusEnd != null && focusEnd > now
+            val focusEnd = content.focusEndMillis
+            val focusIsActive = focusEnd != null
             views.setViewVisibility(R.id.widget_focus, if (focusIsActive) View.VISIBLE else View.GONE)
             if (focusIsActive) {
-                val intention = preferences.loadFocusIntention().trim()
-                    .ifBlank { context.getString(R.string.widget_focus_default) }
+                val intention = content.focusIntention.ifBlank { context.getString(R.string.widget_focus_default) }
                 views.setTextViewText(R.id.widget_focus_intention, intention)
+                views.setViewVisibility(
+                    R.id.widget_focus_intention,
+                    if (layout == DayViewWidgetLayout.COMPACT) View.GONE else View.VISIBLE,
+                )
                 views.setChronometer(
                     R.id.widget_focus_countdown,
-                    SystemClock.elapsedRealtime() + (focusEnd - now),
+                    SystemClock.elapsedRealtime() + (focusEnd - content.nowMillis),
                     null,
                     true,
                 )
                 views.setChronometerCountDown(R.id.widget_focus_countdown, true)
             } else {
+                views.setViewVisibility(R.id.widget_focus_intention, View.GONE)
                 views.setChronometer(R.id.widget_focus_countdown, SystemClock.elapsedRealtime(), null, false)
             }
-
-            val options = manager.getAppWidgetOptions(widgetId)
-            val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
-            if (minHeight in 1..119) {
-                views.setViewVisibility(R.id.widget_goal, View.GONE)
-                views.setViewVisibility(R.id.widget_day_range, View.GONE)
-            } else {
-                views.setViewVisibility(R.id.widget_day_range, View.VISIBLE)
-            }
-
-            manager.updateAppWidget(widgetId, views)
+            return views
         }
+
+        private data class WidgetContent(
+            val progress: DayProgress,
+            val goal: String,
+            val focusEndMillis: Long?,
+            val focusIntention: String,
+            val nowMillis: Long,
+            val ring: Bitmap,
+        )
 
         private fun formatRemaining(progress: DayProgress): String = when {
             !progress.hasStarted -> formatTime(progress.startHour, progress.startMinute)

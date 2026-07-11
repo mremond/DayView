@@ -8,7 +8,7 @@
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="12dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,8 +18,8 @@
         android:orientation="horizontal">
 
         <FrameLayout
-            android:layout_width="68dp"
-            android:layout_height="68dp">
+            android:layout_width="98dp"
+            android:layout_height="98dp">
 
             <ImageView
                 android:id="@+id/widget_ring"
@@ -35,16 +35,16 @@
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:maxLines="1"
-                android:padding="13dp"
+                android:padding="18dp"
                 android:text="@string/widget_preview_remaining"
                 android:textColor="@color/dayview_widget_text"
-                android:textSize="12sp" />
+                android:textSize="16sp" />
         </FrameLayout>
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="14dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -52,42 +52,42 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
-                android:letterSpacing="0.14"
+                android:letterSpacing="0.15"
                 android:text="@string/widget_name"
                 android:textColor="@color/dayview_widget_mint"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/widget_day_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="5dp"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
                 android:text="@string/widget_day_remaining"
                 android:textColor="@color/dayview_widget_text"
-                android:textSize="11sp" />
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/widget_day_range"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="3dp"
                 android:maxLines="1"
                 android:text="@string/widget_preview_day_range"
                 android:textColor="@color/dayview_widget_muted"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/widget_goal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="9dp"
                 android:ellipsize="end"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:text="@string/widget_preview_goal"
-                android:textColor="@color/dayview_widget_muted"
-                android:textSize="11sp" />
+                android:textColor="@color/dayview_widget_text"
+                android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
 
@@ -95,14 +95,14 @@
         android:id="@+id/widget_focus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_marginTop="7dp"
         android:background="@drawable/dayview_widget_focus_background"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingLeft="8dp"
-        android:paddingTop="4dp"
-        android:paddingRight="8dp"
-        android:paddingBottom="4dp"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingRight="10dp"
+        android:paddingBottom="6dp"
         android:visibility="gone">
 
         <TextView
@@ -117,21 +117,21 @@
             android:id="@+id/widget_focus_intention"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
+            android:layout_marginStart="9dp"
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
             android:text="@string/widget_preview_focus"
             android:textColor="@color/dayview_widget_text"
-            android:textSize="11sp" />
+            android:textSize="13sp" />
 
         <Chronometer
             android:id="@+id/widget_focus_countdown"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
+            android:layout_marginStart="10dp"
             android:fontFamily="monospace"
             android:textColor="@color/dayview_widget_text"
-            android:textSize="12sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 </LinearLayout>
