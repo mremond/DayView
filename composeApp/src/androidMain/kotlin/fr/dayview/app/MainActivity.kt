@@ -27,11 +27,15 @@ class MainActivity : ComponentActivity() {
         }
         if (granted) restoreActiveFocusAlarm()
     }
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* Le recalcul du temps net relit l'état de l'autorisation. */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferences = AndroidDayPreferences(applicationContext)
         focusAlarmScheduler = FocusAlarmScheduler(applicationContext)
+        initCalendarSource(applicationContext)
         restoreActiveFocusAlarm()
         setContent {
             DayViewApp(
@@ -43,6 +47,9 @@ class MainActivity : ComponentActivity() {
                         val scheduledExactly = focusAlarmScheduler.schedule(endMillis, intention)
                         requestRequiredAccess(requestExactAlarm = !scheduledExactly)
                     }
+                },
+                onRequestCalendarPermission = {
+                    calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                 },
             )
         }

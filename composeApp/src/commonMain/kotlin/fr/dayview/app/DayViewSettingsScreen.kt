@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 internal data class SettingsPlatformUiState(
     val monochromeMenuBarIcon: Boolean?,
     val launchAtLogin: Boolean?,
+    val netTimeSupported: Boolean = false,
 )
 
 internal data class SettingsScreenActions(
@@ -45,6 +47,8 @@ internal data class SettingsScreenActions(
     val changeLaunchAtLogin: ((Boolean) -> Unit)?,
     val changeSoundSettings: (SoundSettings) -> Unit,
     val previewSound: (SoundCue) -> Unit,
+    val changeNetTimeSettings: (NetTimeSettings) -> Unit = {},
+    val requestCalendarPermission: () -> Unit = {},
     val back: () -> Unit,
 )
 
@@ -253,6 +257,16 @@ internal fun SettingsScreen(
                     onSettingsChange = actions.changeSoundSettings,
                     onPreview = actions.previewSound,
                 )
+                if (platformState.netTimeSupported) {
+                    Spacer(Modifier.height(24.dp))
+                    NetTimeSettingsPanel(
+                        settings = state.netTimeSettings,
+                        calendars = state.availableCalendars,
+                        hasPermission = state.netCalendarPermission,
+                        onSettingsChange = actions.changeNetTimeSettings,
+                        onRequestPermission = actions.requestCalendarPermission,
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Les changements sont enregistrés automatiquement et s’appliquent à tous les jours.",
@@ -262,6 +276,152 @@ internal fun SettingsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun NetTimeSettingsPanel(
+    settings: NetTimeSettings,
+    calendars: List<CalendarInfo>,
+    hasPermission: Boolean,
+    onSettingsChange: (NetTimeSettings) -> Unit,
+    onRequestPermission: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Text("TEMPS NET", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "Soustrait les plages occupées de votre calendrier et les grise sur le cercle.",
+        color = colors.muted,
+        fontSize = 13.sp,
+        lineHeight = 19.sp,
+    )
+    Spacer(Modifier.height(14.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .toggleable(
+                value = settings.enabled,
+                role = Role.Switch,
+                onValueChange = { onSettingsChange(settings.copy(enabled = it)) },
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("CALCUL DU TEMPS NET", color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Spacer(Modifier.height(4.dp))
+            Text("Désactivé par défaut.", color = colors.muted, fontSize = 11.sp)
+        }
+        Switch(checked = settings.enabled, onCheckedChange = null)
+    }
+
+    if (settings.enabled) {
+        Spacer(Modifier.height(10.dp))
+        if (!hasPermission) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .background(colors.panel, RoundedCornerShape(18.dp))
+                    .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                    .padding(16.dp),
+            ) {
+                Text(
+                    "DayView a besoin d’accéder à votre calendrier, en lecture seule.",
+                    color = colors.cloud,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier.minimumInteractiveComponentSize()
+                        .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(10.dp))
+                        .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(10.dp))
+                        .clickable(role = Role.Button, onClick = onRequestPermission)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "AUTORISER L’ACCÈS AU CALENDRIER",
+                        color = colors.mint,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = .7.sp,
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .background(colors.panel, RoundedCornerShape(18.dp))
+                    .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    "CALENDRIERS",
+                    color = colors.muted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                )
+                if (calendars.isEmpty()) {
+                    Text(
+                        "Aucun calendrier disponible.",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                } else {
+                    calendars.forEachIndexed { index, calendar ->
+                        if (index > 0) SettingsDivider()
+                        val included = settings.includedCalendarIds.isEmpty() ||
+                            calendar.id in settings.includedCalendarIds
+                        NetTimeCalendarRow(
+                            name = calendar.displayName.ifBlank { "Sans nom" },
+                            checked = included,
+                            onCheckedChange = { checked ->
+                                onSettingsChange(
+                                    settings.copy(
+                                        includedCalendarIds = nextIncludedCalendars(
+                                            allIds = calendars.map { it.id },
+                                            current = settings.includedCalendarIds,
+                                            toggledId = calendar.id,
+                                            include = checked,
+                                        ),
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Seuls les événements marqués occupé (hors journée entière) sont soustraits.",
+            color = colors.muted,
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+        )
+    }
+}
+
+@Composable
+private fun NetTimeCalendarRow(
+    name: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(name, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Checkbox(checked = checked, onCheckedChange = null)
     }
 }
 

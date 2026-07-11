@@ -22,20 +22,44 @@ internal data class DayViewUiState(
     val pomodoroMinutes: Int,
     val pomodoroEndMillis: Long?,
     val focusIntention: String,
+    val netTimeSettings: NetTimeSettings = NetTimeSettings(),
+    val netCalendarPermission: Boolean = false,
+    val availableCalendars: List<CalendarInfo> = emptyList(),
+    val busyIntervals: List<BusyInterval> = emptyList(),
     val lastFocusClosure: FocusClosureOutcome? = null,
     val destination: DayViewDestination = DayViewDestination.TODAY,
 ) {
+    private val dayNowMillis: Long
+        get() = if (showSeconds) nowMillis else nowMillis - nowMillis % 60_000L
+
     val dayProgress: DayProgress
-        get() {
-            val dayNowMillis = if (showSeconds) nowMillis else nowMillis - nowMillis % 60_000L
-            return calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
-        }
+        get() = calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
 
     val pomodoroProgress: PomodoroProgress
         get() = calculatePomodoroProgress(nowMillis, pomodoroMinutes, pomodoroEndMillis)
 
     val focusIsActive: Boolean
         get() = pomodoroEndMillis?.let { it > nowMillis } == true
+
+    /** Bornes absolues (millis) de la journée courante, pour la projection du temps net. */
+    val dayWindow: Pair<Long, Long>
+        get() = dayWindowMillis(dayNowMillis, startMinutes, endMinutes)
+
+    val busyArcsState: List<BusyArc>
+        get() = if (netTimeSettings.enabled) {
+            val (start, end) = dayWindow
+            busyArcs(start, end, busyIntervals)
+        } else {
+            emptyList()
+        }
+
+    val netTime: NetTime?
+        get() = if (netTimeSettings.enabled) {
+            val (start, end) = dayWindow
+            calculateNetTime(dayProgress, dayNowMillis, start, end, busyIntervals)
+        } else {
+            null
+        }
 }
 
 internal class DayViewController(
@@ -139,6 +163,24 @@ internal class DayViewController(
         if (intentionChanged) preferences.saveFocusIntention(updatedIntention)
     }
 
+    fun setNetTimeSettings(settings: NetTimeSettings) {
+        state = state.copy(netTimeSettings = settings)
+        preferences.saveNetTimeSettings(settings)
+    }
+
+    /** Injecte le résultat d'une lecture calendrier (hors thread UI). */
+    fun updateNetTimeData(
+        hasPermission: Boolean,
+        busyIntervals: List<BusyInterval>,
+        availableCalendars: List<CalendarInfo>,
+    ) {
+        state = state.copy(
+            netCalendarPermission = hasPermission,
+            busyIntervals = busyIntervals,
+            availableCalendars = availableCalendars,
+        )
+    }
+
     fun onPreferencesChanged(snapshot: DayPreferencesSnapshot) {
         state = state.withPersisted(snapshot)
     }
@@ -171,6 +213,7 @@ private fun DayPreferencesSnapshot.toUiState(nowMillis: Long): DayViewUiState {
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
+        netTimeSettings = safe.netTimeSettings,
     )
 }
 
@@ -186,7 +229,8 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
+        netTimeSettings = safe.netTimeSettings,
         // Transient fields deliberately preserved: nowMillis, goalDeadlineText,
-        // lastFocusClosure, destination.
+        // lastFocusClosure, destination, and calendar read results.
     )
 }

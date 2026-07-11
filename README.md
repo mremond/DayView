@@ -90,6 +90,10 @@ The macOS `.icns` icon, used by the Dock and DMG, is generated from this SVG at 
 
 A longer-term goal can be entered with a deadline in `DD/MM/YYYY HH:MM` format. Its title and deadline are saved locally, like the day’s start and end times. Its countdown is expressed in working hours and includes only the periods between the daily start and end times.
 
+## Net time
+
+Net time, disabled by default, is configured on the Settings screen. Once enabled and calendar access is granted (read-only), DayView subtracts the periods marked **busy** in the selected calendars from the remaining time and greys them out on the circle. The raw headline figure stays unchanged: net time appears as secondary information below the countdown. Only “busy” events count; “free”, tentative, and all-day events are ignored, and overlapping periods are merged. On platforms with a pointer, hovering over a greyed arc shows the event name and its times. Reading stays strictly local: only the time bounds feed the calculation, the title is used solely for the hover display, and no data is sent over the network. On Android, access relies on the Calendar Provider; on macOS, on EventKit.
+
 ## Focus
 
 The Focus timer lets you commit to a 25-minute block by default, adjustable in five-minute increments. A concrete intention must be entered before starting and remains visible throughout the session. Its deadline and intention are stored locally: the countdown continues when the window is hidden or the application is relaunched. On Android, a system alarm triggers an audible notification at the end even when the application is no longer in the foreground. On macOS, the remaining time is also visible in the menu bar.

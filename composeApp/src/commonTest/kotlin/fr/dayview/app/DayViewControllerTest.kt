@@ -253,6 +253,7 @@ private class InMemoryDayPreferences(
     override fun loadPomodoroMinutes(): Int = current.pomodoroMinutes
     override fun loadPomodoroEndMillis(): Long? = current.pomodoroEndMillis
     override fun loadFocusIntention(): String = current.focusIntention
+    override fun loadNetTimeSettings(): NetTimeSettings = current.netTimeSettings
 
     override fun saveDayRange(startMinutes: Int, endMinutes: Int) {
         current = current.copy(startMinutes = startMinutes, endMinutes = endMinutes)
@@ -281,6 +282,11 @@ private class InMemoryDayPreferences(
 
     override fun saveFocusIntention(intention: String) {
         current = current.copy(focusIntention = intention)
+        emit()
+    }
+
+    override fun saveNetTimeSettings(settings: NetTimeSettings) {
+        current = current.copy(netTimeSettings = settings)
         emit()
     }
 }

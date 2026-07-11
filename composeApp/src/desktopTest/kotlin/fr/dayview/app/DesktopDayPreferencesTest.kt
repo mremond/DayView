@@ -32,6 +32,18 @@ class DesktopDayPreferencesTest {
     }
 
     @Test
+    fun netTimeSettingsRoundTrip() {
+        preferences.saveNetTimeSettings(
+            NetTimeSettings(enabled = true, includedCalendarIds = setOf("work", "perso")),
+        )
+
+        val reloaded = DesktopDayPreferences(storage)
+
+        assertEquals(true, reloaded.loadNetTimeSettings().enabled)
+        assertEquals(setOf("work", "perso"), reloaded.loadNetTimeSettings().includedCalendarIds)
+    }
+
+    @Test
     fun dayRangeSurvivesANewPreferencesInstance() {
         preferences.saveDayRange(7 * 60 + 30, 19 * 60)
 

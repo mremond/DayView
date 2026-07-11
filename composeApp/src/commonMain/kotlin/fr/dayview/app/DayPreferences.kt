@@ -10,6 +10,7 @@ data class DayPreferencesSnapshot(
     val pomodoroMinutes: Int = 25,
     val pomodoroEndMillis: Long? = null,
     val focusIntention: String = "",
+    val netTimeSettings: NetTimeSettings = NetTimeSettings(),
 )
 
 interface DayPreferences {
@@ -28,6 +29,8 @@ interface DayPreferences {
     fun savePomodoro(durationMinutes: Int, endMillis: Long?)
     fun loadFocusIntention(): String
     fun saveFocusIntention(intention: String)
+    fun loadNetTimeSettings(): NetTimeSettings
+    fun saveNetTimeSettings(settings: NetTimeSettings)
 
     fun snapshot(): DayPreferencesSnapshot = DayPreferencesSnapshot(
         startMinutes = loadStartMinutes(),
@@ -39,6 +42,7 @@ interface DayPreferences {
         pomodoroMinutes = loadPomodoroMinutes(),
         pomodoroEndMillis = loadPomodoroEndMillis(),
         focusIntention = loadFocusIntention(),
+        netTimeSettings = loadNetTimeSettings(),
     )
 
     fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
@@ -63,4 +67,6 @@ object DefaultDayPreferences : DayPreferences {
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) = Unit
     override fun loadFocusIntention(): String = ""
     override fun saveFocusIntention(intention: String) = Unit
+    override fun loadNetTimeSettings(): NetTimeSettings = NetTimeSettings()
+    override fun saveNetTimeSettings(settings: NetTimeSettings) = Unit
 }
