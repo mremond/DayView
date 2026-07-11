@@ -208,8 +208,7 @@ class GlobalGoalTest {
         assertEquals(3_652L * 10 * 3_600_000L, remaining)
     }
 
-    private fun millis(iso: String): Long =
-        LocalDateTime.parse(iso).toInstant(zone).toEpochMilliseconds()
+    private fun millis(iso: String): Long = LocalDateTime.parse(iso).toInstant(zone).toEpochMilliseconds()
 
     @Test
     fun goalProgressIsZeroBeforeAndAtTheStart() {
