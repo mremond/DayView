@@ -1,116 +1,115 @@
 # DayView
 
-DayView rend visible le temps restant avant la fin de journée. Le cercle se consume au fil des heures afin de réduire la *time blindness*, sans transformer le temps en source de pression. Les heures de début et de fin sont réglables et conservées entre deux lancements.
+DayView makes the time remaining before the end of the day visible. The circle is gradually consumed as the hours pass to reduce *time blindness* without turning time into a source of pressure. The start and end times are configurable and retained between launches.
 
 ![DayView interface on macOS](docs/images/dayview-macos.png)
 
-## Plateformes
+## Platforms
 
-- Android 7.0 et versions ultérieures
-- macOS 13 et versions ultérieures (application desktop native empaquetée en `.dmg`)
+- Android 7.0 and later
+- macOS 13 and later (native desktop application packaged as a `.dmg`)
 
-L’interface et la logique métier sont partagées avec Kotlin Multiplatform et Compose Multiplatform.
-L’apparence claire ou sombre suit automatiquement le thème du système sur Android et macOS.
-Sur Android, un widget redimensionnable affiche l’anneau et le temps restant sans ouvrir l’application. Il reprend également l’objectif global et, pendant une session Focus, l’intention et le compte à rebours en direct. Une notification persistante suit le Focus puis sa pause, avec des actions pour arrêter ou reprendre la chaîne. Une tuile « DayView Focus », à ajouter depuis les réglages rapides, permet de lancer le dernier Focus configuré, de reprendre après une pause ou d’ouvrir la session active.
-Sur macOS, DayView reste accessible depuis la barre des menus. Fermer sa fenêtre la masque sans arrêter le décompte ; le menu permet de la rouvrir ou de quitter complètement l’application.
+The interface and business logic are shared using Kotlin Multiplatform and Compose Multiplatform.
+The light or dark appearance automatically follows the system theme on Android and macOS.
+On Android, a resizable widget displays the ring and remaining time without opening the application. It also shows the global goal and, during a Focus session, the intention and live countdown. A persistent notification tracks the Focus and its pause, with actions to stop or resume the sequence. A “DayView Focus” tile, which can be added from Quick Settings, lets you start the last configured Focus, resume after a pause, or open the active session.
+On macOS, DayView remains accessible from the menu bar. Closing its window hides it without stopping the countdown; the menu lets you reopen it or quit the application completely.
 
-Le mode mini-fenêtre, accessible depuis l’en-tête ou la barre des menus, garde au-dessus des autres applications une vue compacte de l’anneau et du décompte du jour. Il rappelle aussi l’objectif global et ajoute automatiquement le temps restant ainsi que l’intention lorsqu’un Focus est en cours.
+Mini-window mode, accessible from the header or menu bar, keeps a compact view of the ring and the day’s countdown above other applications. It also shows the global goal and automatically adds the remaining time and intention while a Focus is in progress.
 
-## Lancer le projet
+## Running the project
 
-Prérequis : JDK 17 ou plus récent pour lancer Gradle et Android SDK 36. La compilation utilise une toolchain JDK 21, téléchargée automatiquement si nécessaire.
+Prerequisites: JDK 17 or later to run Gradle, and Android SDK 36. The build uses a JDK 21 toolchain, which is downloaded automatically when necessary.
 
 ```bash
 ./gradlew :composeApp:run
 ```
 
-### Android sur un appareil physique
+### Android on a physical device
 
-Activez les **Options pour les développeurs** puis le **Débogage USB** sur l’appareil. Branchez-le, acceptez la demande d’autorisation et vérifiez qu’il apparaît avec l’état `device` :
+Enable **Developer options** and then **USB debugging** on the device. Connect it, accept the authorization request, and verify that it appears with the `device` status:
 
 ```bash
 adb devices
 ```
 
-Pour compiler puis installer directement la version debug :
+To build and directly install the debug version:
 
 ```bash
 ./gradlew :composeApp:installDebug
 ```
 
-L’application peut ensuite être lancée depuis l’appareil ou en ligne de commande :
+The application can then be launched from the device or the command line:
 
 ```bash
 adb shell am start -n fr.dayview.app/.MainActivity
 ```
 
-Pour produire l’APK sans l’installer :
+To produce the APK without installing it:
 
 ```bash
 ./gradlew :composeApp:assembleDebug
 ```
 
-L’APK est généré dans `composeApp/build/outputs/apk/debug/composeApp-debug.apk`. Il peut être installé ou mis à jour manuellement avec :
+The APK is generated at `composeApp/build/outputs/apk/debug/composeApp-debug.apk`. It can be installed or updated manually with:
 
 ```bash
 adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 ```
 
-Au premier démarrage d’un Focus, Android demande l’autorisation d’envoyer des notifications puis, selon la version du système, l’accès **Alarmes et rappels**. Ces deux autorisations sont nécessaires pour recevoir une notification sonore précise lorsque DayView n’est plus au premier plan.
+When a Focus is started for the first time, Android requests permission to send notifications and, depending on the system version, access to **Alarms & reminders**. Both permissions are required to receive a precisely timed audible notification when DayView is no longer in the foreground.
 
-Il est également possible d’ouvrir le projet dans Android Studio et de lancer la configuration `composeApp`.
+You can also open the project in Android Studio and run the `composeApp` configuration.
 
 ### macOS
 
-Pour générer l’image macOS :
+To generate the macOS disk image:
 
 ```bash
 ./gradlew :composeApp:packageDmg
 ```
 
-Le volume généré utilise l’icône DayView et présente l’application à côté d’un
-raccourci vers `/Applications`, afin de permettre son installation par glisser-déposer.
+The generated volume uses the DayView icon and displays the application next to a shortcut to `/Applications`, allowing it to be installed by drag and drop.
 
-## Icône
+## Icon
 
-Le SVG maître, prévu comme référence pour les déclinaisons Android et macOS, se régénère sans dépendance externe :
+The master SVG, intended as the reference for the Android and macOS variants, can be regenerated without external dependencies:
 
 ```bash
 python3 scripts/generate_icon_svg.py
 ```
 
-Les couleurs et la taille peuvent être adaptées avec `--accent`, `--marker`, `--background`, `--surface` et `--size`. Utilisez `--help` pour afficher toutes les options.
+The colors and size can be customized with `--accent`, `--marker`, `--background`, `--surface`, and `--size`. Use `--help` to display all options.
 
-L’icône macOS `.icns`, utilisée par le Dock et le DMG, est générée à toutes les résolutions requises depuis ce SVG :
+The macOS `.icns` icon, used by the Dock and DMG, is generated from this SVG at all required resolutions:
 
 ```bash
 ./scripts/generate_macos_icon.sh
 ```
 
-## Objectif global
+## Global goal
 
-Un objectif à plus long terme peut être renseigné avec une échéance au format `JJ/MM/AAAA HH:MM`. Son intitulé et son échéance sont sauvegardés localement, comme les heures de la journée. Son décompte est exprimé en heures de travail et additionne uniquement les plages comprises entre les heures quotidiennes de début et de fin.
+A longer-term goal can be entered with a deadline in `DD/MM/YYYY HH:MM` format. Its title and deadline are saved locally, like the day’s start and end times. Its countdown is expressed in working hours and includes only the periods between the daily start and end times.
 
 ## Focus
 
-Le minuteur Focus permet de s’engager sur un slot de 25 minutes par défaut, réglable par pas de 5 minutes. Une intention concrète doit être renseignée avant le démarrage et reste visible pendant toute la session. Son échéance et son intention sont conservées localement : le décompte continue lorsque la fenêtre est masquée ou l’application relancée. Sur Android, une alarme système déclenche une notification sonore à la fin même lorsque l’application n’est plus au premier plan. Sur macOS, le temps restant est également visible dans la barre des menus.
+The Focus timer lets you commit to a 25-minute block by default, adjustable in five-minute increments. A concrete intention must be entered before starting and remains visible throughout the session. Its deadline and intention are stored locally: the countdown continues when the window is hidden or the application is relaunched. On Android, a system alarm triggers an audible notification at the end even when the application is no longer in the foreground. On macOS, the remaining time is also visible in the menu bar.
 
-Pendant un Focus sur macOS, DayView observe uniquement l’identifiant de l’application au premier plan. Quatre changements d’application en moins de 45 secondes déclenchent un rappel de l’intention. Une période de grâce de 30 secondes et un délai de cinq minutes entre deux rappels évitent les interruptions répétitives. Cette détection reste locale et ne lit jamais le contenu des fenêtres.
+During a Focus on macOS, DayView observes only the identifier of the application in the foreground. Four application switches in less than 45 seconds trigger a reminder of the intention. A 30-second grace period and a five-minute interval between reminders prevent repeated interruptions. This detection remains local and never reads window contents.
 
-Si DayView retrouve une session encore active après son relancement ou le réveil du Mac, un rituel de reprise remet l’intention et le temps restant au premier plan. L’utilisateur peut reprendre immédiatement ou arrêter la session.
+If DayView finds a still-active session after the application is relaunched or the Mac wakes up, a resumption ritual brings the intention and remaining time back to the foreground. The user can resume immediately or stop the session.
 
-À la fin d’un Focus, la session se clôture en un clic avec « Terminé », « Avancé » ou « À reprendre ». Ce dernier choix conserve l’intention pour la session suivante ; les deux autres libèrent le champ pour une nouvelle tâche.
+At the end of a Focus, the session can be closed with one click using “Completed,” “Progressed,” or “Resume later.” The last choice retains the intention for the next session; the other two clear the field for a new task.
 
-## Principe du calcul
+## Calculation principle
 
-La journée utilise les heures de début et de fin choisies (08:00–18:00 par défaut) dans le fuseau local de l’appareil. Le cercle reste plein avant le début, se consume pendant la plage définie, puis atteint zéro à la fin. Les changements d’heure sont correctement pris en compte.
+The day uses the selected start and end times (08:00–18:00 by default) in the device’s local time zone. The circle remains full before the start, is consumed during the defined period, and reaches zero at the end. Daylight saving time changes are handled correctly.
 
-## Repères sonores
+## Sound cues
 
-Les repères sonores, désactivés par défaut, se configurent dans l’écran Réglages. Hors session Focus, DayView peut jouer un bol au début de la journée, un tintement toutes les 30 à 180 minutes — toutes les demi-heures par défaut — et un gong à la fin. Pendant un Focus, ces repères de journée sont suspendus au profit de ceux de la session. Chaque repère peut être désactivé séparément, préécouté et joué au volume choisi. Les sons sont synthétisés localement et ne nécessitent aucun fichier audio ni service réseau.
+Sound cues, disabled by default, are configured on the Settings screen. Outside a Focus session, DayView can play a singing bowl at the start of the day, a chime every 30 to 180 minutes—every half hour by default—and a gong at the end. During a Focus, these day cues are suspended in favor of the session cues. Each cue can be disabled separately, previewed, and played at the selected volume. The sounds are synthesized locally and require no audio file or network service.
 
-## Licence
+## License
 
 Copyright 2026 Mickaël Rémond.
 
-DayView est distribué sous licence Apache 2.0. Consultez le fichier [LICENSE](LICENSE) pour le texte complet.
+DayView is distributed under the Apache 2.0 license. See [LICENSE](LICENSE) for the full text.

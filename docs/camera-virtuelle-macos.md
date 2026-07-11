@@ -1,110 +1,110 @@
-# Caméra virtuelle DayView sur macOS
+# Virtual Camera DayView on macOS
 
-## Statut
+## Status
 
-Proposition technique. Cette fonctionnalité n'est pas encore implémentée.
+Proposed feature. This functionality is not yet implemented.
 
-## Objectif
+## Objective
 
-Fournir une caméra sélectionnable sous le nom **DayView Camera** dans les applications de visioconférence. Son image combine :
+To provide a selectable camera under the name **DayView Camera** in video conferencing applications. Its image combines:
 
-- le flux de la webcam choisie par l'utilisateur ;
-- l'anneau de progression de la journée ;
-- le temps restant ;
-- l'intention et le temps restant du Focus lorsqu'une session est active.
+- the stream of the selected webcam chosen by the user;
+- the ring of progress of the day;
+- the remaining time;
+- the intention and the remaining Focus when a session is active.
 
-Le traitement reste entièrement local. La fonctionnalité ne publie pas le son : l'utilisateur continue de sélectionner son microphone habituel dans l'application de visioconférence.
+The processing remains entirely local. The feature does not publish audio: the user continues to select their usual microphone in the video conferencing application.
 
-## Expérience utilisateur visée
+## User Experience Targeted
 
-Une section **Caméra virtuelle** dans les réglages macOS permettrait de :
+A **Virtual Camera** section in macOS settings would allow for:
 
-1. installer ou activer l'extension système lors de la première utilisation ;
-2. choisir la webcam source ;
-3. activer ou désactiver l'overlay ;
-4. choisir son coin, sa taille et son opacité ;
-5. afficher un aperçu ;
-6. sélectionner ensuite **DayView Camera** dans Zoom, Meet, Teams, FaceTime ou toute autre application compatible.
+1. installing or activating the system extension during the first use;
+2. choosing the webcam source;
+3. enabling or disabling the overlay;
+4. choosing the corner, size, and opacity of the camera;
+5. displaying a preview;
+6. selecting **DayView Camera** in Zoom, Meet, Teams, FaceTime, or any other compatible application.
 
-L'overlay devrait rester discret : petit anneau dans un coin, durée au centre et intention sur une ou deux lignes à côté. Par défaut, l'intention n'est affichée que pendant un Focus actif. Une option doit permettre de masquer rapidement l'overlay sans désinstaller la caméra.
+The overlay should remain discreet: a small ring in a corner, duration at the center, and intention on one or two lines next to it. By default, the intention is only displayed when a Focus is active. An option must allow for quickly hiding the overlay without uninstalling the camera.
 
-## Choix technologique
+## Choice of Technology
 
-Utiliser une **Camera Extension Core Media I/O**. Cette API, disponible depuis macOS 12.3, est la solution moderne recommandée par Apple pour publier une caméra logicielle. Elle est compatible avec la cible macOS 13 minimale de DayView.
+Using a **Camera Extension Core Media I/O**. This API, available since macOS 12.3, is the modern recommended solution by Apple for publishing a logical camera. It is compatible with the minimum target macOS 13 of DayView.
 
-Références Apple :
+References Apple:
 
 - [Creating a camera extension with Core Media I/O](https://developer.apple.com/documentation/CoreMediaIO/creating-a-camera-extension-with-core-media-i-o)
 - [Core Media I/O](https://developer.apple.com/documentation/coremediaio)
 - [Setting up a capture session](https://developer.apple.com/documentation/avfoundation/setting-up-a-capture-session)
 
-Les anciens plug-ins DAL ne doivent pas être utilisés. Ils sont moins sûrs, plus difficiles à distribuer et incompatibles avec certaines applications qui imposent la validation de bibliothèque.
+The old plug-ins DAL should not be used. They are less secure, more difficult to distribute, and incompatible with certain applications that require library validation.
 
-## Architecture proposée
+## Proposed Architecture
 
 ```mermaid
 flowchart LR
-    DV["DayView Kotlin/Compose"] -->|"état JSON via helper Swift"| AG["Conteneur App Group"]
-    AG -->|"horaires, Focus, intention, préférences d'overlay"| CE["Camera Extension Swift"]
-    WC["Webcam physique"] -->|"AVFoundation / CVPixelBuffer"| CE
-    CE -->|"Core Image ou Metal"| MIX["Image webcam + overlay"]
-    MIX -->|"CMSampleBuffer"| CMIO["Flux Core Media I/O"]
+    DV["DayView Kotlin/Compose"] -->|"state JSON via helper Swift"| AG["App Group Container"]
+    AG -->|"hours, Focus, intention, overlay preferences"| CE["Camera Extension Swift"]
+    WC["Physical Webcam"] -->|"AVFoundation / CVPixelBuffer"| CE
+    CE -->|"Core Image or Metal"| MIX["Webcam image + overlay"]
+    MIX -->|"CMSampleBuffer"| CMIO["Media I/O Stream"]
     CMIO --> APP["Zoom, Meet, Teams, FaceTime…"]
 ```
 
-La fonctionnalité nécessite trois éléments :
+The feature requires three elements:
 
-### 1. Application DayView existante
+### 1. Existing DayView Application
 
-L'application Kotlin/Compose reste la source de vérité pour :
+The existing Kotlin/Compose application remains the source of truth for:
 
-- les heures de début et de fin de journée ;
-- l'affichage éventuel des secondes ;
-- la durée et l'échéance du Focus ;
-- l'intention ;
-- les réglages visuels de la caméra.
+- hours of start and end of day;
+- display of seconds;
+- duration and deadline of Focus;
+- intention;
+- visual settings of the camera.
 
-Elle pilote un petit helper Swift selon le même principe que `MacFocusStatusHelper.swift`. Le helper écrit un instantané d'état dans le conteneur partagé de l'App Group et émet une notification interprocessus après chaque modification.
+It pilots a small Swift helper according to the same principle as `MacFocusStatusHelper.swift`. The helper writes an instant snapshot of state into the shared App Group container and emits an inter-process notification after each modification.
 
-Les préférences Java actuellement utilisées par `DesktopDayPreferences` ne doivent pas être lues directement par l'extension. Leur emplacement et leur format ne constituent pas un contrat stable et une extension sandboxée n'y a pas naturellement accès.
+The currently used Java preferences in `DesktopDayPreferences` should not be read directly by the extension. Their location and format are not a stable contract, and an extension sandboxed does not naturally access them.
 
-### 2. Hôte natif macOS
+### 2. Native macOS Host
 
-Un composant Swift signé porte les capacités nécessaires et soumet la demande d'activation avec `OSSystemExtensionManager`. Il fournit également :
+A Swift signed component carries the necessary capabilities and submits the activation request with `OSSystemExtensionManager`. It also provides:
 
-- l'état d'installation de l'extension ;
-- le choix de la webcam ;
-- les demandes d'autorisation ;
-- un diagnostic simple en cas d'indisponibilité.
+- state of installation of the extension;
+- selection of the webcam;
+- authorization requests;
+- simple diagnostic in case of unavailability.
 
-Pour une première version, la solution la moins fragile consiste à livrer un petit **DayView Camera.app** natif à côté de DayView dans le DMG. Il embarque la Camera Extension et peut être lancé depuis les réglages DayView. Une intégration dans le même bundle que l'application jpackage pourra être étudiée ensuite, mais elle impose de reconstruire et signer précisément toute la hiérarchie du bundle après le packaging Compose.
+For a first version, the solution that is least fragile consists in delivering a small **DayView Camera.app** native alongside DayView in the DMG. It embeds the Camera Extension and can be launched from the settings DayView. An integration into the same bundle as the application jpackage will be studied later, but it imposes rebuilding and signing of the entire hierarchy of bundles after packaging.
 
-À terme, un hôte natif unique pourrait envelopper le runtime JVM et l'extension pour offrir une seule application visible. Cette migration n'est pas requise pour valider la fonctionnalité.
+At term, a single host could envelop the runtime JVM and the extension to offer a single visible application.
 
 ### 3. Camera Extension
 
-L'extension Swift publie un provider, un device et un stream Core Media I/O :
+The Swift extension publishes a provider, a device, and a stream Core Media I/O:
 
-- `CMIOExtensionProvider` représente DayView ;
-- `CMIOExtensionDevice` publie **DayView Camera** ;
-- `CMIOExtensionStream` produit les images, par exemple en 1280 × 720 à 30 images par seconde.
+- `CMIOExtensionProvider` represents DayView;
+- `CMIOExtensionDevice` publishes **DayView Camera**;
+- `CMIOExtensionStream` produces images, for example at 1280 × 720 at 30 frames per second.
 
-Elle ouvre la webcam physique avec `AVCaptureSession` et récupère les images avec `AVCaptureVideoDataOutput`. La caméra virtuelle DayView doit être explicitement exclue de la liste des sources afin d'éviter une boucle de capture.
+It opens the physical webcam with `AVCaptureSession` and retrieves images with `AVCaptureVideoDataOutput`. The virtual camera DayView must be explicitly excluded from the list of sources to avoid a capture loop.
 
-Chaque image suit ce pipeline :
+Each image follows this pipeline:
 
-1. réception d'un `CVPixelBuffer` de la webcam ;
-2. correction de l'orientation et application du cadrage choisi ;
-3. calcul local de la progression à partir des horaires et de l'heure courante ;
-4. rendu de l'anneau, du temps et de l'intention avec Core Image ou Metal ;
-5. conversion en `CMSampleBuffer` horodaté ;
-6. envoi au stream Core Media I/O.
+1. reception of a `CVPixelBuffer` of the webcam;
+2. correction of orientation and application of chosen cropping;
+3. local calculation of progress based on hours and current time;
+4. rendering of ring, duration, and intention with Core Image or Metal;
+5. conversion to `CMSampleBuffer` dated;
+6. sending to the stream Core Media I/O.
 
-Le calcul du temps doit être porté dans une petite implémentation Swift testable avec les mêmes cas que `DayProgressTest` et `PomodoroTest`. L'état partagé contient les échéances et les réglages, pas une image d'overlay recalculée chaque seconde.
+The calculation of time must be carried out in a small Swift testable implementation according to the same cases as `DayProgressTest` and `PomodoroTest`. The shared state contains deadlines and settings, not an overlay recalculated every second.
 
-## État partagé
+## Shared State
 
-Un fichier JSON versionné et remplacé atomiquement dans l'App Group est suffisant pour la première version :
+A JSON versioned and replaced atomically in the App Group is sufficient for the first version:
 
 ```json
 {
@@ -130,39 +130,31 @@ Un fichier JSON versionné et remplacé atomiquement dans l'App Group est suffis
 }
 ```
 
-Règles d'échange :
+Rules of exchange:
 
-- écriture dans un fichier temporaire puis renommage atomique ;
-- champ `schemaVersion` obligatoire ;
-- valeurs manquantes remplacées par des valeurs par défaut sûres ;
-- intention limitée à la longueur déjà acceptée par DayView ;
-- notification Darwin après écriture et relecture périodique de secours ;
-- conservation du dernier état valide en cas de lecture partielle ou corrompue.
+- writing in a temporary file and renaming atomically;
+- field `schemaVersion` mandatory;
+- values missing replaced by safe default values;
+- intention limited to the length already accepted by DayView;
+- notification Darwin after writing and periodic reading backup;
+- conservation of the last valid state in case of partial or corrupted read.
 
-## Permissions, signature et installation
+## Permissions, Signature, and Installation
 
-L'hôte et l'extension doivent partager un App Group. L'hôte nécessite notamment la capacité d'installation de System Extension. L'extension est sandboxée et nécessite l'accès à la caméra si elle capture une autre caméra.
+The host and extension must share an App Group. The host needs particularly the capability to install System Extension. The extension is sandboxed and requires access to the camera if it captures another camera.
 
-Les fichiers exacts d'entitlements seront générés par le projet Xcode, mais ils devront couvrir au minimum :
+Exact files of entitlements will be generated by the Xcode project, but they must cover at least:
 
-- `com.apple.developer.system-extension.install` pour l'hôte ;
-- `com.apple.security.application-groups` pour l'hôte et l'extension ;
-- `com.apple.security.device.camera` pour le processus qui capture la webcam ;
-- une description d'usage caméra compréhensible par l'utilisateur.
+- `com.apple.developer.system-extension.install` for the host;
+- `com.apple.security.application-groups` for the host and the extension;
+- `com.apple.security.device.camera` for the process that captures the webcam;
+- a readable description of camera understandable by the user.
 
-L'application doit être installée dans `/Applications` pour activer l'extension. macOS demande une validation explicite lors de la première activation ; selon la configuration du Mac, des droits administrateur peuvent être nécessaires. Le produit doit expliquer cette étape et afficher l'état réel de l'activation.
+The application must be installed in `/Applications` to activate the extension. macOS requests explicit validation during the first activation; according to configuration, administrative rights may be necessary. The product must explain this step and show the actual state of activation.
 
-La distribution impose :
+## Packaging in This Repository
 
-- un identifiant stable pour l'hôte et l'extension ;
-- un certificat Developer ID ou une distribution Mac App Store ;
-- la signature de l'extension avant celle de l'application qui l'embarque ;
-- la signature finale du DMG ;
-- la notarisation et l'agrafage du ticket.
-
-## Packaging dans ce dépôt
-
-Ajouter un projet Xcode dédié, par exemple :
+Add a separate Xcode project, for example:
 
 ```text
 macosCamera/
@@ -173,127 +165,175 @@ macosCamera/
 └── Tests/
 ```
 
-Gradle peut orchestrer `xcodebuild`, mais Xcode doit rester responsable de la compilation, des entitlements et de la signature du bundle natif. Le flux de packaging proposé est :
+Gradle can orchestrate `xcodebuild`, but Xcode remains responsible of compilation, entitlements, and signing of the native bundle. The proposed packaging flow is:
 
-1. compiler et tester le code Kotlin ;
-2. construire `DayView Camera.app` et son extension avec `xcodebuild archive` ;
-3. produire l'application Compose avec `createDistributable` ;
-4. placer les deux applications dans le DMG ;
-5. signer, notariser et vérifier le résultat installé.
+1. compile and test the Kotlin code;
+2. build `DayView Camera.app` and its extension with `xcodebuild archive`;
+3. produce the application Compose with `createDistributable`;
+4. place the two applications in the DMG;
+5. sign, notarize, and verify the installed result.
 
-Les secrets de signature et le Team ID ne doivent pas être inscrits dans le dépôt. Ils sont fournis par la configuration locale ou la CI.
+The secrets of signature and Team ID should not be written in the repository. They are provided by local configuration or CI.
 
-## Résilience et cas dégradés
+## Resilience and Degraded Cases
 
-L'extension doit continuer à fournir une image valide dans les situations suivantes :
+The extension must continue to provide a valid image in the following situations:
 
-- **webcam absente ou occupée** : mire DayView avec un message court, sans boucle de redémarrage agressive ;
-- **DayView arrêté** : dernier état valide pendant une courte période, puis overlay neutre ;
-- **Focus terminé** : disparition automatique de l'intention ;
-- **changement de caméra** : bascule contrôlée, avec une image de transition ;
-- **format demandé non pris en charge** : conversion vers le format publié par le stream ;
-- **client déconnecté** : arrêt de la capture pour économiser la caméra, le CPU et la batterie ;
-- **mise en veille ou réveil** : reconstruction de la session de capture si nécessaire.
+- **webcam absent or occupied**: mirror DayView with a short message, without aggressive loop restart;
+- **DayView stopped**: last state valid for a short period, then overlay neutral;
+- **Focus ended**: disappearance of intention automatically;
+- **camera change**: controlled switching, with an image transition;
+- **format not taken into account**: conversion to the format published by the stream;
+- **client disconnected**: stop of capture to conserve camera, CPU, and battery;
+- **putting to sleep or wake-up**: reconstruction of the capture session if necessary.
 
-La prévisualisation locale peut être miroir pour correspondre aux habitudes de visioconférence, mais le flux envoyé ne doit pas être miroir par défaut. Ce choix doit être explicite dans les réglages.
+The local preview can be mirror for corresponding habits of video conferencing, but the sent flow should not be mirror by default. This choice must be explicit in settings.
 
-## Performance cible
+## Performance Target
 
-La première version cible 720p à 30 images par seconde. Elle doit :
+The first version targets 720p at 30 images per second. It must:
 
-- éviter toute conversion CPU complète par image ;
-- réutiliser les pools de `CVPixelBuffer` ;
-- pré-rendre les éléments textuels et ne les régénérer que lorsqu'ils changent ;
-- utiliser Core Image ou Metal sur le GPU ;
-- suspendre la session lorsqu'aucun client ne consomme la caméra ;
-- mesurer les images perdues, sans journaliser le contenu vidéo ni l'intention.
+- avoid any CPU conversion per image;
+- reuse pixel buffer pools;
+- pre-render text elements and only regenerate them when they change;
+- use Core Image or Metal on the GPU;
+- suspend the session when no client consumes the camera;
+- measure lost images, without logging video content or intention.
 
-Le 1080p peut être ajouté après mesure sur Mac Intel et Apple Silicon.
+The 1080p can be added after measuring on Intel Mac and Apple Silicon.
 
-## Sécurité et confidentialité
+## Security and Confidentiality
 
-- aucune image ne quitte le Mac ;
-- aucune image n'est enregistrée sur disque ;
-- aucune télémétrie ne contient l'intention ;
-- la caméra n'est ouverte que lorsqu'un client utilise **DayView Camera** ou lorsque l'aperçu est explicitement visible ;
-- un indicateur dans DayView montre que la caméra virtuelle est en cours d'utilisation ;
-- l'utilisateur peut couper immédiatement l'overlay ou désactiver l'extension.
+- No image leaves the Mac;
+- No image is recorded on disk;
+- No telepresence contains intention;
+- The camera is only opened when **DayView Camera** or preview are explicitly visible;
+- An indicator in DayView shows that the virtual camera is in use;
+- The user can quickly hide the overlay or disable the extension.
 
-## Plan de livraison
+## Delivery Plan
 
-### Phase 0 — Validation avec OBS
+### Phase 0 — Validation with OBS
 
-Créer une vue d'overlay transparente et la composer avec la webcam dans OBS Virtual Camera. Cette étape permet de valider la lisibilité, les dimensions et les options d'affichage, mais ne constitue pas l'architecture finale.
+Create a transparent overlay view and compose it with the webcam in OBS Virtual Camera. This step allows validating readability, dimensions, and options, but does not constitute the final architecture.
 
-### Phase 1 — Prototype natif
+### Phase 1 — Native Prototype
 
-- projet Xcode avec le template Camera Extension ;
-- image de test publiée comme **DayView Camera** ;
-- capture de la webcam physique ;
-- overlay statique ;
-- installation locale depuis `/Applications`.
+- Xcode project with Camera Extension template;
+- image of test published as **DayView Camera**;
+- capture of physical webcam;
+- overlay static;
+- installation from `/Applications`.
 
-### Phase 2 — Intégration DayView
+### Phase 2 — Integration DayView
 
-- helper de synchronisation vers l'App Group ;
-- anneau et calculs dynamiques ;
-- intention Focus ;
-- sélection de la caméra et aperçu ;
-- gestion des permissions et erreurs.
+- helper synchronization to App Group;
+- ring and dynamic calculations;
+- intention Focus;
+- selection of camera and preview;
+- permission and error handling.
 
 ### Phase 3 — Distribution
 
-- packaging dans le DMG ;
-- signature et notarisation ;
-- tests Zoom, Meet, Teams, FaceTime, QuickTime et Photo Booth ;
-- tests Intel et Apple Silicon ;
-- documentation d'installation et de désinstallation.
+- packaging in DMG;
+- signing, notarization, and verification;
+- tests Zoom, Meet, Teams, FaceTime, QuickTime, and Photo Booth;
+- tests Intel and Apple Silicon;
+- documentation of installation and uninstallation.
 
-## Stratégie de test
+## Testing Strategy
 
-### Tests unitaires Swift
+### Unit Tests Swift
 
-- calcul de progression avant, pendant et après la journée ;
-- passage de minuit et changement d'heure ;
-- états Focus inactif, actif et terminé ;
-- migration et validation du JSON ;
-- placement de l'overlay pour chaque coin et chaque ratio d'image.
+- calculation of progress before, during, and after the day;
+- passage of midnight and change of hour;
+- states Focus inactive, active, and ended;
+- migration and validation of JSON;
+- placement of overlay for each corner and ratio of image.
 
-### Tests d'intégration
+### Integration Tests
 
-- activation, mise à jour et désactivation de l'extension ;
-- apparition de **DayView Camera** dans les clients ;
-- ouverture et libération de la webcam source ;
-- propagation d'une nouvelle intention sans relancer le stream ;
-- comportement après veille, déconnexion caméra et relance de DayView.
+- activation, update, and deactivation of the extension;
+- appearance of **DayView Camera** in clients;
+- opening and closing of webcam source;
+- propagation of new intention without re-launching stream;
+- behavior after sleep, disconnection camera, and reactivation DayView.
 
-### Validation visuelle et performance
+### Visual Performance and Security Validation
 
-- absence de texte coupé en 16:9 et 4:3 ;
-- contraste sur fonds clairs et sombres ;
-- cadence stable à 720p30 ;
-- consommation CPU/GPU et mémoire ;
-- latence ajoutée par la composition.
+- absence of text cut off in 16:9 and 4:3;
+- contrast on light and dark backgrounds;
+- stable frame rate at 720p30;
+- CPU/GPU consumption and memory;
+- latency added by composition.
 
-## Risques principaux
+## Main Risks
 
-| Risque | Réponse proposée |
+| Risk | Proposed Response |
 | --- | --- |
-| Complexité de signature d'une System Extension dans le bundle Compose | Livrer d'abord un hôte natif séparé dans le même DMG |
-| État Kotlin inaccessible depuis le sandbox de l'extension | Helper Swift et App Group avec schéma JSON versionné |
-| Webcam déjà utilisée ou refus d'autorisation | État dégradé explicite et reprise contrôlée |
-| Boucle en sélectionnant la caméra virtuelle comme source | Exclure l'identifiant du device DayView |
-| Overlay illisible ou trop intrusif | Aperçu, positions, échelle, opacité et masquage rapide |
-| Coût GPU ou latence | 720p30 initial, pools de buffers et mesure avant 1080p |
-| Différences entre clients de visioconférence | Matrice de tests avec applications système, navigateur et clients natifs |
+| Complexity of signing a System Extension in the Compose bundle | Deliver first native host separately in the same DMG |
+| Inaccessible Kotlin state from the sandbox of the extension | Swift helper and App Group with versioned JSON schema |
+| Webcam already used or refusal of authorization | Degraded state explicit and recovery controlled |
+| Capture loop when selecting virtual camera as source | Exclude DayView identifier from device |
+| Overlay illegible or too intrusive | Preview, positions, scale, opacity, and quick hiding |
+| High GPU cost or latency | 720p30 initial, buffers pools, and measurement before 1080p |
+| Differences between video conferencing clients | Test matrix with system applications, browser, and native clients |
 
-## Critères d'acceptation de la première version distribuable
+## Acceptance Criteria for the First Version Distributable
 
-- **DayView Camera** apparaît après une installation guidée sur macOS 13 ou ultérieur ;
-- elle compose la webcam sélectionnée avec l'anneau DayView ;
-- le temps et l'intention se mettent à jour sans redémarrer l'appel ;
-- l'intention disparaît à la fin du Focus ;
-- aucune image n'est enregistrée ou envoyée à un service DayView ;
-- la caméra physique est libérée lorsqu'aucun client n'utilise le flux ;
-- le DMG signé et notarisé s'installe sans procédure de sécurité non standard ;
-- la fonctionnalité fonctionne au minimum dans FaceTime, QuickTime, Zoom, Meet et Teams.
+- **DayView Camera** appears after a guided installation on macOS 13 or later;
+- it composes the webcam selected with the DayView ring;
+- time and intention are updated without re-launching the call;
+- intention disappears at the end of Focus;
+- no image is recorded or sent to a DayView service;
+- the physical webcam is released when no client uses the stream;
+- the signed and notarized DMG is installed without non-standard security procedure;
+- the functionality works at minimum in FaceTime, QuickTime, Zoom, Meet, Teams.
+## Testing Strategy
+
+### Unit Tests Swift
+
+- calculation of progress before, during, and after the day;
+- passage of midnight and change of hour;
+- states Focus inactive, active, and ended;
+- migration and validation of JSON;
+- placement of overlay for each corner and ratio of image.
+
+### Integration Tests
+
+- activation, update, and deactivation of the extension;
+- appearance of **DayView Camera** in clients;
+- opening and closing of webcam source;
+- propagation of new intention without re-launching stream;
+- behavior after sleep, disconnection camera, and reactivation DayView.
+
+### Visual Performance and Security Validation
+
+- absence of text cut off in 16:9 and 4:3;
+- contrast on light and dark backgrounds;
+- stable frame rate at 720p30;
+- CPU/GPU consumption and memory;
+- latency added by composition.
+
+## Main Risks
+
+| Risk | Proposed Response |
+| --- | --- |
+| Complexity of signing a System Extension in the Compose bundle | Deliver first native host separately in the same DMG |
+| Inaccessible Kotlin state from the sandbox of the extension | Swift helper and App Group with versioned JSON schema |
+| Webcam already used or refusal of authorization | Degraded state explicit and recovery controlled |
+| Capture loop when selecting virtual camera as source | Exclude DayView identifier from device |
+| Overlay illegible or too intrusive | Preview, positions, scale, opacity, and quick hiding |
+| High GPU cost or latency | 720p30 initial, buffers pools, and measurement before 1080p |
+| Differences between video conferencing clients | Test matrix with system applications, browser, and native clients |
+
+## Acceptance Criteria for the First Version Distributable
+
+- **DayView Camera** appears after a guided installation on macOS 13 or later;
+- it composes the webcam selected with the DayView ring;
+- time and intention are updated without re-launching the call;
+- intention disappears at the end of Focus;
+- no image is recorded or sent to a DayView service;
+- the physical webcam is released when no client uses the stream;
+- the signed and notarized DMG is installed without non-standard security procedure;
+- the functionality works at minimum in FaceTime, QuickTime, Zoom, Meet, Teams.
