@@ -50,6 +50,44 @@ class FocusDriftDetectorTest {
         assertFalse(detector.observe(true, 34_000L, "app.four"))
         assertFalse(detector.observe(true, 65_000L, "app.five"))
     }
+
+    @Test
+    fun sustainedOffGoalFiresAfterThresholdOnceGracePassed() {
+        val detector = FocusDriftDetector()
+        val onGoal = setOf("com.goal.app")
+        // t=0 activate (on-goal), then move off-goal and stay.
+        detector.observe(true, 0L, "com.goal.app", onGoal)
+        // Past 30s grace; off-goal for 2 min ⇒ fires.
+        assertFalse(detector.observe(true, 31_000L, "com.other.app", onGoal))
+        assertTrue(detector.observe(true, 31_000L + 120_000L, "com.other.app", onGoal))
+    }
+
+    @Test
+    fun returningOnGoalResetsSustainedTimer() {
+        val detector = FocusDriftDetector()
+        val onGoal = setOf("com.goal.app")
+        detector.observe(true, 0L, "com.goal.app", onGoal)
+        detector.observe(true, 31_000L, "com.other.app", onGoal) // off-goal starts
+        detector.observe(true, 61_000L, "com.goal.app", onGoal) // back on-goal ⇒ reset
+        assertFalse(detector.observe(true, 150_000L, "com.other.app", onGoal)) // only 89s off-goal
+    }
+
+    @Test
+    fun dayViewFrontmostIsNeutralAndDoesNotResetSustainedTimer() {
+        val detector = FocusDriftDetector()
+        val onGoal = setOf("com.goal.app")
+        detector.observe(true, 0L, "com.goal.app", onGoal)
+        detector.observe(true, 31_000L, "com.other.app", onGoal) // off-goal starts at 31s
+        detector.observe(true, 60_000L, "fr.dayview.app", onGoal) // neutral: timer keeps running
+        assertTrue(detector.observe(true, 31_000L + 120_000L, "com.other.app", onGoal))
+    }
+
+    @Test
+    fun emptyAllowlistDisablesSustainedRule() {
+        val detector = FocusDriftDetector()
+        detector.observe(true, 0L, "com.other.app", emptySet())
+        assertFalse(detector.observe(true, 500_000L, "com.other.app", emptySet()))
+    }
 }
 
 class FocusResumeDetectorTest {
