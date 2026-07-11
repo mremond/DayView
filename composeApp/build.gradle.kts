@@ -62,11 +62,14 @@ kotlin {
                 implementation(libs.compose.components.resources)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
+                implementation(libs.androidx.datastore.preferences.core)
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.okio.fakefilesystem)
             }
         }
         val androidMain by getting {
