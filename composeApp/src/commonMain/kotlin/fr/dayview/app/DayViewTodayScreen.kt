@@ -148,6 +148,8 @@ internal fun DayViewScreen(
                             Modifier.weight(1f).fillMaxWidth(),
                             busyArcs = state.busyArcsState,
                             netTime = state.netTime,
+                            focusArcs = state.focusArcsState,
+                            focusedTodayMillis = state.focusedTodayMillis,
                             windowStartMillis = state.dayWindow.first,
                             windowEndMillis = state.dayWindow.second,
                         )
@@ -192,6 +194,8 @@ internal fun DayViewScreen(
                     Modifier.fillMaxWidth().height(compactCountdownHeight),
                     busyArcs = state.busyArcsState,
                     netTime = state.netTime,
+                    focusArcs = state.focusArcsState,
+                    focusedTodayMillis = state.focusedTodayMillis,
                     windowStartMillis = state.dayWindow.first,
                     windowEndMillis = state.dayWindow.second,
                 )
@@ -555,6 +559,8 @@ internal fun CountdownCircle(
     modifier: Modifier = Modifier,
     busyArcs: List<BusyArc> = emptyList(),
     netTime: NetTime? = null,
+    focusArcs: List<FocusArc> = emptyList(),
+    focusedTodayMillis: Long = 0L,
     windowStartMillis: Long = 0L,
     windowEndMillis: Long = 0L,
 ) {
@@ -622,6 +628,18 @@ internal fun CountdownCircle(
                             topLeft = Offset(inset, inset),
                             size = arcSize,
                             style = Stroke(strokeWidth, cap = StrokeCap.Butt),
+                        )
+                    }
+
+                    focusArcs.forEach { arc ->
+                        drawArc(
+                            color = colors.mint.copy(alpha = .55f),
+                            startAngle = arc.startAngleDegrees,
+                            sweepAngle = arc.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(strokeWidth * .5f, cap = StrokeCap.Round),
                         )
                     }
 
@@ -715,6 +733,16 @@ internal fun CountdownCircle(
                                 "${formatDurationHm(netTime.busyRemainingMillis)} occupé",
                                 color = colors.muted,
                                 fontSize = 11.sp,
+                                letterSpacing = .5.sp,
+                            )
+                        }
+                        if (focusedTodayMillis > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Focus ${formatDurationHm(focusedTodayMillis)}",
+                                color = colors.mint,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
                                 letterSpacing = .5.sp,
                             )
                         }
