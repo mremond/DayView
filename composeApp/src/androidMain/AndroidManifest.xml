@@ -24,6 +24,19 @@
             android:name=".FocusAlarmReceiver"
             android:exported="false" />
         <receiver
+            android:name=".FocusNotificationActionReceiver"
+            android:exported="false" />
+        <service
+            android:name=".DayViewFocusTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_dayview_notification"
+            android:label="@string/focus_tile_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <receiver
             android:name=".DayViewWidget"
             android:exported="false">
             <intent-filter>

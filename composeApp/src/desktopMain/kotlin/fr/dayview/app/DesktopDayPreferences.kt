@@ -5,6 +5,18 @@ import java.util.prefs.Preferences
 class DesktopDayPreferences internal constructor(
     private val storage: Preferences = Preferences.userNodeForPackage(DesktopDayPreferences::class.java),
 ) : DayPreferences {
+    private val observers = mutableSetOf<(DayPreferencesSnapshot) -> Unit>()
+
+    private fun preferencesChanged() {
+        val updated = snapshot()
+        observers.toList().forEach { it(updated) }
+    }
+
+    override fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
+        observers += observer
+        observer(snapshot())
+        return { observers -= observer }
+    }
 
     override fun loadStartMinutes(): Int = storage.getInt(KEY_START, DEFAULT_START)
 
@@ -13,12 +25,14 @@ class DesktopDayPreferences internal constructor(
     override fun saveDayRange(startMinutes: Int, endMinutes: Int) {
         storage.putInt(KEY_START, startMinutes)
         storage.putInt(KEY_END, endMinutes)
+        preferencesChanged()
     }
 
     override fun loadShowSeconds(): Boolean = storage.getBoolean(KEY_SHOW_SECONDS, true)
 
     override fun saveShowSeconds(showSeconds: Boolean) {
         storage.putBoolean(KEY_SHOW_SECONDS, showSeconds)
+        preferencesChanged()
     }
 
     fun loadMonochromeMenuBarIcon(): Boolean = storage.getBoolean(KEY_MONOCHROME_MENU_BAR_ICON, false)
@@ -44,6 +58,7 @@ class DesktopDayPreferences internal constructor(
         storage.putBoolean(KEY_SOUND_END, safe.endCueEnabled)
         storage.putInt(KEY_SOUND_INTERVAL_MINUTES, safe.intervalMinutes)
         storage.putInt(KEY_SOUND_VOLUME, safe.volumePercent)
+        preferencesChanged()
     }
 
     override fun loadGoalTitle(): String = storage.get(KEY_GOAL_TITLE, "")
@@ -54,6 +69,7 @@ class DesktopDayPreferences internal constructor(
     override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
         storage.put(KEY_GOAL_TITLE, title)
         storage.putLong(KEY_GOAL_DEADLINE, deadlineMillis ?: NO_DEADLINE)
+        preferencesChanged()
     }
 
     override fun loadPomodoroMinutes(): Int = storage.getInt(KEY_POMODORO_MINUTES, 25)
@@ -64,12 +80,14 @@ class DesktopDayPreferences internal constructor(
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) {
         storage.putInt(KEY_POMODORO_MINUTES, durationMinutes)
         storage.putLong(KEY_POMODORO_END, endMillis ?: NO_DEADLINE)
+        preferencesChanged()
     }
 
     override fun loadFocusIntention(): String = storage.get(KEY_FOCUS_INTENTION, "")
 
     override fun saveFocusIntention(intention: String) {
         storage.put(KEY_FOCUS_INTENTION, intention)
+        preferencesChanged()
     }
 
     private companion object {

@@ -22,6 +22,8 @@ class FocusAlarmScheduler(
     fun schedule(endMillis: Long, intention: String): Boolean {
         if (endMillis <= nowMillis()) return false
         cancelBreakReminder()
+        FocusNotificationManager(appContext).showFocus(endMillis, intention)
+        DayViewFocusTileService.requestRefresh(appContext)
         val alarm = focusAlarmPendingIntent(appContext, intention, endMillis)
         val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
         if (exact) {
@@ -35,9 +37,13 @@ class FocusAlarmScheduler(
     fun cancel() {
         alarmManager.cancel(focusAlarmPendingIntent(appContext, "", 0L))
         cancelBreakReminder()
+        FocusNotificationManager(appContext).cancel()
+        DayViewFocusTileService.requestRefresh(appContext)
     }
 
-    fun restoreBreakReminders(breakStartMillis: Long) {
+    fun restoreBreakReminders(breakStartMillis: Long, intention: String = "") {
+        FocusNotificationManager(appContext).showBreak(breakStartMillis, intention)
+        DayViewFocusTileService.requestRefresh(appContext)
         val elapsedMinutes = ((nowMillis() - breakStartMillis).coerceAtLeast(0L) / 60_000L).toInt()
         val nextMinutes = ((elapsedMinutes / BREAK_INTERVAL_MINUTES) + 1) * BREAK_INTERVAL_MINUTES
         if (nextMinutes <= MAX_BREAK_MINUTES) scheduleBreakReminder(breakStartMillis, nextMinutes)
@@ -100,6 +106,7 @@ class FocusAlarmScheduler(
 
 class FocusAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        DayViewFocusTileService.requestRefresh(context)
         DayViewWidget.updateAll(context)
         val kind = intent.getStringExtra(EXTRA_KIND) ?: KIND_FOCUS_END
         val breakStartMillis: Long
@@ -111,7 +118,9 @@ class FocusAlarmReceiver : BroadcastReceiver() {
             breakStartMillis = intent.getLongExtra(EXTRA_BREAK_START, System.currentTimeMillis())
             elapsedMinutes = 0
         }
-        FocusAlarmScheduler(context).restoreBreakReminders(breakStartMillis)
+        val intention = intent.getStringExtra(EXTRA_INTENTION)
+            ?: AndroidDayPreferences(context, notifyWidgets = false).loadFocusIntention()
+        FocusAlarmScheduler(context).restoreBreakReminders(breakStartMillis, intention)
 
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -120,7 +129,6 @@ class FocusAlarmReceiver : BroadcastReceiver() {
 
         val notificationManager = context.getSystemService(NotificationManager::class.java)
         createChannel(notificationManager)
-        val intention = intent.getStringExtra(EXTRA_INTENTION).orEmpty()
         val openApp = PendingIntent.getActivity(
             context,
             0,

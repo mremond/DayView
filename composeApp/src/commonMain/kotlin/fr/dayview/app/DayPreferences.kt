@@ -1,5 +1,17 @@
 package fr.dayview.app
 
+data class DayPreferencesSnapshot(
+    val startMinutes: Int = 8 * 60,
+    val endMinutes: Int = 18 * 60,
+    val showSeconds: Boolean = true,
+    val soundSettings: SoundSettings = SoundSettings(),
+    val goalTitle: String = "",
+    val goalDeadlineMillis: Long? = null,
+    val pomodoroMinutes: Int = 25,
+    val pomodoroEndMillis: Long? = null,
+    val focusIntention: String = "",
+)
+
 interface DayPreferences {
     fun loadStartMinutes(): Int
     fun loadEndMinutes(): Int
@@ -16,6 +28,23 @@ interface DayPreferences {
     fun savePomodoro(durationMinutes: Int, endMillis: Long?)
     fun loadFocusIntention(): String
     fun saveFocusIntention(intention: String)
+
+    fun snapshot(): DayPreferencesSnapshot = DayPreferencesSnapshot(
+        startMinutes = loadStartMinutes(),
+        endMinutes = loadEndMinutes(),
+        showSeconds = loadShowSeconds(),
+        soundSettings = loadSoundSettings(),
+        goalTitle = loadGoalTitle(),
+        goalDeadlineMillis = loadGoalDeadlineMillis(),
+        pomodoroMinutes = loadPomodoroMinutes(),
+        pomodoroEndMillis = loadPomodoroEndMillis(),
+        focusIntention = loadFocusIntention(),
+    )
+
+    fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
+        observer(snapshot())
+        return {}
+    }
 }
 
 object DefaultDayPreferences : DayPreferences {

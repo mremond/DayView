@@ -9,7 +9,7 @@ DayView rend visible le temps restant avant la fin de journée. Le cercle se con
 
 L’interface et la logique métier sont partagées avec Kotlin Multiplatform et Compose Multiplatform.
 L’apparence claire ou sombre suit automatiquement le thème du système sur Android et macOS.
-Sur Android, un widget redimensionnable affiche l’anneau et le temps restant sans ouvrir l’application. Il reprend également l’objectif global et, pendant une session Focus, l’intention et le compte à rebours en direct.
+Sur Android, un widget redimensionnable affiche l’anneau et le temps restant sans ouvrir l’application. Il reprend également l’objectif global et, pendant une session Focus, l’intention et le compte à rebours en direct. Une notification persistante suit le Focus puis sa pause, avec des actions pour arrêter ou reprendre la chaîne. Une tuile « DayView Focus », à ajouter depuis les réglages rapides, permet de lancer le dernier Focus configuré, de reprendre après une pause ou d’ouvrir la session active.
 Sur macOS, DayView reste accessible depuis la barre des menus. Fermer sa fenêtre la masque sans arrêter le décompte ; le menu permet de la rouvrir ou de quitter complètement l’application.
 
 Le mode mini-fenêtre, accessible depuis l’en-tête ou la barre des menus, garde au-dessus des autres applications une vue compacte de l’anneau et du décompte du jour. Il rappelle aussi l’objectif global et ajoute automatiquement le temps restant ainsi que l’intention lorsqu’un Focus est en cours.
