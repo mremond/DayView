@@ -238,6 +238,7 @@ private fun CompactTodayContent(
         CompactGoalRow(
             title = state.goalTitle,
             deadlineMillis = state.goalDeadlineMillis,
+            startMillis = state.goalStartMillis,
             nowMillis = state.nowMillis,
             workStartMinutes = progress.startHour * 60 + progress.startMinute,
             workEndMinutes = progress.endHour * 60 + progress.endMinute,
@@ -312,6 +313,7 @@ private fun CompactTodayContent(
         ModalBottomSheet(
             onDismissRequest = {
                 actions.commitGoalDeadline()
+                actions.commitGoalStart()
                 openSheet = null
             },
             sheetState = rememberModalBottomSheetState(),
@@ -326,9 +328,14 @@ private fun CompactTodayContent(
                 GoalEditorContent(
                     title = state.goalTitle,
                     deadlineText = state.goalDeadlineText,
+                    deadlineMillis = state.goalDeadlineMillis,
+                    startText = state.goalStartText,
+                    startMillis = state.goalStartMillis,
                     onTitleChange = actions.changeGoalTitle,
                     onDeadlineChange = actions.changeGoalDeadline,
                     onDeadlineCommit = actions.commitGoalDeadline,
+                    onStartChange = actions.changeGoalStart,
+                    onStartCommit = actions.commitGoalStart,
                 )
             }
         }
@@ -339,6 +346,7 @@ private fun CompactTodayContent(
 private fun CompactGoalRow(
     title: String,
     deadlineMillis: Long?,
+    startMillis: Long?,
     nowMillis: Long,
     workStartMinutes: Int,
     workEndMinutes: Int,
@@ -356,39 +364,80 @@ private fun CompactGoalRow(
             )
         } ?: 0L
     }
-    Row(
+    Column(
         modifier = Modifier.widthIn(max = 430.dp).fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(14.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(14.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (hasGoal) {
-            Text("OBJECTIF", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
-            Spacer(Modifier.width(12.dp))
-            Text(
-                formatGoalSummaryLine(
-                    title = title,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (hasGoal) {
+                Text("OBJECTIF", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    formatGoalSummaryLine(
+                        title = title,
+                        deadlineMillis = deadlineMillis,
+                        workingMillis = workingMillis,
+                        deadlineReached = deadlineMillis != null && deadlineMillis <= nowMillis,
+                    ),
+                    color = colors.cloud,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Text(
+                    "+ Définir un objectif",
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        if (deadlineMillis != null && startMillis != null) {
+            val progress = remember(
+                nowMillis / 60_000,
+                startMillis,
+                deadlineMillis,
+                workStartMinutes,
+                workEndMinutes,
+            ) {
+                calculateGoalProgress(
+                    nowMillis = nowMillis,
+                    startMillis = startMillis,
                     deadlineMillis = deadlineMillis,
-                    workingMillis = workingMillis,
-                    deadlineReached = deadlineMillis != null && deadlineMillis <= nowMillis,
-                ),
-                color = colors.cloud,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            Text(
-                "+ Définir un objectif",
-                color = colors.muted,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
-            )
+                    startMinutesOfDay = workStartMinutes,
+                    endMinutesOfDay = workEndMinutes,
+                )
+            }
+            val animatedProgress by animateFloatAsState(progress, tween(650), label = "goal-progress-compact")
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(colors.overlay.copy(alpha = .12f)),
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight()
+                            .fillMaxWidth(animatedProgress)
+                            .background(colors.mint, RoundedCornerShape(3.dp)),
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "${(animatedProgress * 100).roundToInt()} %",
+                    color = colors.muted,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }
@@ -438,9 +487,14 @@ private fun FocusClosureChip(outcome: FocusClosureOutcome) {
 private fun GoalEditorContent(
     title: String,
     deadlineText: String,
+    deadlineMillis: Long?,
+    startText: String,
+    startMillis: Long?,
     onTitleChange: (String) -> Unit,
     onDeadlineChange: (String) -> Unit,
     onDeadlineCommit: () -> Unit,
+    onStartChange: (String) -> Unit,
+    onStartCommit: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val deadlineIsValid = deadlineText.isBlank() || parseGoalDeadline(deadlineText) != null
@@ -463,6 +517,20 @@ private fun GoalEditorContent(
         keyboardType = KeyboardType.Number,
         onFocusLost = onDeadlineCommit,
     )
+    if (deadlineMillis != null && startMillis != null) {
+        val startIsValid = startText.isBlank() ||
+            (parseGoalDeadline(startText)?.let { it < deadlineMillis } ?: false)
+        Spacer(Modifier.height(9.dp))
+        GoalTextField(
+            value = startText,
+            semanticLabel = "Début de l’objectif",
+            placeholder = GOAL_DATE_PLACEHOLDER,
+            onValueChange = { onStartChange(formatGoalDeadlineInput(it)) },
+            isError = !startIsValid,
+            keyboardType = KeyboardType.Number,
+            onFocusLost = onStartCommit,
+        )
+    }
     if (!deadlineIsValid) {
         Spacer(Modifier.height(6.dp))
         Text("Format attendu : $GOAL_DATE_PLACEHOLDER", color = colors.red, fontSize = 10.sp)
