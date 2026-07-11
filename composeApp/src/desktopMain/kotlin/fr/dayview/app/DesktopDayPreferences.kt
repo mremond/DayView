@@ -72,6 +72,17 @@ class DesktopDayPreferences internal constructor(
         storage.put(KEY_FOCUS_INTENTION, intention)
     }
 
+    override fun loadNetTimeSettings(): NetTimeSettings = NetTimeSettings(
+        enabled = storage.getBoolean(KEY_NET_TIME_ENABLED, false),
+        includedCalendarIds = storage.get(KEY_NET_TIME_CALENDARS, "")
+            .split("\n").filter { it.isNotBlank() }.toSet(),
+    )
+
+    override fun saveNetTimeSettings(settings: NetTimeSettings) {
+        storage.putBoolean(KEY_NET_TIME_ENABLED, settings.enabled)
+        storage.put(KEY_NET_TIME_CALENDARS, settings.includedCalendarIds.joinToString("\n"))
+    }
+
     private companion object {
         const val KEY_START = "start_minutes"
         const val KEY_END = "end_minutes"
@@ -89,6 +100,8 @@ class DesktopDayPreferences internal constructor(
         const val KEY_POMODORO_MINUTES = "pomodoro_minutes"
         const val KEY_POMODORO_END = "pomodoro_end"
         const val KEY_FOCUS_INTENTION = "focus_intention"
+        const val KEY_NET_TIME_ENABLED = "net_time_enabled"
+        const val KEY_NET_TIME_CALENDARS = "net_time_calendars"
         const val DEFAULT_START = 8 * 60
         const val DEFAULT_END = 18 * 60
     }

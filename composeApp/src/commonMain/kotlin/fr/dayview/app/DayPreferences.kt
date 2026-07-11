@@ -16,6 +16,8 @@ interface DayPreferences {
     fun savePomodoro(durationMinutes: Int, endMillis: Long?)
     fun loadFocusIntention(): String
     fun saveFocusIntention(intention: String)
+    fun loadNetTimeSettings(): NetTimeSettings
+    fun saveNetTimeSettings(settings: NetTimeSettings)
 }
 
 object DefaultDayPreferences : DayPreferences {
@@ -34,4 +36,6 @@ object DefaultDayPreferences : DayPreferences {
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) = Unit
     override fun loadFocusIntention(): String = ""
     override fun saveFocusIntention(intention: String) = Unit
+    override fun loadNetTimeSettings(): NetTimeSettings = NetTimeSettings()
+    override fun saveNetTimeSettings(settings: NetTimeSettings) = Unit
 }
