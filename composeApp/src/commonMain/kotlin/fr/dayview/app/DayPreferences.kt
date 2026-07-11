@@ -40,6 +40,8 @@ interface DayPreferences {
     fun saveNetTimeSettings(settings: NetTimeSettings)
     fun loadOnGoalApps(goalId: String): Set<AppRef> = emptySet()
     fun saveOnGoalApps(goalId: String, apps: Set<AppRef>) = Unit
+    fun loadFocusPresence(): Pair<Long, List<FocusPresenceInterval>> = -1L to emptyList()
+    fun saveFocusPresence(dayKey: Long, intervals: List<FocusPresenceInterval>) = Unit
 
     fun snapshot(): DayPreferencesSnapshot = DayPreferencesSnapshot(
         startMinutes = loadStartMinutes(),

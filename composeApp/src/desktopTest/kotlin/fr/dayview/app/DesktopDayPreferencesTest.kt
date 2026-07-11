@@ -169,4 +169,17 @@ class DesktopDayPreferencesTest {
         assertEquals(apps, DesktopDayPreferences(store).snapshot().onGoalApps)
         assertEquals(emptySet(), DesktopDayPreferences(store).loadOnGoalApps("other"))
     }
+
+    @Test
+    fun focusPresenceRoundTripsWithDayKey() {
+        val store = java.util.prefs.Preferences.userRoot().node("dayview-test-presence")
+        store.clear()
+        val prefs = DesktopDayPreferences(store)
+        val intervals = listOf(FocusPresenceInterval(1_000L, 2_000L), FocusPresenceInterval(5_000L, 9_000L))
+        prefs.saveFocusPresence(19_000L, intervals)
+
+        val (day, loaded) = DesktopDayPreferences(store).loadFocusPresence()
+        assertEquals(19_000L, day)
+        assertEquals(intervals, loaded)
+    }
 }

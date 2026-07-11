@@ -111,6 +111,25 @@ class DesktopDayPreferences internal constructor(
         preferencesChanged()
     }
 
+    override fun loadFocusPresence(): Pair<Long, List<FocusPresenceInterval>> {
+        val day = storage.getLong(KEY_FOCUS_PRESENCE_DAY, -1L)
+        val intervals = storage.get(KEY_FOCUS_PRESENCE, "")
+            .split("\n")
+            .mapNotNull { line ->
+                val parts = line.split(",")
+                val s = parts.getOrNull(0)?.toLongOrNull()
+                val e = parts.getOrNull(1)?.toLongOrNull()
+                if (parts.size == 2 && s != null && e != null) FocusPresenceInterval(s, e) else null
+            }
+        return day to intervals
+    }
+
+    override fun saveFocusPresence(dayKey: Long, intervals: List<FocusPresenceInterval>) {
+        storage.putLong(KEY_FOCUS_PRESENCE_DAY, dayKey)
+        storage.put(KEY_FOCUS_PRESENCE, intervals.joinToString("\n") { "${it.startMillis},${it.endMillis}" })
+        preferencesChanged()
+    }
+
     private companion object {
         const val KEY_START = "start_minutes"
         const val KEY_END = "end_minutes"
@@ -132,6 +151,8 @@ class DesktopDayPreferences internal constructor(
         const val KEY_NET_TIME_ENABLED = "net_time_enabled"
         const val KEY_NET_TIME_CALENDARS = "net_time_calendars"
         const val KEY_ON_GOAL_APPS_PREFIX = "on_goal_apps."
+        const val KEY_FOCUS_PRESENCE_DAY = "focus_presence_day"
+        const val KEY_FOCUS_PRESENCE = "focus_presence"
         const val DEFAULT_START = 8 * 60
         const val DEFAULT_END = 18 * 60
     }
