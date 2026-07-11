@@ -110,6 +110,25 @@ class AndroidDayPreferencesTest {
         assertEquals(3, observed.size)
     }
 
+    @Test
+    fun observersSeeChangesMadeThroughAnotherInstance() {
+        val observed = mutableListOf<DayPreferencesSnapshot>()
+        val stopObserving = preferences.observe(observed::add)
+
+        val otherInstance = AndroidDayPreferences(context, notifyWidgets = false)
+        otherInstance.savePomodoro(50, 1_800_000_000_000L)
+        otherInstance.saveFocusIntention("Depuis la tuile")
+
+        assertEquals(50, observed.last().pomodoroMinutes)
+        assertEquals(1_800_000_000_000L, observed.last().pomodoroEndMillis)
+        assertEquals("Depuis la tuile", observed.last().focusIntention)
+
+        stopObserving()
+        val sizeAfterStop = observed.size
+        otherInstance.saveShowSeconds(false)
+        assertEquals(sizeAfterStop, observed.size)
+    }
+
     private companion object {
         const val STORAGE_NAME = "dayview_preferences"
     }

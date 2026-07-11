@@ -1,124 +1,123 @@
-# Plan d'intégration Discord pour les sessions Focus
+# Discord Integration Plan for Focus Sessions
 
-## Résumé
+## Summary
 
-DayView proposera deux fonctions Discord indépendantes et désactivées par défaut :
+DayView will propose two independent and disabled by default Discord functions:
 
-1. une **Rich Presence personnelle** pendant une session Focus, visible sur le profil Discord de l'utilisateur ;
-2. la **publication facultative du résultat** de la session dans un salon Discord, au moyen d'un webhook entrant.
+1. A **Rich Presence personal** during a Focus session, visible on the user's Discord profile;
+2. The **optional publication of results** from the session in a Discord channel via an incoming webhook.
 
-L'intégration doit rester strictement optionnelle, ne jamais empêcher le fonctionnement local d'un Focus et limiter par défaut les informations partagées. Une panne, une déconnexion ou une limitation de débit Discord ne doit modifier ni le minuteur ni l'historique local.
+The integration must remain strictly optional, never blocking local Focus functionality, and limit shared information by default. A failure, disconnection, or bandwidth limitation should not affect the timer or local history.
 
-## Expérience cible
+## Target Experience
 
-### Pendant un Focus
+### During a Focus Session
 
-Si la Rich Presence est activée et le compte Discord connecté, le profil affiche une activité de ce type :
+If Rich Presence is enabled and the connected account, the profile will display an activity of this type:
 
 ```text
 DayView
-Focus en cours
-Préparer la présentation
-18 min restantes
+Focus in progress
+Preparing the presentation
+18 minutes remaining
 ```
 
-Le compte à rebours est produit par Discord à partir de l'échéance de la session. DayView ne publie donc pas une mise à jour chaque seconde.
+The countdown is produced by Discord from the session's deadline. DayView does not publish updates every second.
 
-Par défaut, l'intention n'est **pas** incluse. L'utilisateur peut explicitement activer son partage. Sans intention, la présence affiche uniquement `Focus en cours` et le temps restant.
+By default, intention is **not** included. The user can explicitly activate sharing. Without intention, the presence displays only `Focus in progress` and the remaining time.
 
-La présence est supprimée quand la session est arrêtée, clôturée ou expirée. Lors d'une relance de DayView, une session encore active restaure la présence après reconnexion à Discord.
+The presence disappears when the session is stopped, closed, or expired. When relaunched, a previously active session restores the presence after reconnecting to Discord.
 
-### À la clôture d'un Focus
+### At Session Closure
 
-Si la publication dans un salon est activée, DayView publie un seul message lorsque l'utilisateur choisit un résultat :
+If publication in a channel is enabled, DayView publishes a single message when the user chooses a result:
 
 ```text
-✅ Focus terminé — 25 min
-Résultat : Terminé
+✅ Focus completed — 25 minutes
+Result: Completed
 ```
 
-Les trois résultats DayView sont représentés ainsi :
+The three possible results from DayView are represented as follows:
 
-| Résultat | Libellé Discord | Icône |
+| Result | Label Discord | Icon |
 | --- | --- | --- |
-| `COMPLETED` | Terminé | ✅ |
-| `PROGRESSED` | Avancé | ➡️ |
-| `TO_RESUME` | À reprendre | 🔁 |
+| `COMPLETED` | Terminated | ✅ |
+| `PROGRESSED` | Advanced | ➡️ |
+| `TO_RESUME` | To resume | 🔁 |
 
-L'intention peut être ajoutée au message uniquement si l'option dédiée est activée. Un arrêt sans clôture ne publie rien. Une expiration du minuteur ne publie rien tant que l'utilisateur n'a pas choisi son résultat.
+Intention can be included in the message only if the option is enabled. A session without closure does not publish anything. An expiration of the timer does not publish anything until the user chooses their result.
 
-## Périmètre de la première version
+## Integration Scope
 
-Inclus :
+Inclues:
 
-- macOS et Android ;
-- association explicite d'un compte Discord pour la Rich Presence ;
-- présence créée au démarrage d'un Focus et supprimée à sa fin ;
-- reprise après redémarrage pour une session encore active ;
-- configuration d'un webhook lié à un salon ;
-- test du webhook depuis les réglages ;
-- publication d'un message lors de la clôture ;
-- options séparées pour partager l'intention dans la présence et dans le salon ;
-- retour d'état non bloquant dans les réglages.
+- macOS and Android;
+- explicit association of a Discord account for Rich Presence;
+- presence created at startup and removed at end;
+- reactivation after redemarrage for an active session;
+- configuration of a webhook linked to a channel;
+- testing the webhook from settings;
+- publishing a message when closing;
+- separate options for sharing intention in presence and channel.
 
-Hors périmètre initial :
+Excluded initial scope:
 
-- commandes slash et bot Discord permanent ;
-- démarrage ou pilotage d'un Focus depuis Discord ;
-- statistiques d'équipe ou classement ;
-- messages à chaque démarrage, interruption ou minute écoulée ;
-- synchronisation cloud de la configuration Discord ;
-- publication de l'objectif global ou des horaires de travail.
+- slash commands and permanent Discord bot;
+- starting or piloting a Focus from Discord;
+- team statistics or ranking;
+- messages at each startup, interruption, or minute elapsed;
+- cloud synchronization of the Discord configuration;
+- publishing of the global objective or work hours.
 
-## Réglages et confidentialité
+## Settings and Privacy
 
-Ajouter une section `Discord` dans l'écran Réglages avec deux sous-sections indépendantes.
+Add a `Discord` section to the Settings screen with two independent sub-sections.
 
-### Présence personnelle
+### Presence Personal
 
-- interrupteur `Afficher mes Focus sur Discord`, désactivé par défaut ;
-- action `Connecter Discord` / `Déconnecter` ;
-- état de connexion compréhensible : connecté, Discord indisponible, autorisation requise ;
-- interrupteur `Afficher mon intention`, désactivé par défaut ;
-- aperçu du contenu qui sera rendu public.
+- toggle `Show my Focus on Discord`, disabled by default;
+- action `Connect Discord` / `Disconnect`;
+- understandable connection state: connected, Discord unavailable, authorization required;
+- toggle `Include my intention`, disabled by default;
+- preview of the content that will be made public.
 
-### Publication dans un salon
+### Publication in a Channel
 
-- interrupteur `Publier le résultat dans un salon`, désactivé par défaut ;
-- champ masqué pour l'URL du webhook ;
-- action `Tester la connexion`, qui envoie un message de test explicite ;
-- interrupteur `Inclure mon intention`, désactivé par défaut ;
-- action `Supprimer la configuration du salon`.
+- toggle `Publish result in a channel`, disabled by default;
+- masked field for the webhook URL;
+- action `Test Connection`, which sends an explicit test message;
+- toggle `Include my intention`, disabled by default;
+- action `Remove configuration from channel`.
 
-L'interface doit expliquer que :
+The interface should explain that:
 
-- une Rich Presence est visible selon les réglages de partage d'activité du compte Discord ;
-- une intention peut contenir des données personnelles ou professionnelles ;
-- l'URL d'un webhook permet de publier dans le salon associé et doit être traitée comme un secret.
+- A Rich Presence is visible according to the sharing of activity settings on the user's Discord account;
+- An intention may contain personal or professional data;
+- The URL of a webhook allows publishing in the associated channel and must be treated as confidential.
 
-Le jeton Discord et l'URL complète du webhook ne doivent jamais apparaître dans les journaux, messages d'erreur ou rapports de crash.
+The token Discord and the complete webhook URL should never appear in logs, error messages, or crash reports.
 
-## Architecture proposée
+## Proposed Architecture
 
-La logique métier reste dans `commonMain`. Les intégrations externes sont exposées par des interfaces et implémentées par plateforme.
+The business logic remains in `commonMain`. External integrations are exposed through interfaces and implemented by platform.
 
 ```text
-Actions Focus dans DayViewApp
+Actions Focus in DayViewApp
         |
         v
 FocusSharingCoordinator (commonMain)
         |                         |
         v                         v
 DiscordPresenceClient       FocusResultPublisher
-(implémentation native)     (client HTTP webhook)
+(native implementation)     (HTTP webhook client)
         |                         |
         v                         v
 Discord Social SDK          API Webhook Discord
 ```
 
-### Événements métier
+### Business Events
 
-Introduire des événements explicites afin de ne pas déduire les transitions depuis la boucle d'affichage :
+Introduce explicit events to avoid inferring transitions from the display loop:
 
 ```kotlin
 sealed interface FocusSharingEvent {
@@ -142,11 +141,11 @@ sealed interface FocusSharingEvent {
 }
 ```
 
-`Started` met à jour la Rich Presence. `Stopped` la supprime sans publier de résultat. `Closed` supprime la présence puis programme au plus une publication de résultat.
+`Started` updates the Rich Presence. `Stopped` removes it without publishing a result. `Closed` removes the presence and programs to publish at most one publication of results.
 
-Le `sessionId` persistant sert de clé d'idempotence. Il empêche un double message après un double clic, une recomposition Compose, une reprise réseau ou un redémarrage de l'application.
+The `sessionId` persistent serves as an idempotence key, preventing double messages after a double click, recomposition Compose, reconnection network or application restart.
 
-### Contrats communs
+### Common Contracts
 
 ```kotlin
 interface DiscordPresenceClient {
@@ -162,102 +161,103 @@ interface FocusResultPublisher {
 }
 ```
 
-Un `FocusSharingCoordinator` reçoit les événements, applique les réglages de confidentialité, construit les contenus et appelle ces deux contrats. Il ne doit jamais lever d'erreur vers le flux principal du minuteur.
+A `FocusSharingCoordinator` receives events, applies privacy settings, constructs content and calls these two contracts. It should never raise an error to the main flow of the timer.
 
-### Branchement dans DayView
+### Branching in DayView
 
-Les transitions existent déjà dans `DayViewApp` :
+The transitions already exist in `DayViewApp`:
 
-- `onPomodoroStart` démarre et persiste le Focus ;
-- `onPomodoroStop` l'interrompt ;
-- `onPomodoroClose` reçoit le résultat de clôture.
+- `onPomodoroStart` starts and persists the Focus;
+- `onPomodoroStop` interrupts it;
+- `onPomodoroClose` receives the result of closure.
 
-La première étape de refactorisation consiste à ajouter un callback métier unique, par exemple `onFocusSharingEvent`, à côté de `onFocusAlarmChange`. Les points d'entrée desktop et Android créent ensuite le coordinateur approprié. Ce découplage évite de placer des appels réseau dans les composables et rend les transitions testables.
+The first step of refactoring is to add a unique callback function, for example `onFocusSharingEvent`, alongside `onFocusAlarmChange`. The desktop and Android entry points create then the coordinator appropriate. This decoupling avoids placing network calls in composable and makes transitions testable.
 
-La boucle desktop de `Main.kt` reste chargée de détecter une session restaurée. Elle déclenche une restauration de présence uniquement lorsque l'identifiant et l'échéance de la session diffèrent du dernier état envoyé.
+The main loop of `Main.kt` remains charged to detect a restored session. It triggers only a presence restoration when the identifier and deadline of the session differ from the last sent state.
 
-## Rich Presence personnelle
+## Rich Presence Personal
 
-### Technologie
+### Technology
 
-Utiliser le **Discord Social SDK**, solution officielle recommandée par Discord pour les nouveaux projets. Le SDK prend en charge macOS x64/ARM64 et Android 7 ou version ultérieure, ce qui correspond aux cibles actuelles de DayView.
+Use the **Discord Social SDK**, official recommended solution for new projects. The SDK supports macOS x64/ARM64 and Android 7 or later, matching current DayView targets.
 
-Le SDK expose une API C++. L'intégration Kotlin Multiplatform demandera donc une couche native minimale :
+The SDK exposes a C++ API. A Kotlin Multiplatform implementation will require a minimum native layer:
 
-- macOS desktop : bibliothèque native universelle ou deux variantes x64/ARM64, chargée depuis la JVM via JNA ;
-- Android : bibliothèque `.so` par ABI et pont JNI ;
-- interface Kotlin identique sur les deux plateformes ;
-- empaquetage et signature vérifiés dans le DMG et l'APK.
+- macOS desktop: native universal library or two variants x64/ARM64, loaded from the JVM via JNA;
+- Android: native `.so` by ABI and JNI bridge;
+- interface identical on both platforms;
+- packaging and signature verification in DMG and APK.
 
-Le SDK Discord archivé (« Game SDK ») et les bibliothèques RPC non officielles ne doivent pas être utilisés pour une nouvelle intégration.
+The SDK Discord archived (« Game SDK ») and non-official RPC libraries should not be used for a new integration.
 
-### Cycle de vie
+### Lifecycle
 
-1. L'utilisateur active la fonctionnalité et autorise son compte Discord.
-2. DayView initialise le client Discord sans bloquer l'interface.
-3. Au démarrage d'un Focus, DayView envoie une activité contenant l'échéance.
-4. Une modification de l'intention pendant la session met à jour la présence seulement si son partage est activé, avec un anti-rebond.
-5. À l'arrêt, à la clôture ou à l'expiration, DayView supprime l'activité.
-6. À la fermeture de l'application, DayView libère proprement le client.
+1. The user activates the feature and authorizes their account.
+2. DayView initializes the client Discord without blocking the interface.
+3. At startup of a Focus, DayView sends an activity containing the deadline.
+4. A modification of intention during the session updates the presence only if sharing is enabled, with anti-bounce.
+5. After stopping, closing or expiring, DayView removes the activity.
+6. Upon relaunching DayView, a previously active session restores the presence after reconnecting to Discord.
 
-Si Discord n'est pas installé, n'est pas lancé ou n'est pas joignable, DayView conserve le Focus et affiche seulement un état discret dans les réglages. Une reconnexion ultérieure restaure la présence si la session est toujours active.
+If Discord is not installed, not launched or not connected, DayView keeps the Focus and displays only a discreet state in settings.
 
-### Contenu transmis
+### Content Transmitted
 
-Le payload doit rester minimal :
+The payload must remain minimal:
 
-- nom de l'application configuré dans le Developer Portal : `DayView` ;
-- détail : `Focus en cours` ;
-- état : intention tronquée et nettoyée, uniquement avec consentement ;
-- timestamp de fin : `endsAtMillis` ;
-- visuel DayView enregistré comme asset Discord.
+- Application name configured in the Developer Portal: `DayView`;
+- detail: `Focus in progress`;
+- state: intention truncated and cleaned, only with consent;
+- timestamp of end: `endsAtMillis`;
+- visual DayView registered as asset Discord.
 
-Ne pas transmettre l'objectif global, le nom des applications au premier plan, le signal de dérive d'attention ou un identifiant utilisateur DayView.
+Do not transmit the global objective, application names at first place, attention signal or user identifier DayView.
 
-## Publication facultative dans un salon
+## Publication Facultative in a Channel
 
-### Technologie
+### Technology
 
-Utiliser un webhook entrant Discord. Il permet de publier dans un salon sans bot, connexion Gateway ni serveur DayView. Le client HTTP peut vivre dans `commonMain` avec une implémentation Kotlin Multiplatform, sous réserve d'ajouter la permission Internet Android.
+Use an incoming webhook Discord. It allows publishing in a channel without a bot, connection Gateway or DayView server.
 
-Le webhook reçoit un message ou un embed comportant :
+The client HTTP can live in `commonMain` with a Kotlin Multiplatform implementation, under the condition of adding a permission Internet Android.
 
-- le résultat de clôture ;
-- la durée prévue du Focus ;
-- éventuellement l'intention ;
-- un pied de message `DayView`.
+The webhook receives a message or embed containing:
 
-La première version publie un message autonome. Elle n'essaie pas de maintenir un message vivant pendant la session.
+- result of closure;
+- duration expected Focus;
+- optionally intention;
+- a footer message `DayView`.
 
-### Sécurité du webhook
+The first version publishes an autonomous message. It does not try to maintain a live message during the session.
 
-- macOS : stocker l'URL dans le Trousseau via une petite abstraction de stockage sécurisé ;
-- Android : stocker l'URL chiffrée avec le stockage sécurisé de la plateforme ;
-- ne conserver dans les préférences ordinaires qu'un booléen indiquant qu'un webhook est configuré ;
-- valider le schéma HTTPS et l'hôte Discord avant l'enregistrement ;
-- masquer l'URL après saisie et offrir un remplacement explicite ;
-- ne jamais renvoyer l'URL dans une télémétrie.
+### Security of Webhook
 
-Un webhook compromis peut être supprimé depuis Discord puis remplacé dans DayView.
+- macOS: store URL in a secure treasure via a small abstraction of storage;
+- Android: store URL encrypted with the secure storage of the platform;
+- never keep URL in ordinary preferences except for a boolean indicating if a webhook is configured;
+- validate HTTPS schema and Discord host before registration;
+- mask URL after input and offer an explicit replacement;
+- never send URL in error messages.
 
-### Fiabilité et idempotence
+A compromised webhook should be removed from DayView.
 
-La publication est une conséquence secondaire de la clôture locale :
+### Idempotence
 
-- enregistrer d'abord le résultat local ;
-- créer ensuite une publication en attente associée au `sessionId` ;
-- tenter l'envoi avec un délai court ;
-- en cas d'échec réseau ou `5xx`, réessayer avec un backoff borné ;
-- respecter `429` et son délai de reprise ;
-- ne pas réessayer les erreurs permanentes `401`, `403` ou `404` ;
-- marquer la publication comme envoyée avant de la retirer de la file ;
-- limiter la file locale et sa durée de rétention.
+The publication is a secondary consequence of the local closure:
 
-L'utilisateur doit pouvoir voir `Dernière publication réussie` ou une erreur actionnable dans les réglages. L'échec ne donne pas lieu à une fenêtre modale lors de la clôture.
+- first, record the result locally;
+- create then a publication pending associated with `sessionId`;
+- try sending with a short delay;
+- if error 5xx or `429`, retry with a backoff bounded;
+- respect `401`, `403` and `404` errors without re-trying;
+- mark the publication as sent before removing it from the queue;
+- limit the local queue and its retention time.
 
-## Modèle de préférences
+The user should be able to see `Last successful publication` or an error message in settings. An error does not trigger a modal window upon closure.
 
-Étendre `DayPreferences` avec une structure versionnée plutôt qu'une succession de paramètres indépendants :
+## Preferences Model
+
+Extend `DayPreferences` with a versioned structure rather than a succession of independent parameters:
 
 ```kotlin
 data class DiscordSharingSettings(
@@ -269,7 +269,7 @@ data class DiscordSharingSettings(
 )
 ```
 
-Les secrets et jetons restent hors de `DayPreferences`. Créer un contrat distinct :
+Secrets and tokens remain outside `DayPreferences`. Create a distinct contract:
 
 ```kotlin
 interface DiscordSecretStore {
@@ -279,106 +279,105 @@ interface DiscordSecretStore {
 }
 ```
 
-La session Focus devra aussi recevoir un identifiant stable, conservé avec son heure de fin, afin d'assurer l'idempotence des événements et des publications.
+The session Focus must also receive a stable identifier, conserved with its end time, to ensure idempotence of events and publications.
 
-## Stratégie de mise en œuvre
+## Implementation Strategy
 
-### Phase 1 — Événements et confidentialité
+### Phase 1 — Events and Confidentiality
 
-- extraire les transitions Focus en événements métier ;
-- ajouter un `sessionId` persistant ;
-- ajouter les réglages Discord désactivés par défaut ;
-- créer les interfaces et implémentations inertes ;
-- tester démarrage, arrêt, clôture et restauration.
+- extract transitions Focus in business events;
+- add the `sessionId` persistent;
+- add the Discord settings disabled by default;
+- create inert interfaces and implementations;
+- test startup, stop, closure, and session restoration.
 
-Cette phase ne contacte pas encore Discord et réduit le risque des phases suivantes.
+This phase does not contact Discord yet and reduces the risk of subsequent phases.
 
-### Phase 2 — Webhook de résultat
+### Phase 2 — Webhook Result
 
-- implémenter le stockage sécurisé sur macOS et Android ;
-- ajouter le client HTTP et la validation de l'URL ;
-- créer l'action de test ;
-- publier les trois résultats ;
-- ajouter idempotence, gestion de `429` et reprise bornée ;
-- vérifier qu'aucun secret n'apparaît dans les logs.
+- implement secure storage on macOS and Android;
+- add client HTTP and schema validation;
+- create a test action;
+- publish three results;
+- add idempotence, `429` and reconnection management;
+- verify that no secret appears in logs.
 
-Cette phase livre la première valeur utilisateur avec une complexité limitée.
+This phase delivers the first user value with limited complexity.
 
 ### Phase 3 — Rich Presence macOS
 
-- créer l'application DayView dans le Discord Developer Portal ;
-- configurer nom, icône, asset Rich Presence et OAuth ;
-- intégrer le Social SDK et le pont JNA ;
-- gérer connexion, mise à jour, suppression et reconnexion ;
-- empaqueter les architectures Intel et Apple Silicon ;
-- tester avec Discord fermé, ouvert, hors ligne et avec un compte de test.
+- create DayView application in the Discord Developer Portal;
+- configure name, icon, asset Rich Presence and OAuth;
+- integrate Social SDK and JNA bridge;
+- manage connection, update, removal and reconnection;
+- package architectures Intel and Apple Silicon;
+- test with Discord closed, open, offline and with a test account.
 
 ### Phase 4 — Rich Presence Android
 
-- intégrer les bibliothèques natives par ABI et JNI ;
-- ajouter le flux d'autorisation mobile et le deep link Discord ;
-- restaurer la présence après recréation d'activité ou relance ;
-- vérifier le comportement en arrière-plan et les restrictions d'Android ;
-- tester au minimum Android 7 et une version Android récente.
+- integrate native libraries by ABI and JNI;
+- add mobile authorization flow and deep link Discord;
+- restore presence after recreation of activity or relaunch;
+- verify behavior in background and Android restrictions;
+- test at minimum Android 7 and a recent version.
 
-### Phase 5 — Durcissement et lancement
+### Phase 5 — Durcissement and Launch
 
-- audit confidentialité et suppression des secrets ;
-- tests de migration depuis une installation existante ;
-- documentation utilisateur et procédure de révocation ;
-- vérification des limites de débit ;
-- test avec un compte Discord réservé au développement avant diffusion.
+- audit confidentiality and remove secrets;
+- tests migration from an existing installation;
+- documentation for the user and procedure for revocation;
+- verification of bandwidth limits;
+- test with a reserved Discord account development before release.
 
-## Tests attendus
+## Expected Tests
 
-### Tests unitaires communs
+### Common Unit Tests
 
-- les fonctions sont inertes avec les réglages par défaut ;
-- une intention n'est jamais incluse sans consentement explicite ;
-- `Started` produit une présence avec le bon timestamp ;
-- `Stopped` supprime la présence et ne publie rien ;
-- `Closed` supprime la présence et publie exactement une fois ;
-- deux événements `Closed` du même `sessionId` ne créent qu'un message ;
-- une restauration expirée supprime la présence ;
-- une erreur Discord ne modifie pas l'état du Focus.
+- functions are inert with default settings;
+- intention is never included without explicit consent;
+- `Started` produces presence with correct timestamp;
+- `Stopped` removes presence and publishes nothing;
+- `Closed` removes presence and publishes exactly once;
+- two `Closed` events of the same `sessionId` create only one message;
+- a restored session suppresses presence;
+- an error Discord does not affect Focus state.
 
-### Tests d'intégration webhook
+### Integration Webhook Tests
 
-- payload conforme pour les trois résultats ;
-- intention absente ou présente selon le réglage ;
-- gestion de `204`, `400`, `401`, `404`, `429` et `5xx` ;
-- timeout, absence de réseau et reprise ;
-- URL et jeton expurgés des erreurs.
+- payload conforms to three results;
+- intention is absent or present according to setting;
+- idempotence, `204`, `400`, `401`, `404`, `429` and `5xx` management;
+- timeout, no network and reconnection retry;
+- URL and token expurgated from errors.
 
-### Tests manuels Rich Presence
+### Manual Rich Presence Tests
 
-- connexion et révocation OAuth ;
-- affichage public avec partage d'activité activé ;
-- absence d'affichage lorsque Discord ou le partage d'activité est désactivé ;
-- compte à rebours correct ;
-- suppression immédiate après arrêt ou clôture ;
-- restauration après relance ;
-- absence d'intention avec le réglage par défaut.
+- connection and revocation OAuth;
+- public display with activity sharing enabled;
+- absence of display when Discord or sharing is disabled;
+- countdown correct;
+- presence removal after stop or closure;
+- presence restoration upon relaunch;
+- absence of intention with default setting.
 
-## Critères d'acceptation
+## Acceptance Criteria
 
-La fonctionnalité est prête lorsque :
+The feature is ready when:
 
-1. aucune donnée ne quitte DayView sans activation explicite ;
-2. une session Focus active produit au plus une Rich Presence correcte ;
-3. la présence disparaît à la fin de la session ;
-4. une clôture produit au plus un message dans le salon configuré ;
-5. aucun message n'est envoyé lors d'un simple arrêt ou d'une expiration non clôturée ;
-6. l'intention reste privée par défaut pour les deux canaux ;
-7. Discord peut être indisponible sans dégrader le minuteur ;
-8. les secrets sont stockés dans les mécanismes sécurisés des plateformes et absents des logs ;
-9. le comportement est couvert par des tests communs et des tests d'intégration ;
-10. la déconnexion Discord et la suppression du webhook sont accessibles depuis les réglages.
+1. no data leaves DayView without explicit activation;
+2. an active Focus session produces at most one Rich Presence correct;
+3. presence disappears at the end of the session;
+4. a closure produces at most one message in the configured channel;
+5. no message is sent during a simple stop or non-closed expiration;
+6. intention remains private by default for both channels;
+7. Discord can be disconnected without degrading the timer;
+8. secrets are stored in secure mechanisms of platforms and absent from logs;
+9. behavior is covered by common tests and integration tests;
+10. disconnection Discord and webhook removal are accessible from settings.
 
-## Références Discord
+## Discord References
 
 - [Rich Presence](https://docs.discord.com/developers/platform/rich-presence)
 - [Discord Social SDK](https://docs.discord.com/developers/discord-social-sdk/overview)
-- [Compatibilité des plateformes](https://docs.discord.com/developers/discord-social-sdk/core-concepts/platform-compatibility)
-- [Webhooks entrants](https://docs.discord.com/developers/resources/webhook)
-
+- [Platform Compatibility](https://docs.discord.com/developers/discord-social-sdk/core-concepts/platform-compatibility)
+- [Incoming Webhooks](https://docs.discord.com/developers/resources/webhook)

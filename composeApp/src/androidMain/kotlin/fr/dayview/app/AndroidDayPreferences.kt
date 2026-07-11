@@ -1,6 +1,7 @@
 package fr.dayview.app
 
 import android.content.Context
+import android.content.SharedPreferences
 
 class AndroidDayPreferences(
     context: Context,
@@ -8,20 +9,25 @@ class AndroidDayPreferences(
 ) : DayPreferences {
     private val appContext = context.applicationContext
     private val storage = context.getSharedPreferences("dayview_preferences", Context.MODE_PRIVATE)
-    private val observers = mutableMapOf<Long, (DayPreferencesSnapshot) -> Unit>()
-    private var nextObserverId = 0L
 
-    private fun preferencesChanged(updateWidgets: Boolean = false) {
-        val updated = snapshot()
-        observers.values.toList().forEach { it(updated) }
-        if (updateWidgets && notifyWidgets) DayViewWidget.updateAll(appContext)
+    private fun refreshWidgets() {
+        if (notifyWidgets) DayViewWidget.updateAll(appContext)
     }
 
     override fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
-        val observerId = nextObserverId++
-        observers[observerId] = observer
-        observer(snapshot())
-        return { observers.remove(observerId) }
+        var last = snapshot()
+        observer(last)
+        // SharedPreferences notifies once per changed key; dedup so a multi-key
+        // write (e.g. saveDayRange) yields a single snapshot per logical change.
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            val current = snapshot()
+            if (current != last) {
+                last = current
+                observer(current)
+            }
+        }
+        storage.registerOnSharedPreferenceChangeListener(listener)
+        return { storage.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
     override fun loadStartMinutes(): Int = storage.getInt(KEY_START, DEFAULT_START)
@@ -33,14 +39,13 @@ class AndroidDayPreferences(
             .putInt(KEY_START, startMinutes)
             .putInt(KEY_END, endMinutes)
             .apply()
-        preferencesChanged(updateWidgets = true)
+        refreshWidgets()
     }
 
     override fun loadShowSeconds(): Boolean = storage.getBoolean(KEY_SHOW_SECONDS, true)
 
     override fun saveShowSeconds(showSeconds: Boolean) {
         storage.edit().putBoolean(KEY_SHOW_SECONDS, showSeconds).apply()
-        preferencesChanged()
     }
 
     override fun loadSoundSettings(): SoundSettings = SoundSettings(
@@ -62,40 +67,37 @@ class AndroidDayPreferences(
             .putInt(KEY_SOUND_INTERVAL_MINUTES, safe.intervalMinutes)
             .putInt(KEY_SOUND_VOLUME, safe.volumePercent)
             .apply()
-        preferencesChanged()
     }
 
     override fun loadGoalTitle(): String = storage.getString(KEY_GOAL_TITLE, "").orEmpty()
 
-    override fun loadGoalDeadlineMillis(): Long? =
-        storage.getLong(KEY_GOAL_DEADLINE, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
+    override fun loadGoalDeadlineMillis(): Long? = storage.getLong(KEY_GOAL_DEADLINE, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
 
     override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
         storage.edit()
             .putString(KEY_GOAL_TITLE, title)
             .putLong(KEY_GOAL_DEADLINE, deadlineMillis ?: NO_DEADLINE)
             .apply()
-        preferencesChanged(updateWidgets = true)
+        refreshWidgets()
     }
 
     override fun loadPomodoroMinutes(): Int = storage.getInt(KEY_POMODORO_MINUTES, 25)
 
-    override fun loadPomodoroEndMillis(): Long? =
-        storage.getLong(KEY_POMODORO_END, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
+    override fun loadPomodoroEndMillis(): Long? = storage.getLong(KEY_POMODORO_END, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
 
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) {
         storage.edit()
             .putInt(KEY_POMODORO_MINUTES, durationMinutes)
             .putLong(KEY_POMODORO_END, endMillis ?: NO_DEADLINE)
             .apply()
-        preferencesChanged(updateWidgets = true)
+        refreshWidgets()
     }
 
     override fun loadFocusIntention(): String = storage.getString(KEY_FOCUS_INTENTION, "").orEmpty()
 
     override fun saveFocusIntention(intention: String) {
         storage.edit().putString(KEY_FOCUS_INTENTION, intention).apply()
-        preferencesChanged(updateWidgets = true)
+        refreshWidgets()
     }
 
     private companion object {

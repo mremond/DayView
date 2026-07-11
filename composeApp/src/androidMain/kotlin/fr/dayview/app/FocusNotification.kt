@@ -103,20 +103,18 @@ class FocusNotificationManager(context: Context) {
             .setOnlyAlertOnce(true)
     }
 
-    private fun actionPendingIntent(action: String, requestCode: Int): PendingIntent =
-        PendingIntent.getBroadcast(
-            appContext,
-            requestCode,
-            Intent(appContext, FocusNotificationActionReceiver::class.java).apply {
-                this.action = action
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+    private fun actionPendingIntent(action: String, requestCode: Int): PendingIntent = PendingIntent.getBroadcast(
+        appContext,
+        requestCode,
+        Intent(appContext, FocusNotificationActionReceiver::class.java).apply {
+            this.action = action
+        },
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 
-    private fun canPostNotifications(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            appContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+    private fun canPostNotifications(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        appContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

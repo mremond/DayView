@@ -59,6 +59,5 @@ class SoundAlertsTest {
         assertEquals(true, settings.allowsDayCue(SoundCue.INTERVAL, focusIsActive = false))
     }
 
-    private fun at(hour: Int, minute: Int, second: Int = 0): Long =
-        LocalDateTime(2026, 7, 11, hour, minute, second).toInstant(utc).toEpochMilliseconds()
+    private fun at(hour: Int, minute: Int, second: Int = 0): Long = LocalDateTime(2026, 7, 11, hour, minute, second).toInstant(utc).toEpochMilliseconds()
 }

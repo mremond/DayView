@@ -65,8 +65,7 @@ class DesktopDayPreferences internal constructor(
 
     override fun loadGoalTitle(): String = storage.get(KEY_GOAL_TITLE, "")
 
-    override fun loadGoalDeadlineMillis(): Long? =
-        storage.getLong(KEY_GOAL_DEADLINE, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
+    override fun loadGoalDeadlineMillis(): Long? = storage.getLong(KEY_GOAL_DEADLINE, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
 
     override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
         storage.put(KEY_GOAL_TITLE, title)
@@ -76,8 +75,7 @@ class DesktopDayPreferences internal constructor(
 
     override fun loadPomodoroMinutes(): Int = storage.getInt(KEY_POMODORO_MINUTES, 25)
 
-    override fun loadPomodoroEndMillis(): Long? =
-        storage.getLong(KEY_POMODORO_END, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
+    override fun loadPomodoroEndMillis(): Long? = storage.getLong(KEY_POMODORO_END, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
 
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) {
         storage.putInt(KEY_POMODORO_MINUTES, durationMinutes)

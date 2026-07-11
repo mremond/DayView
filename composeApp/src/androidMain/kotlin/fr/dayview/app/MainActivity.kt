@@ -15,7 +15,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 class MainActivity : ComponentActivity() {
     private lateinit var preferences: AndroidDayPreferences
     private lateinit var focusAlarmScheduler: FocusAlarmScheduler
-    private var displayedFocusEndMillis: Long? = null
     private var requestExactAfterNotificationPermission = false
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -33,7 +32,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         preferences = AndroidDayPreferences(applicationContext)
         focusAlarmScheduler = FocusAlarmScheduler(applicationContext)
-        displayedFocusEndMillis = preferences.loadPomodoroEndMillis()
         restoreActiveFocusAlarm()
         setContent {
             DayViewApp(
@@ -45,7 +43,6 @@ class MainActivity : ComponentActivity() {
                         val scheduledExactly = focusAlarmScheduler.schedule(endMillis, intention)
                         requestRequiredAccess(requestExactAlarm = !scheduledExactly)
                     }
-                    displayedFocusEndMillis = endMillis
                 },
             )
         }
@@ -55,20 +52,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         DayViewWidget.updateAll(applicationContext)
         if (::focusAlarmScheduler.isInitialized) {
-            if (recreateIfFocusChanged()) return
             restoreActiveFocusAlarm()
         }
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus && ::preferences.isInitialized) recreateIfFocusChanged()
-    }
-
-    private fun recreateIfFocusChanged(): Boolean {
-        if (preferences.loadPomodoroEndMillis() == displayedFocusEndMillis) return false
-        recreate()
-        return true
     }
 
     private fun restoreActiveFocusAlarm() {

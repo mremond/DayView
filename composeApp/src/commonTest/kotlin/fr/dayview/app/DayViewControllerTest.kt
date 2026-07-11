@@ -122,7 +122,8 @@ class DayViewControllerTest {
         val controller = DayViewController(preferences, initialNowMillis = 10_000L)
         controller.setFocusIntention("Préparer la démonstration")
 
-        val started = controller.startPomodoro()
+        controller.startPomodoro()
+        val started = controller.state
         val expectedEnd = 10_000L + 25 * 60_000L
 
         assertEquals(expectedEnd, started.pomodoroEndMillis)
@@ -140,6 +141,88 @@ class DayViewControllerTest {
         assertEquals("", controller.state.focusIntention)
         assertEquals("", preferences.current.focusIntention)
     }
+
+    @Test
+    fun onPreferencesChangedAdoptsExternalPersistedFields() {
+        val preferences = InMemoryDayPreferences()
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val focusEnd = 10_000L + 50 * 60_000L
+
+        controller.onPreferencesChanged(
+            DayPreferencesSnapshot(
+                startMinutes = 9 * 60,
+                endMinutes = 17 * 60,
+                pomodoroMinutes = 50,
+                pomodoroEndMillis = focusEnd,
+                focusIntention = "Depuis la tuile",
+            ),
+        )
+
+        assertEquals(9 * 60, controller.state.startMinutes)
+        assertEquals(17 * 60, controller.state.endMinutes)
+        assertEquals(focusEnd, controller.state.pomodoroEndMillis)
+        assertEquals("Depuis la tuile", controller.state.focusIntention)
+        assertEquals(true, controller.state.focusIsActive)
+    }
+
+    @Test
+    fun onPreferencesChangedPreservesTransientUiState() {
+        val preferences = InMemoryDayPreferences()
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        controller.openSettings()
+        controller.setGoalDeadlineText("25/12/2026 19:45")
+
+        controller.onPreferencesChanged(
+            DayPreferencesSnapshot(focusIntention = "Depuis la tuile", pomodoroEndMillis = 20_000L),
+        )
+
+        assertEquals(DayViewDestination.SETTINGS, controller.state.destination)
+        assertEquals("25/12/2026 19:45", controller.state.goalDeadlineText)
+        assertEquals(10_000L, controller.state.nowMillis)
+        assertEquals("Depuis la tuile", controller.state.focusIntention)
+    }
+
+    @Test
+    fun externalSaveReachesTheControllerThroughObserve() {
+        val preferences = InMemoryDayPreferences()
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val stopObserving = preferences.observe(controller::onPreferencesChanged)
+
+        preferences.savePomodoro(50, 1_800_000_000_000L)
+        preferences.saveFocusIntention("Depuis la tuile")
+
+        assertEquals(1_800_000_000_000L, controller.state.pomodoroEndMillis)
+        assertEquals("Depuis la tuile", controller.state.focusIntention)
+
+        stopObserving()
+    }
+
+    @Test
+    fun selfWritesReconcileWithoutClobberingStateOrDrafts() {
+        val preferences = InMemoryDayPreferences()
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val stopObserving = preferences.observe(controller::onPreferencesChanged)
+
+        // An unsaved draft plus a persisting edit: the persisting edit's re-entrant
+        // reconcile must keep both the draft and the just-written value.
+        controller.setGoalDeadlineText("25/12/2026 19:45")
+        controller.setGoalTitle("Publier la version 1")
+
+        assertEquals("Publier la version 1", controller.state.goalTitle)
+        assertEquals("25/12/2026 19:45", controller.state.goalDeadlineText)
+
+        // closePomodoro persists twice (pomodoro then intention); the reconcile
+        // between the two saves must not revert the final intention/outcome.
+        controller.setFocusIntention("Préparer la démonstration")
+        controller.startPomodoro()
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        assertEquals("", controller.state.focusIntention)
+        assertEquals(FocusClosureOutcome.COMPLETED, controller.state.lastFocusClosure)
+        assertEquals(null, controller.state.pomodoroEndMillis)
+
+        stopObserving()
+    }
 }
 
 private class InMemoryDayPreferences(
@@ -147,6 +230,18 @@ private class InMemoryDayPreferences(
 ) : DayPreferences {
     var current: DayPreferencesSnapshot = initial
         private set
+
+    private val observers = mutableListOf<(DayPreferencesSnapshot) -> Unit>()
+
+    override fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
+        observers.add(observer)
+        observer(current)
+        return { observers.remove(observer) }
+    }
+
+    private fun emit() {
+        observers.toList().forEach { it(current) }
+    }
 
     override fun snapshot(): DayPreferencesSnapshot = current
     override fun loadStartMinutes(): Int = current.startMinutes
@@ -161,25 +256,31 @@ private class InMemoryDayPreferences(
 
     override fun saveDayRange(startMinutes: Int, endMinutes: Int) {
         current = current.copy(startMinutes = startMinutes, endMinutes = endMinutes)
+        emit()
     }
 
     override fun saveShowSeconds(showSeconds: Boolean) {
         current = current.copy(showSeconds = showSeconds)
+        emit()
     }
 
     override fun saveSoundSettings(settings: SoundSettings) {
         current = current.copy(soundSettings = settings)
+        emit()
     }
 
     override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
         current = current.copy(goalTitle = title, goalDeadlineMillis = deadlineMillis)
+        emit()
     }
 
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) {
         current = current.copy(pomodoroMinutes = durationMinutes, pomodoroEndMillis = endMillis)
+        emit()
     }
 
     override fun saveFocusIntention(intention: String) {
         current = current.copy(focusIntention = intention)
+        emit()
     }
 }
