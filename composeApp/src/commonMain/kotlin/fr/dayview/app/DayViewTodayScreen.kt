@@ -29,8 +29,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -158,36 +161,272 @@ internal fun DayViewScreen(
             } else {
                 CountdownCircle(progress, state.showSeconds, Modifier.fillMaxWidth().height(compactCountdownHeight))
                 Spacer(Modifier.height(12.dp))
-                GlobalGoalPanel(
+                CompactTodayContent(
+                    state = state,
+                    actions = actions,
+                    reminders = reminders,
+                )
+            }
+        }
+    }
+}
+
+private enum class CompactSheet { FOCUS, GOAL }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CompactTodayContent(
+    state: DayViewUiState,
+    actions: DayViewScreenActions,
+    reminders: FocusReminderUiState,
+) {
+    val colors = LocalDayViewColors.current
+    val progress = state.dayProgress
+    val pomodoro = state.pomodoroProgress
+    var openSheet by remember { mutableStateOf<CompactSheet?>(null) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = when {
+                !progress.hasStarted -> "La journée n’a pas commencé."
+                progress.isFinished -> "Le temps prévu est écoulé."
+                progress.remainingRatio < .2f -> "La journée touche à sa fin."
+                else -> "Gardez le cap, sans pression."
+            },
+            color = colors.muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(16.dp))
+
+        CompactGoalRow(
+            title = state.goalTitle,
+            deadlineMillis = state.goalDeadlineMillis,
+            nowMillis = state.nowMillis,
+            workStartMinutes = progress.startHour * 60 + progress.startMinute,
+            workEndMinutes = progress.endHour * 60 + progress.endMinute,
+            onClick = { openSheet = CompactSheet.GOAL },
+        )
+        Spacer(Modifier.height(14.dp))
+
+        if (pomodoro.status == PomodoroStatus.IDLE) {
+            FocusEntryButton(
+                lastClosure = state.lastFocusClosure,
+                onClick = { openSheet = CompactSheet.FOCUS },
+            )
+        } else {
+            FocusPanel(
+                progress = pomodoro,
+                intention = state.focusIntention,
+                lastClosure = state.lastFocusClosure,
+                onIntentionChange = actions.changeFocusIntention,
+                showDriftReminder = reminders.showDriftReminder,
+                onDismissDriftReminder = reminders.dismissDriftReminder,
+                showResumeRitual = reminders.showResumeRitual,
+                onDismissResumeRitual = reminders.dismissResumeRitual,
+                onDurationChange = actions.changePomodoroDuration,
+                onStart = actions.startPomodoro,
+                onStop = actions.stopPomodoro,
+                onClose = actions.closePomodoro,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).background(if (progress.isFinished) colors.red else colors.mint, CircleShape))
+            Spacer(Modifier.width(9.dp))
+            Text(
+                if (progress.isFinished) "0 % de la journée disponible" else "${progress.percentageRemaining} % de la journée disponible",
+                color = colors.muted,
+                fontSize = 12.sp,
+            )
+        }
+    }
+
+    if (openSheet == CompactSheet.FOCUS) {
+        ModalBottomSheet(
+            onDismissRequest = { openSheet = null },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = colors.panel,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp)
+                    .imePadding(),
+            ) {
+                Text("FOCUS", color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                Spacer(Modifier.height(14.dp))
+                FocusCreationContent(
+                    progress = pomodoro,
+                    intention = state.focusIntention,
+                    lastClosure = state.lastFocusClosure,
+                    onIntentionChange = actions.changeFocusIntention,
+                    onDurationChange = actions.changePomodoroDuration,
+                    onStart = {
+                        actions.startPomodoro()
+                        openSheet = null
+                    },
+                )
+            }
+        }
+    }
+
+    if (openSheet == CompactSheet.GOAL) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                actions.commitGoalDeadline()
+                openSheet = null
+            },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = colors.panel,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp)
+                    .imePadding(),
+            ) {
+                GoalEditorContent(
                     title = state.goalTitle,
                     deadlineText = state.goalDeadlineText,
-                    deadlineMillis = state.goalDeadlineMillis,
-                    nowMillis = state.nowMillis,
-                    workStartMinutes = progress.startHour * 60 + progress.startMinute,
-                    workEndMinutes = progress.endHour * 60 + progress.endMinute,
                     onTitleChange = actions.changeGoalTitle,
                     onDeadlineChange = actions.changeGoalDeadline,
                     onDeadlineCommit = actions.commitGoalDeadline,
                 )
-                Spacer(Modifier.height(18.dp))
-                SidePanel(
-                    progress = progress,
-                    pomodoro = pomodoro,
-                    focusIntention = state.focusIntention,
-                    lastFocusClosure = state.lastFocusClosure,
-                    onFocusIntentionChange = actions.changeFocusIntention,
-                    showFocusDriftReminder = reminders.showDriftReminder,
-                    onDismissFocusDriftReminder = reminders.dismissDriftReminder,
-                    showFocusResumeRitual = reminders.showResumeRitual,
-                    onDismissFocusResumeRitual = reminders.dismissResumeRitual,
-                    onPomodoroDurationChange = actions.changePomodoroDuration,
-                    onPomodoroStart = actions.startPomodoro,
-                    onPomodoroStop = actions.stopPomodoro,
-                    onPomodoroClose = actions.closePomodoro,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
+    }
+}
+
+@Composable
+private fun CompactGoalRow(
+    title: String,
+    deadlineMillis: Long?,
+    nowMillis: Long,
+    workStartMinutes: Int,
+    workEndMinutes: Int,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    val hasGoal = title.isNotBlank() || deadlineMillis != null
+    val workingMillis = remember(nowMillis / 60_000, deadlineMillis, workStartMinutes, workEndMinutes) {
+        deadlineMillis?.let {
+            calculateGoalWorkingMillis(
+                nowMillis = nowMillis,
+                deadlineMillis = it,
+                startMinutesOfDay = workStartMinutes,
+                endMinutesOfDay = workEndMinutes,
+            )
+        } ?: 0L
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 430.dp)
+            .background(colors.panel, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(14.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (hasGoal) {
+            Text("OBJECTIF", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                formatGoalSummaryLine(
+                    title = title,
+                    deadlineMillis = deadlineMillis,
+                    workingMillis = workingMillis,
+                    deadlineReached = deadlineMillis != null && deadlineMillis <= nowMillis,
+                ),
+                color = colors.cloud,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Text(
+                "＋ Définir un objectif",
+                color = colors.muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusEntryButton(
+    lastClosure: FocusClosureOutcome?,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 430.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (lastClosure != null) {
+            val closureLabel = when (lastClosure) {
+                FocusClosureOutcome.COMPLETED -> "TERMINÉ"
+                FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
+                FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
+            }
+            Text(
+                "FOCUS CLÔTURÉ · $closureLabel",
+                color = colors.mint,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = .9.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        FocusActionButton(
+            "DÉMARRER UN FOCUS",
+            colors.amber,
+            modifier = Modifier.fillMaxWidth(),
+            filled = true,
+            onClick = onClick,
+        )
+    }
+}
+
+@Composable
+private fun GoalEditorContent(
+    title: String,
+    deadlineText: String,
+    onTitleChange: (String) -> Unit,
+    onDeadlineChange: (String) -> Unit,
+    onDeadlineCommit: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    val deadlineIsValid = deadlineText.isBlank() || parseGoalDeadline(deadlineText) != null
+    Text("OBJECTIF GLOBAL", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+    Spacer(Modifier.height(12.dp))
+    GoalTextField(
+        value = title,
+        semanticLabel = "Objectif du jour",
+        placeholder = "Que voulez-vous accomplir ?",
+        onValueChange = onTitleChange,
+        imeAction = ImeAction.Next,
+    )
+    Spacer(Modifier.height(9.dp))
+    GoalTextField(
+        value = deadlineText,
+        semanticLabel = "Date limite de l’objectif",
+        placeholder = GOAL_DATE_PLACEHOLDER,
+        onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
+        isError = !deadlineIsValid,
+        keyboardType = KeyboardType.Number,
+        onFocusLost = onDeadlineCommit,
+    )
+    if (!deadlineIsValid) {
+        Spacer(Modifier.height(6.dp))
+        Text("Format attendu : $GOAL_DATE_PLACEHOLDER", color = colors.red, fontSize = 10.sp)
     }
 }
 
