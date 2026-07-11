@@ -25,6 +25,7 @@ fun main() = application {
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
+    val runningApplicationsProvider = remember { MacRunningApplicationsProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
     val focusResumeDetector = remember { FocusResumeDetector() }
     val nudgeNotifier = remember { MacFocusNudgeNotifier() }
@@ -200,6 +201,7 @@ fun main() = application {
                 showFocusResumeRitual = focusResumeRitualId != null,
                 onDismissFocusResumeRitual = { focusResumeRitualId = null },
                 scheduleSoundAlerts = false,
+                runningApps = { runningApplicationsProvider.runningApps() },
             )
         }
     }

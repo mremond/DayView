@@ -30,6 +30,7 @@ internal data class DayViewUiState(
     val netCalendarPermission: Boolean = false,
     val availableCalendars: List<CalendarInfo> = emptyList(),
     val busyIntervals: List<BusyInterval> = emptyList(),
+    val onGoalApps: Set<AppRef> = emptySet(),
     val lastFocusClosure: FocusClosureOutcome? = null,
     val destination: DayViewDestination = DayViewDestination.TODAY,
 ) {
@@ -223,6 +224,11 @@ internal class DayViewController(
         persistState()
     }
 
+    fun setOnGoalApps(apps: Set<AppRef>) {
+        state = state.copy(onGoalApps = apps)
+        preferences.saveOnGoalApps(DEFAULT_GOAL_ID, apps)
+    }
+
     /** Injecte le résultat d'une lecture calendrier (hors thread UI). */
     fun updateNetTimeData(
         hasPermission: Boolean,
@@ -289,6 +295,7 @@ private fun DayPreferencesSnapshot.toUiState(nowMillis: Long): DayViewUiState {
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
+        onGoalApps = safe.onGoalApps,
     )
 }
 

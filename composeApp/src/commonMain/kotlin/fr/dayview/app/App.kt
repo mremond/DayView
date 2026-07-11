@@ -32,12 +32,14 @@ fun DayViewApp(
     showFocusResumeRitual: Boolean = false,
     onDismissFocusResumeRitual: () -> Unit = {},
     scheduleSoundAlerts: Boolean = true,
+    runningApps: () -> List<AppRef> = { emptyList() },
 ) {
     DayViewTheme { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
             val scope = rememberCoroutineScope()
             val controller = remember(preferences) { DayViewController(preferences, scope) }
             val state = controller.state
+            val hasRunningApps = remember { runningApps().isNotEmpty() }
             val soundPlayer = remember { createSoundCuePlayer() }
             val soundScheduler = remember { SoundAlertScheduler() }
             val calendarSource = remember { createCalendarSource() }
@@ -137,6 +139,8 @@ fun DayViewApp(
                         monochromeMenuBarIcon = monochromeMenuBarIcon,
                         launchAtLogin = launchAtLogin,
                         netTimeSupported = calendarSource.isSupported(),
+                        onGoalSupported = hasRunningApps,
+                        runningApps = runningApps,
                     ),
                     actions = SettingsScreenActions(
                         changeStartTime = { controller.setStartMinutes(it) },
@@ -153,6 +157,7 @@ fun DayViewApp(
                             calendarPermissionProbe++
                         },
                         requestCalendarPermission = onRequestCalendarAccess,
+                        changeOnGoalApps = { controller.setOnGoalApps(it) },
                         back = { controller.openToday() },
                     ),
                 )

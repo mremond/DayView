@@ -24,6 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +39,8 @@ internal data class SettingsPlatformUiState(
     val monochromeMenuBarIcon: Boolean?,
     val launchAtLogin: Boolean?,
     val netTimeSupported: Boolean = false,
+    val onGoalSupported: Boolean = false,
+    val runningApps: () -> List<AppRef> = { emptyList() },
 )
 
 internal data class SettingsScreenActions(
@@ -49,6 +53,7 @@ internal data class SettingsScreenActions(
     val previewSound: (SoundCue) -> Unit,
     val changeNetTimeSettings: (NetTimeSettings) -> Unit = {},
     val requestCalendarPermission: () -> Unit = {},
+    val changeOnGoalApps: (Set<AppRef>) -> Unit = {},
     val back: () -> Unit,
 )
 
@@ -267,6 +272,14 @@ internal fun SettingsScreen(
                         onRequestPermission = actions.requestCalendarPermission,
                     )
                 }
+                if (platformState.onGoalSupported) {
+                    Spacer(Modifier.height(24.dp))
+                    OnGoalAppsPanel(
+                        onGoalApps = state.onGoalApps,
+                        runningApps = platformState.runningApps,
+                        onOnGoalAppsChange = actions.changeOnGoalApps,
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Les changements sont enregistrés automatiquement et s’appliquent à tous les jours.",
@@ -422,6 +435,122 @@ private fun NetTimeCalendarRow(
     ) {
         Text(name, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
         Checkbox(checked = checked, onCheckedChange = null)
+    }
+}
+
+@Composable
+private fun OnGoalAppsPanel(
+    onGoalApps: Set<AppRef>,
+    runningApps: () -> List<AppRef>,
+    onOnGoalAppsChange: (Set<AppRef>) -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Text("APPLICATIONS DE L’OBJECTIF", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "Ces applications comptent comme du travail sur l’objectif pendant une session de focus.",
+        color = colors.muted,
+        fontSize = 13.sp,
+        lineHeight = 19.sp,
+    )
+    Spacer(Modifier.height(14.dp))
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+    ) {
+        if (onGoalApps.isEmpty()) {
+            Text(
+                "Aucune application sélectionnée.",
+                color = colors.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+        } else {
+            onGoalApps.sortedBy { it.displayName.lowercase() }.forEachIndexed { index, app ->
+                if (index > 0) SettingsDivider()
+                OnGoalAppRow(
+                    name = app.displayName,
+                    onRemove = { onOnGoalAppsChange(onGoalApps - app) },
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+    var showPicker by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier.minimumInteractiveComponentSize()
+            .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(10.dp))
+            .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(10.dp))
+            .clickable(role = Role.Button, onClick = { showPicker = !showPicker })
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            if (showPicker) "FERMER" else "AJOUTER DES APPLICATIONS",
+            color = colors.mint,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = .7.sp,
+        )
+    }
+    if (showPicker) {
+        Spacer(Modifier.height(10.dp))
+        val candidates = remember(showPicker) { runningApps() }.filter { it !in onGoalApps }
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .background(colors.panel, RoundedCornerShape(18.dp))
+                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+        ) {
+            if (candidates.isEmpty()) {
+                Text(
+                    "Aucune application disponible.",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+            } else {
+                candidates.forEachIndexed { index, app ->
+                    if (index > 0) SettingsDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .clickable(
+                                role = Role.Button,
+                                onClickLabel = "Ajouter ${app.displayName}",
+                                onClick = { onOnGoalAppsChange(onGoalApps + app) },
+                            )
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(app.displayName, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                        Text("+", color = colors.mint, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnGoalAppRow(
+    name: String,
+    onRemove: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(name, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier.minimumInteractiveComponentSize()
+                .clickable(role = Role.Button, onClickLabel = "Retirer $name", onClick = onRemove)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            Text("RETIRER", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        }
     }
 }
 
