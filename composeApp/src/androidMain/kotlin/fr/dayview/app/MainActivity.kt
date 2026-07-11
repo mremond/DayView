@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
         val endMillis = preferences.loadPomodoroEndMillis() ?: return
         if (endMillis > System.currentTimeMillis()) {
             focusAlarmScheduler.schedule(endMillis, preferences.loadFocusIntention())
+        } else if (System.currentTimeMillis() - endMillis < 60 * 60_000L) {
+            focusAlarmScheduler.restoreBreakReminders(endMillis)
         }
     }
 

@@ -31,8 +31,8 @@ class PomodoroTest {
 
     @Test
     fun exactDeadlineAndPastDeadlineAreFinished() {
-        assertEquals(PomodoroStatus.FINISHED, calculatePomodoroProgress(1_000L, 25, 1_000L).status)
-        assertEquals(PomodoroStatus.FINISHED, calculatePomodoroProgress(2_000L, 25, 1_000L).status)
+        assertEquals(PomodoroStatus.BREAK, calculatePomodoroProgress(1_000L, 25, 1_000L).status)
+        assertEquals(PomodoroStatus.BREAK, calculatePomodoroProgress(2_000L, 25, 1_000L).status)
     }
 
     @Test
@@ -66,5 +66,40 @@ class PomodoroTest {
         assertEquals(false, FocusClosureOutcome.COMPLETED.keepsIntention)
         assertEquals(false, FocusClosureOutcome.PROGRESSED.keepsIntention)
         assertEquals(true, FocusClosureOutcome.TO_RESUME.keepsIntention)
+    }
+
+    @Test
+    fun breakCountsUpFromTheFocusDeadline() {
+        val progress = calculatePomodoroProgress(
+            nowMillis = 31 * 60_000L + 12_000L,
+            durationMinutes = 25,
+            endMillis = 25 * 60_000L,
+        )
+
+        assertEquals(PomodoroStatus.BREAK, progress.status)
+        assertEquals(6 * 60_000L + 12_000L, progress.breakElapsedMillis)
+        assertEquals("06:12", formatBreakClock(progress))
+    }
+
+    @Test
+    fun breakReminderRingsEveryTenMinutesUntilOneHour() {
+        val scheduler = BreakReminderScheduler()
+        val breakStart = 1_000L
+        scheduler.observe(breakStart, breakStart)
+
+        for (minutes in 10..60 step 10) {
+            assertEquals(false, scheduler.observe(breakStart + minutes * 60_000L - 1, breakStart))
+            assertEquals(true, scheduler.observe(breakStart + minutes * 60_000L, breakStart))
+        }
+        assertEquals(false, scheduler.observe(breakStart + 70 * 60_000L, breakStart))
+    }
+
+    @Test
+    fun breakReminderDoesNotReplayOldBoundariesAndResetsForANewSession() {
+        val scheduler = BreakReminderScheduler()
+        scheduler.observe(0L, 0L)
+        assertEquals(false, scheduler.observe(25 * 60_000L, 0L))
+        assertEquals(false, scheduler.observe(25 * 60_000L + 1, 20 * 60_000L))
+        assertEquals(true, scheduler.observe(30 * 60_000L, 20 * 60_000L))
     }
 }

@@ -173,8 +173,8 @@ fun DayViewApp(
             LaunchedEffect(showSeconds, pomodoroEndMillis) {
                 while (true) {
                     nowMillis = Clock.System.now().toEpochMilliseconds()
-                    val focusIsActive = pomodoroEndMillis?.let { it > nowMillis } == true
-                    val refreshDelay = if (showSeconds || focusIsActive) {
+                    val focusTimerIsRunning = pomodoroEndMillis != null
+                    val refreshDelay = if (showSeconds || focusTimerIsRunning) {
                         1_000L
                     } else {
                         60_000L - nowMillis % 60_000L
@@ -359,7 +359,7 @@ fun DayViewMiniApp(
                         workStartMinutes = progress.startHour * 60 + progress.startMinute,
                         workEndMinutes = progress.endHour * 60 + progress.endMinute,
                     )
-                    if (pomodoro.status == PomodoroStatus.ACTIVE) {
+                    if (pomodoro.status != PomodoroStatus.IDLE) {
                         Spacer(Modifier.height(10.dp))
                         MiniFocus(pomodoro, focusIntention)
                     }
@@ -423,6 +423,7 @@ private fun MiniGoal(
 @Composable
 private fun MiniFocus(progress: PomodoroProgress, intention: String) {
     val colors = LocalDayViewColors.current
+    val isBreak = progress.status == PomodoroStatus.BREAK
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
@@ -432,8 +433,8 @@ private fun MiniFocus(progress: PomodoroProgress, intention: String) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "FOCUS EN COURS",
-                color = colors.amber,
+                if (isBreak) "PAUSE EN COURS" else "FOCUS EN COURS",
+                color = if (isBreak) colors.mint else colors.amber,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.1.sp,
@@ -448,7 +449,7 @@ private fun MiniFocus(progress: PomodoroProgress, intention: String) {
         }
         Spacer(Modifier.width(12.dp))
         Text(
-            formatPomodoroClock(progress),
+            if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
             color = colors.cloud,
             fontSize = 24.sp,
             fontWeight = FontWeight.Light,
@@ -1140,9 +1141,13 @@ private fun FocusPanel(
                 when (progress.status) {
                     PomodoroStatus.IDLE -> "PRÊT À S’ENGAGER"
                     PomodoroStatus.ACTIVE -> "EN COURS"
-                    PomodoroStatus.FINISHED -> "SLOT TERMINÉ"
+                    PomodoroStatus.BREAK -> if (progress.breakElapsedMillis >= 60 * 60_000L) {
+                        "SÉRIE INACTIVE"
+                    } else {
+                        "PAUSE EN COURS"
+                    }
                 },
-                color = if (progress.status == PomodoroStatus.FINISHED) colors.mint else colors.muted,
+                color = if (progress.status == PomodoroStatus.BREAK) colors.mint else colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = .7.sp,
@@ -1261,55 +1266,43 @@ private fun FocusPanel(
                         .background(colors.amber, CircleShape),
                 )
             }
-        } else if (progress.status == PomodoroStatus.FINISHED) {
+        } else if (progress.status == PomodoroStatus.BREAK) {
             Text(
-                "VOTRE INTENTION",
+                if (progress.breakElapsedMillis >= 60 * 60_000L) "SÉRIE INACTIVE" else "PAUSE DEPUIS",
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
             )
             Spacer(Modifier.height(5.dp))
-            Text(
-                intention.ifBlank { "Une seule chose à la fois." },
-                color = colors.cloud,
-                fontSize = 15.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Medium,
-            )
+            Text(formatBreakClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
             Spacer(Modifier.height(14.dp))
             Text(
-                "COMMENT S’EST PASSÉ CE FOCUS ?",
+                if (progress.breakElapsedMillis < 10 * 60_000L) {
+                    "PRENEZ LE TEMPS DE DÉCONNECTER"
+                } else {
+                    "REPRENDRE RESTE UN CHOIX CONSCIENT"
+                },
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = .9.sp,
             )
             Spacer(Modifier.height(9.dp))
-            Row(
+            FocusActionButton(
+                "REPRENDRE UN FOCUS",
+                colors.mint,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                FocusActionButton(
-                    "TERMINÉ",
-                    colors.mint,
-                    modifier = Modifier.weight(1f),
-                    filled = true,
-                    onClick = { onClose(FocusClosureOutcome.COMPLETED) },
-                )
-                FocusActionButton(
-                    "AVANCÉ",
-                    colors.amber,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onClose(FocusClosureOutcome.PROGRESSED) },
-                )
-                FocusActionButton(
-                    "À REPRENDRE",
-                    colors.mint,
-                    modifier = Modifier.weight(1.25f),
-                    onClick = { onClose(FocusClosureOutcome.TO_RESUME) },
-                )
-            }
+                filled = true,
+                onClick = onStart,
+            )
+            Spacer(Modifier.height(8.dp))
+            FocusActionButton(
+                "TERMINER LA SÉRIE",
+                colors.muted,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onClose(FocusClosureOutcome.COMPLETED) },
+            )
         } else {
             if (lastClosure != null) {
                 val closureLabel = when (lastClosure) {

@@ -13,6 +13,7 @@ enum class SoundCue {
     DAY_START,
     INTERVAL,
     DAY_END,
+    BREAK_REMINDER,
 }
 
 data class SoundSettings(
@@ -32,6 +33,7 @@ data class SoundSettings(
         SoundCue.DAY_START -> startCueEnabled
         SoundCue.INTERVAL -> intervalCueEnabled
         SoundCue.DAY_END -> endCueEnabled
+        SoundCue.BREAK_REMINDER -> true
     }
 
     fun allowsDayCue(cue: SoundCue, focusIsActive: Boolean): Boolean =
@@ -96,6 +98,7 @@ fun synthesizeSoundCue(cue: SoundCue, sampleRate: Int = 44_100): SoundCuePcm {
         SoundCue.DAY_START -> 1.45
         SoundCue.INTERVAL -> 0.9
         SoundCue.DAY_END -> 2.4
+        SoundCue.BREAK_REMINDER -> 0.75
     }
     val sampleCount = (sampleRate * durationSeconds).toInt()
     val bytes = ByteArray(sampleCount * 2)
@@ -107,6 +110,8 @@ fun synthesizeSoundCue(cue: SoundCue, sampleRate: Int = 44_100): SoundCuePcm {
             SoundCue.INTERVAL -> resonantTone(t, 659.25, 4.4) * 0.82 + resonantTone(t, 1318.5, 5.8) * 0.18
             SoundCue.DAY_END -> resonantTone(t, 196.0, 1.45) * 0.58 +
                 resonantTone(t, 293.66, 1.9) * 0.28 + resonantTone(t, 437.0, 2.6) * 0.14
+            SoundCue.BREAK_REMINDER -> resonantTone(t, 880.0, 5.2) * 0.78 +
+                resonantTone(t, 1320.0, 6.4) * 0.22
         }
         val value = (sample * attack * 0.42).coerceIn(-1.0, 1.0)
         val pcm = (value * Short.MAX_VALUE).toInt()

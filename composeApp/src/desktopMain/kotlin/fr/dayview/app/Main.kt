@@ -28,6 +28,7 @@ fun main() = application {
     val focusResumeDetector = remember { FocusResumeDetector() }
     val soundCuePlayer = remember { createSoundCuePlayer() }
     val soundAlertScheduler = remember { SoundAlertScheduler() }
+    val breakReminderScheduler = remember { BreakReminderScheduler() }
     var isWindowVisible by remember { mutableStateOf(true) }
     var isMiniWindowVisible by remember { mutableStateOf(false) }
     var focusDriftReminderId by remember { mutableStateOf<Long?>(null) }
@@ -69,6 +70,10 @@ fun main() = application {
             )
             if (soundCue != null && soundSettings.allowsDayCue(soundCue, focusIsActive)) {
                 soundCuePlayer.play(soundCue, soundSettings.volumePercent / 100f)
+            }
+            val breakStartMillis = currentPomodoroEnd?.takeIf { it <= currentNowMillis }
+            if (breakReminderScheduler.observe(currentNowMillis, breakStartMillis)) {
+                soundCuePlayer.play(SoundCue.BREAK_REMINDER, soundSettings.volumePercent / 100f)
             }
 
             val shouldShowResumeRitual = focusResumeDetector.observe(focusIsActive, currentNowMillis)
@@ -116,13 +121,17 @@ fun main() = application {
             focusIntention.take(24).takeIf(String::isNotBlank),
             formatPomodoroClock(pomodoro),
         ).joinToString(" · ")
-        PomodoroStatus.FINISHED -> "Focus · slot terminé"
+        PomodoroStatus.BREAK -> "Pause · ${formatBreakClock(pomodoro)}"
         PomodoroStatus.IDLE -> null
     }
 
     LaunchedEffect(pomodoro.status, pomodoro.remainingMillis / 1_000) {
         focusStatusItem.update(
-            if (pomodoro.status == PomodoroStatus.ACTIVE) formatPomodoroCompactMinutes(pomodoro) else null,
+            when (pomodoro.status) {
+                PomodoroStatus.ACTIVE -> formatPomodoroCompactMinutes(pomodoro)
+                PomodoroStatus.BREAK -> "P ${pomodoro.breakElapsedMillis / 60_000L}m"
+                PomodoroStatus.IDLE -> null
+            },
         )
     }
     DisposableEffect(Unit) {
