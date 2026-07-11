@@ -36,6 +36,12 @@ kotlin {
                 implementation("androidx.activity:activity-compose:1.11.0")
             }
         }
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(kotlin("test-junit"))
+                implementation("org.robolectric:robolectric:4.16")
+            }
+        }
         val desktopMain by getting {
             resources.srcDir(layout.buildDirectory.dir("generated/macosFocusStatusHelper"))
             dependencies {
@@ -60,6 +66,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 }
 

@@ -12,12 +12,15 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 
-class FocusAlarmScheduler(context: Context) {
+class FocusAlarmScheduler(
+    context: Context,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
+) {
     private val appContext = context.applicationContext
     private val alarmManager = appContext.getSystemService(AlarmManager::class.java)
 
     fun schedule(endMillis: Long, intention: String): Boolean {
-        if (endMillis <= System.currentTimeMillis()) return false
+        if (endMillis <= nowMillis()) return false
         cancelBreakReminder()
         val alarm = focusAlarmPendingIntent(appContext, intention, endMillis)
         val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
@@ -35,7 +38,7 @@ class FocusAlarmScheduler(context: Context) {
     }
 
     fun restoreBreakReminders(breakStartMillis: Long) {
-        val elapsedMinutes = ((System.currentTimeMillis() - breakStartMillis).coerceAtLeast(0L) / 60_000L).toInt()
+        val elapsedMinutes = ((nowMillis() - breakStartMillis).coerceAtLeast(0L) / 60_000L).toInt()
         val nextMinutes = ((elapsedMinutes / BREAK_INTERVAL_MINUTES) + 1) * BREAK_INTERVAL_MINUTES
         if (nextMinutes <= MAX_BREAK_MINUTES) scheduleBreakReminder(breakStartMillis, nextMinutes)
     }
@@ -43,7 +46,7 @@ class FocusAlarmScheduler(context: Context) {
     internal fun scheduleBreakReminder(breakStartMillis: Long, elapsedMinutes: Int) {
         if (elapsedMinutes !in BREAK_INTERVAL_MINUTES..MAX_BREAK_MINUTES) return
         val triggerMillis = breakStartMillis + elapsedMinutes * 60_000L
-        if (triggerMillis <= System.currentTimeMillis()) return
+        if (triggerMillis <= nowMillis()) return
         val alarm = breakReminderPendingIntent(appContext, breakStartMillis, elapsedMinutes)
         val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
         if (exact) {

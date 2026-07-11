@@ -102,4 +102,34 @@ class PomodoroTest {
         assertEquals(false, scheduler.observe(25 * 60_000L + 1, 20 * 60_000L))
         assertEquals(true, scheduler.observe(30 * 60_000L, 20 * 60_000L))
     }
+
+    @Test
+    fun breakReminderIgnoresBackwardClockChanges() {
+        val scheduler = BreakReminderScheduler()
+        val breakStart = 1_000L
+        scheduler.observe(breakStart, breakStart)
+        scheduler.observe(breakStart + 9 * 60_000L, breakStart)
+
+        assertEquals(false, scheduler.observe(breakStart + 8 * 60_000L, breakStart))
+        assertEquals(true, scheduler.observe(breakStart + 10 * 60_000L, breakStart))
+    }
+
+    @Test
+    fun breakReminderIgnoresBoundariesObservedTooLate() {
+        val scheduler = BreakReminderScheduler()
+        val breakStart = 1_000L
+        scheduler.observe(breakStart, breakStart)
+
+        assertEquals(false, scheduler.observe(breakStart + 12 * 60_000L, breakStart))
+    }
+
+    @Test
+    fun clearingBreakStatePreventsReminderFromThePreviousSession() {
+        val scheduler = BreakReminderScheduler()
+        val breakStart = 1_000L
+        scheduler.observe(breakStart, breakStart)
+        scheduler.observe(breakStart + 9 * 60_000L, null)
+
+        assertEquals(false, scheduler.observe(breakStart + 10 * 60_000L, breakStart))
+    }
 }
