@@ -109,7 +109,7 @@ FocusSharingCoordinator (commonMain)
         |                         |
         v                         v
 DiscordPresenceClient       FocusResultPublisher
-(implémentation native)     (client HTTP webhook)
+(native implementation)     (HTTP webhook client)
         |                         |
         v                         v
 Discord Social SDK          API Webhook Discord
@@ -381,4 +381,3 @@ The feature is ready when:
 - [Discord Social SDK](https://docs.discord.com/developers/discord-social-sdk/overview)
 - [Platform Compatibility](https://docs.discord.com/developers/discord-social-sdk/core-concepts/platform-compatibility)
 - [Incoming Webhooks](https://docs.discord.com/developers/resources/webhook)
-

@@ -103,7 +103,7 @@ The state `AWAITING_OUTCOME` represents a timer arrived at its end, but not yet 
 Local storage is the immediate source of truth. A coordinator observes local changes, transmits them to the remote service and applies distant changes to local storage.
 
 ```text
-Interface Compose / widget / barre des menus
+Compose interface / widget / menu bar
                     |
                     v
              DayViewController
