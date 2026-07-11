@@ -31,6 +31,7 @@ internal data class DayViewUiState(
     val availableCalendars: List<CalendarInfo> = emptyList(),
     val busyIntervals: List<BusyInterval> = emptyList(),
     val onGoalApps: Set<AppRef> = emptySet(),
+    val focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     val lastFocusClosure: FocusClosureOutcome? = null,
     val destination: DayViewDestination = DayViewDestination.TODAY,
 ) {
@@ -64,6 +65,18 @@ internal data class DayViewUiState(
             calculateNetTime(dayProgress, dayNowMillis, start, end, busyIntervals)
         } else {
             null
+        }
+
+    val focusArcsState: List<FocusArc>
+        get() {
+            val (start, end) = dayWindow
+            return focusArcs(start, end, focusPresenceIntervals)
+        }
+
+    val focusedTodayMillis: Long
+        get() {
+            val (start, end) = dayWindow
+            return focusedMillis(start, end, focusPresenceIntervals)
         }
 }
 
@@ -227,6 +240,10 @@ internal class DayViewController(
     fun setOnGoalApps(apps: Set<AppRef>) {
         state = state.copy(onGoalApps = apps)
         preferences.saveOnGoalApps(DEFAULT_GOAL_ID, apps)
+    }
+
+    fun setFocusPresenceIntervals(intervals: List<FocusPresenceInterval>) {
+        state = state.copy(focusPresenceIntervals = intervals)
     }
 
     /** Injecte le résultat d'une lecture calendrier (hors thread UI). */

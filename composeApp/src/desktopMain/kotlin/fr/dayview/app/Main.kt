@@ -16,9 +16,12 @@ import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dayview_tray
 import fr.dayview.app.generated.resources.dayview_tray_monochrome
 import kotlinx.coroutines.delay
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.ceil
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 fun main() = application {
     val preferences = remember { DesktopDayPreferences() }
@@ -40,6 +43,13 @@ fun main() = application {
     var preferenceSnapshot by remember { mutableStateOf(preferences.snapshot()) }
     var monochromeMenuBarIcon by remember { mutableStateOf(preferences.loadMonochromeMenuBarIcon()) }
     var launchAtLogin by remember { mutableStateOf(loginLauncher.isEnabled()) }
+    val presenceAccumulator = remember {
+        PresenceAccumulator().also {
+            val (day, intervals) = preferences.loadFocusPresence()
+            if (day >= 0) it.restore(intervals, day)
+        }
+    }
+    var focusPresenceIntervals by remember { mutableStateOf(preferences.loadFocusPresence().second) }
 
     DisposableEffect(preferences) {
         val stopObserving = preferences.observe { preferenceSnapshot = it }
@@ -93,6 +103,23 @@ fun main() = application {
             } else if (!focusIsActive) {
                 focusDriftReminderId = null
                 focusResumeRitualId = null
+            }
+
+            val dayKey = Instant.fromEpochMilliseconds(currentNowMillis)
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+                .date.toEpochDays()
+            val classification = classifyFrontmost(
+                frontmostBundleId,
+                currentPreferences.onGoalApps.map { it.bundleId }.toSet(),
+            )
+            val updatedIntervals = if (focusIsActive) {
+                presenceAccumulator.observe(currentNowMillis, classification, dayKey)
+            } else {
+                focusPresenceIntervals
+            }
+            if (updatedIntervals != focusPresenceIntervals) {
+                focusPresenceIntervals = updatedIntervals
+                preferences.saveFocusPresence(dayKey, updatedIntervals)
             }
             delay(1_000)
         }
@@ -209,6 +236,7 @@ fun main() = application {
                 onDismissFocusResumeRitual = { focusResumeRitualId = null },
                 scheduleSoundAlerts = false,
                 runningApps = { runningApplicationsProvider.runningApps() },
+                focusPresenceIntervals = focusPresenceIntervals,
             )
         }
     }

@@ -33,6 +33,7 @@ fun DayViewApp(
     onDismissFocusResumeRitual: () -> Unit = {},
     scheduleSoundAlerts: Boolean = true,
     runningApps: () -> List<AppRef> = { emptyList() },
+    focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
 ) {
     DayViewTheme { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
@@ -49,6 +50,10 @@ fun DayViewApp(
             DisposableEffect(controller, preferences) {
                 val stopObserving = preferences.observe { controller.onPreferencesChanged(it) }
                 onDispose(stopObserving)
+            }
+
+            LaunchedEffect(focusPresenceIntervals) {
+                controller.setFocusPresenceIntervals(focusPresenceIntervals)
             }
 
             val netMinute = state.nowMillis / 60_000L
