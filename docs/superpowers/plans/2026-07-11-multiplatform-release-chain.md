@@ -83,10 +83,12 @@ fun deriveVersionCode(version: String): Int {
 val appVersionCode: Int = deriveVersionCode(appVersion)
 
 // jpackage (dmg/deb/rpm) requires a strictly numeric X.Y.Z whose first component
-// is >= 1; map any pre-release suffix or 0.0.0 to a valid numeric version.
+// is >= 1; map any pre-release suffix or major-0 version to a valid numeric version.
 val appPackageVersion: String =
-    appVersion.substringBefore('-').substringBefore('+')
-        .let { core -> if (core.isBlank() || core == "0.0.0") "1.0.0" else core }
+    appVersion.substringBefore('-').substringBefore('+').let { core ->
+        val major = core.substringBefore('.').toIntOrNull() ?: 0
+        if (major < 1) "1.0.0" else core
+    }
 
 val isMacHost: Boolean =
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
@@ -643,40 +645,40 @@ git push -u origin claude/release-chain-multiplatform-43c6ae
 
 - [ ] **Step 4: CI dry run with a throwaway tag** *(outward-facing — confirm with the user before running)*
 
-Tag-triggered workflows run from the tagged commit's workflow file, so a test tag on this branch's HEAD works.
+Tag-triggered workflows run from the tagged commit's workflow file, so a test tag on this branch's HEAD works. Use a `v1.x` test tag (not a pre-1.0 tag): jpackage rejects major-0 versions, and `appPackageVersion` would remap any pre-1.0 tag to `1.0.0`, defeating the point of a distinct test artifact.
 
 ```bash
-git tag v0.0.1-test
-git push origin v0.0.1-test
+git tag v1.0.0-test
+git push origin v1.0.0-test
 gh run watch "$(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
 ```
 
 Expected: all four jobs (android, linux, macos, release) succeed. Then:
 
 ```bash
-gh release view v0.0.1-test --json assets --jq '.assets[].name'
+gh release view v1.0.0-test --json assets --jq '.assets[].name'
 ```
 
-Expected asset names (tag version `0.0.1-test`, jpackage version `0.0.1`):
-- `DayView-0.0.1-test.apk`
-- `DayView-0.0.1.dmg`
-- `DayView-0.0.1-test.x86_64.AppImage`
-- a `.deb` (e.g. `dayview_0.0.1_amd64.deb`)
-- a `.rpm` (e.g. `dayview-0.0.1-1.x86_64.rpm`)
+Expected asset names (tag version `1.0.0-test`, jpackage version `1.0.0`):
+- `DayView-1.0.0-test.apk`
+- `DayView-1.0.0.dmg`
+- `DayView-1.0.0-test.x86_64.AppImage`
+- a `.deb` (e.g. `dayview_1.0.0_amd64.deb`)
+- a `.rpm` (e.g. `dayview-1.0.0-1.x86_64.rpm`)
 
-> Note: `.dmg`/`.deb`/`.rpm` carry the numeric jpackage version (`0.0.1`); `.apk` and `.AppImage` carry the raw tag string (`0.0.1-test`). Expected, given jpackage's numeric-only constraint. Confirm exact `.deb`/`.rpm` names from the listing.
+> Note: `.dmg`/`.deb`/`.rpm` carry the numeric jpackage version (`1.0.0`); `.apk` and `.AppImage` carry the raw tag string (`1.0.0-test`). Expected, given jpackage's numeric-only constraint. Confirm exact `.deb`/`.rpm` names from the listing.
 
 - [ ] **Step 5: Clean up the test tag and release**
 
 ```bash
-gh release delete v0.0.1-test --yes
-git push origin --delete v0.0.1-test
-git tag -d v0.0.1-test
+gh release delete v1.0.0-test --yes
+git push origin --delete v1.0.0-test
+git tag -d v1.0.0-test
 ```
 
 - [ ] **Step 6: Manual Linux launch smoke test (not automatable from macOS)**
 
-On a Linux machine/VM, capture the AppImage from the dry run before cleanup, then:
+On a Linux machine/VM, capture the AppImage from the dry run before cleanup (cleanup below deletes `v1.0.0-test`), then:
 
 ```bash
 chmod +x DayView-*.AppImage

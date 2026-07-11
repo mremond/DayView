@@ -85,14 +85,17 @@ tag v1.2.0 pushed
 The workflow strips the leading `v` from the tag ref (`v1.2.0` → `1.2.0`) and
 passes it to every Gradle invocation as `-Pappversion=1.2.0`.
 
-`build.gradle.kts` reads the `appversion` project property with a dev-default
-fallback (e.g. `"0.0.0-dev"`) for local builds where the property is absent:
+`build.gradle.kts` reads the `appversion` project property with a default
+fallback of `"1.0.0"` (the repo's existing default) for local builds where the
+property is absent:
 
 - Android `versionName` = the version string.
 - Android `versionCode` = derived monotonic integer from the semver:
   `major*10000 + minor*100 + patch` (e.g. `1.2.0` → `10200`). Non-numeric
-  pre-release suffixes are stripped before parsing; the dev fallback yields a
-  small constant so local builds don't fail.
+  pre-release suffixes are stripped before parsing.
+- Native package version (`.dmg`/`.deb`/`.rpm`) must be strictly numeric with a
+  major component ≥ 1 (jpackage constraint); any pre-release suffix or major-0
+  version is remapped to `1.0.0`. Release tags should therefore be `v1.x`+.
 - Compose `packageVersion` = the version string.
 
 ### Gradle changes
@@ -182,9 +185,9 @@ with R8/ProGuard.
   the packaged `.dmg` app) and exercise the tray, main window, and a Focus
   session to confirm ProGuard didn't strip anything needed. Add keep rules
   until it launches and runs cleanly.
-- **CI dry run:** push a throwaway tag (e.g. `v0.0.1-test`) once the workflow
-  lands and confirm all three artifacts attach to the resulting Release. Delete
-  the test tag/Release afterward.
+- **CI dry run:** push a throwaway tag (e.g. `v1.0.0-test`) once the workflow
+  lands and confirm all artifacts attach to the resulting Release. Delete the
+  test tag/Release afterward.
 - **Linux launch** cannot be fully exercised from the Mac; flag it as a manual
   smoke test (download the AppImage on a Linux box and confirm the window opens
   with Mac-only features inactive).
