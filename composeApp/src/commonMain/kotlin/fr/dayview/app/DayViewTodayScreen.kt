@@ -76,6 +76,74 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.app_wordmark
+import fr.dayview.app.generated.resources.busy_generic
+import fr.dayview.app.generated.resources.busy_remaining
+import fr.dayview.app.generated.resources.busy_time_range
+import fr.dayview.app.generated.resources.countdown_day_over
+import fr.dayview.app.generated.resources.countdown_time_left
+import fr.dayview.app.generated.resources.day_available_percent
+import fr.dayview.app.generated.resources.dialog_cancel
+import fr.dayview.app.generated.resources.dialog_ok
+import fr.dayview.app.generated.resources.focus_break_conscious
+import fr.dayview.app.generated.resources.focus_break_disconnect
+import fr.dayview.app.generated.resources.focus_break_since
+import fr.dayview.app.generated.resources.focus_close_section
+import fr.dayview.app.generated.resources.focus_closed
+import fr.dayview.app.generated.resources.focus_drift_dismiss
+import fr.dayview.app.generated.resources.focus_drift_title
+import fr.dayview.app.generated.resources.focus_duration_decrease
+import fr.dayview.app.generated.resources.focus_duration_increase
+import fr.dayview.app.generated.resources.focus_duration_value
+import fr.dayview.app.generated.resources.focus_intention_hint
+import fr.dayview.app.generated.resources.focus_intention_label
+import fr.dayview.app.generated.resources.focus_intention_placeholder
+import fr.dayview.app.generated.resources.focus_intention_prompt
+import fr.dayview.app.generated.resources.focus_my_intention
+import fr.dayview.app.generated.resources.focus_outcome_completed
+import fr.dayview.app.generated.resources.focus_outcome_progressed
+import fr.dayview.app.generated.resources.focus_outcome_to_resume
+import fr.dayview.app.generated.resources.focus_resume
+import fr.dayview.app.generated.resources.focus_resume_button
+import fr.dayview.app.generated.resources.focus_resume_point
+import fr.dayview.app.generated.resources.focus_resume_time_left
+import fr.dayview.app.generated.resources.focus_section
+import fr.dayview.app.generated.resources.focus_single_thing
+import fr.dayview.app.generated.resources.focus_start_button
+import fr.dayview.app.generated.resources.focus_start_full_button
+import fr.dayview.app.generated.resources.focus_state_active
+import fr.dayview.app.generated.resources.focus_state_break_active
+import fr.dayview.app.generated.resources.focus_state_idle
+import fr.dayview.app.generated.resources.focus_state_series_inactive
+import fr.dayview.app.generated.resources.focus_stop
+import fr.dayview.app.generated.resources.focused_today
+import fr.dayview.app.generated.resources.goal_badge
+import fr.dayview.app.generated.resources.goal_choose_date
+import fr.dayview.app.generated.resources.goal_deadline_label
+import fr.dayview.app.generated.resources.goal_define
+import fr.dayview.app.generated.resources.goal_define_deadline
+import fr.dayview.app.generated.resources.goal_invalid_time
+import fr.dayview.app.generated.resources.goal_progress_percent
+import fr.dayview.app.generated.resources.goal_section_title
+import fr.dayview.app.generated.resources.goal_start_before_deadline
+import fr.dayview.app.generated.resources.goal_start_label
+import fr.dayview.app.generated.resources.goal_title_label
+import fr.dayview.app.generated.resources.goal_title_placeholder
+import fr.dayview.app.generated.resources.mini_window_button
+import fr.dayview.app.generated.resources.minutes_label
+import fr.dayview.app.generated.resources.net_remaining
+import fr.dayview.app.generated.resources.seconds_remaining
+import fr.dayview.app.generated.resources.settings_title
+import fr.dayview.app.generated.resources.today_hero_ending
+import fr.dayview.app.generated.resources.today_hero_finished
+import fr.dayview.app.generated.resources.today_hero_not_started
+import fr.dayview.app.generated.resources.today_hero_ongoing
+import fr.dayview.app.generated.resources.today_status_ending
+import fr.dayview.app.generated.resources.today_status_finished
+import fr.dayview.app.generated.resources.today_status_not_started
+import fr.dayview.app.generated.resources.today_status_ongoing
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -236,10 +304,10 @@ private fun CompactTodayContent(
     ) {
         Text(
             text = when {
-                !progress.hasStarted -> "La journée n’a pas commencé."
-                progress.isFinished -> "Le temps prévu est écoulé."
-                progress.remainingRatio < .2f -> "La journée touche à sa fin."
-                else -> "Gardez le cap, sans pression."
+                !progress.hasStarted -> stringResource(Res.string.today_status_not_started)
+                progress.isFinished -> stringResource(Res.string.today_status_finished)
+                progress.remainingRatio < .2f -> stringResource(Res.string.today_status_ending)
+                else -> stringResource(Res.string.today_status_ongoing)
             },
             color = colors.muted,
             fontSize = 13.sp,
@@ -286,7 +354,7 @@ private fun CompactTodayContent(
             Box(Modifier.size(8.dp).background(if (progress.isFinished) colors.red else colors.mint, CircleShape))
             Spacer(Modifier.width(9.dp))
             Text(
-                if (progress.isFinished) "0 % de la journée disponible" else "${progress.percentageRemaining} % de la journée disponible",
+                stringResource(Res.string.day_available_percent, (if (progress.isFinished) 0 else progress.percentageRemaining).toString()),
                 color = colors.muted,
                 fontSize = 12.sp,
             )
@@ -305,7 +373,7 @@ private fun CompactTodayContent(
                     .padding(bottom = 28.dp)
                     .imePadding(),
             ) {
-                Text("FOCUS", color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                Text(stringResource(Res.string.focus_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
                 Spacer(Modifier.height(14.dp))
                 FocusCreationContent(
                     progress = pomodoro,
@@ -385,14 +453,12 @@ private fun CompactGoalRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (hasGoal) {
-                Text("OBJECTIF", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                Text(stringResource(Res.string.goal_badge), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
                 Spacer(Modifier.width(12.dp))
                 Text(
                     formatGoalSummaryLine(
                         title = title,
-                        deadline = deadline,
-                        working = working,
-                        deadlineReached = deadline != null && deadline <= now,
+                        workingHoursLabel = deadline?.let { goalWorkingTimeLabel(working, it <= now) },
                     ),
                     color = colors.cloud,
                     fontSize = 13.sp,
@@ -403,7 +469,7 @@ private fun CompactGoalRow(
                 )
             } else {
                 Text(
-                    "+ Définir un objectif",
+                    stringResource(Res.string.goal_define),
                     color = colors.muted,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
@@ -439,7 +505,7 @@ private fun FocusEntryButton(
             FocusClosureChip(lastClosure)
         }
         FocusActionButton(
-            "DÉMARRER UN FOCUS",
+            stringResource(Res.string.focus_start_button),
             colors.amber,
             modifier = Modifier.fillMaxWidth(),
             filled = true,
@@ -452,12 +518,12 @@ private fun FocusEntryButton(
 private fun FocusClosureChip(outcome: FocusClosureOutcome) {
     val colors = LocalDayViewColors.current
     val closureLabel = when (outcome) {
-        FocusClosureOutcome.COMPLETED -> "TERMINÉ"
-        FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
-        FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
+        FocusClosureOutcome.COMPLETED -> stringResource(Res.string.focus_outcome_completed)
+        FocusClosureOutcome.PROGRESSED -> stringResource(Res.string.focus_outcome_progressed)
+        FocusClosureOutcome.TO_RESUME -> stringResource(Res.string.focus_outcome_to_resume)
     }
     Text(
-        "FOCUS CLÔTURÉ · $closureLabel",
+        stringResource(Res.string.focus_closed, closureLabel),
         color = colors.mint,
         fontSize = 9.sp,
         fontWeight = FontWeight.Bold,
@@ -479,12 +545,12 @@ private fun GoalEditorContent(
     onStartCommit: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Text("OBJECTIF GLOBAL", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+    Text(stringResource(Res.string.goal_section_title), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
     Spacer(Modifier.height(12.dp))
     GoalTextField(
         value = title,
-        semanticLabel = "Objectif du jour",
-        placeholder = "Que voulez-vous accomplir ?",
+        semanticLabel = stringResource(Res.string.goal_title_label),
+        placeholder = stringResource(Res.string.goal_title_placeholder),
         onValueChange = onTitleChange,
         imeAction = ImeAction.Next,
     )
@@ -509,11 +575,11 @@ private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) 
     ) {
         Box(Modifier.size(10.dp).background(colors.mint, CircleShape))
         Spacer(Modifier.width(10.dp))
-        Text("DAYVIEW", color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
+        Text(stringResource(Res.string.app_wordmark), color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
         Spacer(Modifier.weight(1f))
         onOpenMiniWindow?.let {
             Text(
-                "MINI",
+                stringResource(Res.string.mini_window_button),
                 color = colors.muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -525,7 +591,7 @@ private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) 
             Spacer(Modifier.width(18.dp))
         }
         Text(
-            "RÉGLAGES",
+            stringResource(Res.string.settings_title),
             color = colors.muted,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
@@ -698,7 +764,7 @@ internal fun CountdownCircle(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        if (progress.isFinished) "JOURNÉE\nTERMINÉE" else "IL RESTE",
+                        if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
                         color = if (progress.isFinished) colors.red else colors.muted,
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
@@ -715,7 +781,7 @@ internal fun CountdownCircle(
                         }
                         if (showSeconds) {
                             Text(
-                                "${progress.remainingSeconds.toString().padStart(2, '0')} secondes",
+                                stringResource(Res.string.seconds_remaining, progress.remainingSeconds.toString().padStart(2, '0')),
                                 color = colors.muted,
                                 fontSize = 12.sp,
                                 letterSpacing = .8.sp,
@@ -724,14 +790,14 @@ internal fun CountdownCircle(
                         if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Net ${formatDurationHm(netTime.netRemaining)}",
+                                stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining)),
                                 color = colors.mint,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 letterSpacing = .5.sp,
                             )
                             Text(
-                                "${formatDurationHm(netTime.busyRemaining)} occupé",
+                                stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
                                 color = colors.muted,
                                 fontSize = 11.sp,
                                 letterSpacing = .5.sp,
@@ -740,7 +806,7 @@ internal fun CountdownCircle(
                         if (focusedToday > Duration.ZERO) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Focus ${formatDurationHm(focusedToday)}",
+                                stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
                                 color = colors.mint,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -777,14 +843,14 @@ internal fun CountdownCircle(
                         Column {
                             val titles = arc.titles.filter { it.isNotBlank() }
                             if (titles.isEmpty()) {
-                                Text("Occupé", color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text(stringResource(Res.string.busy_generic), color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             } else {
                                 titles.forEach { title ->
                                     Text(title, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                 }
                             }
                             Text(
-                                "$startLabel – $endLabel",
+                                stringResource(Res.string.busy_time_range, startLabel, endLabel),
                                 color = colors.muted,
                                 fontSize = 11.sp,
                                 letterSpacing = .5.sp,
@@ -837,10 +903,10 @@ private fun SidePanel(
     Column(modifier = modifier.widthIn(max = 430.dp)) {
         Text(
             text = when {
-                !progress.hasStarted -> "Votre journée n’a pas commencé.\nLe cercle est encore intact."
-                progress.isFinished -> "Le temps prévu est écoulé.\nVous pouvez relâcher la journée."
-                progress.remainingRatio < .2f -> "La journée touche à sa fin.\nChoisissez une seule chose essentielle."
-                else -> "Voyez le temps.\nGardez le cap, sans pression."
+                !progress.hasStarted -> stringResource(Res.string.today_hero_not_started)
+                progress.isFinished -> stringResource(Res.string.today_hero_finished)
+                progress.remainingRatio < .2f -> stringResource(Res.string.today_hero_ending)
+                else -> stringResource(Res.string.today_hero_ongoing)
             },
             color = colors.cloud,
             fontSize = 22.sp,
@@ -869,7 +935,7 @@ private fun SidePanel(
             Box(Modifier.size(8.dp).background(if (progress.isFinished) colors.red else colors.mint, CircleShape))
             Spacer(Modifier.width(9.dp))
             Text(
-                if (progress.isFinished) "0 % de la journée disponible" else "${progress.percentageRemaining} % de la journée disponible",
+                stringResource(Res.string.day_available_percent, (if (progress.isFinished) 0 else progress.percentageRemaining).toString()),
                 color = colors.muted,
                 fontSize = 12.sp,
             )
@@ -902,16 +968,16 @@ private fun FocusPanel(
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("FOCUS", color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Text(stringResource(Res.string.focus_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
             Spacer(Modifier.weight(1f))
             Text(
                 when (progress.status) {
-                    PomodoroStatus.IDLE -> "PRÊT À S’ENGAGER"
-                    PomodoroStatus.ACTIVE -> "EN COURS"
+                    PomodoroStatus.IDLE -> stringResource(Res.string.focus_state_idle)
+                    PomodoroStatus.ACTIVE -> stringResource(Res.string.focus_state_active)
                     PomodoroStatus.BREAK -> if (progress.breakElapsed >= 60.minutes) {
-                        "SÉRIE INACTIVE"
+                        stringResource(Res.string.focus_state_series_inactive)
                     } else {
-                        "PAUSE EN COURS"
+                        stringResource(Res.string.focus_state_break_active)
                     }
                 },
                 color = if (progress.status == PomodoroStatus.BREAK) colors.mint else colors.muted,
@@ -931,7 +997,7 @@ private fun FocusPanel(
                         .padding(13.dp),
                 ) {
                     Text(
-                        "VOTRE POINT DE REPRISE",
+                        stringResource(Res.string.focus_resume_point),
                         color = colors.mint,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -939,7 +1005,7 @@ private fun FocusPanel(
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        intention.ifBlank { "Une seule chose à la fois." },
+                        intention.ifBlank { stringResource(Res.string.focus_single_thing) },
                         color = colors.cloud,
                         fontSize = 16.sp,
                         lineHeight = 21.sp,
@@ -947,7 +1013,7 @@ private fun FocusPanel(
                     )
                     Spacer(Modifier.height(5.dp))
                     Text(
-                        "Il reste ${formatPomodoroClock(progress)} pour garder le cap.",
+                        stringResource(Res.string.focus_resume_time_left, formatPomodoroClock(progress)),
                         color = colors.muted,
                         fontSize = 11.sp,
                     )
@@ -957,7 +1023,7 @@ private fun FocusPanel(
                         horizontalArrangement = Arrangement.spacedBy(9.dp),
                     ) {
                         FocusActionButton(
-                            "ARRÊTER",
+                            stringResource(Res.string.focus_stop),
                             colors.red,
                             modifier = Modifier.weight(1f),
                             onClick = {
@@ -966,7 +1032,7 @@ private fun FocusPanel(
                             },
                         )
                         FocusActionButton(
-                            "REPRENDRE",
+                            stringResource(Res.string.focus_resume),
                             colors.mint,
                             modifier = Modifier.weight(1f),
                             filled = true,
@@ -983,7 +1049,7 @@ private fun FocusPanel(
                         .padding(13.dp),
                 ) {
                     Text(
-                        "REVENIR À L’ESSENTIEL",
+                        stringResource(Res.string.focus_drift_title),
                         color = colors.amber,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -991,19 +1057,19 @@ private fun FocusPanel(
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        intention.ifBlank { "Une seule chose à la fois." },
+                        intention.ifBlank { stringResource(Res.string.focus_single_thing) },
                         color = colors.cloud,
                         fontSize = 15.sp,
                         lineHeight = 20.sp,
                         fontWeight = FontWeight.Medium,
                     )
                     Spacer(Modifier.height(10.dp))
-                    FocusActionButton("C’EST REPARTI", colors.amber, onClick = onDismissDriftReminder)
+                    FocusActionButton(stringResource(Res.string.focus_drift_dismiss), colors.amber, onClick = onDismissDriftReminder)
                 }
                 Spacer(Modifier.height(12.dp))
             }
             Text(
-                "MON INTENTION",
+                stringResource(Res.string.focus_my_intention),
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -1011,7 +1077,7 @@ private fun FocusPanel(
             )
             Spacer(Modifier.height(5.dp))
             Text(
-                intention.ifBlank { "Une seule chose à la fois." },
+                intention.ifBlank { stringResource(Res.string.focus_single_thing) },
                 color = colors.cloud,
                 fontSize = 14.sp,
                 lineHeight = 19.sp,
@@ -1021,7 +1087,7 @@ private fun FocusPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(formatPomodoroClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
                 Spacer(Modifier.weight(1f))
-                FocusActionButton("ARRÊTER", colors.red, onClick = onStop)
+                FocusActionButton(stringResource(Res.string.focus_stop), colors.red, onClick = onStop)
             }
             Spacer(Modifier.height(12.dp))
             Box(
@@ -1035,7 +1101,7 @@ private fun FocusPanel(
             }
         } else if (progress.status == PomodoroStatus.BREAK) {
             Text(
-                if (progress.breakElapsed >= 60.minutes) "SÉRIE INACTIVE" else "PAUSE DEPUIS",
+                if (progress.breakElapsed >= 60.minutes) stringResource(Res.string.focus_state_series_inactive) else stringResource(Res.string.focus_break_since),
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -1046,9 +1112,9 @@ private fun FocusPanel(
             Spacer(Modifier.height(14.dp))
             Text(
                 if (progress.breakElapsed < 10.minutes) {
-                    "PRENEZ LE TEMPS DE DÉCONNECTER"
+                    stringResource(Res.string.focus_break_disconnect)
                 } else {
-                    "REPRENDRE RESTE UN CHOIX CONSCIENT"
+                    stringResource(Res.string.focus_break_conscious)
                 },
                 color = colors.muted,
                 fontSize = 9.sp,
@@ -1057,7 +1123,7 @@ private fun FocusPanel(
             )
             Spacer(Modifier.height(9.dp))
             FocusActionButton(
-                "REPRENDRE UN FOCUS",
+                stringResource(Res.string.focus_resume_button),
                 colors.mint,
                 modifier = Modifier.fillMaxWidth(),
                 filled = true,
@@ -1065,7 +1131,7 @@ private fun FocusPanel(
             )
             Spacer(Modifier.height(14.dp))
             Text(
-                "CLÔTURER CE FOCUS",
+                stringResource(Res.string.focus_close_section),
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -1077,19 +1143,19 @@ private fun FocusPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 FocusActionButton(
-                    "TERMINÉ",
+                    stringResource(Res.string.focus_outcome_completed),
                     colors.mint,
                     modifier = Modifier.weight(1f),
                     onClick = { onClose(FocusClosureOutcome.COMPLETED) },
                 )
                 FocusActionButton(
-                    "AVANCÉ",
+                    stringResource(Res.string.focus_outcome_progressed),
                     colors.amber,
                     modifier = Modifier.weight(1f),
                     onClick = { onClose(FocusClosureOutcome.PROGRESSED) },
                 )
                 FocusActionButton(
-                    "À REPRENDRE",
+                    stringResource(Res.string.focus_outcome_to_resume),
                     colors.muted,
                     modifier = Modifier.weight(1f),
                     onClick = { onClose(FocusClosureOutcome.TO_RESUME) },
@@ -1122,7 +1188,7 @@ private fun FocusCreationContent(
         FocusClosureChip(lastClosure)
     }
     Text(
-        "À LA FIN DE CE FOCUS, J’AURAI…",
+        stringResource(Res.string.focus_intention_prompt),
         color = colors.muted,
         fontSize = 9.sp,
         fontWeight = FontWeight.Bold,
@@ -1131,8 +1197,8 @@ private fun FocusCreationContent(
     Spacer(Modifier.height(7.dp))
     GoalTextField(
         value = intention,
-        semanticLabel = "Intention du Focus",
-        placeholder = "Ex. terminé le plan de la présentation",
+        semanticLabel = stringResource(Res.string.focus_intention_label),
+        placeholder = stringResource(Res.string.focus_intention_placeholder),
         onValueChange = onIntentionChange,
     )
     Spacer(Modifier.height(12.dp))
@@ -1144,25 +1210,25 @@ private fun FocusCreationContent(
         TimeButton(
             label = "−",
             enabled = progress.durationMinutes > 5,
-            onClickLabel = "Diminuer la durée du Focus de 5 minutes",
-            valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+            onClickLabel = stringResource(Res.string.focus_duration_decrease),
+            valueDescription = stringResource(Res.string.focus_duration_value, progress.durationMinutes.toString()),
         ) { onDurationChange(-5) }
         Spacer(Modifier.width(18.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
-            Text("MINUTES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(stringResource(Res.string.minutes_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         }
         Spacer(Modifier.width(18.dp))
         TimeButton(
             label = "+",
             enabled = progress.durationMinutes < 180,
-            onClickLabel = "Augmenter la durée du Focus de 5 minutes",
-            valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+            onClickLabel = stringResource(Res.string.focus_duration_increase),
+            valueDescription = stringResource(Res.string.focus_duration_value, progress.durationMinutes.toString()),
         ) { onDurationChange(5) }
     }
     Spacer(Modifier.height(13.dp))
     FocusActionButton(
-        "DÉMARRER LE FOCUS",
+        stringResource(Res.string.focus_start_full_button),
         colors.amber,
         modifier = Modifier.fillMaxWidth(),
         enabled = intention.isNotBlank(),
@@ -1171,7 +1237,7 @@ private fun FocusCreationContent(
     )
     if (intention.isBlank()) {
         Spacer(Modifier.height(7.dp))
-        Text("Écrivez une intention pour démarrer.", color = colors.muted, fontSize = 10.sp)
+        Text(stringResource(Res.string.focus_intention_hint), color = colors.muted, fontSize = 10.sp)
     }
 }
 
@@ -1237,7 +1303,7 @@ private fun GlobalGoalPanel(
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("OBJECTIF GLOBAL", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Text(stringResource(Res.string.goal_section_title), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
             Spacer(Modifier.weight(1f))
             if (deadline != null) {
                 val working = remember(
@@ -1254,7 +1320,7 @@ private fun GlobalGoalPanel(
                     )
                 }
                 Text(
-                    formatGoalWorkingHours(working, deadline <= now).uppercase(),
+                    goalWorkingTimeLabel(working, deadline <= now).uppercase(),
                     color = if (deadline <= now) colors.red else colors.muted,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
@@ -1276,8 +1342,8 @@ private fun GlobalGoalPanel(
         Spacer(Modifier.height(12.dp))
         GoalTextField(
             value = title,
-            semanticLabel = "Objectif du jour",
-            placeholder = "Que voulez-vous accomplir ?",
+            semanticLabel = stringResource(Res.string.goal_title_label),
+            placeholder = stringResource(Res.string.goal_title_placeholder),
             onValueChange = onTitleChange,
             imeAction = ImeAction.Next,
         )
@@ -1379,7 +1445,7 @@ private fun GoalProgressBar(
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            "${(animatedProgress * 100).roundToInt()} %",
+            stringResource(Res.string.goal_progress_percent, (animatedProgress * 100).roundToInt().toString()),
             color = colors.muted,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -1400,19 +1466,20 @@ private fun GoalDateRow(
 ) {
     val colors = LocalDayViewColors.current
     var picker by remember { mutableStateOf(GoalDateTarget.NONE) }
+    val startBeforeDeadlineError = stringResource(Res.string.goal_start_before_deadline)
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (deadline != null) {
             GoalDateLabel(
                 text = formatGoalDateShort(start ?: now),
-                semanticLabel = "Début de l’objectif",
+                semanticLabel = stringResource(Res.string.goal_start_label),
                 isPlaceholder = false,
                 onClick = { picker = GoalDateTarget.START },
             )
             Text("→", color = colors.muted, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 6.dp))
         }
         GoalDateLabel(
-            text = deadline?.let(::formatGoalDateShort) ?: "+ Définir une échéance",
-            semanticLabel = "Date limite de l’objectif",
+            text = deadline?.let(::formatGoalDateShort) ?: stringResource(Res.string.goal_define_deadline),
+            semanticLabel = stringResource(Res.string.goal_deadline_label),
             isPlaceholder = deadline == null,
             onClick = { picker = GoalDateTarget.END },
         )
@@ -1422,7 +1489,7 @@ private fun GoalDateRow(
             initial = start ?: now,
             validate = { candidate ->
                 if (deadline != null && candidate >= deadline) {
-                    "Le début doit précéder l’échéance."
+                    startBeforeDeadlineError
                 } else {
                     null
                 }
@@ -1491,23 +1558,25 @@ private fun GoalDateTimeDialog(
         is24Hour = true,
     )
     var error by remember { mutableStateOf<String?>(null) }
+    val chooseDateError = stringResource(Res.string.goal_choose_date)
+    val invalidTimeError = stringResource(Res.string.goal_invalid_time)
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = {
                 val day = dateState.selectedDateMillis
                 if (day == null) {
-                    error = "Choisissez une date."
+                    error = chooseDateError
                     return@TextButton
                 }
                 val input = formatGoalPickerInput(day, timeState.hour, timeState.minute)
                 val parsed = parseGoalDeadline(input)
-                val message = if (parsed == null) "Heure invalide (changement d’heure)." else validate(parsed)
+                val message = if (parsed == null) invalidTimeError else validate(parsed)
                 if (message != null) error = message else onConfirm(input)
-            }) { Text("OK", color = colors.mint, fontWeight = FontWeight.Bold) }
+            }) { Text(stringResource(Res.string.dialog_ok), color = colors.mint, fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler", color = colors.muted) }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.dialog_cancel), color = colors.muted) }
         },
     ) {
         Column(

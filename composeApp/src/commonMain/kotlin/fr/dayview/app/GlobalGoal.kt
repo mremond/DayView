@@ -133,10 +133,25 @@ fun calculateGoalWorkingTime(
     return total
 }
 
-fun formatGoalWorkingHours(working: Duration, deadlineReached: Boolean): String {
-    if (deadlineReached) return "Échéance atteinte"
+sealed interface GoalWorkingTime {
+    /** The deadline has already passed. */
+    data object DeadlineReached : GoalWorkingTime
+
+    /** [hours] whole working hours remain before the deadline (always >= 1). */
+    data class HoursRemaining(val hours: Long) : GoalWorkingTime
+
+    /** Less than a full working hour remains before the deadline. */
+    data object LessThanAnHour : GoalWorkingTime
+}
+
+/**
+ * Classifies how much configured working time is left before the deadline. The wording
+ * lives in string resources; [goalWorkingTimeLabel] renders this to a localized label.
+ */
+fun goalWorkingTime(working: Duration, deadlineReached: Boolean): GoalWorkingTime {
+    if (deadlineReached) return GoalWorkingTime.DeadlineReached
     val hours = ceil(working.toDouble(DurationUnit.HOURS)).toLong()
-    return if (hours > 0) "Encore $hours h" else "Moins d’une heure de travail"
+    return if (hours > 0) GoalWorkingTime.HoursRemaining(hours) else GoalWorkingTime.LessThanAnHour
 }
 
 fun calculateGoalProgress(
@@ -158,10 +173,8 @@ fun calculateGoalProgress(
 
 fun formatGoalSummaryLine(
     title: String,
-    deadline: Instant?,
-    working: Duration,
-    deadlineReached: Boolean,
+    workingHoursLabel: String?,
 ): String = listOfNotNull(
     title.ifBlank { null },
-    deadline?.let { formatGoalWorkingHours(working, deadlineReached) },
+    workingHoursLabel,
 ).joinToString(" · ")
