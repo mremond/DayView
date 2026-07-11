@@ -631,74 +631,94 @@ private fun FocusPanel(
                 )
             }
         } else {
-            if (lastClosure != null) {
-                val closureLabel = when (lastClosure) {
-                    FocusClosureOutcome.COMPLETED -> "TERMINÉ"
-                    FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
-                    FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
-                }
-                Text(
-                    "FOCUS CLÔTURÉ · $closureLabel",
-                    color = colors.mint,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = .9.sp,
-                )
-                Spacer(Modifier.height(10.dp))
-            }
-            Text(
-                "À LA FIN DE CE FOCUS, J’AURAI…",
-                color = colors.muted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
+            FocusCreationContent(
+                progress = progress,
+                intention = intention,
+                lastClosure = lastClosure,
+                onIntentionChange = onIntentionChange,
+                onDurationChange = onDurationChange,
+                onStart = onStart,
             )
-            Spacer(Modifier.height(7.dp))
-            GoalTextField(
-                value = intention,
-                semanticLabel = "Intention du Focus",
-                placeholder = "Ex. terminé le plan de la présentation",
-                onValueChange = onIntentionChange,
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                TimeButton(
-                    label = "−",
-                    enabled = progress.durationMinutes > 5,
-                    onClickLabel = "Diminuer la durée du Focus de 5 minutes",
-                    valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
-                ) { onDurationChange(-5) }
-                Spacer(Modifier.width(18.dp))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
-                    Text("MINUTES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                }
-                Spacer(Modifier.width(18.dp))
-                TimeButton(
-                    label = "+",
-                    enabled = progress.durationMinutes < 180,
-                    onClickLabel = "Augmenter la durée du Focus de 5 minutes",
-                    valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
-                ) { onDurationChange(5) }
-            }
-            Spacer(Modifier.height(13.dp))
-            FocusActionButton(
-                "DÉMARRER LE FOCUS",
-                colors.amber,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = intention.isNotBlank(),
-                filled = true,
-                onClick = onStart,
-            )
-            if (intention.isBlank()) {
-                Spacer(Modifier.height(7.dp))
-                Text("Écrivez une intention pour démarrer.", color = colors.muted, fontSize = 10.sp)
-            }
         }
+    }
+}
+
+@Composable
+private fun FocusCreationContent(
+    progress: PomodoroProgress,
+    intention: String,
+    lastClosure: FocusClosureOutcome?,
+    onIntentionChange: (String) -> Unit,
+    onDurationChange: (Int) -> Unit,
+    onStart: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    if (lastClosure != null) {
+        val closureLabel = when (lastClosure) {
+            FocusClosureOutcome.COMPLETED -> "TERMINÉ"
+            FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
+            FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
+        }
+        Text(
+            "FOCUS CLÔTURÉ · $closureLabel",
+            color = colors.mint,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = .9.sp,
+        )
+        Spacer(Modifier.height(10.dp))
+    }
+    Text(
+        "À LA FIN DE CE FOCUS, J’AURAI…",
+        color = colors.muted,
+        fontSize = 9.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp,
+    )
+    Spacer(Modifier.height(7.dp))
+    GoalTextField(
+        value = intention,
+        semanticLabel = "Intention du Focus",
+        placeholder = "Ex. terminé le plan de la présentation",
+        onValueChange = onIntentionChange,
+    )
+    Spacer(Modifier.height(12.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        TimeButton(
+            label = "−",
+            enabled = progress.durationMinutes > 5,
+            onClickLabel = "Diminuer la durée du Focus de 5 minutes",
+            valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+        ) { onDurationChange(-5) }
+        Spacer(Modifier.width(18.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
+            Text("MINUTES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        }
+        Spacer(Modifier.width(18.dp))
+        TimeButton(
+            label = "+",
+            enabled = progress.durationMinutes < 180,
+            onClickLabel = "Augmenter la durée du Focus de 5 minutes",
+            valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+        ) { onDurationChange(5) }
+    }
+    Spacer(Modifier.height(13.dp))
+    FocusActionButton(
+        "DÉMARRER LE FOCUS",
+        colors.amber,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = intention.isNotBlank(),
+        filled = true,
+        onClick = onStart,
+    )
+    if (intention.isBlank()) {
+        Spacer(Modifier.height(7.dp))
+        Text("Écrivez une intention pour démarrer.", color = colors.muted, fontSize = 10.sp)
     }
 }
 
