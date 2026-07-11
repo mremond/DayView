@@ -1,4 +1,4 @@
-# Virtual Camera DayView on macOS
+# DayView Virtual Camera on macOS
 
 ## Status
 
