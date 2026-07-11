@@ -24,6 +24,9 @@ data class DayProgress(
     val percentageRemaining: Int get() = (remainingRatio * 100).roundToInt()
 }
 
+fun currentMomentAngleDegrees(remainingRatio: Float): Float =
+    -90f + (1f - remainingRatio.coerceIn(0f, 1f)) * 360f
+
 fun calculateDayProgress(
     nowMillis: Long,
     startMinutesOfDay: Int,

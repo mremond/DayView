@@ -1,6 +1,7 @@
 package fr.dayview.app
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -18,21 +19,42 @@ import kotlin.time.Clock
 
 fun main() = application {
     val preferences = remember { DesktopDayPreferences() }
+    val focusStatusItem = remember { MacFocusStatusItem() }
+    val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
+    val focusDriftDetector = remember { FocusDriftDetector() }
     var isWindowVisible by remember { mutableStateOf(true) }
+    var focusDriftReminderId by remember { mutableStateOf<Long?>(null) }
     var nowMillis by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds()) }
     var startMinutes by remember { mutableStateOf(preferences.loadStartMinutes()) }
     var endMinutes by remember { mutableStateOf(preferences.loadEndMinutes()) }
     var goalTitle by remember { mutableStateOf(preferences.loadGoalTitle()) }
     var goalDeadline by remember { mutableStateOf(preferences.loadGoalDeadlineMillis()) }
+    var pomodoroMinutes by remember { mutableStateOf(preferences.loadPomodoroMinutes()) }
+    var pomodoroEnd by remember { mutableStateOf(preferences.loadPomodoroEndMillis()) }
+    var focusIntention by remember { mutableStateOf(preferences.loadFocusIntention()) }
 
     LaunchedEffect(Unit) {
         while (true) {
-            nowMillis = Clock.System.now().toEpochMilliseconds()
+            val currentNowMillis = Clock.System.now().toEpochMilliseconds()
+            nowMillis = currentNowMillis
             startMinutes = preferences.loadStartMinutes()
             endMinutes = preferences.loadEndMinutes()
             goalTitle = preferences.loadGoalTitle()
             goalDeadline = preferences.loadGoalDeadlineMillis()
-            delay(30_000)
+            pomodoroMinutes = preferences.loadPomodoroMinutes()
+            val currentPomodoroEnd = preferences.loadPomodoroEndMillis()
+            pomodoroEnd = currentPomodoroEnd
+            focusIntention = preferences.loadFocusIntention()
+
+            val focusIsActive = currentPomodoroEnd != null && currentPomodoroEnd > currentNowMillis
+            val frontmostBundleId = if (focusIsActive) frontmostApplicationProvider.bundleIdentifier() else null
+            if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
+                focusDriftReminderId = currentNowMillis
+                isWindowVisible = true
+            } else if (!focusIsActive) {
+                focusDriftReminderId = null
+            }
+            delay(1_000)
         }
     }
 
@@ -51,12 +73,32 @@ fun main() = application {
             else -> "${goalTitle.take(24)} · $hours h"
         }
     }
+    val pomodoro = calculatePomodoroProgress(nowMillis, pomodoroMinutes, pomodoroEnd)
+    val focusStatus = when (pomodoro.status) {
+        PomodoroStatus.ACTIVE -> listOfNotNull(
+            "Focus",
+            focusIntention.take(24).takeIf(String::isNotBlank),
+            formatPomodoroClock(pomodoro),
+        ).joinToString(" · ")
+        PomodoroStatus.FINISHED -> "Focus · slot terminé"
+        PomodoroStatus.IDLE -> null
+    }
+
+    LaunchedEffect(pomodoro.status, pomodoro.remainingMillis / 1_000) {
+        focusStatusItem.update(
+            if (pomodoro.status == PomodoroStatus.ACTIVE) formatPomodoroCompactMinutes(pomodoro) else null,
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose { focusStatusItem.close() }
+    }
 
     Tray(
         icon = painterResource(Res.drawable.dayview_tray),
         tooltip = dayStatus,
         onAction = { isWindowVisible = true },
     ) {
+        focusStatus?.let { Item(it, enabled = false, onClick = {}) }
         Item(dayStatus, enabled = false, onClick = {})
         goalStatus?.let { Item(it, enabled = false, onClick = {}) }
         Separator()
@@ -72,7 +114,17 @@ fun main() = application {
             title = "DayView",
         ) {
             window.minimumSize = java.awt.Dimension(420, 680)
-            DayViewApp(preferences)
+            LaunchedEffect(focusDriftReminderId) {
+                if (focusDriftReminderId != null) {
+                    window.toFront()
+                    window.requestFocus()
+                }
+            }
+            DayViewApp(
+                preferences = preferences,
+                showFocusDriftReminder = focusDriftReminderId != null,
+                onDismissFocusDriftReminder = { focusDriftReminderId = null },
+            )
         }
     }
 }

@@ -41,9 +41,21 @@ python3 scripts/generate_icon_svg.py
 
 Les couleurs et la taille peuvent être adaptées avec `--accent`, `--marker`, `--background`, `--surface` et `--size`. Utilisez `--help` pour afficher toutes les options.
 
+L’icône macOS `.icns`, utilisée par le Dock et le DMG, est générée à toutes les résolutions requises depuis ce SVG :
+
+```bash
+./scripts/generate_macos_icon.sh
+```
+
 ## Objectif global
 
 Un objectif à plus long terme peut être renseigné avec une échéance au format `JJ/MM/AAAA HH:MM`. Son intitulé et son échéance sont sauvegardés localement, comme les heures de la journée. Son décompte est exprimé en heures de travail et additionne uniquement les plages comprises entre les heures quotidiennes de début et de fin.
+
+## Focus
+
+Le minuteur Focus permet de s’engager sur un slot de 25 minutes par défaut, réglable par pas de 5 minutes. Une intention concrète doit être renseignée avant le démarrage et reste visible pendant toute la session. Son échéance et son intention sont conservées localement : le décompte continue lorsque la fenêtre est masquée ou l’application relancée. Sur macOS, le temps restant est également visible dans la barre des menus.
+
+Pendant un Focus sur macOS, DayView observe uniquement l’identifiant de l’application au premier plan. Quatre changements d’application en moins de 45 secondes déclenchent un rappel de l’intention. Une période de grâce de 30 secondes et un délai de cinq minutes entre deux rappels évitent les interruptions répétitives. Cette détection reste locale et ne lit jamais le contenu des fenêtres.
 
 ## Principe du calcul
 

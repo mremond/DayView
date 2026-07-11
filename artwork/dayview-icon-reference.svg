@@ -22,9 +22,13 @@
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+    <clipPath id="appIconMask">
+      <rect width="1024" height="1024" rx="225.28"/>
+    </clipPath>
   </defs>
 
-  <!-- Full-bleed base; platform tooling may apply its own rounded mask. -->
+  <g clip-path="url(#appIconMask)">
+  <!-- Transparent rounded corners follow the macOS application-icon shape. -->
   <rect width="1024" height="1024" fill="url(#backgroundGlow)"/>
 
   <!-- Quiet inner disc improves recognition at notification-icon sizes. -->
@@ -47,4 +51,5 @@
   <!-- A small warm marker identifies the start of the remaining arc: now. -->
   <circle cx="846.51" cy="543.62" r="29.92"
           fill="#FFB86B"/>
+  </g>
 </svg>

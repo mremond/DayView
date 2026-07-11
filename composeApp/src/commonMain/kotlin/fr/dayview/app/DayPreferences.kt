@@ -7,6 +7,11 @@ interface DayPreferences {
     fun loadGoalTitle(): String
     fun loadGoalDeadlineMillis(): Long?
     fun saveGlobalGoal(title: String, deadlineMillis: Long?)
+    fun loadPomodoroMinutes(): Int
+    fun loadPomodoroEndMillis(): Long?
+    fun savePomodoro(durationMinutes: Int, endMillis: Long?)
+    fun loadFocusIntention(): String
+    fun saveFocusIntention(intention: String)
 }
 
 object DefaultDayPreferences : DayPreferences {
@@ -16,4 +21,9 @@ object DefaultDayPreferences : DayPreferences {
     override fun loadGoalTitle(): String = ""
     override fun loadGoalDeadlineMillis(): Long? = null
     override fun saveGlobalGoal(title: String, deadlineMillis: Long?) = Unit
+    override fun loadPomodoroMinutes(): Int = 25
+    override fun loadPomodoroEndMillis(): Long? = null
+    override fun savePomodoro(durationMinutes: Int, endMillis: Long?) = Unit
+    override fun loadFocusIntention(): String = ""
+    override fun saveFocusIntention(intention: String) = Unit
 }

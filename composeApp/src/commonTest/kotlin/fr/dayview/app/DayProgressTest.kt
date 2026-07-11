@@ -78,4 +78,17 @@ class DayProgressTest {
         assertEquals(1 * 3_600_000L, result.remainingMillis)
         assertTrue(result.remainingRatio in .32f..34f)
     }
+
+    @Test
+    fun presentMarkerAdvancesClockwiseFromTheTop() {
+        assertEquals(-90f, currentMomentAngleDegrees(1f))
+        assertEquals(90f, currentMomentAngleDegrees(.5f))
+        assertEquals(270f, currentMomentAngleDegrees(0f))
+    }
+
+    @Test
+    fun presentMarkerAngleClampsInvalidRatios() {
+        assertEquals(-90f, currentMomentAngleDegrees(2f))
+        assertEquals(270f, currentMomentAngleDegrees(-1f))
+    }
 }

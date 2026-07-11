@@ -23,6 +23,9 @@ class DesktopDayPreferencesTest {
         assertEquals(18 * 60, preferences.loadEndMinutes())
         assertEquals("", preferences.loadGoalTitle())
         assertNull(preferences.loadGoalDeadlineMillis())
+        assertEquals(25, preferences.loadPomodoroMinutes())
+        assertNull(preferences.loadPomodoroEndMillis())
+        assertEquals("", preferences.loadFocusIntention())
     }
 
     @Test
@@ -54,5 +57,35 @@ class DesktopDayPreferencesTest {
 
         assertEquals("Objectif sans date", reloaded.loadGoalTitle())
         assertNull(reloaded.loadGoalDeadlineMillis())
+    }
+
+    @Test
+    fun activeFocusSlotSurvivesANewPreferencesInstance() {
+        preferences.savePomodoro(45, 1_800_000_000_000L)
+
+        val reloaded = DesktopDayPreferences(storage)
+
+        assertEquals(45, reloaded.loadPomodoroMinutes())
+        assertEquals(1_800_000_000_000L, reloaded.loadPomodoroEndMillis())
+    }
+
+    @Test
+    fun stoppingFocusSlotKeepsPreferredDuration() {
+        preferences.savePomodoro(35, 1_800_000_000_000L)
+        preferences.savePomodoro(35, null)
+
+        val reloaded = DesktopDayPreferences(storage)
+
+        assertEquals(35, reloaded.loadPomodoroMinutes())
+        assertNull(reloaded.loadPomodoroEndMillis())
+    }
+
+    @Test
+    fun focusIntentionSurvivesANewPreferencesInstance() {
+        preferences.saveFocusIntention("Finaliser la présentation")
+
+        val reloaded = DesktopDayPreferences(storage)
+
+        assertEquals("Finaliser la présentation", reloaded.loadFocusIntention())
     }
 }

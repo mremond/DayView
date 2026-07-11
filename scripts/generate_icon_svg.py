@@ -25,6 +25,7 @@ def build_svg(
     ring_width = size * 0.0859375
     inner_radius = outer_radius - ring_width * 0.92
     marker_radius = ring_width * 0.34
+    corner_radius = size * 0.22
 
     # The visible arc represents the time still available. Its open quarter is
     # the portion of the day that has already been consumed.
@@ -63,9 +64,13 @@ def build_svg(
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+    <clipPath id="appIconMask">
+      <rect width="{size}" height="{size}" rx="{corner_radius:.2f}"/>
+    </clipPath>
   </defs>
 
-  <!-- Full-bleed base; platform tooling may apply its own rounded mask. -->
+  <g clip-path="url(#appIconMask)">
+  <!-- Transparent rounded corners follow the macOS application-icon shape. -->
   <rect width="{size}" height="{size}" fill="url(#backgroundGlow)"/>
 
   <!-- Quiet inner disc improves recognition at notification-icon sizes. -->
@@ -88,6 +93,7 @@ def build_svg(
   <!-- A small warm marker identifies the start of the remaining arc: now. -->
   <circle cx="{marker_x:.2f}" cy="{marker_y:.2f}" r="{marker_radius:.2f}"
           fill="{marker}"/>
+  </g>
 </svg>
 '''
 
