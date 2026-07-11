@@ -1,22 +1,22 @@
 package fr.dayview.app
 
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.window.application
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.window.rememberWindowState
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dayview_tray
 import fr.dayview.app.generated.resources.dayview_tray_monochrome
+import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 import kotlin.math.ceil
 import kotlin.time.Clock
 

@@ -16,7 +16,7 @@ Le mode mini-fenêtre, accessible depuis l’en-tête ou la barre des menus, gar
 
 ## Lancer le projet
 
-Prérequis : JDK 17 ou plus récent et Android SDK 36.
+Prérequis : JDK 17 ou plus récent pour lancer Gradle et Android SDK 36. La compilation utilise une toolchain JDK 21, téléchargée automatiquement si nécessaire.
 
 ```bash
 ./gradlew :composeApp:run

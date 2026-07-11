@@ -1,0 +1,21 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 4
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+# Matches kotlin.code.style=official (Kotlin coding conventions).
+ktlint_code_style = intellij_idea
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
+[*.{yml,yaml}]
+indent_size = 2
+
+# Generated sources (Compose resources accessors) are not hand-written.
+[**/build/generated/**]
+ktlint = disabled

@@ -125,7 +125,9 @@ class FocusAlarmReceiver : BroadcastReceiver() {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) return
+        ) {
+            return
+        }
 
         val notificationManager = context.getSystemService(NotificationManager::class.java)
         createChannel(notificationManager)
