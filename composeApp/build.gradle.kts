@@ -1,16 +1,30 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.ktlint)
+}
+
+// Single source of truth for the app version: Android versionName,
+// the desktop package version, and the DMG customization task all derive from it.
+val appVersion = "1.0.0"
+
+ktlint {
+    filter {
+        exclude { it.file.path.contains("/build/generated/") }
+    }
 }
 
 kotlin {
+    // Robolectric requires Java 21 to emulate compileSdk 36.
+    jvmToolchain(21)
+
     androidTarget()
     jvm("desktop")
 
@@ -22,6 +36,7 @@ kotlin {
                 implementation(libs.compose.material3)
                 implementation(libs.compose.ui)
                 implementation(libs.compose.components.resources)
+                implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
             }
         }
@@ -33,13 +48,13 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation(libs.compose.ui.tooling.preview)
-                implementation("androidx.activity:activity-compose:1.11.0")
+                implementation(libs.androidx.activity.compose)
             }
         }
         val androidUnitTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation("org.robolectric:robolectric:4.16")
+                implementation(libs.robolectric)
             }
         }
         val desktopMain by getting {
@@ -65,7 +80,18 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = appVersion
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
     }
 
     testOptions {
@@ -91,7 +117,7 @@ compose.desktop {
             )
             targetFormats(TargetFormat.Dmg)
             packageName = "DayView"
-            packageVersion = "1.0.0"
+            packageVersion = appVersion
             description = "Une représentation visuelle du temps qu'il reste aujourd'hui."
             vendor = "DayView"
             macOS {
@@ -107,7 +133,7 @@ val cleanNativePackagingOutput by tasks.registering(Delete::class) {
     delete(nativePackagingOutput)
 }
 val customizePackagedDmg by tasks.registering(Exec::class) {
-    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-1.0.0.dmg")
+    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-$appVersion.dmg")
     val volumeIcon = rootProject.file("artwork/dayview.icns")
 
     onlyIf {
@@ -136,12 +162,13 @@ tasks.matching { it.name == "packageDmg" }.configureEach {
 customizePackagedDmg.configure { finalizedBy(copyPackagedDmg) }
 
 val macFocusHelperOutput = layout.buildDirectory.file("generated/macosFocusStatusHelper/macos-focus-status-helper")
-val macFocusHelperOutputFile = macFocusHelperOutput.get().asFile
-macFocusHelperOutputFile.parentFile.mkdirs()
 val compileMacFocusStatusHelper by tasks.registering(Exec::class) {
+    // Local File value so the doFirst lambda stays serializable for the configuration cache.
+    val helperFile = macFocusHelperOutput.get().asFile
     onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
     inputs.file(rootProject.file("scripts/MacFocusStatusHelper.swift"))
     outputs.file(macFocusHelperOutput)
+    doFirst { helperFile.parentFile.mkdirs() }
     commandLine(
         "xcrun",
         "swiftc",
@@ -150,7 +177,7 @@ val compileMacFocusStatusHelper by tasks.registering(Exec::class) {
         "-framework",
         "AppKit",
         "-o",
-        macFocusHelperOutputFile.absolutePath,
+        helperFile.absolutePath,
     )
 }
 

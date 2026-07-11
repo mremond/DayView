@@ -8,7 +8,9 @@ actual fun createSoundCuePlayer(): SoundCuePlayer = AndroidSoundCuePlayer()
 
 private class AndroidSoundCuePlayer : SoundCuePlayer {
     private val sounds = mutableMapOf<SoundCue, SoundCuePcm>()
+
     @Volatile private var currentTrack: AudioTrack? = null
+
     @Volatile private var closed = false
 
     override fun play(cue: SoundCue, volume: Float) {

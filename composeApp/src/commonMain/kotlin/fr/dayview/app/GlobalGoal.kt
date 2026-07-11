@@ -1,13 +1,13 @@
 package fr.dayview.app
 
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Instant
 import kotlin.math.ceil
+import kotlin.time.Instant
 
 const val GOAL_DATE_PLACEHOLDER = "JJ/MM/AAAA HH:MM"
 
