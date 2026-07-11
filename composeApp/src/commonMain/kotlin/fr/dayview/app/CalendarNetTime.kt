@@ -89,6 +89,18 @@ data class BusyArc(
     val titles: List<String>,
 )
 
+/** Heure locale « HH:mm » d'un instant, pour l'overlay de survol. */
+fun formatClockHm(epochMillis: Long, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+    val value = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
+    return "${value.hour.toString().padStart(2, '0')}:${value.minute.toString().padStart(2, '0')}"
+}
+
+/** Instant (millis) correspondant à un angle d'arc dans la fenêtre [start, end]. */
+fun angleToMillis(angleDegrees: Float, windowStartMillis: Long, windowEndMillis: Long): Long {
+    val fraction = ((angleDegrees + 90f) / 360f).coerceIn(0f, 1f)
+    return windowStartMillis + (fraction * (windowEndMillis - windowStartMillis)).toLong()
+}
+
 fun busyArcs(
     windowStartMillis: Long,
     windowEndMillis: Long,

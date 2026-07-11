@@ -76,6 +76,18 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun angleToMillisAndClockRoundTrip() {
+        val zone = TimeZone.of("Europe/Paris")
+        val (start, end) = dayWindowMillis(
+            LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone).toEpochMilliseconds(),
+            8 * 60, 18 * 60, zone,
+        )
+        // Milieu de la fenêtre 08:00–18:00 -> 13:00, à l'angle 90° (-90 + 0.5*360).
+        assertEquals("13:00", formatClockHm(angleToMillis(90f, start, end), zone))
+        assertEquals("08:00", formatClockHm(angleToMillis(-90f, start, end), zone))
+    }
+
+    @Test
     fun noopCalendarSourceIsInertAndSafe() {
         assertEquals(false, NoopCalendarSource.isSupported())
         assertEquals(false, NoopCalendarSource.hasPermission())

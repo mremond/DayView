@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -57,6 +58,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -64,11 +67,15 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlin.math.atan2
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.time.Clock
 
 private data class DayViewColors(
@@ -1095,6 +1102,7 @@ private fun CountdownCircle(
         },
         label = "accent",
     )
+    var hoveredBusy by remember { mutableStateOf<HoveredBusyArc?>(null) }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         BoxWithConstraints(
@@ -1102,7 +1110,28 @@ private fun CountdownCircle(
             contentAlignment = Alignment.Center,
         ) {
             val circleSize = minOf(maxWidth, maxHeight, 510.dp)
-            Box(Modifier.size(circleSize), contentAlignment = Alignment.Center) {
+            val circleModifier = if (busyArcs.isEmpty()) {
+                Modifier.size(circleSize)
+            } else {
+                Modifier.size(circleSize).pointerInput(busyArcs) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val position = event.changes.firstOrNull()?.position
+                            if (event.type == PointerEventType.Exit || position == null) {
+                                hoveredBusy = null
+                            } else if (
+                                event.type == PointerEventType.Move ||
+                                event.type == PointerEventType.Enter
+                            ) {
+                                hoveredBusy = hitTestBusyArc(position, size.width, size.height, busyArcs)
+                                    ?.let { HoveredBusyArc(it, position) }
+                            }
+                        }
+                    }
+                }
+            }
+            Box(circleModifier, contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val strokeWidth = size.minDimension * .055f
                     val inset = strokeWidth / 2 + 4.dp.toPx()
@@ -1209,8 +1238,73 @@ private fun CountdownCircle(
                         }
                     }
                 }
+
+                hoveredBusy?.let { hovered ->
+                    val arc = hovered.arc
+                    val startLabel = formatClockHm(
+                        angleToMillis(arc.startAngleDegrees, windowStartMillis, windowEndMillis),
+                    )
+                    val endLabel = formatClockHm(
+                        angleToMillis(
+                            arc.startAngleDegrees + arc.sweepDegrees,
+                            windowStartMillis,
+                            windowEndMillis,
+                        ),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset {
+                                IntOffset(
+                                    hovered.position.x.roundToInt() + 14,
+                                    hovered.position.y.roundToInt() + 14,
+                                )
+                            }
+                            .background(colors.panel, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Column {
+                            val titles = arc.titles.filter { it.isNotBlank() }
+                            if (titles.isEmpty()) {
+                                Text("Occupé", color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            } else {
+                                titles.forEach { title ->
+                                    Text(title, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            Text(
+                                "$startLabel – $endLabel",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                letterSpacing = .5.sp,
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+private data class HoveredBusyArc(val arc: BusyArc, val position: Offset)
+
+/** Renvoie l'arc occupé sous le pointeur, ou null si le pointeur n'est pas sur l'anneau. */
+private fun hitTestBusyArc(
+    position: Offset,
+    width: Int,
+    height: Int,
+    busyArcs: List<BusyArc>,
+): BusyArc? {
+    val cx = width / 2f
+    val cy = height / 2f
+    val dx = position.x - cx
+    val dy = position.y - cy
+    val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
+    if (radiusFraction !in 0.70f..1.02f) return null
+    val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+    return busyArcs.firstOrNull { arc ->
+        val delta = (((angle - arc.startAngleDegrees) % 360f) + 360f) % 360f
+        delta <= arc.sweepDegrees
     }
 }
 
