@@ -30,6 +30,7 @@ compileSdk 36) and the Android SDK.
 
 ## Commit Messages and Pull Requests
 
+- Write all commit messages and pull requests in English.
 - Be careful with branch management to avoid losing work. `main` is normally protected:
   work through branches and pull requests, then squash-and-merge to `main`. Delete the
   branch after merge to avoid adding commits to an obsolete branch.
