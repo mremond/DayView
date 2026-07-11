@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -325,7 +326,7 @@ private fun CompactGoalRow(
         } ?: 0L
     }
     Row(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 430.dp)
+        modifier = Modifier.widthIn(max = 430.dp).fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(14.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(14.dp))
             .clickable(role = Role.Button, onClick = onClick)
@@ -346,6 +347,7 @@ private fun CompactGoalRow(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
         } else {
@@ -367,7 +369,7 @@ private fun FocusEntryButton(
 ) {
     val colors = LocalDayViewColors.current
     Column(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 430.dp),
+        modifier = Modifier.widthIn(max = 430.dp).fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (lastClosure != null) {

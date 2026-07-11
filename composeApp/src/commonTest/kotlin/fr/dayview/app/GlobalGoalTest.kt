@@ -242,6 +242,28 @@ class GlobalGoalTest {
     }
 
     @Test
+    fun goalSummaryShowsDeadlineReached() {
+        val line = formatGoalSummaryLine(
+            title = "Livrer la v2",
+            deadlineMillis = 1_000L,
+            workingMillis = 0L,
+            deadlineReached = true,
+        )
+        assertEquals("Livrer la v2 · Échéance atteinte", line)
+    }
+
+    @Test
+    fun goalSummaryShowsLessThanAnHourWhenNoWorkingTimeLeft() {
+        val line = formatGoalSummaryLine(
+            title = "",
+            deadlineMillis = 1_000L,
+            workingMillis = 0L,
+            deadlineReached = false,
+        )
+        assertEquals("Moins d’une heure de travail", line)
+    }
+
+    @Test
     fun goalSummaryEmptyWhenNothingSet() {
         val line = formatGoalSummaryLine(
             title = "",
