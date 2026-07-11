@@ -125,6 +125,11 @@ internal class DayViewController(
     fun closePomodoro(outcome: FocusClosureOutcome) {
         val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
         val intentionChanged = updatedIntention != state.focusIntention
+        // State is set once, up front, so the two persistence calls below each
+        // trigger a re-entrant onPreferencesChanged that reconciles against the
+        // already-final state (a no-op). This relies on synchronous, main-thread
+        // preference notification; a combined multi-field save would be needed if
+        // persistence ever becomes asynchronous (e.g. a DataStore migration).
         state = state.copy(
             pomodoroEndMillis = null,
             focusIntention = updatedIntention,
@@ -146,7 +151,9 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         startMinutes = safeStart,
         endMinutes = safeEnd,
         soundSettings = soundSettings.normalized(),
+        goalTitle = goalTitle.take(80),
         pomodoroMinutes = pomodoroMinutes.coerceIn(5, 180),
+        focusIntention = focusIntention.take(100),
     )
 }
 
