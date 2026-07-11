@@ -1,7 +1,14 @@
 package fr.dayview.app
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlin.test.Test
 import kotlin.test.assertEquals
+
+private fun testController(
+    preferences: DayPreferences,
+    nowMillis: Long,
+) = DayViewController(preferences, CoroutineScope(Dispatchers.Unconfined), initialNowMillis = nowMillis)
 
 class DayViewControllerTest {
     @Test
@@ -17,7 +24,7 @@ class DayViewControllerTest {
             ),
         )
 
-        val state = DayViewController(preferences, initialNowMillis = 1_000L).state
+        val state = testController(preferences, 1_000L).state
 
         assertEquals(1_000L, state.nowMillis)
         assertEquals(7 * 60 + 30, state.startMinutes)
@@ -31,7 +38,7 @@ class DayViewControllerTest {
     @Test
     fun controllerPersistsDayAndFocusEdits() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
 
         controller.setStartMinutes(7 * 60 + 30)
         controller.setEndMinutes(18 * 60 + 30)
@@ -54,7 +61,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = initialDeadline),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
         val updatedText = "25/12/2026 19:45"
         val updatedDeadline = parseGoalDeadline(updatedText)!!
 
@@ -76,7 +83,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = initialDeadline),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
 
         controller.setGoalDeadlineText("25/12")
         controller.commitGoalDeadline()
@@ -92,7 +99,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = initialDeadline),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
 
         controller.setGoalDeadlineText("")
         controller.commitGoalDeadline()
@@ -104,7 +111,7 @@ class DayViewControllerTest {
     @Test
     fun controllerConstrainsTimesSelectedByThePlatformPicker() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
 
         controller.setStartMinutes(20 * 60)
         assertEquals(17 * 60 + 30, controller.state.startMinutes)
@@ -119,7 +126,7 @@ class DayViewControllerTest {
     @Test
     fun controllerOwnsTheCompleteFocusLifecycle() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
         controller.setFocusIntention("Préparer la démonstration")
 
         controller.startPomodoro()
@@ -145,7 +152,7 @@ class DayViewControllerTest {
     @Test
     fun onPreferencesChangedAdoptsExternalPersistedFields() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
         val focusEnd = 10_000L + 50 * 60_000L
 
         controller.onPreferencesChanged(
@@ -168,7 +175,7 @@ class DayViewControllerTest {
     @Test
     fun onPreferencesChangedPreservesTransientUiState() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
         controller.openSettings()
         controller.setGoalDeadlineText("25/12/2026 19:45")
 
@@ -300,7 +307,7 @@ class DayViewControllerTest {
     @Test
     fun externalSaveReachesTheControllerThroughObserve() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
         val stopObserving = preferences.observe(controller::onPreferencesChanged)
 
         preferences.savePomodoro(50, 1_800_000_000_000L)
@@ -315,19 +322,20 @@ class DayViewControllerTest {
     @Test
     fun selfWritesReconcileWithoutClobberingStateOrDrafts() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val controller = testController(preferences, 10_000L)
         val stopObserving = preferences.observe(controller::onPreferencesChanged)
 
-        // An unsaved draft plus a persisting edit: the persisting edit's re-entrant
-        // reconcile must keep both the draft and the just-written value.
+        // An unsaved draft plus a persisting edit: the persisting edit's echo is
+        // dropped by the pending-self-write guard, so both the draft and the
+        // just-written value survive.
         controller.setGoalDeadlineText("25/12/2026 19:45")
         controller.setGoalTitle("Publier la version 1")
 
         assertEquals("Publier la version 1", controller.state.goalTitle)
         assertEquals("25/12/2026 19:45", controller.state.goalDeadlineText)
 
-        // closePomodoro persists twice (pomodoro then intention); the reconcile
-        // between the two saves must not revert the final intention/outcome.
+        // closePomodoro now persists a single atomic snapshot; its echo must not
+        // revert the final intention/outcome.
         controller.setFocusIntention("Préparer la démonstration")
         controller.startPomodoro()
         controller.closePomodoro(FocusClosureOutcome.COMPLETED)
