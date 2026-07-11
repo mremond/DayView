@@ -7,6 +7,7 @@ data class DayPreferencesSnapshot(
     val soundSettings: SoundSettings = SoundSettings(),
     val goalTitle: String = "",
     val goalDeadlineMillis: Long? = null,
+    val goalStartMillis: Long? = null,
     val pomodoroMinutes: Int = 25,
     val pomodoroEndMillis: Long? = null,
     val focusIntention: String = "",
@@ -22,7 +23,8 @@ interface DayPreferences {
     fun saveSoundSettings(settings: SoundSettings)
     fun loadGoalTitle(): String
     fun loadGoalDeadlineMillis(): Long?
-    fun saveGlobalGoal(title: String, deadlineMillis: Long?)
+    fun loadGoalStartMillis(): Long?
+    fun saveGlobalGoal(title: String, deadlineMillis: Long?, startMillis: Long?)
     fun loadPomodoroMinutes(): Int
     fun loadPomodoroEndMillis(): Long?
     fun savePomodoro(durationMinutes: Int, endMillis: Long?)
@@ -36,6 +38,7 @@ interface DayPreferences {
         soundSettings = loadSoundSettings(),
         goalTitle = loadGoalTitle(),
         goalDeadlineMillis = loadGoalDeadlineMillis(),
+        goalStartMillis = loadGoalStartMillis(),
         pomodoroMinutes = loadPomodoroMinutes(),
         pomodoroEndMillis = loadPomodoroEndMillis(),
         focusIntention = loadFocusIntention(),
@@ -57,7 +60,8 @@ object DefaultDayPreferences : DayPreferences {
     override fun saveSoundSettings(settings: SoundSettings) = Unit
     override fun loadGoalTitle(): String = ""
     override fun loadGoalDeadlineMillis(): Long? = null
-    override fun saveGlobalGoal(title: String, deadlineMillis: Long?) = Unit
+    override fun loadGoalStartMillis(): Long? = null
+    override fun saveGlobalGoal(title: String, deadlineMillis: Long?, startMillis: Long?) = Unit
     override fun loadPomodoroMinutes(): Int = 25
     override fun loadPomodoroEndMillis(): Long? = null
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) = Unit

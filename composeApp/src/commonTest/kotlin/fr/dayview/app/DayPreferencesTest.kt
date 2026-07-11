@@ -23,7 +23,7 @@ class DayPreferencesTest {
         DefaultDayPreferences.saveDayRange(0, 1)
         DefaultDayPreferences.saveShowSeconds(false)
         DefaultDayPreferences.saveSoundSettings(SoundSettings(enabled = true))
-        DefaultDayPreferences.saveGlobalGoal("Temporaire", 42L)
+        DefaultDayPreferences.saveGlobalGoal("Temporaire", 42L, 42L)
         DefaultDayPreferences.savePomodoro(50, 123L)
         DefaultDayPreferences.saveFocusIntention("Terminer le test")
 

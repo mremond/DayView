@@ -35,6 +35,7 @@ class AndroidDayPreferencesTest {
         assertEquals(SoundSettings(), preferences.loadSoundSettings())
         assertEquals("", preferences.loadGoalTitle())
         assertNull(preferences.loadGoalDeadlineMillis())
+        assertNull(preferences.loadGoalStartMillis())
         assertEquals(25, preferences.loadPomodoroMinutes())
         assertNull(preferences.loadPomodoroEndMillis())
         assertEquals("", preferences.loadFocusIntention())
@@ -51,7 +52,7 @@ class AndroidDayPreferencesTest {
         preferences.saveDayRange(7 * 60 + 30, 19 * 60)
         preferences.saveShowSeconds(false)
         preferences.saveSoundSettings(sounds)
-        preferences.saveGlobalGoal("Livrer DayView", 1_800_000_000_000L)
+        preferences.saveGlobalGoal("Livrer DayView", 1_800_000_000_000L, 1_700_000_000_000L)
         preferences.savePomodoro(45, 1_800_000_100_000L)
         preferences.saveFocusIntention("Finaliser la présentation")
 
@@ -63,6 +64,7 @@ class AndroidDayPreferencesTest {
         assertEquals(sounds, reloaded.loadSoundSettings())
         assertEquals("Livrer DayView", reloaded.loadGoalTitle())
         assertEquals(1_800_000_000_000L, reloaded.loadGoalDeadlineMillis())
+        assertEquals(1_700_000_000_000L, reloaded.loadGoalStartMillis())
         assertEquals(45, reloaded.loadPomodoroMinutes())
         assertEquals(1_800_000_100_000L, reloaded.loadPomodoroEndMillis())
         assertEquals("Finaliser la présentation", reloaded.loadFocusIntention())
@@ -70,8 +72,8 @@ class AndroidDayPreferencesTest {
 
     @Test
     fun nullableDeadlinesCanBeClearedWithoutLosingOtherValues() {
-        preferences.saveGlobalGoal("Objectif sans date", 1_800_000_000_000L)
-        preferences.saveGlobalGoal("Objectif sans date", null)
+        preferences.saveGlobalGoal("Objectif sans date", 1_800_000_000_000L, null)
+        preferences.saveGlobalGoal("Objectif sans date", null, null)
         preferences.savePomodoro(35, 1_800_000_100_000L)
         preferences.savePomodoro(35, null)
 
