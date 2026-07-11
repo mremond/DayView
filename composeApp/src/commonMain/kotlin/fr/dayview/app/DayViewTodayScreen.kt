@@ -350,7 +350,7 @@ private fun CompactGoalRow(
             )
         } else {
             Text(
-                "＋ Définir un objectif",
+                "+ Définir un objectif",
                 color = colors.muted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -371,19 +371,7 @@ private fun FocusEntryButton(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (lastClosure != null) {
-            val closureLabel = when (lastClosure) {
-                FocusClosureOutcome.COMPLETED -> "TERMINÉ"
-                FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
-                FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
-            }
-            Text(
-                "FOCUS CLÔTURÉ · $closureLabel",
-                color = colors.mint,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = .9.sp,
-            )
-            Spacer(Modifier.height(10.dp))
+            FocusClosureChip(lastClosure)
         }
         FocusActionButton(
             "DÉMARRER UN FOCUS",
@@ -393,6 +381,24 @@ private fun FocusEntryButton(
             onClick = onClick,
         )
     }
+}
+
+@Composable
+private fun FocusClosureChip(outcome: FocusClosureOutcome) {
+    val colors = LocalDayViewColors.current
+    val closureLabel = when (outcome) {
+        FocusClosureOutcome.COMPLETED -> "TERMINÉ"
+        FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
+        FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
+    }
+    Text(
+        "FOCUS CLÔTURÉ · $closureLabel",
+        color = colors.mint,
+        fontSize = 9.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = .9.sp,
+    )
+    Spacer(Modifier.height(10.dp))
 }
 
 @Composable
@@ -893,19 +899,7 @@ private fun FocusCreationContent(
 ) {
     val colors = LocalDayViewColors.current
     if (lastClosure != null) {
-        val closureLabel = when (lastClosure) {
-            FocusClosureOutcome.COMPLETED -> "TERMINÉ"
-            FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
-            FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
-        }
-        Text(
-            "FOCUS CLÔTURÉ · $closureLabel",
-            color = colors.mint,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = .9.sp,
-        )
-        Spacer(Modifier.height(10.dp))
+        FocusClosureChip(lastClosure)
     }
     Text(
         "À LA FIN DE CE FOCUS, J’AURAI…",
