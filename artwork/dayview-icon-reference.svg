@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024" height="1024" viewBox="0 0 1024 1024"
+     role="img" aria-labelledby="title description">
+  <title id="title">Icône DayView</title>
+  <desc id="description">Un cercle lumineux partiellement consumé représentant le temps restant dans la journée.</desc>
+
+  <defs>
+    <radialGradient id="backgroundGlow" cx="38%" cy="28%" r="86%">
+      <stop offset="0" stop-color="#202731"/>
+      <stop offset="1" stop-color="#0B0D12"/>
+    </radialGradient>
+    <linearGradient id="timeGradient" x1="18%" y1="12%" x2="83%" y2="88%">
+      <stop offset="0" stop-color="#B9F7DE"/>
+      <stop offset="0.48" stop-color="#78E6BD"/>
+      <stop offset="1" stop-color="#43BE93"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18.43" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Full-bleed base; platform tooling may apply its own rounded mask. -->
+  <rect width="1024" height="1024" fill="url(#backgroundGlow)"/>
+
+  <!-- Quiet inner disc improves recognition at notification-icon sizes. -->
+  <circle cx="512.00" cy="512.00" r="255.04"
+          fill="#0B0D12" fill-opacity="0.50"/>
+
+  <!-- The complete day, shown as a subtle track. -->
+  <circle cx="512.00" cy="512.00" r="336.00"
+          fill="none" stroke="#FFFFFF" stroke-opacity="0.10"
+          stroke-width="88.00"/>
+
+  <!-- Remaining time. Rotation puts the start at twelve o'clock. -->
+  <circle cx="512.00" cy="512.00" r="336.00"
+          fill="none" stroke="url(#timeGradient)"
+          stroke-width="88.00" stroke-linecap="round"
+          stroke-dasharray="1551.70 559.45"
+          transform="rotate(5.40 512.00 512.00)"
+          filter="url(#softGlow)"/>
+
+  <!-- A small warm marker identifies the start of the remaining arc: now. -->
+  <circle cx="846.51" cy="543.62" r="29.92"
+          fill="#FFB86B"/>
+</svg>
