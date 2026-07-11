@@ -106,3 +106,9 @@ La journée utilise les heures de début et de fin choisies (08:00–18:00 par d
 ## Repères sonores
 
 Les repères sonores, désactivés par défaut, se configurent dans l’écran Réglages. Hors session Focus, DayView peut jouer un bol au début de la journée, un tintement toutes les 30 à 180 minutes — toutes les demi-heures par défaut — et un gong à la fin. Pendant un Focus, ces repères de journée sont suspendus au profit de ceux de la session. Chaque repère peut être désactivé séparément, préécouté et joué au volume choisi. Les sons sont synthétisés localement et ne nécessitent aucun fichier audio ni service réseau.
+
+## Licence
+
+Copyright 2026 Mickaël Rémond.
+
+DayView est distribué sous licence Apache 2.0. Consultez le fichier [LICENSE](LICENSE) pour le texte complet.
