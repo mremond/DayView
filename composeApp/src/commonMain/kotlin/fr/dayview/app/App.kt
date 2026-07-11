@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -44,9 +45,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -72,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.atan2
 import kotlin.math.hypot
@@ -130,6 +134,7 @@ fun DayViewApp(
     onLaunchAtLoginChange: ((Boolean) -> Unit)? = null,
     onOpenMiniWindow: (() -> Unit)? = null,
     onFocusAlarmChange: (endMillis: Long?, intention: String) -> Unit = { _, _ -> },
+    onRequestCalendarPermission: (() -> Unit)? = null,
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
     showFocusResumeRitual: Boolean = false,
@@ -211,28 +216,54 @@ fun DayViewApp(
             val progress = calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
 
             val calendarSource = remember { createCalendarSource() }
+            val calendarScope = rememberCoroutineScope()
             var netTimeSettings by remember(preferences) { mutableStateOf(preferences.loadNetTimeSettings()) }
             var availableCalendars by remember { mutableStateOf<List<CalendarInfo>>(emptyList()) }
             var busyIntervalsState by remember { mutableStateOf<List<BusyInterval>>(emptyList()) }
+            var calendarPermission by remember { mutableStateOf(false) }
+            var calendarPermissionProbe by remember { mutableIntStateOf(0) }
             val netMinute = dayNowMillis / 60_000L
-            LaunchedEffect(netMinute, netTimeSettings, startMinutes, endMinutes) {
-                val (intervals, calendars) = withContext(Dispatchers.Default) {
-                    val granted = netTimeSettings.enabled &&
-                        runCatching { calendarSource.hasPermission() }.getOrDefault(false)
-                    if (granted) {
-                        val (ws, we) = dayWindowMillis(dayNowMillis, startMinutes, endMinutes)
-                        val busy = runCatching {
-                            calendarSource.busyIntervals(ws, we, netTimeSettings.includedCalendarIds)
-                        }.getOrDefault(emptyList())
-                        val cals = runCatching { calendarSource.availableCalendars() }
-                            .getOrDefault(emptyList())
-                        busy to cals
+            LaunchedEffect(netMinute, netTimeSettings, startMinutes, endMinutes, calendarPermissionProbe) {
+                val result = withContext(Dispatchers.Default) {
+                    if (!netTimeSettings.enabled) {
+                        Triple(false, emptyList<BusyInterval>(), emptyList<CalendarInfo>())
                     } else {
-                        emptyList<BusyInterval>() to emptyList<CalendarInfo>()
+                        val granted = runCatching { calendarSource.hasPermission() }.getOrDefault(false)
+                        if (granted) {
+                            val (ws, we) = dayWindowMillis(dayNowMillis, startMinutes, endMinutes)
+                            val busy = runCatching {
+                                calendarSource.busyIntervals(ws, we, netTimeSettings.includedCalendarIds)
+                            }.getOrDefault(emptyList())
+                            val cals = runCatching { calendarSource.availableCalendars() }
+                                .getOrDefault(emptyList())
+                            Triple(true, busy, cals)
+                        } else {
+                            Triple(false, emptyList<BusyInterval>(), emptyList<CalendarInfo>())
+                        }
                     }
                 }
-                busyIntervalsState = intervals
-                availableCalendars = calendars
+                calendarPermission = result.first
+                busyIntervalsState = result.second
+                availableCalendars = result.third
+            }
+            val onRequestCalendarAccess: () -> Unit = {
+                val platformHook = onRequestCalendarPermission
+                if (platformHook != null) {
+                    platformHook()
+                    calendarPermissionProbe++
+                } else {
+                    calendarScope.launch {
+                        withContext(Dispatchers.Default) {
+                            runCatching { calendarSource.requestPermission() }
+                        }
+                        calendarPermissionProbe++
+                    }
+                }
+            }
+            val onNetTimeSettingsChange: (NetTimeSettings) -> Unit = { updated ->
+                netTimeSettings = updated
+                preferences.saveNetTimeSettings(updated)
+                calendarPermissionProbe++
             }
             val netWindow = remember(netMinute, startMinutes, endMinutes) {
                 dayWindowMillis(dayNowMillis, startMinutes, endMinutes)
@@ -294,6 +325,12 @@ fun DayViewApp(
                     onPreviewSound = { cue ->
                         soundPlayer.play(cue, soundSettings.volumePercent / 100f)
                     },
+                    netTimeSettings = netTimeSettings,
+                    netTimeCalendars = availableCalendars,
+                    netTimeHasPermission = calendarPermission,
+                    netTimeSupported = calendarSource.isSupported(),
+                    onNetTimeSettingsChange = onNetTimeSettingsChange,
+                    onRequestCalendarPermission = onRequestCalendarAccess,
                     onBack = { destination = DayViewDestination.TODAY },
                 )
             } else {
@@ -729,6 +766,12 @@ private fun SettingsScreen(
     soundSettings: SoundSettings,
     onSoundSettingsChange: (SoundSettings) -> Unit,
     onPreviewSound: (SoundCue) -> Unit,
+    netTimeSettings: NetTimeSettings,
+    netTimeCalendars: List<CalendarInfo>,
+    netTimeHasPermission: Boolean,
+    netTimeSupported: Boolean,
+    onNetTimeSettingsChange: (NetTimeSettings) -> Unit,
+    onRequestCalendarPermission: () -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
@@ -917,6 +960,16 @@ private fun SettingsScreen(
                     onSettingsChange = onSoundSettingsChange,
                     onPreview = onPreviewSound,
                 )
+                if (netTimeSupported) {
+                    Spacer(Modifier.height(24.dp))
+                    NetTimeSettingsPanel(
+                        settings = netTimeSettings,
+                        calendars = netTimeCalendars,
+                        hasPermission = netTimeHasPermission,
+                        onSettingsChange = onNetTimeSettingsChange,
+                        onRequestPermission = onRequestCalendarPermission,
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Les changements sont enregistrés automatiquement et s’appliquent à tous les jours.",
@@ -1034,6 +1087,152 @@ private fun SoundSettingsPanel(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NetTimeSettingsPanel(
+    settings: NetTimeSettings,
+    calendars: List<CalendarInfo>,
+    hasPermission: Boolean,
+    onSettingsChange: (NetTimeSettings) -> Unit,
+    onRequestPermission: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Text("TEMPS NET", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "Soustrait les plages occupées de votre calendrier et les grise sur le cercle.",
+        color = colors.muted,
+        fontSize = 13.sp,
+        lineHeight = 19.sp,
+    )
+    Spacer(Modifier.height(14.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .toggleable(
+                value = settings.enabled,
+                role = Role.Switch,
+                onValueChange = { onSettingsChange(settings.copy(enabled = it)) },
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("CALCUL DU TEMPS NET", color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Spacer(Modifier.height(4.dp))
+            Text("Désactivé par défaut.", color = colors.muted, fontSize = 11.sp)
+        }
+        Switch(checked = settings.enabled, onCheckedChange = null)
+    }
+
+    if (settings.enabled) {
+        Spacer(Modifier.height(10.dp))
+        if (!hasPermission) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .background(colors.panel, RoundedCornerShape(18.dp))
+                    .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                    .padding(16.dp),
+            ) {
+                Text(
+                    "DayView a besoin d’accéder à votre calendrier, en lecture seule.",
+                    color = colors.cloud,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier.minimumInteractiveComponentSize()
+                        .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(10.dp))
+                        .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(10.dp))
+                        .clickable(role = Role.Button, onClick = onRequestPermission)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "AUTORISER L’ACCÈS AU CALENDRIER",
+                        color = colors.mint,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = .7.sp,
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .background(colors.panel, RoundedCornerShape(18.dp))
+                    .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    "CALENDRIERS",
+                    color = colors.muted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                )
+                if (calendars.isEmpty()) {
+                    Text(
+                        "Aucun calendrier disponible.",
+                        color = colors.muted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                } else {
+                    calendars.forEachIndexed { index, calendar ->
+                        if (index > 0) SettingsDivider()
+                        val included = settings.includedCalendarIds.isEmpty() ||
+                            calendar.id in settings.includedCalendarIds
+                        NetTimeCalendarRow(
+                            name = calendar.displayName.ifBlank { "Sans nom" },
+                            checked = included,
+                            onCheckedChange = { checked ->
+                                onSettingsChange(
+                                    settings.copy(
+                                        includedCalendarIds = nextIncludedCalendars(
+                                            allIds = calendars.map { it.id },
+                                            current = settings.includedCalendarIds,
+                                            toggledId = calendar.id,
+                                            include = checked,
+                                        ),
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Seuls les événements marqués occupé (hors journée entière) sont soustraits.",
+            color = colors.muted,
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+        )
+    }
+}
+
+@Composable
+private fun NetTimeCalendarRow(
+    name: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(name, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Checkbox(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -1234,6 +1433,22 @@ private fun CountdownCircle(
                                 color = colors.muted,
                                 fontSize = 12.sp,
                                 letterSpacing = .8.sp,
+                            )
+                        }
+                        if (netTime != null && netTime.busyRemainingMillis > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Net ${formatDurationHm(netTime.netRemainingMillis)}",
+                                color = colors.mint,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = .5.sp,
+                            )
+                            Text(
+                                "${formatDurationHm(netTime.busyRemainingMillis)} occupé",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                letterSpacing = .5.sp,
                             )
                         }
                     }

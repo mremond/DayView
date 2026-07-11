@@ -26,6 +26,9 @@ class MainActivity : ComponentActivity() {
             requestExactAfterNotificationPermission = false
         }
     }
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* Le recalcul du temps net relit l'état de l'autorisation. */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +46,9 @@ class MainActivity : ComponentActivity() {
                         val scheduledExactly = focusAlarmScheduler.schedule(endMillis, intention)
                         requestRequiredAccess(requestExactAlarm = !scheduledExactly)
                     }
+                },
+                onRequestCalendarPermission = {
+                    calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                 },
             )
         }

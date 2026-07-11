@@ -32,3 +32,19 @@ object NoopCalendarSource : CalendarSource {
 }
 
 expect fun createCalendarSource(): CalendarSource
+
+/**
+ * Calcule le prochain ensemble de calendriers inclus après une bascule.
+ * Un ensemble vide signifie « tous inclus » ; l'inclusion de tous les calendriers
+ * est renormalisée vers l'ensemble vide.
+ */
+fun nextIncludedCalendars(
+    allIds: List<String>,
+    current: Set<String>,
+    toggledId: String,
+    include: Boolean,
+): Set<String> {
+    val effective = if (current.isEmpty()) allIds.toSet() else current
+    val updated = if (include) effective + toggledId else effective - toggledId
+    return if (updated == allIds.toSet()) emptySet() else updated
+}

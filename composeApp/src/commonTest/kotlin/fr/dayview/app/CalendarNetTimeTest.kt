@@ -76,6 +76,13 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun durationFormatting() {
+        assertEquals("2 h 45", formatDurationHm(2 * 3_600_000 + 45 * 60_000L))
+        assertEquals("27 min", formatDurationHm(27 * 60_000L))
+        assertEquals("0 min", formatDurationHm(-5))
+    }
+
+    @Test
     fun angleToMillisAndClockRoundTrip() {
         val zone = TimeZone.of("Europe/Paris")
         val (start, end) = dayWindowMillis(
@@ -93,5 +100,16 @@ class CalendarNetTimeTest {
         assertEquals(false, NoopCalendarSource.hasPermission())
         assertEquals(emptyList(), NoopCalendarSource.availableCalendars())
         assertEquals(emptyList(), NoopCalendarSource.busyIntervals(0, 1000, emptySet()))
+    }
+
+    @Test
+    fun nextIncludedCalendarsHandlesAllSemantics() {
+        val all = listOf("a", "b", "c")
+        // Depuis « tous » (vide), décocher b -> {a, c}.
+        assertEquals(setOf("a", "c"), nextIncludedCalendars(all, emptySet(), "b", include = false))
+        // Re-cocher b pour revenir à tous -> renormalisé en vide.
+        assertEquals(emptySet(), nextIncludedCalendars(all, setOf("a", "c"), "b", include = true))
+        // Décocher depuis un sous-ensemble.
+        assertEquals(setOf("a"), nextIncludedCalendars(all, setOf("a", "c"), "c", include = false))
     }
 }

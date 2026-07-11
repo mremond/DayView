@@ -89,6 +89,14 @@ data class BusyArc(
     val titles: List<String>,
 )
 
+/** Durée « H h MM » (ou « MM min » sous une heure) pour l'affichage du temps net. */
+fun formatDurationHm(millis: Long): String {
+    val totalMinutes = (millis / 60_000L).coerceAtLeast(0)
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return if (hours > 0) "$hours h ${minutes.toString().padStart(2, '0')}" else "$minutes min"
+}
+
 /** Heure locale « HH:mm » d'un instant, pour l'overlay de survol. */
 fun formatClockHm(epochMillis: Long, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
     val value = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
