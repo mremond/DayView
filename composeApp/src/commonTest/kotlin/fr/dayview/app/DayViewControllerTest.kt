@@ -2,9 +2,6 @@ package fr.dayview.app
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -374,24 +371,5 @@ class DayViewControllerTest {
         assertEquals(null, controller.state.pomodoroEndMillis)
 
         observerJob.cancel()
-    }
-}
-
-private class InMemoryDayPreferences(
-    initial: DayPreferencesSnapshot = DayPreferencesSnapshot(),
-) : DayPreferences {
-    private val state = MutableStateFlow(initial)
-
-    override val snapshots: Flow<DayPreferencesSnapshot> = state.asStateFlow()
-
-    override suspend fun persist(snapshot: DayPreferencesSnapshot) {
-        state.value = snapshot
-    }
-
-    val current: DayPreferencesSnapshot get() = state.value
-
-    /** Simulates a write that lands from outside this process (tile/widget/alarm). */
-    fun emitExternal(snapshot: DayPreferencesSnapshot) {
-        state.value = snapshot
     }
 }
