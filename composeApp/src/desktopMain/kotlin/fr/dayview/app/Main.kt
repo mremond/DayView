@@ -22,6 +22,7 @@ import kotlin.time.Clock
 
 fun main() = application {
     val preferences = remember { DesktopDayPreferences() }
+    val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
@@ -43,6 +44,7 @@ fun main() = application {
     var focusIntention by remember { mutableStateOf(preferences.loadFocusIntention()) }
     var showSeconds by remember { mutableStateOf(preferences.loadShowSeconds()) }
     var monochromeMenuBarIcon by remember { mutableStateOf(preferences.loadMonochromeMenuBarIcon()) }
+    var launchAtLogin by remember { mutableStateOf(loginLauncher.isEnabled()) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -187,6 +189,10 @@ fun main() = application {
                 onMonochromeMenuBarIconChange = { monochrome ->
                     monochromeMenuBarIcon = monochrome
                     preferences.saveMonochromeMenuBarIcon(monochrome)
+                },
+                launchAtLogin = launchAtLogin.takeIf { loginLauncher.isAvailable() },
+                onLaunchAtLoginChange = { enabled ->
+                    if (loginLauncher.setEnabled(enabled)) launchAtLogin = enabled
                 },
                 onOpenMiniWindow = {
                     isWindowVisible = false

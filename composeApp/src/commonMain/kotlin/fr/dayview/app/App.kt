@@ -117,6 +117,8 @@ fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
     monochromeMenuBarIcon: Boolean? = null,
     onMonochromeMenuBarIconChange: ((Boolean) -> Unit)? = null,
+    launchAtLogin: Boolean? = null,
+    onLaunchAtLoginChange: ((Boolean) -> Unit)? = null,
     onOpenMiniWindow: (() -> Unit)? = null,
     onFocusAlarmChange: (endMillis: Long?, intention: String) -> Unit = { _, _ -> },
     showFocusDriftReminder: Boolean = false,
@@ -234,6 +236,8 @@ fun DayViewApp(
                     },
                     monochromeMenuBarIcon = monochromeMenuBarIcon,
                     onMonochromeMenuBarIconChange = onMonochromeMenuBarIconChange,
+                    launchAtLogin = launchAtLogin,
+                    onLaunchAtLoginChange = onLaunchAtLoginChange,
                     soundSettings = soundSettings,
                     onSoundSettingsChange = { updated ->
                         soundSettings = updated.normalized()
@@ -643,6 +647,8 @@ private fun SettingsScreen(
     onShowSecondsChange: (Boolean) -> Unit,
     monochromeMenuBarIcon: Boolean?,
     onMonochromeMenuBarIconChange: ((Boolean) -> Unit)?,
+    launchAtLogin: Boolean?,
+    onLaunchAtLoginChange: ((Boolean) -> Unit)?,
     soundSettings: SoundSettings,
     onSoundSettingsChange: (SoundSettings) -> Unit,
     onPreviewSound: (SoundCue) -> Unit,
@@ -787,6 +793,43 @@ private fun SettingsScreen(
                         Spacer(Modifier.width(16.dp))
                         Switch(
                             checked = monochromeMenuBarIcon,
+                            onCheckedChange = null,
+                        )
+                    }
+                }
+                if (launchAtLogin != null && onLaunchAtLoginChange != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .background(colors.panel, RoundedCornerShape(18.dp))
+                            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                            .toggleable(
+                                value = launchAtLogin,
+                                role = Role.Switch,
+                                onValueChange = onLaunchAtLoginChange,
+                            )
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "OUVRIR À LA CONNEXION",
+                                color = colors.cloud,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Lance automatiquement DayView à l’ouverture de votre session.",
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Switch(
+                            checked = launchAtLogin,
                             onCheckedChange = null,
                         )
                     }
