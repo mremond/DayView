@@ -38,7 +38,12 @@ Locked during brainstorming:
 - **Signing:** Skipped for this first chain. Android release APK is signed with
   the existing **debug** signing config so it stays sideload-installable; macOS
   `.dmg` and Linux packages are unsigned.
-- **Linux formats:** AppImage + `.deb` + `.rpm`.
+- **Linux formats:** `.deb` + `.rpm` (built directly by Compose) **and** a true
+  single-file `.AppImage`. Note: Compose's `TargetFormat.AppImage` is *not* a
+  Linux `.AppImage` — it maps to jpackage's `app-image` (a plain application
+  directory). The portable `.AppImage` is produced by a dedicated
+  `scripts/build_appimage.sh` that wraps Compose's app-image output with
+  `appimagetool` in the Linux CI job.
 - **Desktop build variant:** minified **release** builds for both macOS and
   Linux (Compose `Release` packaging tasks, R8/ProGuard enabled).
 - **Android artifact:** APK (not AAB), debug-signed, not minified for this first
@@ -105,10 +110,21 @@ fallback (e.g. `"0.0.0-dev"`) for local builds where the property is absent:
    binding); and Compose's generated resources class
    (`fr.dayview.app.generated.resources.**`). Additional keep rules are added
    as verification surfaces missing-class / stripped-symbol failures.
-5. Expand desktop `targetFormats` to
-   `TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage`.
-   Compose only builds formats valid for the current OS, so macOS runners still
-   produce just the `.dmg` and Linux runners produce the three Linux formats.
+5. Expand desktop `targetFormats` to `TargetFormat.Dmg, TargetFormat.Deb,
+   TargetFormat.Rpm`. Compose only builds formats valid for the current OS, so
+   macOS runners produce the `.dmg` and Linux runners produce `.deb` + `.rpm`.
+   The single-file `.AppImage` is built separately (see item 7).
+7. **Make the `outputBaseDir` temp-dir override macOS-only.** It exists solely
+   to dodge a macOS iCloud/FinderInfo codesign issue; on Linux it would push
+   `.deb`/`.rpm`/app-image into `$TMPDIR`. Guard it with the `isMacOS` check so
+   Linux packaging lands in the standard `build/compose/binaries/main-release/`.
+8. **AppImage packaging (`scripts/build_appimage.sh`, new).** Takes Compose's
+   release app-image directory
+   (`build/compose/binaries/main-release/app/DayView`), a version, and a PNG
+   icon; assembles an `AppDir` (with `AppRun`, `DayView.desktop`, icon) and runs
+   `appimagetool --appimage-extract-and-run` to emit
+   `DayView-<version>.x86_64.AppImage`. The Linux CI job generates the PNG from
+   `artwork/dayview-icon-reference.svg` with `rsvg-convert`.
 6. Point the Android `release` build type at the existing **debug** signing
    config, with a comment marking it temporary until a real upload keystore is
    added. This keeps `assembleRelease` output installable via sideload. Android
@@ -118,9 +134,11 @@ fallback (e.g. `"0.0.0-dev"`) for local builds where the property is absent:
 
 - **Android** (`ubuntu-latest`): `./gradlew :composeApp:assembleRelease
   -Pappversion=$VERSION`. Rename the output to `DayView-<version>.apk`.
-- **Linux** (`ubuntu-latest`): `apt-get install` `rpm` and `fakeroot` (jpackage
-  needs them for `.rpm`), then `./gradlew
-  :composeApp:packageReleaseDistributionForCurrentOS -Pappversion=$VERSION`.
+- **Linux** (`ubuntu-latest`): `apt-get install` `rpm`, `fakeroot`, `binutils`,
+  and `librsvg2-bin` (jpackage needs `rpm`/`fakeroot` for `.rpm`; `rsvg-convert`
+  renders the AppImage icon). Then `./gradlew
+  :composeApp:packageReleaseDistributionForCurrentOS -Pappversion=$VERSION` for
+  `.deb`/`.rpm`, followed by `scripts/build_appimage.sh` for the `.AppImage`.
   Swift-helper and DMG tasks are skipped by their existing `onlyIf { Mac }`.
 - **macOS** (`macos-latest`): `./gradlew :composeApp:packageReleaseDmg
   -Pappversion=$VERSION` (the `customizePackagedDmg`/`copyPackagedDmg`
@@ -139,10 +157,11 @@ with R8/ProGuard.
   mandatory launch smoke test of the *minified* build before trusting the
   chain (see Testing). This is the main new risk introduced by the release
   variant.
-- **Linux runtime (Native.load).** During an active Focus session on Linux,
-  `Main.kt` calls `frontmostApplicationProvider.bundleIdentifier()`. Verify that
-  path is guarded like its siblings; if not, add a one-line `isMacOS` guard so
-  the Linux app can't trip `Native.load("objc")`. Small and contained.
+- **Linux runtime (Native.load).** Verified already safe:
+  `MacFrontmostApplicationProvider.bundleIdentifier()`
+  (`FocusDriftDetector.kt:83`) returns early on `!isMacOS` before touching the
+  lazy `Native.load("objc")` runtime, and is wrapped in `runCatching`. No code
+  change needed; covered by the Linux launch smoke test.
 
 ## Testing / verification
 
