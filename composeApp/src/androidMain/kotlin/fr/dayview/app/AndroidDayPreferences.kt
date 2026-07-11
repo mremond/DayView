@@ -116,6 +116,12 @@ class AndroidDayPreferences(
             .apply()
     }
 
+    override fun loadOnGoalApps(goalId: String): Set<AppRef> = decodeAppRefs(storage.getString(KEY_ON_GOAL_APPS_PREFIX + goalId, "").orEmpty())
+
+    override fun saveOnGoalApps(goalId: String, apps: Set<AppRef>) {
+        storage.edit().putString(KEY_ON_GOAL_APPS_PREFIX + goalId, encodeAppRefs(apps)).apply()
+    }
+
     private companion object {
         const val KEY_START = "start_minutes"
         const val KEY_END = "end_minutes"
@@ -135,6 +141,7 @@ class AndroidDayPreferences(
         const val KEY_FOCUS_INTENTION = "focus_intention"
         const val KEY_NET_TIME_ENABLED = "net_time_enabled"
         const val KEY_NET_TIME_CALENDARS = "net_time_calendars"
+        const val KEY_ON_GOAL_APPS_PREFIX = "on_goal_apps."
         const val DEFAULT_START = 8 * 60
         const val DEFAULT_END = 18 * 60
     }

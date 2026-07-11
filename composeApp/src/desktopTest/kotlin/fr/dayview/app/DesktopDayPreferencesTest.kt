@@ -156,4 +156,17 @@ class DesktopDayPreferencesTest {
         preferences.saveShowSeconds(false)
         assertEquals(3, observed.size)
     }
+
+    @Test
+    fun onGoalAppsRoundTripAndSurviveANewInstance() {
+        val store = java.util.prefs.Preferences.userRoot().node("dayview-test-ongoal")
+        store.clear()
+        val prefs = DesktopDayPreferences(store)
+        val apps = setOf(AppRef("com.processone.draftline", "Draftline"))
+        prefs.saveOnGoalApps(DEFAULT_GOAL_ID, apps)
+
+        assertEquals(apps, DesktopDayPreferences(store).loadOnGoalApps(DEFAULT_GOAL_ID))
+        assertEquals(apps, DesktopDayPreferences(store).snapshot().onGoalApps)
+        assertEquals(emptySet(), DesktopDayPreferences(store).loadOnGoalApps("other"))
+    }
 }

@@ -16,6 +16,7 @@ data class DayPreferencesSnapshot(
     val pomodoroEndMillis: Long? = null,
     val focusIntention: String = "",
     val netTimeSettings: NetTimeSettings = NetTimeSettings(),
+    val onGoalApps: Set<AppRef> = emptySet(),
 )
 
 interface DayPreferences {
@@ -37,6 +38,8 @@ interface DayPreferences {
     fun saveFocusIntention(intention: String)
     fun loadNetTimeSettings(): NetTimeSettings
     fun saveNetTimeSettings(settings: NetTimeSettings)
+    fun loadOnGoalApps(goalId: String): Set<AppRef> = emptySet()
+    fun saveOnGoalApps(goalId: String, apps: Set<AppRef>) = Unit
 
     fun snapshot(): DayPreferencesSnapshot = DayPreferencesSnapshot(
         startMinutes = loadStartMinutes(),
@@ -50,6 +53,7 @@ interface DayPreferences {
         pomodoroEndMillis = loadPomodoroEndMillis(),
         focusIntention = loadFocusIntention(),
         netTimeSettings = loadNetTimeSettings(),
+        onGoalApps = loadOnGoalApps(DEFAULT_GOAL_ID),
     )
 
     fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
