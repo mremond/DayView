@@ -42,4 +42,21 @@ class DesktopDataStoreTest {
         assertEquals(setOf("cal-a", "cal-b"), snapshot.netTimeSettings.includedCalendarIds)
         assertTrue(prefs.loadMonochromeMenuBarIcon())
     }
+
+    @Test
+    fun focusPresenceRoundTripsWithDayKey() = runTest {
+        val prefs = desktopDayPreferences(
+            legacy = legacyNode,
+            file = File(tempDir, "dayview.preferences_pb"),
+        )
+        val intervals = listOf(
+            FocusPresenceInterval(1_000L, 2_000L),
+            FocusPresenceInterval(5_000L, 9_000L),
+        )
+        prefs.saveFocusPresence(19_000L, intervals)
+
+        val (day, loaded) = prefs.loadFocusPresence()
+        assertEquals(19_000L, day)
+        assertEquals(intervals, loaded)
+    }
 }

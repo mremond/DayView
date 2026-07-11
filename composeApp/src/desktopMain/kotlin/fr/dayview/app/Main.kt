@@ -20,9 +20,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.ceil
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 fun main() = application {
     val preferences = remember { desktopDayPreferences() }
@@ -30,6 +33,7 @@ fun main() = application {
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
+    val runningApplicationsProvider = remember { MacRunningApplicationsProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
     val focusResumeDetector = remember { FocusResumeDetector() }
     val nudgeNotifier = remember { MacFocusNudgeNotifier() }
@@ -44,6 +48,16 @@ fun main() = application {
     var preferenceSnapshot by remember { mutableStateOf(runBlocking { preferences.snapshots.first() }) }
     var monochromeMenuBarIcon by remember { mutableStateOf(runBlocking { preferences.loadMonochromeMenuBarIcon() }) }
     var launchAtLogin by remember { mutableStateOf(loginLauncher.isEnabled()) }
+    val initialFocusPresence = remember { runBlocking { preferences.loadFocusPresence() } }
+    val presenceAccumulator = remember {
+        PresenceAccumulator().also {
+            val (day, intervals) = initialFocusPresence
+            if (day >= 0) it.restore(intervals, day)
+        }
+    }
+    var focusPresenceIntervals by remember { mutableStateOf(initialFocusPresence.second) }
+    var lastPresenceSaveMillis by remember { mutableLongStateOf(0L) }
+    var wasFocusActive by remember { mutableStateOf(false) }
 
     LaunchedEffect(preferences) {
         preferences.snapshots.collect { preferenceSnapshot = it }
@@ -78,18 +92,45 @@ fun main() = application {
             } else {
                 null
             }
+            val onGoalBundleIds = currentPreferences.onGoalApps.map { it.bundleId }.toSet()
             if (shouldShowResumeRitual) {
                 focusResumeRitualId = currentNowMillis
                 focusDriftReminderId = null
                 isMiniWindowVisible = false
                 isWindowVisible = true
-            } else if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
+            } else if (
+                focusDriftDetector.observe(
+                    focusIsActive,
+                    currentNowMillis,
+                    frontmostBundleId,
+                    onGoalBundleIds,
+                )
+            ) {
                 focusDriftReminderId = currentNowMillis
                 nudgeNotifier.notify(currentPreferences.focusIntention)
             } else if (!focusIsActive) {
                 focusDriftReminderId = null
                 focusResumeRitualId = null
             }
+
+            val dayKey = Instant.fromEpochMilliseconds(currentNowMillis)
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+                .date.toEpochDays()
+            val classification = classifyFrontmost(frontmostBundleId, onGoalBundleIds)
+            val updatedIntervals = when {
+                focusIsActive -> presenceAccumulator.observe(currentNowMillis, classification, dayKey)
+                wasFocusActive -> presenceAccumulator.endSession() // session just ended: close the run
+                else -> focusPresenceIntervals
+            }
+            if (updatedIntervals != focusPresenceIntervals) {
+                val structuralChange = updatedIntervals.size != focusPresenceIntervals.size
+                focusPresenceIntervals = updatedIntervals
+                if (structuralChange || currentNowMillis - lastPresenceSaveMillis >= 30_000L) {
+                    preferences.saveFocusPresence(dayKey, updatedIntervals)
+                    lastPresenceSaveMillis = currentNowMillis
+                }
+            }
+            wasFocusActive = focusIsActive
             delay(1_000)
         }
     }
@@ -204,6 +245,8 @@ fun main() = application {
                 showFocusResumeRitual = focusResumeRitualId != null,
                 onDismissFocusResumeRitual = { focusResumeRitualId = null },
                 scheduleSoundAlerts = false,
+                runningApps = { runningApplicationsProvider.runningApps() },
+                focusPresenceIntervals = focusPresenceIntervals,
             )
         }
     }

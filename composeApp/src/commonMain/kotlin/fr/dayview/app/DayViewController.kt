@@ -30,6 +30,8 @@ internal data class DayViewUiState(
     val netCalendarPermission: Boolean = false,
     val availableCalendars: List<CalendarInfo> = emptyList(),
     val busyIntervals: List<BusyInterval> = emptyList(),
+    val onGoalApps: Set<AppRef> = emptySet(),
+    val focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     val lastFocusClosure: FocusClosureOutcome? = null,
     val destination: DayViewDestination = DayViewDestination.TODAY,
 ) {
@@ -63,6 +65,18 @@ internal data class DayViewUiState(
             calculateNetTime(dayProgress, dayNowMillis, start, end, busyIntervals)
         } else {
             null
+        }
+
+    val focusArcsState: List<FocusArc>
+        get() {
+            val (start, end) = dayWindow
+            return focusArcs(start, end, focusPresenceIntervals)
+        }
+
+    val focusedTodayMillis: Long
+        get() {
+            val (start, end) = dayWindow
+            return focusedMillis(start, end, focusPresenceIntervals)
         }
 }
 
@@ -224,6 +238,15 @@ internal class DayViewController(
         persistState()
     }
 
+    fun setOnGoalApps(apps: Set<AppRef>) {
+        state = state.copy(onGoalApps = apps)
+        persistState()
+    }
+
+    fun setFocusPresenceIntervals(intervals: List<FocusPresenceInterval>) {
+        state = state.copy(focusPresenceIntervals = intervals)
+    }
+
     /** Injecte le résultat d'une lecture calendrier (hors thread UI). */
     fun updateNetTimeData(
         hasPermission: Boolean,
@@ -258,6 +281,7 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     pomodoroEndMillis = pomodoroEndMillis,
     focusIntention = focusIntention,
     netTimeSettings = netTimeSettings,
+    onGoalApps = onGoalApps,
 ).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
@@ -290,6 +314,7 @@ private fun DayPreferencesSnapshot.toUiState(nowMillis: Long): DayViewUiState {
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
+        onGoalApps = safe.onGoalApps,
     )
 }
 
@@ -307,6 +332,7 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         pomodoroEndMillis = safe.pomodoroEndMillis,
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
+        onGoalApps = safe.onGoalApps,
         // Transient fields deliberately preserved: nowMillis, goalDeadlineText,
         // goalStartText, lastFocusClosure, destination, and calendar read results.
     )

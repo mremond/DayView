@@ -18,6 +18,11 @@ import java.util.prefs.Preferences as LegacyPreferences
 private const val KEY_MONOCHROME = "monochrome_menu_bar_icon"
 private val monochromeKey = booleanPreferencesKey(KEY_MONOCHROME)
 
+private const val KEY_FOCUS_PRESENCE_DAY = "focus_presence_day"
+private const val KEY_FOCUS_PRESENCE = "focus_presence"
+private val focusPresenceDayKey = longPreferencesKey(KEY_FOCUS_PRESENCE_DAY)
+private val focusPresenceKey = stringPreferencesKey(KEY_FOCUS_PRESENCE)
+
 class DesktopPreferences(
     private val dataStore: DataStore<Preferences>,
 ) : DayPreferences {
@@ -29,6 +34,21 @@ class DesktopPreferences(
     suspend fun loadMonochromeMenuBarIcon(): Boolean = monochromeMenuBarIcon.first()
     suspend fun saveMonochromeMenuBarIcon(monochrome: Boolean) {
         dataStore.edit { it[monochromeKey] = monochrome }
+    }
+
+    // Focus-presence intervals are macOS-only and high-frequency; like the menu-bar
+    // icon they live in the DataStore but outside the shared snapshot.
+    suspend fun loadFocusPresence(): Pair<Long, List<FocusPresenceInterval>> {
+        val prefs = dataStore.data.first()
+        val day = prefs[focusPresenceDayKey] ?: -1L
+        return day to decodeFocusPresence(prefs[focusPresenceKey].orEmpty())
+    }
+
+    suspend fun saveFocusPresence(dayKey: Long, intervals: List<FocusPresenceInterval>) {
+        dataStore.edit {
+            it[focusPresenceDayKey] = dayKey
+            it[focusPresenceKey] = encodeFocusPresence(intervals)
+        }
     }
 }
 

@@ -16,6 +16,7 @@ data class DayPreferencesSnapshot(
     val pomodoroEndMillis: Long? = null,
     val focusIntention: String = "",
     val netTimeSettings: NetTimeSettings = NetTimeSettings(),
+    val onGoalApps: Set<AppRef> = emptySet(),
 )
 
 interface DayPreferences {

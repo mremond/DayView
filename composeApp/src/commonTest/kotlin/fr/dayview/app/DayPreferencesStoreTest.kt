@@ -49,4 +49,17 @@ class DayPreferencesStoreTest {
         store.persist(snapshot)
         assertEquals(snapshot, store.snapshots.first())
     }
+
+    @Test
+    fun onGoalAppsRoundTrip() = runTest {
+        val store = newStore(FakeFileSystem())
+        val snapshot = DayPreferencesSnapshot(
+            onGoalApps = setOf(
+                AppRef("com.processone.draftline", "Draftline"),
+                AppRef("com.apple.dt.Xcode", "Xcode"),
+            ),
+        )
+        store.persist(snapshot)
+        assertEquals(snapshot.onGoalApps, store.snapshots.first().onGoalApps)
+    }
 }

@@ -36,6 +36,8 @@ fun DayViewApp(
     showFocusResumeRitual: Boolean = false,
     onDismissFocusResumeRitual: () -> Unit = {},
     scheduleSoundAlerts: Boolean = true,
+    runningApps: () -> List<AppRef> = { emptyList() },
+    focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
 ) {
     DayViewTheme { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
@@ -43,6 +45,7 @@ fun DayViewApp(
             val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
             val controller = remember(preferences) { DayViewController(preferences, scope, initialSnapshot) }
             val state = controller.state
+            val hasRunningApps = remember { runningApps().isNotEmpty() }
             val soundPlayer = remember { createSoundCuePlayer() }
             val soundScheduler = remember { SoundAlertScheduler() }
             val calendarSource = remember { createCalendarSource() }
@@ -51,6 +54,10 @@ fun DayViewApp(
 
             LaunchedEffect(preferences) {
                 preferences.snapshots.collect { controller.onPreferencesChanged(it) }
+            }
+
+            LaunchedEffect(focusPresenceIntervals) {
+                controller.setFocusPresenceIntervals(focusPresenceIntervals)
             }
 
             val netMinute = state.nowMillis / 60_000L
@@ -152,6 +159,8 @@ fun DayViewApp(
                         monochromeMenuBarIcon = monochromeMenuBarIcon,
                         launchAtLogin = launchAtLogin,
                         netTimeSupported = calendarSource.isSupported(),
+                        onGoalSupported = hasRunningApps,
+                        runningApps = runningApps,
                     ),
                     actions = SettingsScreenActions(
                         changeStartTime = { controller.setStartMinutes(it) },
@@ -168,6 +177,7 @@ fun DayViewApp(
                             calendarPermissionProbe++
                         },
                         requestCalendarPermission = onRequestCalendarAccess,
+                        changeOnGoalApps = { controller.setOnGoalApps(it) },
                         back = { controller.openToday() },
                     ),
                 )
