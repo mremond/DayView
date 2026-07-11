@@ -64,8 +64,8 @@ Field semantics:
   malformed or zero-length lines are skipped.
 - `label` (string, optional) — human label for the hover overlay.
 
-The schema is documented in DayView's repo (README section) so any app, not just
-Draftline, can contribute.
+The schema is published as a standalone, versioned integration spec in the repo (see
+Deliverables) so any app, not just Draftline, can contribute against a stable contract.
 
 ### 2. Contract — `UsageSource`
 
@@ -146,6 +146,30 @@ DayView refresh cycle ─ createUsageSource().focusIntervals(window)
        └─ merge + clip + sum ─ focusedTodayMillis
             └─ focus arcs (accent) + "Focused today" readout + hover label
 ```
+
+## Deliverables
+
+Beyond the code, this project produces a **public integration spec** — the contract
+external apps implement against:
+
+- **Location**: `docs/usage-contribution.md` (developer-facing; distinct from the private
+  design under `docs/superpowers/`).
+- **Audience**: authors of contributing apps (Draftline first).
+- **Contents**:
+  - The file layout: `~/.local/share/dayview/usage/<source>/YYYY-MM-DD.jsonl`, per-app
+    ownership, append-only, app creates its own directory.
+  - The event schema: every field (`v`, `source`, `kind`, `startedAt`, `endedAt`,
+    `label`), types, units (epoch millis), which are required vs optional, and a worked
+    example line.
+  - The compatibility contract: `v` versioning and the rule that DayView ignores unknown
+    `kind` values (so apps can adopt future kinds without breaking older DayView).
+  - A minimal "how to contribute a focus session" recipe (open/append one line on session
+    end).
+- **Stability**: this doc is the versioned source of truth for the format; the code must
+  match it. README links to it rather than duplicating the schema.
+
+The roadmap items (goal-progress kind, scrobbler server) extend this same document rather
+than replacing it.
 
 ## Error handling
 
