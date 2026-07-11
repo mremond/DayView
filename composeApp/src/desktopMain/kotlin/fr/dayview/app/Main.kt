@@ -27,6 +27,7 @@ fun main() = application {
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
     val focusResumeDetector = remember { FocusResumeDetector() }
+    val nudgeNotifier = remember { MacFocusNudgeNotifier() }
     val soundCuePlayer = remember { createSoundCuePlayer() }
     val soundAlertScheduler = remember { SoundAlertScheduler() }
     val breakReminderScheduler = remember { BreakReminderScheduler() }
@@ -80,8 +81,7 @@ fun main() = application {
                 isWindowVisible = true
             } else if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
                 focusDriftReminderId = currentNowMillis
-                isMiniWindowVisible = false
-                isWindowVisible = true
+                nudgeNotifier.notify(currentPreferences.focusIntention)
             } else if (!focusIsActive) {
                 focusDriftReminderId = null
                 focusResumeRitualId = null
@@ -174,8 +174,8 @@ fun main() = application {
             title = "DayView",
         ) {
             window.minimumSize = java.awt.Dimension(420, 680)
-            LaunchedEffect(focusDriftReminderId, focusResumeRitualId) {
-                if (focusDriftReminderId != null || focusResumeRitualId != null) {
+            LaunchedEffect(focusResumeRitualId) {
+                if (focusResumeRitualId != null) {
                     window.toFront()
                     window.requestFocus()
                 }
