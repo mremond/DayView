@@ -10,6 +10,7 @@ import okio.fakefilesystem.FakeFileSystem
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 class DayPreferencesStoreTest {
     private fun newStore(fs: FakeFileSystem): DayPreferencesStore {
@@ -41,13 +42,31 @@ class DayPreferencesStoreTest {
             showSeconds = false,
             soundSettings = SoundSettings(enabled = true, volumePercent = 55),
             goalTitle = "Ship it",
-            goalDeadlineMillis = 123_456_789L,
+            goalDeadline = Instant.fromEpochMilliseconds(123_456_789L),
             pomodoroMinutes = 45,
-            pomodoroEndMillis = null,
+            pomodoroEnd = null,
             focusIntention = "Focus",
         )
         store.persist(snapshot)
         assertEquals(snapshot, store.snapshots.first())
+    }
+
+    @Test
+    fun instantFieldsRoundTripNullAndValueThroughTheSentinel() = runTest {
+        // Mirror of persistThenReadRoundTrips: a null instant must store as the -1L
+        // sentinel and read back null, while a present instant round-trips unchanged.
+        val store = newStore(FakeFileSystem())
+        val snapshot = DayPreferencesSnapshot(
+            goalDeadline = null,
+            goalStart = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+            pomodoroEnd = Instant.fromEpochMilliseconds(1_700_000_001_000L),
+        )
+        store.persist(snapshot)
+
+        val read = store.snapshots.first()
+        assertEquals(null, read.goalDeadline)
+        assertEquals(snapshot.goalStart, read.goalStart)
+        assertEquals(snapshot.pomodoroEnd, read.pomodoroEnd)
     }
 
     @Test

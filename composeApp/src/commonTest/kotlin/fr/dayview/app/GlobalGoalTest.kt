@@ -8,9 +8,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 class GlobalGoalTest {
     private val zone = TimeZone.of("Europe/Paris")
+
+    private fun at(iso: String): Instant = LocalDateTime.parse(iso).toInstant(zone)
+    private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
 
     @Test
     fun deadlineRoundTripsThroughTheFrenchDisplayFormat() {
@@ -22,9 +30,9 @@ class GlobalGoalTest {
 
     @Test
     fun shortDateDropsTheYearAndTimeWithFrenchMonths() {
-        assertEquals("11 juil.", formatGoalDateShort(millis("2026-07-11T08:00"), zone))
-        assertEquals("20 juil.", formatGoalDateShort(millis("2026-07-20T10:30"), zone))
-        assertEquals("1 août", formatGoalDateShort(millis("2026-08-01T23:59"), zone))
+        assertEquals("11 juil.", formatGoalDateShort(at("2026-07-11T08:00"), zone))
+        assertEquals("20 juil.", formatGoalDateShort(at("2026-07-20T10:30"), zone))
+        assertEquals("1 août", formatGoalDateShort(at("2026-08-01T23:59"), zone))
     }
 
     @Test
@@ -34,7 +42,7 @@ class GlobalGoalTest {
             "5 juil.", "5 août", "5 sept.", "5 oct.", "5 nov.", "5 déc.",
         )
         (1..12).forEach { month ->
-            val label = formatGoalDateShort(millis("2026-${month.toString().padStart(2, '0')}-05T12:00"), zone)
+            val label = formatGoalDateShort(at("2026-${month.toString().padStart(2, '0')}-05T12:00"), zone)
             assertEquals(expected[month - 1], label)
         }
     }
@@ -45,13 +53,13 @@ class GlobalGoalTest {
         // reproduce the same canonical dd/MM/yyyy HH:mm the deadline display uses.
         for (tz in listOf(zone, TimeZone.of("Asia/Kathmandu"), TimeZone.UTC, TimeZone.of("America/Los_Angeles"))) {
             for (iso in listOf("2026-07-11T08:00", "2026-01-01T00:00", "2026-12-31T23:59", "2026-03-30T02:30")) {
-                val millis = LocalDateTime.parse(iso).toInstant(tz).toEpochMilliseconds()
+                val instant = LocalDateTime.parse(iso).toInstant(tz)
                 val rebuilt = formatGoalPickerInput(
-                    goalPickerDateMillis(millis, tz),
-                    goalPickerHour(millis, tz),
-                    goalPickerMinute(millis, tz),
+                    goalPickerDateMillis(instant, tz),
+                    goalPickerHour(instant, tz),
+                    goalPickerMinute(instant, tz),
                 )
-                assertEquals(formatGoalDeadline(millis, tz), rebuilt, "tz=$tz iso=$iso")
+                assertEquals(formatGoalDeadline(instant, tz), rebuilt, "tz=$tz iso=$iso")
             }
         }
     }
@@ -59,11 +67,11 @@ class GlobalGoalTest {
     @Test
     fun pickerDateMillisIsUtcMidnightRegardlessOfLocalOffset() {
         // 11 juil. 08:00 in Paris (UTC+2) still yields UTC-midnight of 11 juil.
-        val millis = LocalDateTime.parse("2026-07-11T08:00").toInstant(zone).toEpochMilliseconds()
+        val instant = LocalDateTime.parse("2026-07-11T08:00").toInstant(zone)
         val utcMidnight = LocalDateTime.parse("2026-07-11T00:00").toInstant(TimeZone.UTC).toEpochMilliseconds()
-        assertEquals(utcMidnight, goalPickerDateMillis(millis, zone))
-        assertEquals(8, goalPickerHour(millis, zone))
-        assertEquals(0, goalPickerMinute(millis, zone))
+        assertEquals(utcMidnight, goalPickerDateMillis(instant, zone))
+        assertEquals(8, goalPickerHour(instant, zone))
+        assertEquals(0, goalPickerMinute(instant, zone))
     }
 
     @Test
@@ -100,193 +108,191 @@ class GlobalGoalTest {
 
     @Test
     fun globalGoalCountsOnlyConfiguredWorkingHours() {
-        val now = LocalDateTime(2026, 7, 13, 12, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 15, 12, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-13T12:00")
+        val deadline = at("2026-07-15T12:00")
 
-        val remaining = calculateGoalWorkingMillis(
-            nowMillis = now,
-            deadlineMillis = deadline,
+        val remaining = calculateGoalWorkingTime(
+            now = now,
+            deadline = deadline,
             startMinutesOfDay = 8 * 60,
             endMinutesOfDay = 18 * 60,
             timeZone = zone,
         )
 
         // Monday 12–18, Tuesday 08–18, Wednesday 08–12.
-        assertEquals(20 * 3_600_000L, remaining)
+        assertEquals(20.hours, remaining)
         assertEquals("Encore 20 h", formatGoalWorkingHours(remaining, deadlineReached = false))
     }
 
     @Test
     fun timeOutsideTheWorkingDayIsIgnored() {
-        val now = LocalDateTime(2026, 7, 13, 20, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 14, 10, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-13T20:00")
+        val deadline = at("2026-07-14T10:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
-        assertEquals(2 * 3_600_000L, remaining)
+        assertEquals(2.hours, remaining)
     }
 
     @Test
     fun fullWorkingDayIsCountedWhenNowIsBeforeStart() {
-        val now = LocalDateTime(2026, 7, 13, 6, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 13, 20, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-13T06:00")
+        val deadline = at("2026-07-13T20:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
-        assertEquals(10 * 3_600_000L, remaining)
+        assertEquals(10.hours, remaining)
     }
 
     @Test
     fun noWorkIsCountedWhenDeadlineIsBeforeStart() {
-        val now = LocalDateTime(2026, 7, 13, 6, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 13, 7, 59).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-13T06:00")
+        val deadline = at("2026-07-13T07:59")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
-        assertEquals(0L, remaining)
+        assertEquals(Duration.ZERO, remaining)
         assertEquals("Moins d’une heure de travail", formatGoalWorkingHours(remaining, deadlineReached = false))
     }
 
     @Test
     fun exactWorkdayBoundariesAreIncludedOnce() {
-        val now = LocalDateTime(2026, 7, 13, 8, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 13, 18, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-13T08:00")
+        val deadline = at("2026-07-13T18:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
-        assertEquals(10 * 3_600_000L, remaining)
+        assertEquals(10.hours, remaining)
     }
 
     @Test
     fun deadlineAtOrBeforeNowReturnsZero() {
-        val now = LocalDateTime(2026, 7, 13, 12, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-13T12:00")
 
-        assertEquals(0L, calculateGoalWorkingMillis(now, now, 8 * 60, 18 * 60, zone))
-        assertEquals(0L, calculateGoalWorkingMillis(now, now - 1, 8 * 60, 18 * 60, zone))
-        assertEquals("Échéance atteinte", formatGoalWorkingHours(42, deadlineReached = true))
+        assertEquals(Duration.ZERO, calculateGoalWorkingTime(now, now, 8 * 60, 18 * 60, zone))
+        assertEquals(Duration.ZERO, calculateGoalWorkingTime(now, now - 1.milliseconds, 8 * 60, 18 * 60, zone))
+        assertEquals("Échéance atteinte", formatGoalWorkingHours(Duration.ZERO, deadlineReached = true))
     }
 
     @Test
     fun calculationCrossesMonthAndYearBoundaries() {
-        val now = LocalDateTime(2026, 12, 31, 17, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2027, 1, 1, 10, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-12-31T17:00")
+        val deadline = at("2027-01-01T10:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
-        assertEquals(3 * 3_600_000L, remaining)
+        assertEquals(3.hours, remaining)
     }
 
     @Test
     fun springClockChangeUsesActualElapsedHours() {
-        val now = LocalDateTime(2026, 3, 29, 0, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 3, 29, 4, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-03-29T00:00")
+        val deadline = at("2026-03-29T04:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 0, 4 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 0, 4 * 60, zone)
 
-        assertEquals(3 * 3_600_000L, remaining)
+        assertEquals(3.hours, remaining)
     }
 
     @Test
     fun autumnClockChangeUsesActualElapsedHours() {
-        val now = LocalDateTime(2026, 10, 25, 0, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 10, 25, 4, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-10-25T00:00")
+        val deadline = at("2026-10-25T04:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 0, 4 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 0, 4 * 60, zone)
 
-        assertEquals(5 * 3_600_000L, remaining)
+        assertEquals(5.hours, remaining)
     }
 
     @Test
     fun invalidWorkRangeIsClampedToLastHalfHour() {
-        val now = LocalDateTime(2026, 7, 13, 23, 29).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 13, 23, 59).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-13T23:29")
+        val deadline = at("2026-07-13T23:59")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 2_000, -1, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 2_000, -1, zone)
 
-        assertEquals(30 * 60_000L, remaining)
+        assertEquals(30.minutes, remaining)
     }
 
     @Test
     fun displayRoundsAnyPartialHourUp() {
-        assertEquals("Encore 1 h", formatGoalWorkingHours(1L, deadlineReached = false))
-        assertEquals("Encore 1 h", formatGoalWorkingHours(3_600_000L, deadlineReached = false))
-        assertEquals("Encore 2 h", formatGoalWorkingHours(3_600_001L, deadlineReached = false))
-        assertFalse(formatGoalWorkingHours(3_600_001L, false).contains("j"))
+        assertEquals("Encore 1 h", formatGoalWorkingHours(1.milliseconds, deadlineReached = false))
+        assertEquals("Encore 1 h", formatGoalWorkingHours(1.hours, deadlineReached = false))
+        assertEquals("Encore 2 h", formatGoalWorkingHours(1.hours + 1.milliseconds, deadlineReached = false))
+        assertFalse(formatGoalWorkingHours(1.hours + 1.milliseconds, false).contains("j"))
     }
 
     @Test
     fun weekendsAreExplicitlyCountedWithCurrentRules() {
-        val now = LocalDateTime(2026, 7, 17, 17, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 20, 9, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-07-17T17:00")
+        val deadline = at("2026-07-20T09:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
         // Friday 1h + Saturday 10h + Sunday 10h + Monday 1h.
-        assertEquals(22 * 3_600_000L, remaining)
+        assertEquals(22.hours, remaining)
     }
 
     @Test
     fun fractionalOffsetTimeZoneKeepsTheConfiguredDuration() {
         val kathmandu = TimeZone.of("Asia/Kathmandu")
-        val now = LocalDateTime(2026, 7, 13, 8, 0).toInstant(kathmandu).toEpochMilliseconds()
-        val deadline = LocalDateTime(2026, 7, 13, 18, 0).toInstant(kathmandu).toEpochMilliseconds()
+        val now = LocalDateTime(2026, 7, 13, 8, 0).toInstant(kathmandu)
+        val deadline = LocalDateTime(2026, 7, 13, 18, 0).toInstant(kathmandu)
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, kathmandu)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, kathmandu)
 
-        assertEquals(10 * 3_600_000L, remaining)
+        assertEquals(10.hours, remaining)
     }
 
     @Test
     fun tenYearHorizonRemainsCorrect() {
-        val now = LocalDateTime(2026, 1, 1, 8, 0).toInstant(zone).toEpochMilliseconds()
-        val deadline = LocalDateTime(2036, 1, 1, 8, 0).toInstant(zone).toEpochMilliseconds()
+        val now = at("2026-01-01T08:00")
+        val deadline = at("2036-01-01T08:00")
 
-        val remaining = calculateGoalWorkingMillis(now, deadline, 8 * 60, 18 * 60, zone)
+        val remaining = calculateGoalWorkingTime(now, deadline, 8 * 60, 18 * 60, zone)
 
         // Ten years, including leap days in 2028 and 2032.
-        assertEquals(3_652L * 10 * 3_600_000L, remaining)
+        assertEquals((3_652L * 10).hours, remaining)
     }
-
-    private fun millis(iso: String): Long = LocalDateTime.parse(iso).toInstant(zone).toEpochMilliseconds()
 
     @Test
     fun goalProgressIsZeroBeforeAndAtTheStart() {
-        val start = millis("2026-01-05T08:00")
-        val deadline = millis("2026-01-05T18:00")
+        val start = at("2026-01-05T08:00")
+        val deadline = at("2026-01-05T18:00")
         assertEquals(0f, calculateGoalProgress(start, start, deadline, 8 * 60, 18 * 60, zone))
-        val before = millis("2026-01-04T20:00")
+        val before = at("2026-01-04T20:00")
         assertEquals(0f, calculateGoalProgress(before, start, deadline, 8 * 60, 18 * 60, zone))
     }
 
     @Test
     fun goalProgressReachesHalfwayAcrossOneWorkingDay() {
-        val start = millis("2026-01-05T08:00")
-        val now = millis("2026-01-05T13:00")
-        val deadline = millis("2026-01-05T18:00")
+        val start = at("2026-01-05T08:00")
+        val now = at("2026-01-05T13:00")
+        val deadline = at("2026-01-05T18:00")
         assertEquals(0.5f, calculateGoalProgress(now, start, deadline, 8 * 60, 18 * 60, zone), 0.001f)
     }
 
     @Test
     fun goalProgressIsFullAtOrAfterTheDeadline() {
-        val start = millis("2026-01-05T08:00")
-        val deadline = millis("2026-01-05T18:00")
+        val start = at("2026-01-05T08:00")
+        val deadline = at("2026-01-05T18:00")
         assertEquals(1f, calculateGoalProgress(deadline, start, deadline, 8 * 60, 18 * 60, zone))
-        val after = millis("2026-01-06T09:00")
+        val after = at("2026-01-06T09:00")
         assertEquals(1f, calculateGoalProgress(after, start, deadline, 8 * 60, 18 * 60, zone))
     }
 
     @Test
     fun goalProgressIsZeroWhenStartEqualsDeadline() {
-        val moment = millis("2026-01-05T12:00")
-        assertEquals(0f, calculateGoalProgress(moment - 1, moment, moment, 8 * 60, 18 * 60, zone))
+        val moment = at("2026-01-05T12:00")
+        assertEquals(0f, calculateGoalProgress(moment - 1.milliseconds, moment, moment, 8 * 60, 18 * 60, zone))
     }
 
     @Test
     fun goalProgressReachesHalfwayAcrossAMultiDaySpan() {
         // Three working days (10h each = 30h). Halfway = 15h = one full day + 5h into the second.
-        val start = millis("2026-01-05T08:00")
-        val now = millis("2026-01-06T13:00")
-        val deadline = millis("2026-01-07T18:00")
+        val start = at("2026-01-05T08:00")
+        val now = at("2026-01-06T13:00")
+        val deadline = at("2026-01-07T18:00")
         assertEquals(0.5f, calculateGoalProgress(now, start, deadline, 8 * 60, 18 * 60, zone), 0.001f)
     }
 
@@ -294,8 +300,8 @@ class GlobalGoalTest {
     fun goalSummaryJoinsTitleAndRemainingHours() {
         val line = formatGoalSummaryLine(
             title = "Livrer la v2",
-            deadlineMillis = 1_000L,
-            workingMillis = 12 * 3_600_000L,
+            deadline = t(1_000L),
+            working = 12.hours,
             deadlineReached = false,
         )
         assertEquals("Livrer la v2 · Encore 12 h", line)
@@ -305,8 +311,8 @@ class GlobalGoalTest {
     fun goalSummaryShowsRemainingHoursWhenTitleBlank() {
         val line = formatGoalSummaryLine(
             title = "",
-            deadlineMillis = 1_000L,
-            workingMillis = 12 * 3_600_000L,
+            deadline = t(1_000L),
+            working = 12.hours,
             deadlineReached = false,
         )
         assertEquals("Encore 12 h", line)
@@ -316,8 +322,8 @@ class GlobalGoalTest {
     fun goalSummaryShowsTitleOnlyWhenNoDeadline() {
         val line = formatGoalSummaryLine(
             title = "Livrer la v2",
-            deadlineMillis = null,
-            workingMillis = 0L,
+            deadline = null,
+            working = Duration.ZERO,
             deadlineReached = false,
         )
         assertEquals("Livrer la v2", line)
@@ -327,8 +333,8 @@ class GlobalGoalTest {
     fun goalSummaryShowsDeadlineReached() {
         val line = formatGoalSummaryLine(
             title = "Livrer la v2",
-            deadlineMillis = 1_000L,
-            workingMillis = 0L,
+            deadline = t(1_000L),
+            working = Duration.ZERO,
             deadlineReached = true,
         )
         assertEquals("Livrer la v2 · Échéance atteinte", line)
@@ -338,8 +344,8 @@ class GlobalGoalTest {
     fun goalSummaryShowsLessThanAnHourWhenNoWorkingTimeLeft() {
         val line = formatGoalSummaryLine(
             title = "",
-            deadlineMillis = 1_000L,
-            workingMillis = 0L,
+            deadline = t(1_000L),
+            working = Duration.ZERO,
             deadlineReached = false,
         )
         assertEquals("Moins d’une heure de travail", line)
@@ -349,8 +355,8 @@ class GlobalGoalTest {
     fun goalSummaryEmptyWhenNothingSet() {
         val line = formatGoalSummaryLine(
             title = "",
-            deadlineMillis = null,
-            workingMillis = 0L,
+            deadline = null,
+            working = Duration.ZERO,
             deadlineReached = false,
         )
         assertEquals("", line)

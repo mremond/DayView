@@ -1,5 +1,7 @@
 package fr.dayview.app
 
+import kotlin.time.Instant
+
 data class CalendarInfo(val id: String, val displayName: String)
 
 data class NetTimeSettings(
@@ -13,8 +15,8 @@ interface CalendarSource {
     fun requestPermission()
     fun availableCalendars(): List<CalendarInfo>
     fun busyIntervals(
-        windowStartMillis: Long,
-        windowEndMillis: Long,
+        windowStart: Instant,
+        windowEnd: Instant,
         includedCalendarIds: Set<String>,
     ): List<BusyInterval>
 }
@@ -25,8 +27,8 @@ object NoopCalendarSource : CalendarSource {
     override fun requestPermission() = Unit
     override fun availableCalendars(): List<CalendarInfo> = emptyList()
     override fun busyIntervals(
-        windowStartMillis: Long,
-        windowEndMillis: Long,
+        windowStart: Instant,
+        windowEnd: Instant,
         includedCalendarIds: Set<String>,
     ): List<BusyInterval> = emptyList()
 }

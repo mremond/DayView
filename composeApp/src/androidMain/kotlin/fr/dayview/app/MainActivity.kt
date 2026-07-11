@@ -42,11 +42,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             DayViewApp(
                 preferences = preferences,
-                onFocusAlarmChange = { endMillis, intention ->
-                    if (endMillis == null) {
+                onFocusAlarmChange = { end, intention ->
+                    if (end == null) {
                         focusAlarmScheduler.cancel()
                     } else {
-                        val scheduledExactly = focusAlarmScheduler.schedule(endMillis, intention)
+                        val scheduledExactly = focusAlarmScheduler.schedule(end.toEpochMilliseconds(), intention)
                         requestRequiredAccess(requestExactAlarm = !scheduledExactly)
                     }
                 },
@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
 
     private fun restoreActiveFocusAlarm() {
         val snap = runBlocking { preferences.snapshots.first() }
-        val endMillis = snap.pomodoroEndMillis ?: return
+        val endMillis = snap.pomodoroEnd?.toEpochMilliseconds() ?: return
         if (endMillis > System.currentTimeMillis()) {
             focusAlarmScheduler.schedule(endMillis, snap.focusIntention)
         } else {

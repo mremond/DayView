@@ -3,6 +3,7 @@ package fr.dayview.app
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
+import kotlin.time.Instant
 
 /**
  * Re-reads the wall clock every time the app returns to the foreground so the
@@ -18,8 +19,8 @@ import kotlinx.coroutines.flow.filter
  */
 internal suspend fun refreshClockOnResume(
     events: Flow<Lifecycle.Event>,
-    now: () -> Long,
-    tick: (Long) -> Unit,
+    now: () -> Instant,
+    tick: (Instant) -> Unit,
 ) {
     events.filter { it == Lifecycle.Event.ON_RESUME }.collect { tick(now()) }
 }

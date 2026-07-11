@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
+import kotlin.time.Instant
 
 private var appContext: Context? = null
 
@@ -42,14 +43,14 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
     }
 
     override fun busyIntervals(
-        windowStartMillis: Long,
-        windowEndMillis: Long,
+        windowStart: Instant,
+        windowEnd: Instant,
         includedCalendarIds: Set<String>,
     ): List<BusyInterval> {
         if (!hasPermission()) return emptyList()
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon()
-            .appendPath(windowStartMillis.toString())
-            .appendPath(windowEndMillis.toString())
+            .appendPath(windowStart.toEpochMilliseconds().toString())
+            .appendPath(windowEnd.toEpochMilliseconds().toString())
             .build()
         val projection = arrayOf(
             CalendarContract.Instances.BEGIN,
@@ -68,7 +69,11 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
                 if (allDay) continue
                 if (availability != CalendarContract.Instances.AVAILABILITY_BUSY) continue
                 if (includedCalendarIds.isNotEmpty() && calId !in includedCalendarIds) continue
-                out += BusyInterval(c.getLong(0), c.getLong(1), listOfNotNull(c.getString(2)))
+                out += BusyInterval(
+                    Instant.fromEpochMilliseconds(c.getLong(0)),
+                    Instant.fromEpochMilliseconds(c.getLong(1)),
+                    listOfNotNull(c.getString(2)),
+                )
             }
         }
         return out

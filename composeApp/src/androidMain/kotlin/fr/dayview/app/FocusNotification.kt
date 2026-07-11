@@ -13,6 +13,7 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlin.time.Instant
 
 class FocusNotificationManager(context: Context) {
     private val appContext = context.applicationContext
@@ -152,7 +153,7 @@ class FocusNotificationActionReceiver : BroadcastReceiver() {
             FocusNotificationManager.ACTION_STOP_FOCUS -> {
                 runBlocking {
                     val s = preferences.snapshots.first()
-                    preferences.persist(s.copy(pomodoroEndMillis = null))
+                    preferences.persist(s.copy(pomodoroEnd = null))
                 }
                 FocusAlarmScheduler(context).cancel()
             }
@@ -160,7 +161,14 @@ class FocusNotificationActionReceiver : BroadcastReceiver() {
                 val s = runBlocking { preferences.snapshots.first() }
                 val durationMinutes = s.pomodoroMinutes.coerceIn(5, 180)
                 val endMillis = System.currentTimeMillis() + durationMinutes * 60_000L
-                runBlocking { preferences.persist(s.copy(pomodoroMinutes = durationMinutes, pomodoroEndMillis = endMillis)) }
+                runBlocking {
+                    preferences.persist(
+                        s.copy(
+                            pomodoroMinutes = durationMinutes,
+                            pomodoroEnd = Instant.fromEpochMilliseconds(endMillis),
+                        ),
+                    )
+                }
                 FocusAlarmScheduler(context).schedule(endMillis, s.focusIntention)
             }
             else -> return

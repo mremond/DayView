@@ -79,6 +79,9 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.roundToInt
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 internal data class DayViewScreenActions(
     val openSettings: () -> Unit,
@@ -154,16 +157,16 @@ internal fun DayViewScreen(
                             busyArcs = state.busyArcsState,
                             netTime = state.netTime,
                             focusArcs = state.focusArcsState,
-                            focusedTodayMillis = state.focusedTodayMillis,
-                            windowStartMillis = state.dayWindow.first,
-                            windowEndMillis = state.dayWindow.second,
+                            focusedToday = state.focusedToday,
+                            windowStart = state.dayWindow.first,
+                            windowEnd = state.dayWindow.second,
                         )
                         Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
                             title = state.goalTitle,
-                            deadlineMillis = state.goalDeadlineMillis,
-                            startMillis = state.goalStartMillis,
-                            nowMillis = state.nowMillis,
+                            deadline = state.goalDeadline,
+                            start = state.goalStart,
+                            now = state.now,
                             workStartMinutes = progress.startHour * 60 + progress.startMinute,
                             workEndMinutes = progress.endHour * 60 + progress.endMinute,
                             onTitleChange = actions.changeGoalTitle,
@@ -198,9 +201,9 @@ internal fun DayViewScreen(
                     busyArcs = state.busyArcsState,
                     netTime = state.netTime,
                     focusArcs = state.focusArcsState,
-                    focusedTodayMillis = state.focusedTodayMillis,
-                    windowStartMillis = state.dayWindow.first,
-                    windowEndMillis = state.dayWindow.second,
+                    focusedToday = state.focusedToday,
+                    windowStart = state.dayWindow.first,
+                    windowEnd = state.dayWindow.second,
                 )
                 Spacer(Modifier.height(12.dp))
                 CompactTodayContent(
@@ -247,9 +250,9 @@ private fun CompactTodayContent(
 
         CompactGoalRow(
             title = state.goalTitle,
-            deadlineMillis = state.goalDeadlineMillis,
-            startMillis = state.goalStartMillis,
-            nowMillis = state.nowMillis,
+            deadline = state.goalDeadline,
+            start = state.goalStart,
+            now = state.now,
             workStartMinutes = progress.startHour * 60 + progress.startMinute,
             workEndMinutes = progress.endHour * 60 + progress.endMinute,
             onClick = { openSheet = CompactSheet.GOAL },
@@ -337,9 +340,9 @@ private fun CompactTodayContent(
             ) {
                 GoalEditorContent(
                     title = state.goalTitle,
-                    deadlineMillis = state.goalDeadlineMillis,
-                    startMillis = state.goalStartMillis,
-                    nowMillis = state.nowMillis,
+                    deadline = state.goalDeadline,
+                    start = state.goalStart,
+                    now = state.now,
                     onTitleChange = actions.changeGoalTitle,
                     onDeadlineChange = actions.changeGoalDeadline,
                     onDeadlineCommit = actions.commitGoalDeadline,
@@ -354,24 +357,24 @@ private fun CompactTodayContent(
 @Composable
 private fun CompactGoalRow(
     title: String,
-    deadlineMillis: Long?,
-    startMillis: Long?,
-    nowMillis: Long,
+    deadline: Instant?,
+    start: Instant?,
+    now: Instant,
     workStartMinutes: Int,
     workEndMinutes: Int,
     onClick: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    val hasGoal = title.isNotBlank() || deadlineMillis != null
-    val workingMillis = remember(nowMillis / 60_000, deadlineMillis, workStartMinutes, workEndMinutes) {
-        deadlineMillis?.let {
-            calculateGoalWorkingMillis(
-                nowMillis = nowMillis,
-                deadlineMillis = it,
+    val hasGoal = title.isNotBlank() || deadline != null
+    val working = remember(now.toEpochMilliseconds() / 60_000, deadline, workStartMinutes, workEndMinutes) {
+        deadline?.let {
+            calculateGoalWorkingTime(
+                now = now,
+                deadline = it,
                 startMinutesOfDay = workStartMinutes,
                 endMinutesOfDay = workEndMinutes,
             )
-        } ?: 0L
+        } ?: Duration.ZERO
     }
     Column(
         modifier = Modifier.widthIn(max = 430.dp).fillMaxWidth()
@@ -387,9 +390,9 @@ private fun CompactGoalRow(
                 Text(
                     formatGoalSummaryLine(
                         title = title,
-                        deadlineMillis = deadlineMillis,
-                        workingMillis = workingMillis,
-                        deadlineReached = deadlineMillis != null && deadlineMillis <= nowMillis,
+                        deadline = deadline,
+                        working = working,
+                        deadlineReached = deadline != null && deadline <= now,
                     ),
                     color = colors.cloud,
                     fontSize = 13.sp,
@@ -408,12 +411,12 @@ private fun CompactGoalRow(
                 )
             }
         }
-        if (deadlineMillis != null) {
+        if (deadline != null) {
             Spacer(Modifier.height(10.dp))
             GoalProgressBar(
-                nowMillis = nowMillis,
-                startMillis = startMillis ?: nowMillis,
-                deadlineMillis = deadlineMillis,
+                now = now,
+                start = start ?: now,
+                deadline = deadline,
                 workStartMinutes = workStartMinutes,
                 workEndMinutes = workEndMinutes,
                 animationLabel = "goal-progress-compact",
@@ -466,9 +469,9 @@ private fun FocusClosureChip(outcome: FocusClosureOutcome) {
 @Composable
 private fun GoalEditorContent(
     title: String,
-    deadlineMillis: Long?,
-    startMillis: Long?,
-    nowMillis: Long,
+    deadline: Instant?,
+    start: Instant?,
+    now: Instant,
     onTitleChange: (String) -> Unit,
     onDeadlineChange: (String) -> Unit,
     onDeadlineCommit: () -> Unit,
@@ -487,9 +490,9 @@ private fun GoalEditorContent(
     )
     Spacer(Modifier.height(9.dp))
     GoalDateRow(
-        deadlineMillis = deadlineMillis,
-        startMillis = startMillis,
-        nowMillis = nowMillis,
+        deadline = deadline,
+        start = start,
+        now = now,
         onDeadlineChange = onDeadlineChange,
         onDeadlineCommit = onDeadlineCommit,
         onStartChange = onStartChange,
@@ -542,9 +545,9 @@ internal fun CountdownCircle(
     busyArcs: List<BusyArc> = emptyList(),
     netTime: NetTime? = null,
     focusArcs: List<FocusArc> = emptyList(),
-    focusedTodayMillis: Long = 0L,
-    windowStartMillis: Long = 0L,
-    windowEndMillis: Long = 0L,
+    focusedToday: Duration = Duration.ZERO,
+    windowStart: Instant = Instant.fromEpochMilliseconds(0L),
+    windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
 ) {
     val colors = LocalDayViewColors.current
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
@@ -702,26 +705,26 @@ internal fun CountdownCircle(
                                 letterSpacing = .8.sp,
                             )
                         }
-                        if (netTime != null && netTime.busyRemainingMillis > 0) {
+                        if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Net ${formatDurationHm(netTime.netRemainingMillis)}",
+                                "Net ${formatDurationHm(netTime.netRemaining)}",
                                 color = colors.mint,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 letterSpacing = .5.sp,
                             )
                             Text(
-                                "${formatDurationHm(netTime.busyRemainingMillis)} occupé",
+                                "${formatDurationHm(netTime.busyRemaining)} occupé",
                                 color = colors.muted,
                                 fontSize = 11.sp,
                                 letterSpacing = .5.sp,
                             )
                         }
-                        if (focusedTodayMillis > 0) {
+                        if (focusedToday > Duration.ZERO) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Focus ${formatDurationHm(focusedTodayMillis)}",
+                                "Focus ${formatDurationHm(focusedToday)}",
                                 color = colors.mint,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -734,13 +737,13 @@ internal fun CountdownCircle(
                 hoveredBusy?.let { hovered ->
                     val arc = hovered.arc
                     val startLabel = formatClockHm(
-                        angleToMillis(arc.startAngleDegrees, windowStartMillis, windowEndMillis),
+                        angleToInstant(arc.startAngleDegrees, windowStart, windowEnd),
                     )
                     val endLabel = formatClockHm(
-                        angleToMillis(
+                        angleToInstant(
                             arc.startAngleDegrees + arc.sweepDegrees,
-                            windowStartMillis,
-                            windowEndMillis,
+                            windowStart,
+                            windowEnd,
                         ),
                     )
                     Box(
@@ -889,7 +892,7 @@ private fun FocusPanel(
                 when (progress.status) {
                     PomodoroStatus.IDLE -> "PRÊT À S’ENGAGER"
                     PomodoroStatus.ACTIVE -> "EN COURS"
-                    PomodoroStatus.BREAK -> if (progress.breakElapsedMillis >= 60 * 60_000L) {
+                    PomodoroStatus.BREAK -> if (progress.breakElapsed >= 60.minutes) {
                         "SÉRIE INACTIVE"
                     } else {
                         "PAUSE EN COURS"
@@ -1016,7 +1019,7 @@ private fun FocusPanel(
             }
         } else if (progress.status == PomodoroStatus.BREAK) {
             Text(
-                if (progress.breakElapsedMillis >= 60 * 60_000L) "SÉRIE INACTIVE" else "PAUSE DEPUIS",
+                if (progress.breakElapsed >= 60.minutes) "SÉRIE INACTIVE" else "PAUSE DEPUIS",
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -1026,7 +1029,7 @@ private fun FocusPanel(
             Text(formatBreakClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
             Spacer(Modifier.height(14.dp))
             Text(
-                if (progress.breakElapsedMillis < 10 * 60_000L) {
+                if (progress.breakElapsed < 10.minutes) {
                     "PRENEZ LE TEMPS DE DÉCONNECTER"
                 } else {
                     "REPRENDRE RESTE UN CHOIX CONSCIENT"
@@ -1199,9 +1202,9 @@ internal fun FocusActionButton(
 @Composable
 private fun GlobalGoalPanel(
     title: String,
-    deadlineMillis: Long?,
-    startMillis: Long?,
-    nowMillis: Long,
+    deadline: Instant?,
+    start: Instant?,
+    now: Instant,
     workStartMinutes: Int,
     workEndMinutes: Int,
     onTitleChange: (String) -> Unit,
@@ -1220,35 +1223,35 @@ private fun GlobalGoalPanel(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("OBJECTIF GLOBAL", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
             Spacer(Modifier.weight(1f))
-            if (deadlineMillis != null) {
-                val workingMillis = remember(
-                    nowMillis / 60_000,
-                    deadlineMillis,
+            if (deadline != null) {
+                val working = remember(
+                    now.toEpochMilliseconds() / 60_000,
+                    deadline,
                     workStartMinutes,
                     workEndMinutes,
                 ) {
-                    calculateGoalWorkingMillis(
-                        nowMillis = nowMillis,
-                        deadlineMillis = deadlineMillis,
+                    calculateGoalWorkingTime(
+                        now = now,
+                        deadline = deadline,
                         startMinutesOfDay = workStartMinutes,
                         endMinutesOfDay = workEndMinutes,
                     )
                 }
                 Text(
-                    formatGoalWorkingHours(workingMillis, deadlineMillis <= nowMillis).uppercase(),
-                    color = if (deadlineMillis <= nowMillis) colors.red else colors.muted,
+                    formatGoalWorkingHours(working, deadline <= now).uppercase(),
+                    color = if (deadline <= now) colors.red else colors.muted,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = .7.sp,
                 )
             }
         }
-        if (deadlineMillis != null) {
+        if (deadline != null) {
             Spacer(Modifier.height(12.dp))
             GoalProgressBar(
-                nowMillis = nowMillis,
-                startMillis = startMillis ?: nowMillis,
-                deadlineMillis = deadlineMillis,
+                now = now,
+                start = start ?: now,
+                deadline = deadline,
                 workStartMinutes = workStartMinutes,
                 workEndMinutes = workEndMinutes,
                 animationLabel = "goal-progress",
@@ -1264,9 +1267,9 @@ private fun GlobalGoalPanel(
         )
         Spacer(Modifier.height(9.dp))
         GoalDateRow(
-            deadlineMillis = deadlineMillis,
-            startMillis = startMillis,
-            nowMillis = nowMillis,
+            deadline = deadline,
+            start = start,
+            now = now,
             onDeadlineChange = onDeadlineChange,
             onDeadlineCommit = onDeadlineCommit,
             onStartChange = onStartChange,
@@ -1327,19 +1330,19 @@ private enum class GoalDateTarget { NONE, START, END }
 
 @Composable
 private fun GoalProgressBar(
-    nowMillis: Long,
-    startMillis: Long,
-    deadlineMillis: Long,
+    now: Instant,
+    start: Instant,
+    deadline: Instant,
     workStartMinutes: Int,
     workEndMinutes: Int,
     animationLabel: String,
 ) {
     val colors = LocalDayViewColors.current
-    val progress = remember(nowMillis / 60_000, startMillis, deadlineMillis, workStartMinutes, workEndMinutes) {
+    val progress = remember(now.toEpochMilliseconds() / 60_000, start, deadline, workStartMinutes, workEndMinutes) {
         calculateGoalProgress(
-            nowMillis = nowMillis,
-            startMillis = startMillis,
-            deadlineMillis = deadlineMillis,
+            now = now,
+            start = start,
+            deadline = deadline,
             startMinutesOfDay = workStartMinutes,
             endMinutesOfDay = workEndMinutes,
         )
@@ -1371,9 +1374,9 @@ private fun GoalProgressBar(
 /** Start → end goal dates as glanceable labels, each opening a date/time picker on tap. */
 @Composable
 private fun GoalDateRow(
-    deadlineMillis: Long?,
-    startMillis: Long?,
-    nowMillis: Long,
+    deadline: Instant?,
+    start: Instant?,
+    now: Instant,
     onDeadlineChange: (String) -> Unit,
     onDeadlineCommit: () -> Unit,
     onStartChange: (String) -> Unit,
@@ -1382,9 +1385,9 @@ private fun GoalDateRow(
     val colors = LocalDayViewColors.current
     var picker by remember { mutableStateOf(GoalDateTarget.NONE) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        if (deadlineMillis != null) {
+        if (deadline != null) {
             GoalDateLabel(
-                text = formatGoalDateShort(startMillis ?: nowMillis),
+                text = formatGoalDateShort(start ?: now),
                 semanticLabel = "Début de l’objectif",
                 isPlaceholder = false,
                 onClick = { picker = GoalDateTarget.START },
@@ -1392,17 +1395,17 @@ private fun GoalDateRow(
             Text("→", color = colors.muted, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 6.dp))
         }
         GoalDateLabel(
-            text = deadlineMillis?.let(::formatGoalDateShort) ?: "+ Définir une échéance",
+            text = deadline?.let(::formatGoalDateShort) ?: "+ Définir une échéance",
             semanticLabel = "Date limite de l’objectif",
-            isPlaceholder = deadlineMillis == null,
+            isPlaceholder = deadline == null,
             onClick = { picker = GoalDateTarget.END },
         )
     }
     when (picker) {
         GoalDateTarget.START -> GoalDateTimeDialog(
-            initialMillis = startMillis ?: nowMillis,
+            initial = start ?: now,
             validate = { candidate ->
-                if (deadlineMillis != null && candidate >= deadlineMillis) {
+                if (deadline != null && candidate >= deadline) {
                     "Le début doit précéder l’échéance."
                 } else {
                     null
@@ -1416,7 +1419,7 @@ private fun GoalDateRow(
             onDismiss = { picker = GoalDateTarget.NONE },
         )
         GoalDateTarget.END -> GoalDateTimeDialog(
-            initialMillis = deadlineMillis ?: nowMillis,
+            initial = deadline ?: now,
             validate = { null },
             onConfirm = {
                 onDeadlineChange(it)
@@ -1459,16 +1462,16 @@ private fun GoalDateLabel(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GoalDateTimeDialog(
-    initialMillis: Long,
-    validate: (Long) -> String?,
+    initial: Instant,
+    validate: (Instant) -> String?,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    val dateState = rememberDatePickerState(initialSelectedDateMillis = goalPickerDateMillis(initialMillis))
+    val dateState = rememberDatePickerState(initialSelectedDateMillis = goalPickerDateMillis(initial))
     val timeState = rememberTimePickerState(
-        initialHour = goalPickerHour(initialMillis),
-        initialMinute = goalPickerMinute(initialMillis),
+        initialHour = goalPickerHour(initial),
+        initialMinute = goalPickerMinute(initial),
         is24Hour = true,
     )
     var error by remember { mutableStateOf<String?>(null) }

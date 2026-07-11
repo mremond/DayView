@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 @Composable
 fun DayViewApp(
@@ -29,7 +30,7 @@ fun DayViewApp(
     launchAtLogin: Boolean? = null,
     onLaunchAtLoginChange: ((Boolean) -> Unit)? = null,
     onOpenMiniWindow: (() -> Unit)? = null,
-    onFocusAlarmChange: (endMillis: Long?, intention: String) -> Unit = { _, _ -> },
+    onFocusAlarmChange: (end: Instant?, intention: String) -> Unit = { _, _ -> },
     onRequestCalendarPermission: (() -> Unit)? = null,
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
@@ -60,7 +61,7 @@ fun DayViewApp(
                 controller.setFocusPresenceIntervals(focusPresenceIntervals)
             }
 
-            val netMinute = state.nowMillis / 60_000L
+            val netMinute = state.now.toEpochMilliseconds() / 60_000L
             LaunchedEffect(
                 netMinute,
                 state.netTimeSettings,
@@ -74,7 +75,7 @@ fun DayViewApp(
                     } else {
                         val granted = runCatching { calendarSource.hasPermission() }.getOrDefault(false)
                         if (granted) {
-                            val (start, end) = dayWindowMillis(state.nowMillis, state.startMinutes, state.endMinutes)
+                            val (start, end) = dayWindow(state.now, state.startMinutes, state.endMinutes)
                             val intervals = runCatching {
                                 calendarSource.busyIntervals(start, end, state.netTimeSettings.includedCalendarIds)
                             }.getOrDefault(emptyList())
@@ -107,15 +108,15 @@ fun DayViewApp(
             DisposableEffect(soundPlayer) {
                 onDispose { soundPlayer.close() }
             }
-            LaunchedEffect(state.showSeconds, state.pomodoroEndMillis) {
+            LaunchedEffect(state.showSeconds, state.pomodoroEnd) {
                 while (true) {
-                    val nowMillis = Clock.System.now().toEpochMilliseconds()
-                    controller.tick(nowMillis)
+                    val now = Clock.System.now()
+                    controller.tick(now)
                     val current = controller.state
-                    val refreshDelay = if (current.showSeconds || current.pomodoroEndMillis != null) {
+                    val refreshDelay = if (current.showSeconds || current.pomodoroEnd != null) {
                         1_000L
                     } else {
-                        60_000L - nowMillis % 60_000L
+                        60_000L - now.toEpochMilliseconds() % 60_000L
                     }
                     delay(refreshDelay)
                 }
@@ -127,12 +128,12 @@ fun DayViewApp(
             LaunchedEffect(lifecycle, controller) {
                 refreshClockOnResume(
                     events = lifecycle.eventFlow,
-                    now = { Clock.System.now().toEpochMilliseconds() },
+                    now = { Clock.System.now() },
                     tick = controller::tick,
                 )
             }
             LaunchedEffect(
-                state.nowMillis,
+                state.now,
                 state.startMinutes,
                 state.endMinutes,
                 state.soundSettings,
@@ -141,7 +142,7 @@ fun DayViewApp(
             ) {
                 if (scheduleSoundAlerts) {
                     val cue = soundScheduler.observe(
-                        nowMillis = state.nowMillis,
+                        now = state.now,
                         startMinutesOfDay = state.startMinutes,
                         endMinutesOfDay = state.endMinutes,
                         intervalMinutes = state.soundSettings.intervalMinutes,
@@ -196,7 +197,7 @@ fun DayViewApp(
                         changePomodoroDuration = { controller.changePomodoroDuration(it) },
                         startPomodoro = {
                             controller.startPomodoro()
-                            controller.state.pomodoroEndMillis?.let {
+                            controller.state.pomodoroEnd?.let {
                                 onFocusAlarmChange(it, controller.state.focusIntention)
                             }
                         },

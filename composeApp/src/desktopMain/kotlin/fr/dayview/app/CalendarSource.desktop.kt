@@ -7,6 +7,7 @@ import java.io.OutputStreamWriter
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
+import kotlin.time.Instant
 
 /** Passerelle EventKit macOS pilotée par un petit processus accessoire. */
 private class MacEventKitCalendarSource : CalendarSource {
@@ -29,10 +30,12 @@ private class MacEventKitCalendarSource : CalendarSource {
     }
 
     override fun busyIntervals(
-        windowStartMillis: Long,
-        windowEndMillis: Long,
+        windowStart: Instant,
+        windowEnd: Instant,
         includedCalendarIds: Set<String>,
-    ): List<BusyInterval> = commandUntilEnd("BUSY $windowStartMillis $windowEndMillis").mapNotNull { line ->
+    ): List<BusyInterval> = commandUntilEnd(
+        "BUSY ${windowStart.toEpochMilliseconds()} ${windowEnd.toEpochMilliseconds()}",
+    ).mapNotNull { line ->
         val parts = line.split('\t')
         if (parts.size < 3) return@mapNotNull null
         val start = parts[0].toLongOrNull() ?: return@mapNotNull null
@@ -40,7 +43,11 @@ private class MacEventKitCalendarSource : CalendarSource {
         val calId = parts[2]
         if (includedCalendarIds.isNotEmpty() && calId !in includedCalendarIds) return@mapNotNull null
         val title = parts.getOrNull(3).orEmpty()
-        BusyInterval(start, end, if (title.isBlank()) emptyList() else listOf(title))
+        BusyInterval(
+            Instant.fromEpochMilliseconds(start),
+            Instant.fromEpochMilliseconds(end),
+            if (title.isBlank()) emptyList() else listOf(title),
+        )
     }
 
     private fun ensureHelper(): Boolean {

@@ -31,14 +31,15 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.time.Instant
 
 @Composable
 fun DayViewMiniApp(
     progress: DayProgress,
     showSeconds: Boolean,
-    nowMillis: Long,
+    now: Instant,
     goalTitle: String,
-    goalDeadlineMillis: Long?,
+    goalDeadline: Instant?,
     pomodoro: PomodoroProgress,
     focusIntention: String,
     onStartFocus: (String) -> Unit,
@@ -68,8 +69,8 @@ fun DayViewMiniApp(
                     )
                     MiniGoal(
                         title = goalTitle,
-                        deadlineMillis = goalDeadlineMillis,
-                        nowMillis = nowMillis,
+                        deadline = goalDeadline,
+                        now = now,
                         workStartMinutes = progress.startHour * 60 + progress.startMinute,
                         workEndMinutes = progress.endHour * 60 + progress.endMinute,
                     )
@@ -108,21 +109,21 @@ fun DayViewMiniApp(
 @Composable
 private fun MiniGoal(
     title: String,
-    deadlineMillis: Long?,
-    nowMillis: Long,
+    deadline: Instant?,
+    now: Instant,
     workStartMinutes: Int,
     workEndMinutes: Int,
 ) {
     val colors = LocalDayViewColors.current
-    val remaining = deadlineMillis?.let {
+    val remaining = deadline?.let {
         formatGoalWorkingHours(
-            workingMillis = calculateGoalWorkingMillis(
-                nowMillis = nowMillis,
-                deadlineMillis = it,
+            working = calculateGoalWorkingTime(
+                now = now,
+                deadline = it,
                 startMinutesOfDay = workStartMinutes,
                 endMinutesOfDay = workEndMinutes,
             ),
-            deadlineReached = it <= nowMillis,
+            deadlineReached = it <= now,
         )
     }
     Row(
