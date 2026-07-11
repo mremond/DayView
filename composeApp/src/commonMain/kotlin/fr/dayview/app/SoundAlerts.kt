@@ -5,6 +5,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.time.Duration.Companion.seconds
@@ -26,7 +27,7 @@ data class SoundSettings(
     val volumePercent: Int = 40,
 ) {
     fun normalized(): SoundSettings = copy(
-        intervalMinutes = intervalMinutes.coerceIn(30, 180),
+        intervalMinutes = snapIntervalMinutes(intervalMinutes),
         volumePercent = volumePercent.coerceIn(10, 100),
     )
 
@@ -39,6 +40,14 @@ data class SoundSettings(
         }
 
     fun allowsDayCue(cue: SoundCue, focusIsActive: Boolean): Boolean = !focusIsActive && allows(cue)
+
+    companion object {
+        /** Selectable minute values for the out-of-focus reminder interval, ascending. */
+        val INTERVAL_CHOICES: List<Int> = listOf(5, 10, 15, 20, 25, 30, 60)
+
+        /** Snaps an arbitrary minute value to the nearest choice; ties resolve to the smaller value. */
+        fun snapIntervalMinutes(minutes: Int): Int = INTERVAL_CHOICES.minByOrNull { abs(it - minutes) } ?: 30
+    }
 }
 
 class SoundAlertScheduler(
@@ -59,7 +68,7 @@ class SoundAlertScheduler(
         val localNow = now.toLocalDateTime(timeZone)
         val startMinutes = startMinutesOfDay.coerceIn(0, 23 * 60 + 29)
         val endMinutes = endMinutesOfDay.coerceIn(startMinutes + 30, 23 * 60 + 59)
-        val interval = intervalMinutes.coerceIn(30, 180)
+        val interval = SoundSettings.snapIntervalMinutes(intervalMinutes)
         fun at(minutes: Int): Instant = LocalDateTime(
             year = localNow.year,
             month = localNow.month,
