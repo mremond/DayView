@@ -52,7 +52,7 @@ class AndroidDayPreferencesTest {
         preferences.saveDayRange(7 * 60 + 30, 19 * 60)
         preferences.saveShowSeconds(false)
         preferences.saveSoundSettings(sounds)
-        preferences.saveGlobalGoal("Livrer DayView", 1_800_000_000_000L, 1_700_000_000_000L)
+        preferences.saveGlobalGoal("Livrer la v2", 1_800_000_000_000L, 1_700_000_000_000L)
         preferences.savePomodoro(45, 1_800_000_100_000L)
         preferences.saveFocusIntention("Finaliser la présentation")
 
@@ -62,7 +62,7 @@ class AndroidDayPreferencesTest {
         assertEquals(19 * 60, reloaded.loadEndMinutes())
         assertEquals(false, reloaded.loadShowSeconds())
         assertEquals(sounds, reloaded.loadSoundSettings())
-        assertEquals("Livrer DayView", reloaded.loadGoalTitle())
+        assertEquals("Livrer la v2", reloaded.loadGoalTitle())
         assertEquals(1_800_000_000_000L, reloaded.loadGoalDeadlineMillis())
         assertEquals(1_700_000_000_000L, reloaded.loadGoalStartMillis())
         assertEquals(45, reloaded.loadPomodoroMinutes())

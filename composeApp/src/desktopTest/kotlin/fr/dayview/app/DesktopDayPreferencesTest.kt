@@ -89,11 +89,11 @@ class DesktopDayPreferencesTest {
 
     @Test
     fun globalGoalSurvivesANewPreferencesInstance() {
-        preferences.saveGlobalGoal("Livrer DayView", 1_800_000_000_000L, 1_700_000_000_000L)
+        preferences.saveGlobalGoal("Livrer la v2", 1_800_000_000_000L, 1_700_000_000_000L)
 
         val reloaded = DesktopDayPreferences(storage)
 
-        assertEquals("Livrer DayView", reloaded.loadGoalTitle())
+        assertEquals("Livrer la v2", reloaded.loadGoalTitle())
         assertEquals(1_800_000_000_000L, reloaded.loadGoalDeadlineMillis())
         assertEquals(1_700_000_000_000L, reloaded.loadGoalStartMillis())
     }

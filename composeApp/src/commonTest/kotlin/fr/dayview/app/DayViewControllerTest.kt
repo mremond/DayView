@@ -18,7 +18,7 @@ class DayViewControllerTest {
                 startMinutes = 7 * 60 + 30,
                 endMinutes = 19 * 60,
                 showSeconds = false,
-                goalTitle = "Livrer DayView",
+                goalTitle = "Livrer la v2",
                 pomodoroMinutes = 45,
                 focusIntention = "Finaliser le parcours",
             ),
@@ -30,7 +30,7 @@ class DayViewControllerTest {
         assertEquals(7 * 60 + 30, state.startMinutes)
         assertEquals(19 * 60, state.endMinutes)
         assertEquals(false, state.showSeconds)
-        assertEquals("Livrer DayView", state.goalTitle)
+        assertEquals("Livrer la v2", state.goalTitle)
         assertEquals(45, state.pomodoroProgress.durationMinutes)
         assertEquals("Finaliser le parcours", state.focusIntention)
     }
