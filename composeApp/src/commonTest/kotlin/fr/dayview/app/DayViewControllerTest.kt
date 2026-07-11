@@ -2,13 +2,22 @@ package fr.dayview.app
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private fun testController(
-    preferences: DayPreferences,
+    preferences: InMemoryDayPreferences,
     nowMillis: Long,
-) = DayViewController(preferences, CoroutineScope(Dispatchers.Unconfined), initialNowMillis = nowMillis)
+) = DayViewController(
+    preferences,
+    CoroutineScope(Dispatchers.Unconfined),
+    initialSnapshot = preferences.current,
+    initialNowMillis = nowMillis,
+)
 
 class DayViewControllerTest {
     @Test
@@ -322,22 +331,28 @@ class DayViewControllerTest {
     fun externalSaveReachesTheControllerThroughObserve() {
         val preferences = InMemoryDayPreferences()
         val controller = testController(preferences, 10_000L)
-        val stopObserving = preferences.observe(controller::onPreferencesChanged)
+        val observerScope = CoroutineScope(Dispatchers.Unconfined)
+        val observerJob = observerScope.launch {
+            preferences.snapshots.collect { controller.onPreferencesChanged(it) }
+        }
 
-        preferences.savePomodoro(50, 1_800_000_000_000L)
-        preferences.saveFocusIntention("Depuis la tuile")
+        preferences.emitExternal(preferences.current.copy(pomodoroMinutes = 50, pomodoroEndMillis = 1_800_000_000_000L))
+        preferences.emitExternal(preferences.current.copy(focusIntention = "Depuis la tuile"))
 
         assertEquals(1_800_000_000_000L, controller.state.pomodoroEndMillis)
         assertEquals("Depuis la tuile", controller.state.focusIntention)
 
-        stopObserving()
+        observerJob.cancel()
     }
 
     @Test
     fun selfWritesReconcileWithoutClobberingStateOrDrafts() {
         val preferences = InMemoryDayPreferences()
         val controller = testController(preferences, 10_000L)
-        val stopObserving = preferences.observe(controller::onPreferencesChanged)
+        val observerScope = CoroutineScope(Dispatchers.Unconfined)
+        val observerJob = observerScope.launch {
+            preferences.snapshots.collect { controller.onPreferencesChanged(it) }
+        }
 
         // An unsaved draft plus a persisting edit: the persisting edit's echo is
         // dropped by the pending-self-write guard, so both the draft and the
@@ -358,73 +373,25 @@ class DayViewControllerTest {
         assertEquals(FocusClosureOutcome.COMPLETED, controller.state.lastFocusClosure)
         assertEquals(null, controller.state.pomodoroEndMillis)
 
-        stopObserving()
+        observerJob.cancel()
     }
 }
 
 private class InMemoryDayPreferences(
     initial: DayPreferencesSnapshot = DayPreferencesSnapshot(),
 ) : DayPreferences {
-    var current: DayPreferencesSnapshot = initial
-        private set
+    private val state = MutableStateFlow(initial)
 
-    private val observers = mutableListOf<(DayPreferencesSnapshot) -> Unit>()
+    override val snapshots: Flow<DayPreferencesSnapshot> = state.asStateFlow()
 
-    override fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
-        observers.add(observer)
-        observer(current)
-        return { observers.remove(observer) }
+    override suspend fun persist(snapshot: DayPreferencesSnapshot) {
+        state.value = snapshot
     }
 
-    private fun emit() {
-        observers.toList().forEach { it(current) }
-    }
+    val current: DayPreferencesSnapshot get() = state.value
 
-    override fun snapshot(): DayPreferencesSnapshot = current
-    override fun loadStartMinutes(): Int = current.startMinutes
-    override fun loadEndMinutes(): Int = current.endMinutes
-    override fun loadShowSeconds(): Boolean = current.showSeconds
-    override fun loadSoundSettings(): SoundSettings = current.soundSettings
-    override fun loadGoalTitle(): String = current.goalTitle
-    override fun loadGoalDeadlineMillis(): Long? = current.goalDeadlineMillis
-    override fun loadGoalStartMillis(): Long? = current.goalStartMillis
-    override fun loadPomodoroMinutes(): Int = current.pomodoroMinutes
-    override fun loadPomodoroEndMillis(): Long? = current.pomodoroEndMillis
-    override fun loadFocusIntention(): String = current.focusIntention
-    override fun loadNetTimeSettings(): NetTimeSettings = current.netTimeSettings
-
-    override fun saveDayRange(startMinutes: Int, endMinutes: Int) {
-        current = current.copy(startMinutes = startMinutes, endMinutes = endMinutes)
-        emit()
-    }
-
-    override fun saveShowSeconds(showSeconds: Boolean) {
-        current = current.copy(showSeconds = showSeconds)
-        emit()
-    }
-
-    override fun saveSoundSettings(settings: SoundSettings) {
-        current = current.copy(soundSettings = settings)
-        emit()
-    }
-
-    override fun saveGlobalGoal(title: String, deadlineMillis: Long?, startMillis: Long?) {
-        current = current.copy(goalTitle = title, goalDeadlineMillis = deadlineMillis, goalStartMillis = startMillis)
-        emit()
-    }
-
-    override fun savePomodoro(durationMinutes: Int, endMillis: Long?) {
-        current = current.copy(pomodoroMinutes = durationMinutes, pomodoroEndMillis = endMillis)
-        emit()
-    }
-
-    override fun saveFocusIntention(intention: String) {
-        current = current.copy(focusIntention = intention)
-        emit()
-    }
-
-    override fun saveNetTimeSettings(settings: NetTimeSettings) {
-        current = current.copy(netTimeSettings = settings)
-        emit()
+    /** Simulates a write that lands from outside this process (tile/widget/alarm). */
+    fun emitExternal(snapshot: DayPreferencesSnapshot) {
+        state.value = snapshot
     }
 }

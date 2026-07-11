@@ -1,45 +1,43 @@
 package fr.dayview.app
 
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class DayPreferencesTest {
     @Test
-    fun fallbackPreferencesExposeSafeDefaults() {
-        assertEquals(8 * 60, DefaultDayPreferences.loadStartMinutes())
-        assertEquals(18 * 60, DefaultDayPreferences.loadEndMinutes())
-        assertEquals(true, DefaultDayPreferences.loadShowSeconds())
-        assertEquals(SoundSettings(), DefaultDayPreferences.loadSoundSettings())
-        assertEquals("", DefaultDayPreferences.loadGoalTitle())
-        assertNull(DefaultDayPreferences.loadGoalDeadlineMillis())
-        assertEquals(25, DefaultDayPreferences.loadPomodoroMinutes())
-        assertNull(DefaultDayPreferences.loadPomodoroEndMillis())
-        assertEquals("", DefaultDayPreferences.loadFocusIntention())
-        assertEquals(NetTimeSettings(), DefaultDayPreferences.loadNetTimeSettings())
+    fun fallbackPreferencesExposeSafeDefaults() = runTest {
+        // DefaultDayPreferences is a process-wide singleton; reset it first so this
+        // assertion doesn't depend on whether another test ran (and persisted) before it.
+        DefaultDayPreferences.persist(DayPreferencesSnapshot())
+
+        assertEquals(DayPreferencesSnapshot(), DefaultDayPreferences.snapshots.first())
     }
 
     @Test
-    fun fallbackPreferencesAcceptWritesWithoutChangingDefaults() {
-        DefaultDayPreferences.saveDayRange(0, 1)
-        DefaultDayPreferences.saveShowSeconds(false)
-        DefaultDayPreferences.saveSoundSettings(SoundSettings(enabled = true))
-        DefaultDayPreferences.saveGlobalGoal("Temporaire", 42L, 42L)
-        DefaultDayPreferences.savePomodoro(50, 123L)
-        DefaultDayPreferences.saveFocusIntention("Terminer le test")
-        DefaultDayPreferences.saveNetTimeSettings(
-            NetTimeSettings(enabled = true, includedCalendarIds = setOf("travail")),
+    fun fallbackPreferencesRoundTripPersistedSnapshots() = runTest {
+        val written = DayPreferencesSnapshot(
+            startMinutes = 0,
+            endMinutes = 1,
+            showSeconds = false,
+            soundSettings = SoundSettings(enabled = true),
+            goalTitle = "Temporaire",
+            goalDeadlineMillis = 42L,
+            goalStartMillis = 42L,
+            pomodoroMinutes = 50,
+            pomodoroEndMillis = 123L,
+            focusIntention = "Terminer le test",
+            netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("travail")),
         )
 
-        assertEquals(8 * 60, DefaultDayPreferences.loadStartMinutes())
-        assertEquals(18 * 60, DefaultDayPreferences.loadEndMinutes())
-        assertEquals(true, DefaultDayPreferences.loadShowSeconds())
-        assertEquals(SoundSettings(), DefaultDayPreferences.loadSoundSettings())
-        assertEquals("", DefaultDayPreferences.loadGoalTitle())
-        assertNull(DefaultDayPreferences.loadGoalDeadlineMillis())
-        assertEquals(25, DefaultDayPreferences.loadPomodoroMinutes())
-        assertNull(DefaultDayPreferences.loadPomodoroEndMillis())
-        assertEquals("", DefaultDayPreferences.loadFocusIntention())
-        assertEquals(NetTimeSettings(), DefaultDayPreferences.loadNetTimeSettings())
+        DefaultDayPreferences.persist(written)
+
+        try {
+            assertEquals(written, DefaultDayPreferences.snapshots.first())
+        } finally {
+            // Leave the shared singleton clean for any other test relying on defaults.
+            DefaultDayPreferences.persist(DayPreferencesSnapshot())
+        }
     }
 }

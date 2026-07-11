@@ -6,6 +6,8 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -173,9 +175,17 @@ class FocusAlarmTest {
 
     @Test
     fun resumeActionStartsAnotherFocusInTheSameChain() {
-        val preferences = AndroidDayPreferences(context, notifyWidgets = false)
-        preferences.savePomodoro(25, System.currentTimeMillis() - 1_000L)
-        preferences.saveFocusIntention("Continuer la proposition")
+        val preferences = DayViewPreferences.get(context)
+        runBlocking {
+            val seed = preferences.snapshots.first()
+            preferences.persist(
+                seed.copy(
+                    pomodoroMinutes = 25,
+                    pomodoroEndMillis = System.currentTimeMillis() - 1_000L,
+                    focusIntention = "Continuer la proposition",
+                ),
+            )
+        }
         val beforeResume = System.currentTimeMillis()
 
         FocusNotificationActionReceiver().onReceive(
@@ -183,18 +193,22 @@ class FocusAlarmTest {
             Intent().setAction(FocusNotificationManager.ACTION_RESUME_FOCUS),
         )
 
-        val endMillis = requireNotNull(preferences.loadPomodoroEndMillis())
+        val reloaded = runBlocking { preferences.snapshots.first() }
+        val endMillis = requireNotNull(reloaded.pomodoroEndMillis)
         assertTrue(endMillis >= beforeResume + 25 * 60_000L)
-        assertEquals("Continuer la proposition", preferences.loadFocusIntention())
+        assertEquals("Continuer la proposition", reloaded.focusIntention)
         assertEquals(endMillis, nextAlarm().getTriggerAtMs())
     }
 
     @Test
     fun stopActionClosesTheFocusChainAndClearsItsNotification() {
-        val preferences = AndroidDayPreferences(context, notifyWidgets = false)
+        val preferences = DayViewPreferences.get(context)
         val scheduler = FocusAlarmScheduler(context)
         val endMillis = System.currentTimeMillis() + 25 * 60_000L
-        preferences.savePomodoro(25, endMillis)
+        runBlocking {
+            val seed = preferences.snapshots.first()
+            preferences.persist(seed.copy(pomodoroMinutes = 25, pomodoroEndMillis = endMillis))
+        }
         scheduler.schedule(endMillis, "Arrêter proprement")
 
         FocusNotificationActionReceiver().onReceive(
@@ -202,7 +216,8 @@ class FocusAlarmTest {
             Intent().setAction(FocusNotificationManager.ACTION_STOP_FOCUS),
         )
 
-        assertEquals(null, preferences.loadPomodoroEndMillis())
+        val reloaded = runBlocking { preferences.snapshots.first() }
+        assertEquals(null, reloaded.pomodoroEndMillis)
         assertEquals(0, shadowAlarms.scheduledAlarms.size)
         val notifications: ShadowNotificationManager = extract(
             context.getSystemService(NotificationManager::class.java),

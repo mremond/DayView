@@ -51,10 +51,10 @@ private val netTimeCalendarsKey = stringPreferencesKey(DayPreferenceKeys.NET_TIM
 
 class DayPreferencesStore(
     private val dataStore: DataStore<Preferences>,
-) {
-    val snapshots: Flow<DayPreferencesSnapshot> = dataStore.data.map { it.toSnapshot() }
+) : DayPreferences {
+    override val snapshots: Flow<DayPreferencesSnapshot> = dataStore.data.map { it.toSnapshot() }
 
-    suspend fun persist(snapshot: DayPreferencesSnapshot) {
+    override suspend fun persist(snapshot: DayPreferencesSnapshot) {
         dataStore.edit { prefs ->
             prefs[startKey] = snapshot.startMinutes
             prefs[endKey] = snapshot.endMinutes

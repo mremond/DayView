@@ -11,6 +11,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class FocusAlarmScheduler(
     context: Context,
@@ -119,7 +121,7 @@ class FocusAlarmReceiver : BroadcastReceiver() {
             elapsedMinutes = 0
         }
         val intention = intent.getStringExtra(EXTRA_INTENTION)
-            ?: AndroidDayPreferences(context, notifyWidgets = false).loadFocusIntention()
+            ?: runBlocking { DayViewPreferences.get(context).snapshots.first() }.focusIntention
         FocusAlarmScheduler(context).restoreBreakReminders(breakStartMillis, intention)
 
         if (

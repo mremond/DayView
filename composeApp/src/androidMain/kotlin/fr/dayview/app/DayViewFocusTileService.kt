@@ -9,6 +9,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 internal enum class FocusTileAction {
     OPEN_APP,
@@ -42,23 +44,24 @@ class DayViewFocusTileService : TileService() {
     override fun onClick() {
         super.onClick()
         unlockAndRun {
-            val preferences = AndroidDayPreferences(applicationContext)
+            val preferences = DayViewPreferences.get(applicationContext)
             val now = System.currentTimeMillis()
-            val tileState = focusTileState(preferences.loadPomodoroEndMillis(), now)
+            val snap = runBlocking { preferences.snapshots.first() }
+            val tileState = focusTileState(snap.pomodoroEndMillis, now)
             when (
                 focusTileAction(
                     state = tileState,
-                    intention = preferences.loadFocusIntention(),
+                    intention = snap.focusIntention,
                     canPostNotifications = canPostNotifications(),
                 )
             ) {
                 FocusTileAction.OPEN_APP -> openDayView()
                 FocusTileAction.START_FOCUS -> {
-                    val endMillis = now + preferences.loadPomodoroMinutes().coerceIn(5, 180) * 60_000L
-                    preferences.savePomodoro(preferences.loadPomodoroMinutes(), endMillis)
+                    val endMillis = now + snap.pomodoroMinutes.coerceIn(5, 180) * 60_000L
+                    runBlocking { preferences.persist(snap.copy(pomodoroEndMillis = endMillis)) }
                     FocusAlarmScheduler(applicationContext).schedule(
                         endMillis,
-                        preferences.loadFocusIntention(),
+                        snap.focusIntention,
                     )
                     updateTile()
                 }
@@ -68,9 +71,9 @@ class DayViewFocusTileService : TileService() {
 
     private fun updateTile() {
         val tile = qsTile ?: return
-        val preferences = AndroidDayPreferences(applicationContext, notifyWidgets = false)
+        val snap = runBlocking { DayViewPreferences.get(applicationContext).snapshots.first() }
         val tileState = focusTileState(
-            preferences.loadPomodoroEndMillis(),
+            snap.pomodoroEndMillis,
             System.currentTimeMillis(),
         )
         tile.state = if (tileState == FocusTileState.IDLE) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE
@@ -83,7 +86,7 @@ class DayViewFocusTileService : TileService() {
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when (tileState) {
-                FocusTileState.ACTIVE -> preferences.loadFocusIntention().trim().take(30)
+                FocusTileState.ACTIVE -> snap.focusIntention.trim().take(30)
                 FocusTileState.BREAK -> getString(R.string.focus_tile_break_subtitle)
                 FocusTileState.IDLE -> getString(R.string.focus_tile_subtitle)
             }

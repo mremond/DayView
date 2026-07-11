@@ -76,12 +76,14 @@ kotlin {
             dependencies {
                 implementation(libs.compose.ui.tooling.preview)
                 implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.datastore.preferences)
             }
         }
         val androidUnitTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.robolectric)
+                implementation(libs.androidx.test.core)
             }
         }
         val desktopMain by getting {

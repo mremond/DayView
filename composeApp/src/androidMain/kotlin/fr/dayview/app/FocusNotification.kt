@@ -11,6 +11,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
 import android.os.Build
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class FocusNotificationManager(context: Context) {
     private val appContext = context.applicationContext
@@ -145,17 +147,21 @@ class FocusNotificationManager(context: Context) {
 
 class FocusNotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val preferences = AndroidDayPreferences(context)
+        val preferences = DayViewPreferences.get(context)
         when (intent.action) {
             FocusNotificationManager.ACTION_STOP_FOCUS -> {
-                preferences.savePomodoro(preferences.loadPomodoroMinutes(), null)
+                runBlocking {
+                    val s = preferences.snapshots.first()
+                    preferences.persist(s.copy(pomodoroEndMillis = null))
+                }
                 FocusAlarmScheduler(context).cancel()
             }
             FocusNotificationManager.ACTION_RESUME_FOCUS -> {
-                val durationMinutes = preferences.loadPomodoroMinutes().coerceIn(5, 180)
+                val s = runBlocking { preferences.snapshots.first() }
+                val durationMinutes = s.pomodoroMinutes.coerceIn(5, 180)
                 val endMillis = System.currentTimeMillis() + durationMinutes * 60_000L
-                preferences.savePomodoro(durationMinutes, endMillis)
-                FocusAlarmScheduler(context).schedule(endMillis, preferences.loadFocusIntention())
+                runBlocking { preferences.persist(s.copy(pomodoroMinutes = durationMinutes, pomodoroEndMillis = endMillis)) }
+                FocusAlarmScheduler(context).schedule(endMillis, s.focusIntention)
             }
             else -> return
         }
