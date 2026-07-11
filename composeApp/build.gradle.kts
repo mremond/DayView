@@ -170,7 +170,7 @@ val cleanNativePackagingOutput by tasks.registering(Delete::class) {
     delete(nativePackagingOutput)
 }
 val customizePackagedDmg by tasks.registering(Exec::class) {
-    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-$appVersion.dmg")
+    val packagedDmg = nativePackagingOutput.resolve("main-release/dmg/DayView-$appPackageVersion.dmg")
     val volumeIcon = rootProject.file("artwork/dayview.icns")
 
     onlyIf {
@@ -186,14 +186,14 @@ val customizePackagedDmg by tasks.registering(Exec::class) {
     )
 }
 val copyPackagedDmg by tasks.registering(Copy::class) {
-    from(nativePackagingOutput.resolve("main/dmg"))
-    into(layout.buildDirectory.dir("compose/binaries/main/dmg"))
+    from(nativePackagingOutput.resolve("main-release/dmg"))
+    into(layout.buildDirectory.dir("compose/binaries/main-release/dmg"))
 }
 
-tasks.matching { it.name == "createDistributable" }.configureEach {
+tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable") }.configureEach {
     dependsOn(cleanNativePackagingOutput)
 }
-tasks.matching { it.name == "packageDmg" }.configureEach {
+tasks.matching { it.name == "packageReleaseDmg" }.configureEach {
     finalizedBy(customizePackagedDmg)
 }
 customizePackagedDmg.configure { finalizedBy(copyPackagedDmg) }
