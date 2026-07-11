@@ -79,13 +79,14 @@ internal class DayViewController(
 
     fun setGoalDeadlineText(value: String): DayViewUiState = update {
         val updatedText = value.take(16)
-        val parsed = parseGoalDeadline(updatedText)
-        if (parsed != null || updatedText.isBlank()) {
-            preferences.saveGlobalGoal(goalTitle, parsed)
-            copy(goalDeadlineText = updatedText, goalDeadlineMillis = parsed)
-        } else {
-            copy(goalDeadlineText = updatedText)
-        }
+        copy(goalDeadlineText = updatedText)
+    }
+
+    fun commitGoalDeadline(): DayViewUiState = update {
+        val parsed = parseGoalDeadline(goalDeadlineText)
+        if (parsed == null && goalDeadlineText.isNotBlank()) return@update this
+        preferences.saveGlobalGoal(goalTitle, parsed)
+        copy(goalDeadlineMillis = parsed)
     }
 
     fun setFocusIntention(value: String): DayViewUiState = update {

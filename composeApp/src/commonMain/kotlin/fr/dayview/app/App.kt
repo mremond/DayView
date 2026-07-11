@@ -157,6 +157,7 @@ fun DayViewApp(
                             openMiniWindow = onOpenMiniWindow,
                             changeGoalTitle = { state = controller.setGoalTitle(it) },
                             changeGoalDeadline = { state = controller.setGoalDeadlineText(it) },
+                            commitGoalDeadline = { state = controller.commitGoalDeadline() },
                             changeFocusIntention = { state = controller.setFocusIntention(it) },
                             changePomodoroDuration = { state = controller.changePomodoroDuration(it) },
                             startPomodoro = {

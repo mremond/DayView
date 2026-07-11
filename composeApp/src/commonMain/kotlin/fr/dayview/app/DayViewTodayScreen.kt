@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -75,6 +76,7 @@ internal data class DayViewScreenActions(
     val openMiniWindow: (() -> Unit)?,
     val changeGoalTitle: (String) -> Unit,
     val changeGoalDeadline: (String) -> Unit,
+    val commitGoalDeadline: () -> Unit,
     val changeFocusIntention: (String) -> Unit,
     val changePomodoroDuration: (Int) -> Unit,
     val startPomodoro: () -> Unit,
@@ -145,6 +147,7 @@ internal fun DayViewScreen(
                             workEndMinutes = progress.endHour * 60 + progress.endMinute,
                             onTitleChange = actions.changeGoalTitle,
                             onDeadlineChange = actions.changeGoalDeadline,
+                            onDeadlineCommit = actions.commitGoalDeadline,
                         )
                     }
                     SidePanel(
@@ -176,6 +179,7 @@ internal fun DayViewScreen(
                     workEndMinutes = progress.endHour * 60 + progress.endMinute,
                     onTitleChange = actions.changeGoalTitle,
                     onDeadlineChange = actions.changeGoalDeadline,
+                    onDeadlineCommit = actions.commitGoalDeadline,
                 )
                 Spacer(Modifier.height(18.dp))
                 SidePanel(
@@ -761,6 +765,7 @@ private fun GlobalGoalPanel(
     workEndMinutes: Int,
     onTitleChange: (String) -> Unit,
     onDeadlineChange: (String) -> Unit,
+    onDeadlineCommit: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val deadlineIsValid = deadlineText.isBlank() || parseGoalDeadline(deadlineText) != null
@@ -819,6 +824,7 @@ private fun GlobalGoalPanel(
                         onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
                         isError = !deadlineIsValid,
                         keyboardType = KeyboardType.Number,
+                        onFocusLost = onDeadlineCommit,
                         modifier = Modifier.width(148.dp),
                     )
                 }
@@ -839,6 +845,7 @@ private fun GlobalGoalPanel(
                         onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
                         isError = !deadlineIsValid,
                         keyboardType = KeyboardType.Number,
+                        onFocusLost = onDeadlineCommit,
                     )
                 }
             }
@@ -859,10 +866,12 @@ private fun GoalTextField(
     isError: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Done,
+    onFocusLost: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
     val focusManager = LocalFocusManager.current
+    var wasFocused by remember { mutableStateOf(false) }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -875,6 +884,10 @@ private fun GoalTextField(
         textStyle = TextStyle(color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium),
         cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
         modifier = modifier.fillMaxWidth()
+            .onFocusChanged { focusState ->
+                if (wasFocused && !focusState.isFocused) onFocusLost()
+                wasFocused = focusState.isFocused
+            }
             .semantics { contentDescription = semanticLabel }
             .background(colors.overlay.copy(alpha = .045f), RoundedCornerShape(10.dp))
             .border(

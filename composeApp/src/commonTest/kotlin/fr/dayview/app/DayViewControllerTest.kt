@@ -49,6 +49,59 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun goalDeadlineIsPersistedOnlyWhenTheDraftIsCommitted() {
+        val initialDeadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = initialDeadline),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+        val updatedText = "25/12/2026 19:45"
+        val updatedDeadline = parseGoalDeadline(updatedText)!!
+
+        controller.setGoalDeadlineText(updatedText)
+
+        assertEquals(updatedText, controller.state.goalDeadlineText)
+        assertEquals(initialDeadline, controller.state.goalDeadlineMillis)
+        assertEquals(initialDeadline, preferences.current.goalDeadlineMillis)
+
+        controller.commitGoalDeadline()
+
+        assertEquals(updatedDeadline, controller.state.goalDeadlineMillis)
+        assertEquals(updatedDeadline, preferences.current.goalDeadlineMillis)
+    }
+
+    @Test
+    fun invalidDeadlineDraftDoesNotReplaceTheCommittedDeadline() {
+        val initialDeadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = initialDeadline),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+
+        controller.setGoalDeadlineText("25/12")
+        controller.commitGoalDeadline()
+
+        assertEquals("25/12", controller.state.goalDeadlineText)
+        assertEquals(initialDeadline, controller.state.goalDeadlineMillis)
+        assertEquals(initialDeadline, preferences.current.goalDeadlineMillis)
+    }
+
+    @Test
+    fun blankDeadlineDraftClearsTheCommittedDeadline() {
+        val initialDeadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = initialDeadline),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 10_000L)
+
+        controller.setGoalDeadlineText("")
+        controller.commitGoalDeadline()
+
+        assertEquals(null, controller.state.goalDeadlineMillis)
+        assertEquals(null, preferences.current.goalDeadlineMillis)
+    }
+
+    @Test
     fun controllerConstrainsTimesSelectedByThePlatformPicker() {
         val preferences = InMemoryDayPreferences()
         val controller = DayViewController(preferences, initialNowMillis = 10_000L)
