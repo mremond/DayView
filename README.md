@@ -55,7 +55,7 @@ Un objectif à plus long terme peut être renseigné avec une échéance au form
 
 ## Focus
 
-Le minuteur Focus permet de s’engager sur un slot de 25 minutes par défaut, réglable par pas de 5 minutes. Une intention concrète doit être renseignée avant le démarrage et reste visible pendant toute la session. Son échéance et son intention sont conservées localement : le décompte continue lorsque la fenêtre est masquée ou l’application relancée. Sur macOS, le temps restant est également visible dans la barre des menus.
+Le minuteur Focus permet de s’engager sur un slot de 25 minutes par défaut, réglable par pas de 5 minutes. Une intention concrète doit être renseignée avant le démarrage et reste visible pendant toute la session. Son échéance et son intention sont conservées localement : le décompte continue lorsque la fenêtre est masquée ou l’application relancée. Sur Android, une alarme système déclenche une notification sonore à la fin même lorsque l’application n’est plus au premier plan. Sur macOS, le temps restant est également visible dans la barre des menus.
 
 Pendant un Focus sur macOS, DayView observe uniquement l’identifiant de l’application au premier plan. Quatre changements d’application en moins de 45 secondes déclenchent un rappel de l’intention. Une période de grâce de 30 secondes et un délai de cinq minutes entre deux rappels évitent les interruptions répétitives. Cette détection reste locale et ne lit jamais le contenu des fenêtres.
 
@@ -69,4 +69,4 @@ La journée utilise les heures de début et de fin choisies (08:00–18:00 par d
 
 ## Repères sonores
 
-Les repères sonores, désactivés par défaut, se configurent dans l’écran Réglages. DayView peut jouer un bol au début de la journée, un tintement toutes les 30 à 180 minutes et un gong à la fin. Chaque repère peut être désactivé séparément, préécouté et joué au volume choisi. Les sons sont synthétisés localement et ne nécessitent aucun fichier audio ni service réseau.
+Les repères sonores, désactivés par défaut, se configurent dans l’écran Réglages. Hors session Focus, DayView peut jouer un bol au début de la journée, un tintement toutes les 30 à 180 minutes — toutes les demi-heures par défaut — et un gong à la fin. Pendant un Focus, ces repères de journée sont suspendus au profit de ceux de la session. Chaque repère peut être désactivé séparément, préécouté et joué au volume choisi. Les sons sont synthétisés localement et ne nécessitent aucun fichier audio ni service réseau.

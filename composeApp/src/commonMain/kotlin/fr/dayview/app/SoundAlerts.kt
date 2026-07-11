@@ -20,7 +20,7 @@ data class SoundSettings(
     val startCueEnabled: Boolean = true,
     val intervalCueEnabled: Boolean = true,
     val endCueEnabled: Boolean = true,
-    val intervalMinutes: Int = 60,
+    val intervalMinutes: Int = 30,
     val volumePercent: Int = 40,
 ) {
     fun normalized(): SoundSettings = copy(
@@ -33,6 +33,9 @@ data class SoundSettings(
         SoundCue.INTERVAL -> intervalCueEnabled
         SoundCue.DAY_END -> endCueEnabled
     }
+
+    fun allowsDayCue(cue: SoundCue, focusIsActive: Boolean): Boolean =
+        !focusIsActive && allows(cue)
 }
 
 class SoundAlertScheduler(

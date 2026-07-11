@@ -105,6 +105,7 @@ private enum class DayViewDestination {
 fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
     onOpenMiniWindow: (() -> Unit)? = null,
+    onFocusAlarmChange: (endMillis: Long?, intention: String) -> Unit = { _, _ -> },
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
     showFocusResumeRitual: Boolean = false,
@@ -182,7 +183,8 @@ fun DayViewApp(
             val dayNowMillis = if (showSeconds) nowMillis else nowMillis - nowMillis % 60_000L
             val progress = calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
             val pomodoro = calculatePomodoroProgress(nowMillis, pomodoroMinutes, pomodoroEndMillis)
-            LaunchedEffect(nowMillis, startMinutes, endMinutes, soundSettings, scheduleSoundAlerts) {
+            val focusIsActive = pomodoroEndMillis?.let { it > nowMillis } == true
+            LaunchedEffect(nowMillis, startMinutes, endMinutes, soundSettings, scheduleSoundAlerts, focusIsActive) {
                 if (scheduleSoundAlerts) {
                     val cue = soundScheduler.observe(
                         nowMillis = nowMillis,
@@ -190,7 +192,7 @@ fun DayViewApp(
                         endMinutesOfDay = endMinutes,
                         intervalMinutes = soundSettings.intervalMinutes,
                     )
-                    if (cue != null && soundSettings.allows(cue)) {
+                    if (cue != null && soundSettings.allowsDayCue(cue, focusIsActive)) {
                         soundPlayer.play(cue, soundSettings.volumePercent / 100f)
                     }
                 }
@@ -269,15 +271,18 @@ fun DayViewApp(
                             lastFocusClosure = null
                             pomodoroEndMillis = nowMillis + pomodoroMinutes * 60_000L
                             preferences.savePomodoro(pomodoroMinutes, pomodoroEndMillis)
+                            onFocusAlarmChange(pomodoroEndMillis, focusIntention)
                         }
                     },
                     onPomodoroStop = {
                         pomodoroEndMillis = null
                         preferences.savePomodoro(pomodoroMinutes, null)
+                        onFocusAlarmChange(null, focusIntention)
                     },
                     onPomodoroClose = { outcome ->
                         pomodoroEndMillis = null
                         preferences.savePomodoro(pomodoroMinutes, null)
+                        onFocusAlarmChange(null, focusIntention)
                         if (!outcome.keepsIntention) {
                             focusIntention = ""
                             preferences.saveFocusIntention("")

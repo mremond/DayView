@@ -26,7 +26,7 @@ class DesktopDayPreferences internal constructor(
         startCueEnabled = storage.getBoolean(KEY_SOUND_START, true),
         intervalCueEnabled = storage.getBoolean(KEY_SOUND_INTERVAL, true),
         endCueEnabled = storage.getBoolean(KEY_SOUND_END, true),
-        intervalMinutes = storage.getInt(KEY_SOUND_INTERVAL_MINUTES, 60),
+        intervalMinutes = storage.getInt(KEY_SOUND_INTERVAL_MINUTES, 30),
         volumePercent = storage.getInt(KEY_SOUND_VOLUME, 40),
     ).normalized()
 

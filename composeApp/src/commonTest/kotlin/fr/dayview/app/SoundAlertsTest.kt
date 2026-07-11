@@ -46,6 +46,19 @@ class SoundAlertsTest {
         )
     }
 
+    @Test
+    fun halfHourIsTheDefaultInterval() {
+        assertEquals(30, SoundSettings().intervalMinutes)
+    }
+
+    @Test
+    fun dayCuesAreSilentDuringAFocusSession() {
+        val settings = SoundSettings(enabled = true)
+
+        assertEquals(false, settings.allowsDayCue(SoundCue.INTERVAL, focusIsActive = true))
+        assertEquals(true, settings.allowsDayCue(SoundCue.INTERVAL, focusIsActive = false))
+    }
+
     private fun at(hour: Int, minute: Int, second: Int = 0): Long =
         LocalDateTime(2026, 7, 11, hour, minute, second).toInstant(utc).toEpochMilliseconds()
 }

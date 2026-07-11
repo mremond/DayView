@@ -57,6 +57,7 @@ fun main() = application {
             focusIntention = preferences.loadFocusIntention()
             showSeconds = preferences.loadShowSeconds()
 
+            val focusIsActive = currentPomodoroEnd != null && currentPomodoroEnd > currentNowMillis
             val soundSettings = preferences.loadSoundSettings()
             val soundCue = soundAlertScheduler.observe(
                 nowMillis = currentNowMillis,
@@ -64,11 +65,10 @@ fun main() = application {
                 endMinutesOfDay = currentEndMinutes,
                 intervalMinutes = soundSettings.intervalMinutes,
             )
-            if (soundCue != null && soundSettings.allows(soundCue)) {
+            if (soundCue != null && soundSettings.allowsDayCue(soundCue, focusIsActive)) {
                 soundCuePlayer.play(soundCue, soundSettings.volumePercent / 100f)
             }
 
-            val focusIsActive = currentPomodoroEnd != null && currentPomodoroEnd > currentNowMillis
             val shouldShowResumeRitual = focusResumeDetector.observe(focusIsActive, currentNowMillis)
             val frontmostBundleId = if (focusIsActive && !shouldShowResumeRitual) {
                 frontmostApplicationProvider.bundleIdentifier()
