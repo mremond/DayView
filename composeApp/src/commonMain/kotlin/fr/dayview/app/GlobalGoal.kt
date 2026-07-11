@@ -53,6 +53,20 @@ fun formatGoalDeadline(
         "${value.hour.toString().padStart(2, '0')}:${value.minute.toString().padStart(2, '0')}"
 }
 
+private val FRENCH_SHORT_MONTHS = listOf(
+    "janv.", "févr.", "mars", "avr.", "mai", "juin",
+    "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+)
+
+/** Glanceable date-only label, e.g. "11 juil.". No year, no time. */
+fun formatGoalDateShort(
+    epochMillis: Long,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): String {
+    val value = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
+    return "${value.day} ${FRENCH_SHORT_MONTHS[value.month.ordinal]}"
+}
+
 fun calculateGoalWorkingMillis(
     nowMillis: Long,
     deadlineMillis: Long,

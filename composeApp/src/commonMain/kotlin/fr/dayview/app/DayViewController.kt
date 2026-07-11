@@ -93,6 +93,20 @@ internal class DayViewController(
         }
     }
 
+    init {
+        // Goals created before goalStartMillis existed have a deadline but no
+        // start, so their progress bar would never render. Backfill the start to
+        // "now" (matching commitGoalDeadline) and persist it so progress accrues.
+        if (state.goalDeadlineMillis != null && state.goalStartMillis == null) {
+            val start = state.nowMillis
+            state = state.copy(
+                goalStartMillis = start,
+                goalStartText = formatGoalDeadline(start),
+            )
+            persistState()
+        }
+    }
+
     fun tick(nowMillis: Long) {
         state = state.copy(nowMillis = nowMillis)
     }

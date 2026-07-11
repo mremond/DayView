@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -399,45 +402,16 @@ private fun CompactGoalRow(
                 )
             }
         }
-        if (deadlineMillis != null && startMillis != null) {
-            val progress = remember(
-                nowMillis / 60_000,
-                startMillis,
-                deadlineMillis,
-                workStartMinutes,
-                workEndMinutes,
-            ) {
-                calculateGoalProgress(
-                    nowMillis = nowMillis,
-                    startMillis = startMillis,
-                    deadlineMillis = deadlineMillis,
-                    startMinutesOfDay = workStartMinutes,
-                    endMinutesOfDay = workEndMinutes,
-                )
-            }
-            val animatedProgress by animateFloatAsState(progress, tween(650), label = "goal-progress-compact")
+        if (deadlineMillis != null) {
             Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.weight(1f)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(colors.overlay.copy(alpha = .12f)),
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxHeight()
-                            .fillMaxWidth(animatedProgress)
-                            .background(colors.mint, RoundedCornerShape(3.dp)),
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "${(animatedProgress * 100).roundToInt()} %",
-                    color = colors.muted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            GoalProgressBar(
+                nowMillis = nowMillis,
+                startMillis = startMillis ?: nowMillis,
+                deadlineMillis = deadlineMillis,
+                workStartMinutes = workStartMinutes,
+                workEndMinutes = workEndMinutes,
+                animationLabel = "goal-progress-compact",
+            )
         }
     }
 }
@@ -1262,106 +1236,60 @@ private fun GlobalGoalPanel(
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            if (maxWidth >= 360.dp) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                ) {
-                    GoalTextField(
-                        value = title,
-                        semanticLabel = "Objectif du jour",
-                        placeholder = "Que voulez-vous accomplir ?",
-                        onValueChange = onTitleChange,
-                        imeAction = ImeAction.Next,
-                        modifier = Modifier.weight(1f),
-                    )
-                    GoalTextField(
-                        value = deadlineText,
-                        semanticLabel = "Date limite de l’objectif",
-                        placeholder = GOAL_DATE_PLACEHOLDER,
-                        onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
-                        isError = !deadlineIsValid,
-                        keyboardType = KeyboardType.Number,
-                        onFocusLost = onDeadlineCommit,
-                        modifier = Modifier.width(148.dp),
-                    )
-                }
-            } else {
-                Column {
-                    GoalTextField(
-                        value = title,
-                        semanticLabel = "Objectif du jour",
-                        placeholder = "Que voulez-vous accomplir ?",
-                        onValueChange = onTitleChange,
-                        imeAction = ImeAction.Next,
-                    )
-                    Spacer(Modifier.height(9.dp))
-                    GoalTextField(
-                        value = deadlineText,
-                        semanticLabel = "Date limite de l’objectif",
-                        placeholder = GOAL_DATE_PLACEHOLDER,
-                        onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
-                        isError = !deadlineIsValid,
-                        keyboardType = KeyboardType.Number,
-                        onFocusLost = onDeadlineCommit,
-                    )
-                }
-            }
-        }
-        if (deadlineMillis != null && startMillis != null) {
-            val progress = remember(
-                nowMillis / 60_000,
-                startMillis,
-                deadlineMillis,
-                workStartMinutes,
-                workEndMinutes,
-            ) {
-                calculateGoalProgress(
-                    nowMillis = nowMillis,
-                    startMillis = startMillis,
-                    deadlineMillis = deadlineMillis,
-                    startMinutesOfDay = workStartMinutes,
-                    endMinutesOfDay = workEndMinutes,
-                )
-            }
-            val animatedProgress by animateFloatAsState(progress, tween(650), label = "goal-progress")
-            val startIsValid = startText.isBlank() ||
-                (parseGoalDeadline(startText)?.let { it < deadlineMillis } ?: false)
+        if (deadlineMillis != null) {
             Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.weight(1f)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(colors.overlay.copy(alpha = .12f)),
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxHeight()
-                            .fillMaxWidth(animatedProgress)
-                            .background(colors.mint, RoundedCornerShape(3.dp)),
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "${(animatedProgress * 100).roundToInt()} %",
-                    color = colors.muted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
+            GoalProgressBar(
+                nowMillis = nowMillis,
+                startMillis = startMillis ?: nowMillis,
+                deadlineMillis = deadlineMillis,
+                workStartMinutes = workStartMinutes,
+                workEndMinutes = workEndMinutes,
+                animationLabel = "goal-progress",
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        GoalTextField(
+            value = title,
+            semanticLabel = "Objectif du jour",
+            placeholder = "Que voulez-vous accomplir ?",
+            onValueChange = onTitleChange,
+            imeAction = ImeAction.Next,
+        )
+        var editing by remember { mutableStateOf(GoalDateTarget.NONE) }
+        val startIsValid = startText.isBlank() ||
+            (parseGoalDeadline(startText)?.let { deadlineMillis == null || it < deadlineMillis } ?: false)
+        Spacer(Modifier.height(9.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (deadlineMillis != null) {
+                GoalDateSlot(
+                    showField = editing == GoalDateTarget.START,
+                    autoFocus = editing == GoalDateTarget.START,
+                    label = formatGoalDateShort(startMillis ?: nowMillis),
+                    value = startText,
+                    semanticLabel = "Début de l’objectif",
+                    isError = !startIsValid,
+                    onClick = { editing = GoalDateTarget.START },
+                    onValueChange = { onStartChange(formatGoalDeadlineInput(it)) },
+                    onCommit = {
+                        onStartCommit()
+                        editing = GoalDateTarget.NONE
+                    },
                 )
+                Text("→", color = colors.muted, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 6.dp))
             }
-            Spacer(Modifier.height(10.dp))
-            GoalTextField(
-                value = startText,
-                semanticLabel = "Début de l’objectif",
-                placeholder = GOAL_DATE_PLACEHOLDER,
-                onValueChange = { onStartChange(formatGoalDeadlineInput(it)) },
-                isError = !startIsValid,
-                keyboardType = KeyboardType.Number,
-                onFocusLost = onStartCommit,
-                modifier = Modifier.width(148.dp),
+            GoalDateSlot(
+                showField = editing == GoalDateTarget.END || deadlineMillis == null,
+                autoFocus = editing == GoalDateTarget.END,
+                label = deadlineMillis?.let(::formatGoalDateShort).orEmpty(),
+                value = deadlineText,
+                semanticLabel = "Date limite de l’objectif",
+                isError = !deadlineIsValid,
+                onClick = { editing = GoalDateTarget.END },
+                onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
+                onCommit = {
+                    onDeadlineCommit()
+                    editing = GoalDateTarget.NONE
+                },
             )
         }
         if (!deadlineIsValid) {
@@ -1381,11 +1309,16 @@ internal fun GoalTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Done,
     onFocusLost: () -> Unit = {},
+    autoFocus: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
     val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
     var wasFocused by remember { mutableStateOf(false) }
+    if (autoFocus) {
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -1398,6 +1331,7 @@ internal fun GoalTextField(
         textStyle = TextStyle(color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium),
         cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
         modifier = modifier.fillMaxWidth()
+            .focusRequester(focusRequester)
             .onFocusChanged { focusState ->
                 if (wasFocused && !focusState.isFocused) onFocusLost()
                 wasFocused = focusState.isFocused
@@ -1417,6 +1351,92 @@ internal fun GoalTextField(
             }
         },
     )
+}
+
+private enum class GoalDateTarget { NONE, START, END }
+
+@Composable
+private fun GoalProgressBar(
+    nowMillis: Long,
+    startMillis: Long,
+    deadlineMillis: Long,
+    workStartMinutes: Int,
+    workEndMinutes: Int,
+    animationLabel: String,
+) {
+    val colors = LocalDayViewColors.current
+    val progress = remember(nowMillis / 60_000, startMillis, deadlineMillis, workStartMinutes, workEndMinutes) {
+        calculateGoalProgress(
+            nowMillis = nowMillis,
+            startMillis = startMillis,
+            deadlineMillis = deadlineMillis,
+            startMinutesOfDay = workStartMinutes,
+            endMinutesOfDay = workEndMinutes,
+        )
+    }
+    val animatedProgress by animateFloatAsState(progress, tween(650), label = animationLabel)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier.weight(1f)
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(colors.overlay.copy(alpha = .12f)),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxHeight()
+                    .fillMaxWidth(animatedProgress)
+                    .background(colors.mint, RoundedCornerShape(3.dp)),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "${(animatedProgress * 100).roundToInt()} %",
+            color = colors.muted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+/** A goal date shown as a glanceable label that swaps to an editable field on tap. */
+@Composable
+private fun GoalDateSlot(
+    showField: Boolean,
+    autoFocus: Boolean,
+    label: String,
+    value: String,
+    semanticLabel: String,
+    isError: Boolean,
+    onClick: () -> Unit,
+    onValueChange: (String) -> Unit,
+    onCommit: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    if (showField) {
+        GoalTextField(
+            value = value,
+            semanticLabel = semanticLabel,
+            placeholder = GOAL_DATE_PLACEHOLDER,
+            onValueChange = onValueChange,
+            isError = isError,
+            keyboardType = KeyboardType.Number,
+            onFocusLost = onCommit,
+            autoFocus = autoFocus,
+            modifier = Modifier.width(148.dp),
+        )
+    } else {
+        Text(
+            label,
+            color = colors.cloud,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(role = Role.Button, onClickLabel = semanticLabel, onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .semantics { contentDescription = semanticLabel },
+        )
+    }
 }
 
 @Composable
