@@ -46,6 +46,24 @@ distincts, en thème clair comme en thème sombre :
 Le repère du moment présent conserve son rôle actuel. Les arcs occupés sont un
 calque décoratif : ils n'altèrent ni l'angle du repère, ni le décompte brut.
 
+### Nom de l'événement au survol
+
+Sur les plateformes dotées d'un pointeur (macOS, et Android en mode fenêtré avec
+souris), **survoler un arc occupé** affiche un **overlay** rappelant le **nom de
+l'événement** correspondant, avec ses horaires :
+
+```text
+Réunion produit
+14 h 00 – 15 h 00
+```
+
+L'overlay suit la position du pointeur et disparaît dès que celui-ci quitte l'arc.
+Si plusieurs événements ont été fusionnés en une seule plage, l'overlay liste
+leurs noms. Le titre n'est utilisé **que** pour cet affichage à la demande : il
+n'entre pas dans le calcul du temps net, qui ne repose que sur les bornes
+horaires. Sur un appareil purement tactile, l'équivalent (appui) est renvoyé à un
+second temps.
+
 ## Définition du temps net
 
 ### Ce qui compte comme « occupé »
@@ -81,8 +99,10 @@ métier est partagée. L'intégration suit ce découpage.
 
 ### Modèle et calcul partagés (`commonMain`)
 
-- `data class BusyInterval(startMillis: Long, endMillis: Long)` : une plage occupée
-  déjà rognée et normalisée.
+- `data class BusyInterval(startMillis: Long, endMillis: Long, title: String?)` :
+  une plage occupée déjà rognée et normalisée. Le `title` sert uniquement à
+  l'overlay de survol et reste facultatif ; il n'intervient jamais dans le calcul.
+  Après fusion, une plage peut porter la liste des titres qu'elle recouvre.
 - `fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval>` :
   tri et fusion des chevauchements.
 - `fun calculateNetTime(progress: DayProgress, nowMillis: Long, busy: List<BusyInterval>): NetTime`
@@ -123,10 +143,12 @@ Un nouveau bloc dans l'écran Réglages, **désactivé par défaut** :
 
 ## Confidentialité
 
-- Lecture **strictement locale**, aucun envoi réseau, aucun stockage du contenu
-  des événements.
-- Seules les **bornes horaires** (début/fin) des plages occupées sont utilisées :
-  ni le titre, ni les participants, ni le lieu ne sont lus ou conservés.
+- Lecture **strictement locale**, aucun envoi réseau, aucun stockage sur disque du
+  contenu des événements.
+- Le calcul du temps net ne repose que sur les **bornes horaires** (début/fin).
+- Le **titre** est lu uniquement pour l'**overlay de survol**, gardé en mémoire le
+  temps de l'affichage et jamais persisté. Les **participants** et le **lieu** ne
+  sont ni lus ni conservés.
 - La fonction ne s'active qu'après un **consentement explicite** et l'octroi de
   l'autorisation système.
 
@@ -140,6 +162,7 @@ Inclus :
 - rognage aux bornes de la journée et fusion des chevauchements ;
 - affichage du temps net en information secondaire ;
 - arcs occupés grisés sur le cercle ;
+- overlay au survol affichant le nom de l'événement (plateformes à pointeur) ;
 - rafraîchissement au démarrage, à la reprise et à intervalle régulier.
 
 Hors périmètre pour la première version :
@@ -147,7 +170,8 @@ Hors périmètre pour la première version :
 - l'écriture ou la création d'événements ;
 - la prise en compte de plusieurs jours (objectif global, agenda hebdomadaire) ;
 - les événements tentatifs, « disponible » et journée entière ;
-- l'affichage du contenu des événements (titres, participants) ;
+- l'affichage des participants et du lieu des événements ;
+- l'équivalent tactile de l'overlay de survol (appui) ;
 - le widget Android et la mini-fenêtre, traités dans un second temps une fois le
   cœur validé.
 
