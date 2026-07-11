@@ -22,9 +22,12 @@ internal object DayPreferenceKeys {
     const val SOUND_VOLUME = "sound_volume"
     const val GOAL_TITLE = "goal_title"
     const val GOAL_DEADLINE = "goal_deadline"
+    const val GOAL_START = "goal_start"
     const val POMODORO_MINUTES = "pomodoro_minutes"
     const val POMODORO_END = "pomodoro_end"
     const val FOCUS_INTENTION = "focus_intention"
+    const val NET_TIME_ENABLED = "net_time_enabled"
+    const val NET_TIME_CALENDARS = "net_time_calendars"
     const val NO_DEADLINE = -1L
 }
 
@@ -39,9 +42,12 @@ private val soundIntervalMinutesKey = intPreferencesKey(DayPreferenceKeys.SOUND_
 private val soundVolumeKey = intPreferencesKey(DayPreferenceKeys.SOUND_VOLUME)
 private val goalTitleKey = stringPreferencesKey(DayPreferenceKeys.GOAL_TITLE)
 private val goalDeadlineKey = longPreferencesKey(DayPreferenceKeys.GOAL_DEADLINE)
+private val goalStartKey = longPreferencesKey(DayPreferenceKeys.GOAL_START)
 private val pomodoroMinutesKey = intPreferencesKey(DayPreferenceKeys.POMODORO_MINUTES)
 private val pomodoroEndKey = longPreferencesKey(DayPreferenceKeys.POMODORO_END)
 private val focusIntentionKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_INTENTION)
+private val netTimeEnabledKey = booleanPreferencesKey(DayPreferenceKeys.NET_TIME_ENABLED)
+private val netTimeCalendarsKey = stringPreferencesKey(DayPreferenceKeys.NET_TIME_CALENDARS)
 
 class DayPreferencesStore(
     private val dataStore: DataStore<Preferences>,
@@ -61,9 +67,12 @@ class DayPreferencesStore(
             prefs[soundVolumeKey] = snapshot.soundSettings.volumePercent
             prefs[goalTitleKey] = snapshot.goalTitle
             prefs[goalDeadlineKey] = snapshot.goalDeadlineMillis ?: DayPreferenceKeys.NO_DEADLINE
+            prefs[goalStartKey] = snapshot.goalStartMillis ?: DayPreferenceKeys.NO_DEADLINE
             prefs[pomodoroMinutesKey] = snapshot.pomodoroMinutes
             prefs[pomodoroEndKey] = snapshot.pomodoroEndMillis ?: DayPreferenceKeys.NO_DEADLINE
             prefs[focusIntentionKey] = snapshot.focusIntention
+            prefs[netTimeEnabledKey] = snapshot.netTimeSettings.enabled
+            prefs[netTimeCalendarsKey] = snapshot.netTimeSettings.includedCalendarIds.joinToString("\n")
         }
     }
 }
@@ -84,8 +93,14 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         ),
         goalTitle = this[goalTitleKey] ?: defaults.goalTitle,
         goalDeadlineMillis = this[goalDeadlineKey]?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE },
+        goalStartMillis = this[goalStartKey]?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE },
         pomodoroMinutes = this[pomodoroMinutesKey] ?: defaults.pomodoroMinutes,
         pomodoroEndMillis = this[pomodoroEndKey]?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE },
         focusIntention = this[focusIntentionKey] ?: defaults.focusIntention,
+        netTimeSettings = NetTimeSettings(
+            enabled = this[netTimeEnabledKey] ?: false,
+            includedCalendarIds = this[netTimeCalendarsKey].orEmpty()
+                .split("\n").filter { it.isNotBlank() }.toSet(),
+        ),
     )
 }

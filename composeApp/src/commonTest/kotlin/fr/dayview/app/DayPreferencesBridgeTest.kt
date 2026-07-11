@@ -61,8 +61,9 @@ private class FakeBridgedPreferences(
     }
     override fun loadGoalTitle() = snap.goalTitle
     override fun loadGoalDeadlineMillis() = snap.goalDeadlineMillis
-    override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
-        snap = snap.copy(goalTitle = title, goalDeadlineMillis = deadlineMillis)
+    override fun loadGoalStartMillis() = snap.goalStartMillis
+    override fun saveGlobalGoal(title: String, deadlineMillis: Long?, startMillis: Long?) {
+        snap = snap.copy(goalTitle = title, goalDeadlineMillis = deadlineMillis, goalStartMillis = startMillis)
     }
     override fun loadPomodoroMinutes() = snap.pomodoroMinutes
     override fun loadPomodoroEndMillis() = snap.pomodoroEndMillis
@@ -72,5 +73,9 @@ private class FakeBridgedPreferences(
     override fun loadFocusIntention() = snap.focusIntention
     override fun saveFocusIntention(intention: String) {
         snap = snap.copy(focusIntention = intention)
+    }
+    override fun loadNetTimeSettings() = snap.netTimeSettings
+    override fun saveNetTimeSettings(settings: NetTimeSettings) {
+        snap = snap.copy(netTimeSettings = settings)
     }
 }

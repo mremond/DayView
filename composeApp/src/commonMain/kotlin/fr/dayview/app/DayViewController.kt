@@ -3,6 +3,8 @@ package fr.dayview.app
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlin.time.Clock
 
 internal enum class DayViewDestination {
@@ -66,10 +68,30 @@ internal data class DayViewUiState(
 
 internal class DayViewController(
     private val preferences: DayPreferences,
+    private val scope: CoroutineScope,
     initialNowMillis: Long = Clock.System.now().toEpochMilliseconds(),
 ) {
     var state: DayViewUiState by mutableStateOf(preferences.snapshot().toUiState(initialNowMillis))
         private set
+
+    // Count of our own persists still running. While any is in flight, every
+    // notification is necessarily an echo of one of them (the bridged persist()
+    // applies fields one at a time and notifies after each), never a genuine
+    // external change. A counter decremented in `finally` cannot be stranded by a
+    // dropped/conflated echo or a failed persist, unlike matching individual echoes.
+    private var selfWritesInFlight = 0
+
+    private fun persistState() {
+        val snapshot = state.toSnapshot()
+        selfWritesInFlight++
+        scope.launch {
+            try {
+                preferences.persist(snapshot)
+            } finally {
+                selfWritesInFlight--
+            }
+        }
+    }
 
     fun tick(nowMillis: Long) {
         state = state.copy(nowMillis = nowMillis)
@@ -86,30 +108,30 @@ internal class DayViewController(
     fun setStartMinutes(minutes: Int) {
         val updated = minutes.coerceIn(0, state.endMinutes - 30)
         state = state.copy(startMinutes = updated)
-        preferences.saveDayRange(updated, state.endMinutes)
+        persistState()
     }
 
     fun setEndMinutes(minutes: Int) {
         val updated = minutes.coerceIn(state.startMinutes + 30, 23 * 60 + 59)
         state = state.copy(endMinutes = updated)
-        preferences.saveDayRange(state.startMinutes, updated)
+        persistState()
     }
 
     fun setShowSeconds(enabled: Boolean) {
         state = state.copy(showSeconds = enabled)
-        preferences.saveShowSeconds(enabled)
+        persistState()
     }
 
     fun setSoundSettings(settings: SoundSettings) {
         val normalized = settings.normalized()
         state = state.copy(soundSettings = normalized)
-        preferences.saveSoundSettings(normalized)
+        persistState()
     }
 
     fun setGoalTitle(value: String) {
         val updated = value.take(80)
         state = state.copy(goalTitle = updated)
-        preferences.saveGlobalGoal(updated, state.goalDeadlineMillis, state.goalStartMillis)
+        persistState()
     }
 
     fun setGoalDeadlineText(value: String) {
@@ -130,7 +152,7 @@ internal class DayViewController(
             goalStartMillis = start,
             goalStartText = start?.let(::formatGoalDeadline).orEmpty(),
         )
-        preferences.saveGlobalGoal(state.goalTitle, parsed, start)
+        persistState()
     }
 
     fun setGoalStartText(value: String) {
@@ -142,54 +164,49 @@ internal class DayViewController(
         val parsed = parseGoalDeadline(state.goalStartText) ?: return
         if (parsed >= deadline) return
         state = state.copy(goalStartMillis = parsed)
-        preferences.saveGlobalGoal(state.goalTitle, deadline, parsed)
+        persistState()
     }
 
     fun setFocusIntention(value: String) {
         val updated = value.take(100)
         state = state.copy(focusIntention = updated, lastFocusClosure = null)
-        preferences.saveFocusIntention(updated)
+        persistState()
     }
 
     fun changePomodoroDuration(deltaMinutes: Int) {
         if (state.pomodoroProgress.status == PomodoroStatus.ACTIVE) return
         val updated = (state.pomodoroMinutes + deltaMinutes).coerceIn(5, 180)
         state = state.copy(pomodoroMinutes = updated, pomodoroEndMillis = null)
-        preferences.savePomodoro(updated, null)
+        persistState()
     }
 
     fun startPomodoro() {
         if (state.focusIntention.isBlank()) return
         val endMillis = state.nowMillis + state.pomodoroMinutes * 60_000L
         state = state.copy(pomodoroEndMillis = endMillis, lastFocusClosure = null)
-        preferences.savePomodoro(state.pomodoroMinutes, endMillis)
+        persistState()
     }
 
     fun stopPomodoro() {
         state = state.copy(pomodoroEndMillis = null)
-        preferences.savePomodoro(state.pomodoroMinutes, null)
+        persistState()
     }
 
     fun closePomodoro(outcome: FocusClosureOutcome) {
         val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
-        val intentionChanged = updatedIntention != state.focusIntention
-        // State is set once, up front, so the two persistence calls below each
-        // trigger a re-entrant onPreferencesChanged that reconciles against the
-        // already-final state (a no-op). This relies on synchronous, main-thread
-        // preference notification; a combined multi-field save would be needed if
-        // persistence ever becomes asynchronous (e.g. a DataStore migration).
+        // Single atomic persist of the whole snapshot: unlike the previous
+        // two-save version, there is no intermediate state to reconcile against.
         state = state.copy(
             pomodoroEndMillis = null,
             focusIntention = updatedIntention,
             lastFocusClosure = outcome,
         )
-        preferences.savePomodoro(state.pomodoroMinutes, null)
-        if (intentionChanged) preferences.saveFocusIntention(updatedIntention)
+        persistState()
     }
 
     fun setNetTimeSettings(settings: NetTimeSettings) {
         state = state.copy(netTimeSettings = settings)
-        preferences.saveNetTimeSettings(settings)
+        persistState()
     }
 
     /** Injecte le résultat d'une lecture calendrier (hors thread UI). */
@@ -206,9 +223,27 @@ internal class DayViewController(
     }
 
     fun onPreferencesChanged(snapshot: DayPreferencesSnapshot) {
+        // A genuine external write that lands while one of our own writes is in
+        // flight is missed until the next change; acceptable because external
+        // writers (tile/widget/alarm) are rare and writes complete quickly.
+        if (selfWritesInFlight > 0) return
         state = state.withPersisted(snapshot)
     }
 }
+
+private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferencesSnapshot(
+    startMinutes = startMinutes,
+    endMinutes = endMinutes,
+    showSeconds = showSeconds,
+    soundSettings = soundSettings,
+    goalTitle = goalTitle,
+    goalDeadlineMillis = goalDeadlineMillis,
+    goalStartMillis = goalStartMillis,
+    pomodoroMinutes = pomodoroMinutes,
+    pomodoroEndMillis = pomodoroEndMillis,
+    focusIntention = focusIntention,
+    netTimeSettings = netTimeSettings,
+).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
     val safeStart = startMinutes.coerceIn(0, 23 * 60 + 29)

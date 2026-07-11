@@ -67,9 +67,10 @@ interface DayPreferences {
         saveDayRange(snapshot.startMinutes, snapshot.endMinutes)
         saveShowSeconds(snapshot.showSeconds)
         saveSoundSettings(snapshot.soundSettings)
-        saveGlobalGoal(snapshot.goalTitle, snapshot.goalDeadlineMillis)
+        saveGlobalGoal(snapshot.goalTitle, snapshot.goalDeadlineMillis, snapshot.goalStartMillis)
         savePomodoro(snapshot.pomodoroMinutes, snapshot.pomodoroEndMillis)
         saveFocusIntention(snapshot.focusIntention)
+        saveNetTimeSettings(snapshot.netTimeSettings)
     }
 }
 

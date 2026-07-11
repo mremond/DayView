@@ -35,7 +35,8 @@ fun DayViewApp(
 ) {
     DayViewTheme { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
-            val controller = remember(preferences) { DayViewController(preferences) }
+            val scope = rememberCoroutineScope()
+            val controller = remember(preferences) { DayViewController(preferences, scope) }
             val state = controller.state
             val soundPlayer = remember { createSoundCuePlayer() }
             val soundScheduler = remember { SoundAlertScheduler() }

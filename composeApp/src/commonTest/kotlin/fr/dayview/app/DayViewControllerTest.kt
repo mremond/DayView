@@ -192,7 +192,7 @@ class DayViewControllerTest {
     @Test
     fun committingADeadlineDefaultsTheStartToNow() {
         val preferences = InMemoryDayPreferences()
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalDeadlineText("24/12/2026 18:30")
         controller.commitGoalDeadline()
@@ -207,7 +207,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 1_000L),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalDeadlineText("")
         controller.commitGoalDeadline()
@@ -222,7 +222,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 1_000L),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalDeadlineText("26/12/2026 18:30")
         controller.commitGoalDeadline()
@@ -237,7 +237,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = start),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalDeadlineText("15/12/2026 18:30")
         controller.commitGoalDeadline()
@@ -252,7 +252,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 5_000L),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalStartText("01/12/2026 09:00")
         controller.commitGoalStart()
@@ -268,7 +268,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 5_000L),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalStartText("25/12/2026 09:00")
         controller.commitGoalStart()
@@ -280,7 +280,7 @@ class DayViewControllerTest {
     @Test
     fun commitGoalStartIsANoOpWhenNoDeadlineIsSet() {
         val preferences = InMemoryDayPreferences(DayPreferencesSnapshot(goalStartMillis = 5_000L))
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalStartText("01/12/2026 09:00")
         controller.commitGoalStart()
@@ -295,7 +295,7 @@ class DayViewControllerTest {
         val preferences = InMemoryDayPreferences(
             DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 5_000L),
         )
-        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+        val controller = testController(preferences, 5_000L)
 
         controller.setGoalStartText("pas une date")
         controller.commitGoalStart()
