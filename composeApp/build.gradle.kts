@@ -158,6 +158,12 @@ compose.desktop {
                     ),
                 )
             }
+            // DataStore's bundled protobuf serializer reaches for sun.misc.Unsafe at
+            // runtime. jlink's module auto-detection can't see that reflective access,
+            // so the trimmed runtime image ships without jdk.unsupported and the
+            // packaged app crashes on the first preferences write (NoClassDefFoundError:
+            // sun/misc/Unsafe). Pull the module in explicitly.
+            modules("jdk.unsupported")
             targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "DayView"
             packageVersion = appPackageVersion
