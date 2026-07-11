@@ -1,5 +1,8 @@
 package fr.dayview.app
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlin.time.Clock
 
 internal enum class DayViewDestination {
@@ -39,116 +42,144 @@ internal class DayViewController(
     private val preferences: DayPreferences,
     initialNowMillis: Long = Clock.System.now().toEpochMilliseconds(),
 ) {
-    var state: DayViewUiState = preferences.snapshot().toUiState(initialNowMillis)
+    var state: DayViewUiState by mutableStateOf(preferences.snapshot().toUiState(initialNowMillis))
         private set
 
-    fun tick(nowMillis: Long): DayViewUiState = update { copy(nowMillis = nowMillis) }
-
-    fun openSettings(): DayViewUiState = update { copy(destination = DayViewDestination.SETTINGS) }
-
-    fun openToday(): DayViewUiState = update { copy(destination = DayViewDestination.TODAY) }
-
-    fun setStartMinutes(minutes: Int): DayViewUiState = update {
-        val updated = minutes.coerceIn(0, endMinutes - 30)
-        preferences.saveDayRange(updated, endMinutes)
-        copy(startMinutes = updated)
+    fun tick(nowMillis: Long) {
+        state = state.copy(nowMillis = nowMillis)
     }
 
-    fun setEndMinutes(minutes: Int): DayViewUiState = update {
-        val updated = minutes.coerceIn(startMinutes + 30, 23 * 60 + 59)
-        preferences.saveDayRange(startMinutes, updated)
-        copy(endMinutes = updated)
+    fun openSettings() {
+        state = state.copy(destination = DayViewDestination.SETTINGS)
     }
 
-    fun setShowSeconds(enabled: Boolean): DayViewUiState = update {
+    fun openToday() {
+        state = state.copy(destination = DayViewDestination.TODAY)
+    }
+
+    fun setStartMinutes(minutes: Int) {
+        val updated = minutes.coerceIn(0, state.endMinutes - 30)
+        state = state.copy(startMinutes = updated)
+        preferences.saveDayRange(updated, state.endMinutes)
+    }
+
+    fun setEndMinutes(minutes: Int) {
+        val updated = minutes.coerceIn(state.startMinutes + 30, 23 * 60 + 59)
+        state = state.copy(endMinutes = updated)
+        preferences.saveDayRange(state.startMinutes, updated)
+    }
+
+    fun setShowSeconds(enabled: Boolean) {
+        state = state.copy(showSeconds = enabled)
         preferences.saveShowSeconds(enabled)
-        copy(showSeconds = enabled)
     }
 
-    fun setSoundSettings(settings: SoundSettings): DayViewUiState = update {
+    fun setSoundSettings(settings: SoundSettings) {
         val normalized = settings.normalized()
+        state = state.copy(soundSettings = normalized)
         preferences.saveSoundSettings(normalized)
-        copy(soundSettings = normalized)
     }
 
-    fun setGoalTitle(value: String): DayViewUiState = update {
+    fun setGoalTitle(value: String) {
         val updated = value.take(80)
-        preferences.saveGlobalGoal(updated, goalDeadlineMillis)
-        copy(goalTitle = updated)
+        state = state.copy(goalTitle = updated)
+        preferences.saveGlobalGoal(updated, state.goalDeadlineMillis)
     }
 
-    fun setGoalDeadlineText(value: String): DayViewUiState = update {
-        val updatedText = value.take(16)
-        copy(goalDeadlineText = updatedText)
+    fun setGoalDeadlineText(value: String) {
+        state = state.copy(goalDeadlineText = value.take(16))
     }
 
-    fun commitGoalDeadline(): DayViewUiState = update {
-        val parsed = parseGoalDeadline(goalDeadlineText)
-        if (parsed == null && goalDeadlineText.isNotBlank()) return@update this
-        preferences.saveGlobalGoal(goalTitle, parsed)
-        copy(goalDeadlineMillis = parsed)
+    fun commitGoalDeadline() {
+        val parsed = parseGoalDeadline(state.goalDeadlineText)
+        if (parsed == null && state.goalDeadlineText.isNotBlank()) return
+        state = state.copy(goalDeadlineMillis = parsed)
+        preferences.saveGlobalGoal(state.goalTitle, parsed)
     }
 
-    fun setFocusIntention(value: String): DayViewUiState = update {
+    fun setFocusIntention(value: String) {
         val updated = value.take(100)
+        state = state.copy(focusIntention = updated, lastFocusClosure = null)
         preferences.saveFocusIntention(updated)
-        copy(focusIntention = updated, lastFocusClosure = null)
     }
 
-    fun changePomodoroDuration(deltaMinutes: Int): DayViewUiState {
-        if (state.pomodoroProgress.status == PomodoroStatus.ACTIVE) return state
-        return update {
-            val updated = (pomodoroMinutes + deltaMinutes).coerceIn(5, 180)
-            preferences.savePomodoro(updated, null)
-            copy(pomodoroMinutes = updated, pomodoroEndMillis = null)
-        }
+    fun changePomodoroDuration(deltaMinutes: Int) {
+        if (state.pomodoroProgress.status == PomodoroStatus.ACTIVE) return
+        val updated = (state.pomodoroMinutes + deltaMinutes).coerceIn(5, 180)
+        state = state.copy(pomodoroMinutes = updated, pomodoroEndMillis = null)
+        preferences.savePomodoro(updated, null)
     }
 
-    fun startPomodoro(): DayViewUiState {
-        if (state.focusIntention.isBlank()) return state
-        return update {
-            val endMillis = nowMillis + pomodoroMinutes * 60_000L
-            preferences.savePomodoro(pomodoroMinutes, endMillis)
-            copy(pomodoroEndMillis = endMillis, lastFocusClosure = null)
-        }
+    fun startPomodoro() {
+        if (state.focusIntention.isBlank()) return
+        val endMillis = state.nowMillis + state.pomodoroMinutes * 60_000L
+        state = state.copy(pomodoroEndMillis = endMillis, lastFocusClosure = null)
+        preferences.savePomodoro(state.pomodoroMinutes, endMillis)
     }
 
-    fun stopPomodoro(): DayViewUiState = update {
-        preferences.savePomodoro(pomodoroMinutes, null)
-        copy(pomodoroEndMillis = null)
+    fun stopPomodoro() {
+        state = state.copy(pomodoroEndMillis = null)
+        preferences.savePomodoro(state.pomodoroMinutes, null)
     }
 
-    fun closePomodoro(outcome: FocusClosureOutcome): DayViewUiState = update {
-        val updatedIntention = focusIntentionAfterClosure(focusIntention, outcome)
-        preferences.savePomodoro(pomodoroMinutes, null)
-        if (updatedIntention != focusIntention) preferences.saveFocusIntention(updatedIntention)
-        copy(
+    fun closePomodoro(outcome: FocusClosureOutcome) {
+        val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
+        val intentionChanged = updatedIntention != state.focusIntention
+        state = state.copy(
             pomodoroEndMillis = null,
             focusIntention = updatedIntention,
             lastFocusClosure = outcome,
         )
+        preferences.savePomodoro(state.pomodoroMinutes, null)
+        if (intentionChanged) preferences.saveFocusIntention(updatedIntention)
     }
 
-    private inline fun update(transform: DayViewUiState.() -> DayViewUiState): DayViewUiState {
-        state = state.transform()
-        return state
+    fun onPreferencesChanged(snapshot: DayPreferencesSnapshot) {
+        state = state.withPersisted(snapshot)
     }
 }
 
-private fun DayPreferencesSnapshot.toUiState(nowMillis: Long): DayViewUiState {
+private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
     val safeStart = startMinutes.coerceIn(0, 23 * 60 + 29)
     val safeEnd = endMinutes.coerceIn(safeStart + 30, 23 * 60 + 59)
-    return DayViewUiState(
-        nowMillis = nowMillis,
+    return copy(
         startMinutes = safeStart,
         endMinutes = safeEnd,
-        showSeconds = showSeconds,
         soundSettings = soundSettings.normalized(),
-        goalTitle = goalTitle,
-        goalDeadlineText = goalDeadlineMillis?.let(::formatGoalDeadline).orEmpty(),
-        goalDeadlineMillis = goalDeadlineMillis,
         pomodoroMinutes = pomodoroMinutes.coerceIn(5, 180),
-        pomodoroEndMillis = pomodoroEndMillis,
-        focusIntention = focusIntention,
+    )
+}
+
+private fun DayPreferencesSnapshot.toUiState(nowMillis: Long): DayViewUiState {
+    val safe = coerced()
+    return DayViewUiState(
+        nowMillis = nowMillis,
+        startMinutes = safe.startMinutes,
+        endMinutes = safe.endMinutes,
+        showSeconds = safe.showSeconds,
+        soundSettings = safe.soundSettings,
+        goalTitle = safe.goalTitle,
+        goalDeadlineText = safe.goalDeadlineMillis?.let(::formatGoalDeadline).orEmpty(),
+        goalDeadlineMillis = safe.goalDeadlineMillis,
+        pomodoroMinutes = safe.pomodoroMinutes,
+        pomodoroEndMillis = safe.pomodoroEndMillis,
+        focusIntention = safe.focusIntention,
+    )
+}
+
+private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayViewUiState {
+    val safe = snapshot.coerced()
+    return copy(
+        startMinutes = safe.startMinutes,
+        endMinutes = safe.endMinutes,
+        showSeconds = safe.showSeconds,
+        soundSettings = safe.soundSettings,
+        goalTitle = safe.goalTitle,
+        goalDeadlineMillis = safe.goalDeadlineMillis,
+        pomodoroMinutes = safe.pomodoroMinutes,
+        pomodoroEndMillis = safe.pomodoroEndMillis,
+        focusIntention = safe.focusIntention,
+        // Transient fields deliberately preserved: nowMillis, goalDeadlineText,
+        // lastFocusClosure, destination.
     )
 }

@@ -5,10 +5,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
 import kotlin.time.Clock
@@ -31,12 +28,16 @@ fun DayViewApp(
     DayViewTheme { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
             val controller = remember(preferences) { DayViewController(preferences) }
-            var state by remember(controller) { mutableStateOf(controller.state) }
+            val state = controller.state
             val soundPlayer = remember { createSoundCuePlayer() }
             val soundScheduler = remember { SoundAlertScheduler() }
 
+            DisposableEffect(controller, preferences) {
+                val stopObserving = preferences.observe { controller.onPreferencesChanged(it) }
+                onDispose(stopObserving)
+            }
             PlatformBackHandler(enabled = state.destination == DayViewDestination.SETTINGS) {
-                state = controller.openToday()
+                controller.openToday()
             }
             DisposableEffect(soundPlayer) {
                 onDispose { soundPlayer.close() }
@@ -44,8 +45,9 @@ fun DayViewApp(
             LaunchedEffect(state.showSeconds, state.pomodoroEndMillis) {
                 while (true) {
                     val nowMillis = Clock.System.now().toEpochMilliseconds()
-                    state = controller.tick(nowMillis)
-                    val refreshDelay = if (state.showSeconds || state.pomodoroEndMillis != null) {
+                    controller.tick(nowMillis)
+                    val current = controller.state
+                    val refreshDelay = if (current.showSeconds || current.pomodoroEndMillis != null) {
                         1_000L
                     } else {
                         60_000L - nowMillis % 60_000L
@@ -82,41 +84,43 @@ fun DayViewApp(
                         launchAtLogin = launchAtLogin,
                     ),
                     actions = SettingsScreenActions(
-                        changeStartTime = { state = controller.setStartMinutes(it) },
-                        changeEndTime = { state = controller.setEndMinutes(it) },
-                        changeShowSeconds = { state = controller.setShowSeconds(it) },
+                        changeStartTime = { controller.setStartMinutes(it) },
+                        changeEndTime = { controller.setEndMinutes(it) },
+                        changeShowSeconds = { controller.setShowSeconds(it) },
                         changeMonochromeMenuBarIcon = onMonochromeMenuBarIconChange,
                         changeLaunchAtLogin = onLaunchAtLoginChange,
-                        changeSoundSettings = { state = controller.setSoundSettings(it) },
+                        changeSoundSettings = { controller.setSoundSettings(it) },
                         previewSound = { cue ->
-                            soundPlayer.play(cue, state.soundSettings.volumePercent / 100f)
+                            soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
                         },
-                        back = { state = controller.openToday() },
+                        back = { controller.openToday() },
                     ),
                 )
             } else {
                 DayViewScreen(
                     state = state,
                     actions = DayViewScreenActions(
-                        openSettings = { state = controller.openSettings() },
+                        openSettings = { controller.openSettings() },
                         openMiniWindow = onOpenMiniWindow,
-                        changeGoalTitle = { state = controller.setGoalTitle(it) },
-                        changeGoalDeadline = { state = controller.setGoalDeadlineText(it) },
-                        commitGoalDeadline = { state = controller.commitGoalDeadline() },
-                        changeFocusIntention = { state = controller.setFocusIntention(it) },
-                        changePomodoroDuration = { state = controller.changePomodoroDuration(it) },
+                        changeGoalTitle = { controller.setGoalTitle(it) },
+                        changeGoalDeadline = { controller.setGoalDeadlineText(it) },
+                        commitGoalDeadline = { controller.commitGoalDeadline() },
+                        changeFocusIntention = { controller.setFocusIntention(it) },
+                        changePomodoroDuration = { controller.changePomodoroDuration(it) },
                         startPomodoro = {
-                            state = controller.startPomodoro()
-                            state.pomodoroEndMillis?.let { onFocusAlarmChange(it, state.focusIntention) }
+                            controller.startPomodoro()
+                            controller.state.pomodoroEndMillis?.let {
+                                onFocusAlarmChange(it, controller.state.focusIntention)
+                            }
                         },
                         stopPomodoro = {
-                            val intention = state.focusIntention
-                            state = controller.stopPomodoro()
+                            val intention = controller.state.focusIntention
+                            controller.stopPomodoro()
                             onFocusAlarmChange(null, intention)
                         },
                         closePomodoro = { outcome ->
-                            val intention = state.focusIntention
-                            state = controller.closePomodoro(outcome)
+                            val intention = controller.state.focusIntention
+                            controller.closePomodoro(outcome)
                             onFocusAlarmChange(null, intention)
                         },
                     ),
