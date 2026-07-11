@@ -212,8 +212,7 @@ class FocusAlarmTest {
 
     private fun scheduler(): FocusAlarmScheduler = FocusAlarmScheduler(context) { NOW }
 
-    private fun nextAlarm(): ShadowAlarmManager.ScheduledAlarm =
-        requireNotNull(shadowAlarms.scheduledAlarms.minByOrNull { it.getTriggerAtMs() })
+    private fun nextAlarm(): ShadowAlarmManager.ScheduledAlarm = requireNotNull(shadowAlarms.scheduledAlarms.minByOrNull { it.getTriggerAtMs() })
 
     private companion object {
         const val NOW = 1_800_000_000_000L

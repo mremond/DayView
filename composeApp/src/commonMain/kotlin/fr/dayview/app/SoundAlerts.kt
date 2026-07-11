@@ -29,15 +29,15 @@ data class SoundSettings(
         volumePercent = volumePercent.coerceIn(10, 100),
     )
 
-    fun allows(cue: SoundCue): Boolean = enabled && when (cue) {
-        SoundCue.DAY_START -> startCueEnabled
-        SoundCue.INTERVAL -> intervalCueEnabled
-        SoundCue.DAY_END -> endCueEnabled
-        SoundCue.BREAK_REMINDER -> true
-    }
+    fun allows(cue: SoundCue): Boolean = enabled &&
+        when (cue) {
+            SoundCue.DAY_START -> startCueEnabled
+            SoundCue.INTERVAL -> intervalCueEnabled
+            SoundCue.DAY_END -> endCueEnabled
+            SoundCue.BREAK_REMINDER -> true
+        }
 
-    fun allowsDayCue(cue: SoundCue, focusIsActive: Boolean): Boolean =
-        !focusIsActive && allows(cue)
+    fun allowsDayCue(cue: SoundCue, focusIsActive: Boolean): Boolean = !focusIsActive && allows(cue)
 }
 
 class SoundAlertScheduler(
@@ -83,8 +83,7 @@ class SoundAlertScheduler(
         return if (latestMarker != null) SoundCue.INTERVAL else null
     }
 
-    private fun crossedRecently(previous: Long, now: Long, threshold: Long): Boolean =
-        previous < threshold && now >= threshold && now - threshold <= MAX_ALERT_LATENESS_MILLIS
+    private fun crossedRecently(previous: Long, now: Long, threshold: Long): Boolean = previous < threshold && now >= threshold && now - threshold <= MAX_ALERT_LATENESS_MILLIS
 
     private companion object {
         const val MAX_ALERT_LATENESS_MILLIS = 90_000L

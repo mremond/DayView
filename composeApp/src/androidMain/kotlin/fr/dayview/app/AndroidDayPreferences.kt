@@ -67,8 +67,7 @@ class AndroidDayPreferences(
 
     override fun loadGoalTitle(): String = storage.getString(KEY_GOAL_TITLE, "").orEmpty()
 
-    override fun loadGoalDeadlineMillis(): Long? =
-        storage.getLong(KEY_GOAL_DEADLINE, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
+    override fun loadGoalDeadlineMillis(): Long? = storage.getLong(KEY_GOAL_DEADLINE, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
 
     override fun saveGlobalGoal(title: String, deadlineMillis: Long?) {
         storage.edit()
@@ -80,8 +79,7 @@ class AndroidDayPreferences(
 
     override fun loadPomodoroMinutes(): Int = storage.getInt(KEY_POMODORO_MINUTES, 25)
 
-    override fun loadPomodoroEndMillis(): Long? =
-        storage.getLong(KEY_POMODORO_END, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
+    override fun loadPomodoroEndMillis(): Long? = storage.getLong(KEY_POMODORO_END, NO_DEADLINE).takeUnless { it == NO_DEADLINE }
 
     override fun savePomodoro(durationMinutes: Int, endMillis: Long?) {
         storage.edit()
