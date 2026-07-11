@@ -22,8 +22,10 @@ fun main() = application {
     val focusStatusItem = remember { MacFocusStatusItem() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
+    val focusResumeDetector = remember { FocusResumeDetector() }
     var isWindowVisible by remember { mutableStateOf(true) }
     var focusDriftReminderId by remember { mutableStateOf<Long?>(null) }
+    var focusResumeRitualId by remember { mutableStateOf<Long?>(null) }
     var nowMillis by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds()) }
     var startMinutes by remember { mutableStateOf(preferences.loadStartMinutes()) }
     var endMinutes by remember { mutableStateOf(preferences.loadEndMinutes()) }
@@ -47,12 +49,22 @@ fun main() = application {
             focusIntention = preferences.loadFocusIntention()
 
             val focusIsActive = currentPomodoroEnd != null && currentPomodoroEnd > currentNowMillis
-            val frontmostBundleId = if (focusIsActive) frontmostApplicationProvider.bundleIdentifier() else null
-            if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
+            val shouldShowResumeRitual = focusResumeDetector.observe(focusIsActive, currentNowMillis)
+            val frontmostBundleId = if (focusIsActive && !shouldShowResumeRitual) {
+                frontmostApplicationProvider.bundleIdentifier()
+            } else {
+                null
+            }
+            if (shouldShowResumeRitual) {
+                focusResumeRitualId = currentNowMillis
+                focusDriftReminderId = null
+                isWindowVisible = true
+            } else if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
                 focusDriftReminderId = currentNowMillis
                 isWindowVisible = true
             } else if (!focusIsActive) {
                 focusDriftReminderId = null
+                focusResumeRitualId = null
             }
             delay(1_000)
         }
@@ -114,8 +126,8 @@ fun main() = application {
             title = "DayView",
         ) {
             window.minimumSize = java.awt.Dimension(420, 680)
-            LaunchedEffect(focusDriftReminderId) {
-                if (focusDriftReminderId != null) {
+            LaunchedEffect(focusDriftReminderId, focusResumeRitualId) {
+                if (focusDriftReminderId != null || focusResumeRitualId != null) {
                     window.toFront()
                     window.requestFocus()
                 }
@@ -124,6 +136,8 @@ fun main() = application {
                 preferences = preferences,
                 showFocusDriftReminder = focusDriftReminderId != null,
                 onDismissFocusDriftReminder = { focusDriftReminderId = null },
+                showFocusResumeRitual = focusResumeRitualId != null,
+                onDismissFocusResumeRitual = { focusResumeRitualId = null },
             )
         }
     }

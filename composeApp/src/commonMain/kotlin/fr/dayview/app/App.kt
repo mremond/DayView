@@ -105,6 +105,8 @@ fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
+    showFocusResumeRitual: Boolean = false,
+    onDismissFocusResumeRitual: () -> Unit = {},
 ) {
     val isDark = isSystemInDarkTheme()
     val colors = if (isDark) DarkDayViewColors else LightDayViewColors
@@ -219,6 +221,8 @@ fun DayViewApp(
                     },
                     showFocusDriftReminder = showFocusDriftReminder,
                     onDismissFocusDriftReminder = onDismissFocusDriftReminder,
+                    showFocusResumeRitual = showFocusResumeRitual,
+                    onDismissFocusResumeRitual = onDismissFocusResumeRitual,
                     onPomodoroDurationChange = { delta ->
                         if (pomodoro.status != PomodoroStatus.ACTIVE) {
                             pomodoroMinutes = (pomodoroMinutes + delta).coerceIn(5, 180)
@@ -258,6 +262,8 @@ private fun DayViewScreen(
     onFocusIntentionChange: (String) -> Unit,
     showFocusDriftReminder: Boolean,
     onDismissFocusDriftReminder: () -> Unit,
+    showFocusResumeRitual: Boolean,
+    onDismissFocusResumeRitual: () -> Unit,
     onPomodoroDurationChange: (Int) -> Unit,
     onPomodoroStart: () -> Unit,
     onPomodoroStop: () -> Unit,
@@ -315,6 +321,8 @@ private fun DayViewScreen(
                         onFocusIntentionChange = onFocusIntentionChange,
                         showFocusDriftReminder = showFocusDriftReminder,
                         onDismissFocusDriftReminder = onDismissFocusDriftReminder,
+                        showFocusResumeRitual = showFocusResumeRitual,
+                        onDismissFocusResumeRitual = onDismissFocusResumeRitual,
                         onPomodoroDurationChange = onPomodoroDurationChange,
                         onPomodoroStart = onPomodoroStart,
                         onPomodoroStop = onPomodoroStop,
@@ -342,6 +350,8 @@ private fun DayViewScreen(
                     onFocusIntentionChange = onFocusIntentionChange,
                     showFocusDriftReminder = showFocusDriftReminder,
                     onDismissFocusDriftReminder = onDismissFocusDriftReminder,
+                    showFocusResumeRitual = showFocusResumeRitual,
+                    onDismissFocusResumeRitual = onDismissFocusResumeRitual,
                     onPomodoroDurationChange = onPomodoroDurationChange,
                     onPomodoroStart = onPomodoroStart,
                     onPomodoroStop = onPomodoroStop,
@@ -624,6 +634,8 @@ private fun SidePanel(
     onFocusIntentionChange: (String) -> Unit,
     showFocusDriftReminder: Boolean,
     onDismissFocusDriftReminder: () -> Unit,
+    showFocusResumeRitual: Boolean,
+    onDismissFocusResumeRitual: () -> Unit,
     onPomodoroDurationChange: (Int) -> Unit,
     onPomodoroStart: () -> Unit,
     onPomodoroStop: () -> Unit,
@@ -651,6 +663,8 @@ private fun SidePanel(
             onIntentionChange = onFocusIntentionChange,
             showDriftReminder = showFocusDriftReminder,
             onDismissDriftReminder = onDismissFocusDriftReminder,
+            showResumeRitual = showFocusResumeRitual,
+            onDismissResumeRitual = onDismissFocusResumeRitual,
             onDurationChange = onPomodoroDurationChange,
             onStart = onPomodoroStart,
             onStop = onPomodoroStop,
@@ -677,6 +691,8 @@ private fun FocusPanel(
     onIntentionChange: (String) -> Unit,
     showDriftReminder: Boolean,
     onDismissDriftReminder: () -> Unit,
+    showResumeRitual: Boolean,
+    onDismissResumeRitual: () -> Unit,
     onDurationChange: (Int) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -707,7 +723,59 @@ private fun FocusPanel(
         Spacer(Modifier.height(12.dp))
 
         if (progress.status == PomodoroStatus.ACTIVE) {
-            if (showDriftReminder) {
+            if (showResumeRitual) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(12.dp))
+                        .border(1.dp, colors.mint.copy(alpha = .3f), RoundedCornerShape(12.dp))
+                        .padding(13.dp),
+                ) {
+                    Text(
+                        "VOTRE POINT DE REPRISE",
+                        color = colors.mint,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        intention.ifBlank { "Une seule chose à la fois." },
+                        color = colors.cloud,
+                        fontSize = 16.sp,
+                        lineHeight = 21.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        "Il reste ${formatPomodoroClock(progress)} pour garder le cap.",
+                        color = colors.muted,
+                        fontSize = 11.sp,
+                    )
+                    Spacer(Modifier.height(11.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    ) {
+                        FocusActionButton(
+                            "ARRÊTER",
+                            colors.red,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onStop()
+                                onDismissResumeRitual()
+                            },
+                        )
+                        FocusActionButton(
+                            "REPRENDRE",
+                            colors.mint,
+                            modifier = Modifier.weight(1f),
+                            filled = true,
+                            onClick = onDismissResumeRitual,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            } else if (showDriftReminder) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
                         .background(colors.amber.copy(alpha = .12f), RoundedCornerShape(12.dp))

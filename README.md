@@ -57,6 +57,8 @@ Le minuteur Focus permet de s’engager sur un slot de 25 minutes par défaut, r
 
 Pendant un Focus sur macOS, DayView observe uniquement l’identifiant de l’application au premier plan. Quatre changements d’application en moins de 45 secondes déclenchent un rappel de l’intention. Une période de grâce de 30 secondes et un délai de cinq minutes entre deux rappels évitent les interruptions répétitives. Cette détection reste locale et ne lit jamais le contenu des fenêtres.
 
+Si DayView retrouve une session encore active après son relancement ou le réveil du Mac, un rituel de reprise remet l’intention et le temps restant au premier plan. L’utilisateur peut reprendre immédiatement ou arrêter la session.
+
 ## Principe du calcul
 
 La journée utilise les heures de début et de fin choisies (08:00–18:00 par défaut) dans le fuseau local de l’appareil. Le cercle reste plein avant le début, se consume pendant la plage définie, puis atteint zéro à la fin. Les changements d’heure sont correctement pris en compte.

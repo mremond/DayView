@@ -4,6 +4,27 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 
+internal class FocusResumeDetector(
+    private val interruptionThresholdMillis: Long = 15_000L,
+) {
+    private var hasObserved = false
+    private var previousObservationMillis = 0L
+    private var focusWasActive = false
+
+    fun observe(isFocusActive: Boolean, nowMillis: Long): Boolean {
+        val recoveredExistingSession = !hasObserved && isFocusActive
+        val resumedAfterInterruption = hasObserved &&
+            focusWasActive &&
+            isFocusActive &&
+            nowMillis - previousObservationMillis >= interruptionThresholdMillis
+
+        hasObserved = true
+        previousObservationMillis = nowMillis
+        focusWasActive = isFocusActive
+        return recoveredExistingSession || resumedAfterInterruption
+    }
+}
+
 internal class FocusDriftDetector(
     private val switchThreshold: Int = 4,
     private val observationWindowMillis: Long = 45_000L,

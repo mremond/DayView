@@ -51,3 +51,42 @@ class FocusDriftDetectorTest {
         assertFalse(detector.observe(true, 65_000L, "app.five"))
     }
 }
+
+class FocusResumeDetectorTest {
+    @Test
+    fun existingActiveSessionTriggersRitualOnFirstObservation() {
+        val detector = FocusResumeDetector()
+
+        assertTrue(detector.observe(true, 1_000L))
+        assertFalse(detector.observe(true, 2_000L))
+    }
+
+    @Test
+    fun startingANewFocusNormallyDoesNotTriggerRitual() {
+        val detector = FocusResumeDetector()
+
+        assertFalse(detector.observe(false, 1_000L))
+        assertFalse(detector.observe(true, 2_000L))
+    }
+
+    @Test
+    fun activeSessionTriggersRitualAfterLongPollingGap() {
+        val detector = FocusResumeDetector()
+
+        detector.observe(false, 0L)
+        detector.observe(true, 1_000L)
+
+        assertFalse(detector.observe(true, 10_000L))
+        assertTrue(detector.observe(true, 25_000L))
+    }
+
+    @Test
+    fun expiredSessionDoesNotTriggerRitualAfterLongPollingGap() {
+        val detector = FocusResumeDetector()
+
+        detector.observe(false, 0L)
+        detector.observe(true, 1_000L)
+
+        assertFalse(detector.observe(false, 25_000L))
+    }
+}
