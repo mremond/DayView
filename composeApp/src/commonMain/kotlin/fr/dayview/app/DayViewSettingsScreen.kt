@@ -366,13 +366,23 @@ private fun SoundSettingsPanel(
                 ) {
                     Text("TOUTES LES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Spacer(Modifier.weight(1f))
-                    TimeButton("−", enabled = settings.intervalMinutes > 30) {
+                    TimeButton(
+                        label = "−",
+                        enabled = settings.intervalMinutes > 30,
+                        onClickLabel = "Diminuer l’intervalle des rappels de 30 minutes",
+                        valueDescription = "Intervalle des rappels : ${settings.intervalMinutes} minutes",
+                    ) {
                         onSettingsChange(settings.copy(intervalMinutes = settings.intervalMinutes - 30))
                     }
                     Spacer(Modifier.width(10.dp))
                     Text("${settings.intervalMinutes} min", color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.width(10.dp))
-                    TimeButton("+", enabled = settings.intervalMinutes < 180) {
+                    TimeButton(
+                        label = "+",
+                        enabled = settings.intervalMinutes < 180,
+                        onClickLabel = "Augmenter l’intervalle des rappels de 30 minutes",
+                        valueDescription = "Intervalle des rappels : ${settings.intervalMinutes} minutes",
+                    ) {
                         onSettingsChange(settings.copy(intervalMinutes = settings.intervalMinutes + 30))
                     }
                 }
@@ -396,11 +406,21 @@ private fun SoundSettingsPanel(
                     Text("${settings.volumePercent} %", color = colors.cloud, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 }
                 Spacer(Modifier.weight(1f))
-                TimeButton("−", enabled = settings.volumePercent > 10) {
+                TimeButton(
+                    label = "−",
+                    enabled = settings.volumePercent > 10,
+                    onClickLabel = "Diminuer le volume de 10 %",
+                    valueDescription = "Volume : ${settings.volumePercent} %",
+                ) {
                     onSettingsChange(settings.copy(volumePercent = settings.volumePercent - 10))
                 }
                 Spacer(Modifier.width(8.dp))
-                TimeButton("+", enabled = settings.volumePercent < 100) {
+                TimeButton(
+                    label = "+",
+                    enabled = settings.volumePercent < 100,
+                    onClickLabel = "Augmenter le volume de 10 %",
+                    valueDescription = "Volume : ${settings.volumePercent} %",
+                ) {
                     onSettingsChange(settings.copy(volumePercent = settings.volumePercent + 10))
                 }
             }
@@ -492,4 +512,3 @@ private fun TimePreferenceRow(
         )
     }
 }
-

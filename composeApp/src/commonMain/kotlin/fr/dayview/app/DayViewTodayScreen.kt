@@ -58,6 +58,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -662,6 +665,7 @@ private fun FocusPanel(
             Spacer(Modifier.height(7.dp))
             GoalTextField(
                 value = intention,
+                semanticLabel = "Intention du Focus",
                 placeholder = "Ex. terminé le plan de la présentation",
                 onValueChange = onIntentionChange,
             )
@@ -671,14 +675,24 @@ private fun FocusPanel(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
-                TimeButton("−", enabled = progress.durationMinutes > 5) { onDurationChange(-5) }
+                TimeButton(
+                    label = "−",
+                    enabled = progress.durationMinutes > 5,
+                    onClickLabel = "Diminuer la durée du Focus de 5 minutes",
+                    valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+                ) { onDurationChange(-5) }
                 Spacer(Modifier.width(18.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
                     Text("MINUTES", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
                 Spacer(Modifier.width(18.dp))
-                TimeButton("+", enabled = progress.durationMinutes < 180) { onDurationChange(5) }
+                TimeButton(
+                    label = "+",
+                    enabled = progress.durationMinutes < 180,
+                    onClickLabel = "Augmenter la durée du Focus de 5 minutes",
+                    valueDescription = "Durée du Focus : ${progress.durationMinutes} minutes",
+                ) { onDurationChange(5) }
             }
             Spacer(Modifier.height(13.dp))
             FocusActionButton(
@@ -792,6 +806,7 @@ private fun GlobalGoalPanel(
                 ) {
                     GoalTextField(
                         value = title,
+                        semanticLabel = "Objectif du jour",
                         placeholder = "Que voulez-vous accomplir ?",
                         onValueChange = onTitleChange,
                         imeAction = ImeAction.Next,
@@ -799,6 +814,7 @@ private fun GlobalGoalPanel(
                     )
                     GoalTextField(
                         value = deadlineText,
+                        semanticLabel = "Date limite de l’objectif",
                         placeholder = GOAL_DATE_PLACEHOLDER,
                         onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
                         isError = !deadlineIsValid,
@@ -810,6 +826,7 @@ private fun GlobalGoalPanel(
                 Column {
                     GoalTextField(
                         value = title,
+                        semanticLabel = "Objectif du jour",
                         placeholder = "Que voulez-vous accomplir ?",
                         onValueChange = onTitleChange,
                         imeAction = ImeAction.Next,
@@ -817,6 +834,7 @@ private fun GlobalGoalPanel(
                     Spacer(Modifier.height(9.dp))
                     GoalTextField(
                         value = deadlineText,
+                        semanticLabel = "Date limite de l’objectif",
                         placeholder = GOAL_DATE_PLACEHOLDER,
                         onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
                         isError = !deadlineIsValid,
@@ -835,6 +853,7 @@ private fun GlobalGoalPanel(
 @Composable
 private fun GoalTextField(
     value: String,
+    semanticLabel: String,
     placeholder: String,
     onValueChange: (String) -> Unit,
     isError: Boolean = false,
@@ -856,6 +875,7 @@ private fun GoalTextField(
         textStyle = TextStyle(color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium),
         cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
         modifier = modifier.fillMaxWidth()
+            .semantics { contentDescription = semanticLabel }
             .background(colors.overlay.copy(alpha = .045f), RoundedCornerShape(10.dp))
             .border(
                 width = 1.dp,
@@ -874,15 +894,22 @@ private fun GoalTextField(
 
 
 @Composable
-internal fun TimeButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun TimeButton(
+    label: String,
+    enabled: Boolean,
+    onClickLabel: String,
+    valueDescription: String,
+    onClick: () -> Unit,
+) {
     val colors = LocalDayViewColors.current
     val color = if (enabled) colors.cloud else colors.muted.copy(alpha = .4f)
     Box(
         modifier = Modifier.size(48.dp)
             .background(colors.overlay.copy(alpha = if (enabled) .08f else .025f), CircleShape)
+            .semantics { stateDescription = valueDescription }
             .clickable(
                 enabled = enabled,
-                onClickLabel = if (label == "−") "Diminuer" else "Augmenter",
+                onClickLabel = onClickLabel,
                 role = Role.Button,
                 onClick = onClick,
             ),
@@ -891,4 +918,3 @@ internal fun TimeButton(label: String, enabled: Boolean, onClick: () -> Unit) {
         Text(label, color = color, fontSize = 23.sp, fontWeight = FontWeight.Light)
     }
 }
-
