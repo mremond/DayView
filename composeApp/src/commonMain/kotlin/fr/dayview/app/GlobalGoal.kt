@@ -102,3 +102,13 @@ fun formatGoalWorkingHours(workingMillis: Long, deadlineReached: Boolean): Strin
     val hours = ceil(workingMillis / 3_600_000.0).toLong()
     return if (hours > 0) "Encore $hours h" else "Moins d’une heure de travail"
 }
+
+fun formatGoalSummaryLine(
+    title: String,
+    deadlineMillis: Long?,
+    workingMillis: Long,
+    deadlineReached: Boolean,
+): String = listOfNotNull(
+    title.ifBlank { null },
+    deadlineMillis?.let { formatGoalWorkingHours(workingMillis, deadlineReached) },
+).joinToString(" · ")
