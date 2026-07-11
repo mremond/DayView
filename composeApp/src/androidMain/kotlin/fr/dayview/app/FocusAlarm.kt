@@ -97,6 +97,7 @@ class FocusAlarmScheduler(context: Context) {
 
 class FocusAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        DayViewWidget.updateAll(context)
         val kind = intent.getStringExtra(EXTRA_KIND) ?: KIND_FOCUS_END
         val breakStartMillis: Long
         val elapsedMinutes: Int

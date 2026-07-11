@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="dayview_widget_background">#FF14171E</color>
+    <color name="dayview_widget_focus_background">#1978E6BD</color>
+    <color name="dayview_widget_text">#FFF3F1EB</color>
+    <color name="dayview_widget_muted">#FF8B909B</color>
+    <color name="dayview_widget_mint">#FF78E6BD</color>
+    <color name="dayview_widget_amber">#FFFFB86B</color>
+    <color name="dayview_widget_red">#FFFF7272</color>
+    <color name="dayview_widget_ring_track">#18FFFFFF</color>
+    <color name="dayview_widget_tick">#38FFFFFF</color>
+</resources>

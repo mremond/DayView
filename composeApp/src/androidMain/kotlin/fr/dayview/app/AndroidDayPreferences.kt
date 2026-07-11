@@ -2,8 +2,16 @@ package fr.dayview.app
 
 import android.content.Context
 
-class AndroidDayPreferences(context: Context) : DayPreferences {
+class AndroidDayPreferences(
+    context: Context,
+    private val notifyWidgets: Boolean = true,
+) : DayPreferences {
+    private val appContext = context.applicationContext
     private val storage = context.getSharedPreferences("dayview_preferences", Context.MODE_PRIVATE)
+
+    private fun widgetsChanged() {
+        if (notifyWidgets) DayViewWidget.updateAll(appContext)
+    }
 
     override fun loadStartMinutes(): Int = storage.getInt(KEY_START, DEFAULT_START)
 
@@ -14,6 +22,7 @@ class AndroidDayPreferences(context: Context) : DayPreferences {
             .putInt(KEY_START, startMinutes)
             .putInt(KEY_END, endMinutes)
             .apply()
+        widgetsChanged()
     }
 
     override fun loadShowSeconds(): Boolean = storage.getBoolean(KEY_SHOW_SECONDS, true)
@@ -53,6 +62,7 @@ class AndroidDayPreferences(context: Context) : DayPreferences {
             .putString(KEY_GOAL_TITLE, title)
             .putLong(KEY_GOAL_DEADLINE, deadlineMillis ?: NO_DEADLINE)
             .apply()
+        widgetsChanged()
     }
 
     override fun loadPomodoroMinutes(): Int = storage.getInt(KEY_POMODORO_MINUTES, 25)
@@ -65,12 +75,14 @@ class AndroidDayPreferences(context: Context) : DayPreferences {
             .putInt(KEY_POMODORO_MINUTES, durationMinutes)
             .putLong(KEY_POMODORO_END, endMillis ?: NO_DEADLINE)
             .apply()
+        widgetsChanged()
     }
 
     override fun loadFocusIntention(): String = storage.getString(KEY_FOCUS_INTENTION, "").orEmpty()
 
     override fun saveFocusIntention(intention: String) {
         storage.edit().putString(KEY_FOCUS_INTENTION, intention).apply()
+        widgetsChanged()
     }
 
     private companion object {

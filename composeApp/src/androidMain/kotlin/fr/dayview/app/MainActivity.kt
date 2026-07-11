@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        DayViewWidget.updateAll(applicationContext)
         if (::focusAlarmScheduler.isInitialized) restoreActiveFocusAlarm()
     }
 

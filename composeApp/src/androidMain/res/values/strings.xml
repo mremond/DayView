@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Le temps restant dans votre journée et votre Focus en cours.</string>
+    <string name="widget_name">DAYVIEW</string>
+    <string name="widget_focus_label">FOCUS</string>
+    <string name="widget_ring_preview_description">Progression de la journée</string>
+    <string name="widget_ring_description">%1$d %% de la journée restante</string>
+    <string name="widget_day_not_started">JOURNÉE À VENIR</string>
+    <string name="widget_day_finished">JOURNÉE TERMINÉE</string>
+    <string name="widget_day_remaining">RESTANTES AUJOURD’HUI</string>
+    <string name="widget_day_range">%1$s — %2$s</string>
+    <string name="widget_goal">Cap · %1$s</string>
+    <string name="widget_focus_default">Session en cours</string>
+    <string name="widget_preview_remaining">4 h 12</string>
+    <string name="widget_preview_day_range">08:00 — 18:00</string>
+    <string name="widget_preview_goal">Cap · Lancer DayView</string>
+    <string name="widget_preview_focus">Écrire la proposition</string>
+</resources>
