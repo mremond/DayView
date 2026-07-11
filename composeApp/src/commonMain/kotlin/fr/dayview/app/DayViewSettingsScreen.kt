@@ -614,6 +614,8 @@ private fun SoundSettingsPanel(
                 onPreview = { onPreview(SoundCue.INTERVAL) },
             )
             if (settings.intervalCueEnabled) {
+                val choices = SoundSettings.INTERVAL_CHOICES
+                val currentIndex = choices.indexOf(SoundSettings.snapIntervalMinutes(settings.intervalMinutes))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -622,22 +624,22 @@ private fun SoundSettingsPanel(
                     Spacer(Modifier.weight(1f))
                     TimeButton(
                         label = "−",
-                        enabled = settings.intervalMinutes > 30,
-                        onClickLabel = "Diminuer l’intervalle des rappels de 30 minutes",
+                        enabled = currentIndex > 0,
+                        onClickLabel = "Diminuer l’intervalle des rappels",
                         valueDescription = "Intervalle des rappels : ${settings.intervalMinutes} minutes",
                     ) {
-                        onSettingsChange(settings.copy(intervalMinutes = settings.intervalMinutes - 30))
+                        onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex - 1]))
                     }
                     Spacer(Modifier.width(10.dp))
                     Text("${settings.intervalMinutes} min", color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.width(10.dp))
                     TimeButton(
                         label = "+",
-                        enabled = settings.intervalMinutes < 180,
-                        onClickLabel = "Augmenter l’intervalle des rappels de 30 minutes",
+                        enabled = currentIndex < choices.lastIndex,
+                        onClickLabel = "Augmenter l’intervalle des rappels",
                         valueDescription = "Intervalle des rappels : ${settings.intervalMinutes} minutes",
                     ) {
-                        onSettingsChange(settings.copy(intervalMinutes = settings.intervalMinutes + 30))
+                        onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex + 1]))
                     }
                 }
             }

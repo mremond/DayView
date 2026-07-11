@@ -40,11 +40,24 @@ class SoundAlertsTest {
     }
 
     @Test
-    fun settingsAreNormalizedToSoberBounds() {
+    fun shortIntervalEmitsMarkerCues() {
+        val scheduler = SoundAlertScheduler(utc)
+        scheduler.observe(at(8, 4, 59), 8 * 60, 18 * 60, 5)
+
+        assertEquals(SoundCue.INTERVAL, scheduler.observe(at(8, 5), 8 * 60, 18 * 60, 5))
+    }
+
+    @Test
+    fun normalizationSnapsIntervalToNearestChoiceAndClampsVolume() {
         assertEquals(
-            SoundSettings(intervalMinutes = 30, volumePercent = 100),
+            SoundSettings(intervalMinutes = 5, volumePercent = 100),
             SoundSettings(intervalMinutes = 5, volumePercent = 250).normalized(),
         )
+        assertEquals(5, SoundSettings(intervalMinutes = 7).normalized().intervalMinutes)
+        assertEquals(60, SoundSettings(intervalMinutes = 90).normalized().intervalMinutes)
+        assertEquals(60, SoundSettings(intervalMinutes = 250).normalized().intervalMinutes)
+        // 45 is equidistant from 30 and 60; ties resolve to the smaller choice.
+        assertEquals(30, SoundSettings(intervalMinutes = 45).normalized().intervalMinutes)
     }
 
     @Test
