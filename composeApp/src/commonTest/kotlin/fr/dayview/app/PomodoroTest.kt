@@ -69,6 +69,15 @@ class PomodoroTest {
     }
 
     @Test
+    fun closureClearsOrKeepsTheFocusIntentionAccordingToTheOutcome() {
+        val intention = "Finaliser la présentation"
+
+        assertEquals("", focusIntentionAfterClosure(intention, FocusClosureOutcome.COMPLETED))
+        assertEquals("", focusIntentionAfterClosure(intention, FocusClosureOutcome.PROGRESSED))
+        assertEquals(intention, focusIntentionAfterClosure(intention, FocusClosureOutcome.TO_RESUME))
+    }
+
+    @Test
     fun breakCountsUpFromTheFocusDeadline() {
         val progress = calculatePomodoroProgress(
             nowMillis = 31 * 60_000L + 12_000L,

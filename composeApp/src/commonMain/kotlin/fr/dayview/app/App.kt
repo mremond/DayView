@@ -305,9 +305,10 @@ fun DayViewApp(
                         pomodoroEndMillis = null
                         preferences.savePomodoro(pomodoroMinutes, null)
                         onFocusAlarmChange(null, focusIntention)
-                        if (!outcome.keepsIntention) {
-                            focusIntention = ""
-                            preferences.saveFocusIntention("")
+                        val updatedIntention = focusIntentionAfterClosure(focusIntention, outcome)
+                        if (updatedIntention != focusIntention) {
+                            focusIntention = updatedIntention
+                            preferences.saveFocusIntention(updatedIntention)
                         }
                         lastFocusClosure = outcome
                     },
@@ -1375,13 +1376,38 @@ private fun FocusPanel(
                 filled = true,
                 onClick = onStart,
             )
-            Spacer(Modifier.height(8.dp))
-            FocusActionButton(
-                "TERMINER LA SÉRIE",
-                colors.muted,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onClose(FocusClosureOutcome.COMPLETED) },
+            Spacer(Modifier.height(14.dp))
+            Text(
+                "CLÔTURER CE FOCUS",
+                color = colors.muted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
             )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FocusActionButton(
+                    "TERMINÉ",
+                    colors.mint,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onClose(FocusClosureOutcome.COMPLETED) },
+                )
+                FocusActionButton(
+                    "AVANCÉ",
+                    colors.amber,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onClose(FocusClosureOutcome.PROGRESSED) },
+                )
+                FocusActionButton(
+                    "À REPRENDRE",
+                    colors.muted,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onClose(FocusClosureOutcome.TO_RESUME) },
+                )
+            }
         } else {
             if (lastClosure != null) {
                 val closureLabel = when (lastClosure) {

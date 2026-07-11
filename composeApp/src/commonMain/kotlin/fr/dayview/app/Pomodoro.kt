@@ -8,6 +8,11 @@ enum class FocusClosureOutcome(val keepsIntention: Boolean) {
     TO_RESUME(true),
 }
 
+fun focusIntentionAfterClosure(
+    intention: String,
+    outcome: FocusClosureOutcome,
+): String = intention.takeIf { outcome.keepsIntention }.orEmpty()
+
 data class PomodoroProgress(
     val durationMinutes: Int,
     val remainingMillis: Long,
