@@ -80,7 +80,14 @@ fun main() = application {
                 focusDriftReminderId = null
                 isMiniWindowVisible = false
                 isWindowVisible = true
-            } else if (focusDriftDetector.observe(focusIsActive, currentNowMillis, frontmostBundleId)) {
+            } else if (
+                focusDriftDetector.observe(
+                    focusIsActive,
+                    currentNowMillis,
+                    frontmostBundleId,
+                    currentPreferences.onGoalApps.map { it.bundleId }.toSet(),
+                )
+            ) {
                 focusDriftReminderId = currentNowMillis
                 nudgeNotifier.notify(currentPreferences.focusIntention)
             } else if (!focusIsActive) {
