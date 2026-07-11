@@ -131,19 +131,28 @@ compose.desktop {
     application {
         mainClass = "fr.dayview.app.MainKt"
 
+        buildTypes.release.proguard {
+            isEnabled.set(true)
+            obfuscate.set(false)
+            configurationFiles.from(project.file("proguard-desktop.pro"))
+        }
+
         nativeDistributions {
             // Building an app bundle inside an iCloud/FileProvider-backed Documents
             // folder makes macOS attach com.apple.FinderInfo while jpackage is still
             // running. codesign rejects that attribute, so package in a local temp
-            // directory and copy only the completed DMG back into build/.
-            outputBaseDir.set(
-                layout.dir(
-                    providers.provider {
-                        file("${System.getProperty("java.io.tmpdir")}/dayview-compose-package")
-                    },
-                ),
-            )
-            targetFormats(TargetFormat.Dmg)
+            // directory and copy only the completed DMG back into build/. This only
+            // applies to macOS; on Linux it would push .deb/.rpm/app-image into $TMPDIR.
+            if (isMacHost) {
+                outputBaseDir.set(
+                    layout.dir(
+                        providers.provider {
+                            file("${System.getProperty("java.io.tmpdir")}/dayview-compose-package")
+                        },
+                    ),
+                )
+            }
+            targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "DayView"
             packageVersion = appPackageVersion
             description = "Une représentation visuelle du temps qu'il reste aujourd'hui."
