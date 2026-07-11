@@ -241,4 +241,13 @@ class GlobalGoalTest {
         val moment = millis("2026-01-05T12:00")
         assertEquals(0f, calculateGoalProgress(moment - 1, moment, moment, 8 * 60, 18 * 60, zone))
     }
+
+    @Test
+    fun goalProgressReachesHalfwayAcrossAMultiDaySpan() {
+        // Three working days (10h each = 30h). Halfway = 15h = one full day + 5h into the second.
+        val start = millis("2026-01-05T08:00")
+        val now = millis("2026-01-06T13:00")
+        val deadline = millis("2026-01-07T18:00")
+        assertEquals(0.5f, calculateGoalProgress(now, start, deadline, 8 * 60, 18 * 60, zone), 0.001f)
+    }
 }

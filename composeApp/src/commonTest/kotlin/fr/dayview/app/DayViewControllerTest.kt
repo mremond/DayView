@@ -271,6 +271,33 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun commitGoalStartIsANoOpWhenNoDeadlineIsSet() {
+        val preferences = InMemoryDayPreferences(DayPreferencesSnapshot(goalStartMillis = 5_000L))
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalStartText("01/12/2026 09:00")
+        controller.commitGoalStart()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
+    fun commitGoalStartIgnoresUnparseableInput() {
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = 5_000L),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalStartText("pas une date")
+        controller.commitGoalStart()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
     fun externalSaveReachesTheControllerThroughObserve() {
         val preferences = InMemoryDayPreferences()
         val controller = DayViewController(preferences, initialNowMillis = 10_000L)
