@@ -61,6 +61,8 @@ Pendant un Focus sur macOS, DayView observe uniquement l’identifiant de l’ap
 
 Si DayView retrouve une session encore active après son relancement ou le réveil du Mac, un rituel de reprise remet l’intention et le temps restant au premier plan. L’utilisateur peut reprendre immédiatement ou arrêter la session.
 
+À la fin d’un Focus, la session se clôture en un clic avec « Terminé », « Avancé » ou « À reprendre ». Ce dernier choix conserve l’intention pour la session suivante ; les deux autres libèrent le champ pour une nouvelle tâche.
+
 ## Principe du calcul
 
 La journée utilise les heures de début et de fin choisies (08:00–18:00 par défaut) dans le fuseau local de l’appareil. Le cercle reste plein avant le début, se consume pendant la plage définie, puis atteint zéro à la fin. Les changements d’heure sont correctement pris en compte.

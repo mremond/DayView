@@ -2,6 +2,12 @@ package fr.dayview.app
 
 enum class PomodoroStatus { IDLE, ACTIVE, FINISHED }
 
+enum class FocusClosureOutcome(val keepsIntention: Boolean) {
+    COMPLETED(false),
+    PROGRESSED(false),
+    TO_RESUME(true),
+}
+
 data class PomodoroProgress(
     val durationMinutes: Int,
     val remainingMillis: Long,

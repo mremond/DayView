@@ -155,6 +155,7 @@ fun DayViewApp(
             var focusIntention by remember(preferences) {
                 mutableStateOf(preferences.loadFocusIntention())
             }
+            var lastFocusClosure by remember { mutableStateOf<FocusClosureOutcome?>(null) }
             var destination by remember { mutableStateOf(DayViewDestination.TODAY) }
             var showSeconds by remember(preferences) { mutableStateOf(preferences.loadShowSeconds()) }
             var soundSettings by remember(preferences) { mutableStateOf(preferences.loadSoundSettings()) }
@@ -247,9 +248,11 @@ fun DayViewApp(
                     },
                     pomodoro = pomodoro,
                     focusIntention = focusIntention,
+                    lastFocusClosure = lastFocusClosure,
                     onFocusIntentionChange = { value ->
                         focusIntention = value.take(100)
                         preferences.saveFocusIntention(focusIntention)
+                        lastFocusClosure = null
                     },
                     showFocusDriftReminder = showFocusDriftReminder,
                     onDismissFocusDriftReminder = onDismissFocusDriftReminder,
@@ -263,6 +266,7 @@ fun DayViewApp(
                     },
                     onPomodoroStart = {
                         if (focusIntention.isNotBlank()) {
+                            lastFocusClosure = null
                             pomodoroEndMillis = nowMillis + pomodoroMinutes * 60_000L
                             preferences.savePomodoro(pomodoroMinutes, pomodoroEndMillis)
                         }
@@ -270,6 +274,15 @@ fun DayViewApp(
                     onPomodoroStop = {
                         pomodoroEndMillis = null
                         preferences.savePomodoro(pomodoroMinutes, null)
+                    },
+                    onPomodoroClose = { outcome ->
+                        pomodoroEndMillis = null
+                        preferences.savePomodoro(pomodoroMinutes, null)
+                        if (!outcome.keepsIntention) {
+                            focusIntention = ""
+                            preferences.saveFocusIntention("")
+                        }
+                        lastFocusClosure = outcome
                     },
                 )
             }
@@ -447,6 +460,7 @@ private fun DayViewScreen(
     onGoalDeadlineChange: (String) -> Unit,
     pomodoro: PomodoroProgress,
     focusIntention: String,
+    lastFocusClosure: FocusClosureOutcome?,
     onFocusIntentionChange: (String) -> Unit,
     showFocusDriftReminder: Boolean,
     onDismissFocusDriftReminder: () -> Unit,
@@ -455,6 +469,7 @@ private fun DayViewScreen(
     onPomodoroDurationChange: (Int) -> Unit,
     onPomodoroStart: () -> Unit,
     onPomodoroStop: () -> Unit,
+    onPomodoroClose: (FocusClosureOutcome) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     BoxWithConstraints(
@@ -506,6 +521,7 @@ private fun DayViewScreen(
                         progress = progress,
                         pomodoro = pomodoro,
                         focusIntention = focusIntention,
+                        lastFocusClosure = lastFocusClosure,
                         onFocusIntentionChange = onFocusIntentionChange,
                         showFocusDriftReminder = showFocusDriftReminder,
                         onDismissFocusDriftReminder = onDismissFocusDriftReminder,
@@ -514,6 +530,7 @@ private fun DayViewScreen(
                         onPomodoroDurationChange = onPomodoroDurationChange,
                         onPomodoroStart = onPomodoroStart,
                         onPomodoroStop = onPomodoroStop,
+                        onPomodoroClose = onPomodoroClose,
                         modifier = Modifier.weight(.85f).verticalScroll(rememberScrollState()),
                     )
                 }
@@ -535,6 +552,7 @@ private fun DayViewScreen(
                     progress = progress,
                     pomodoro = pomodoro,
                     focusIntention = focusIntention,
+                    lastFocusClosure = lastFocusClosure,
                     onFocusIntentionChange = onFocusIntentionChange,
                     showFocusDriftReminder = showFocusDriftReminder,
                     onDismissFocusDriftReminder = onDismissFocusDriftReminder,
@@ -543,6 +561,7 @@ private fun DayViewScreen(
                     onPomodoroDurationChange = onPomodoroDurationChange,
                     onPomodoroStart = onPomodoroStart,
                     onPomodoroStop = onPomodoroStop,
+                    onPomodoroClose = onPomodoroClose,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -987,6 +1006,7 @@ private fun SidePanel(
     progress: DayProgress,
     pomodoro: PomodoroProgress,
     focusIntention: String,
+    lastFocusClosure: FocusClosureOutcome?,
     onFocusIntentionChange: (String) -> Unit,
     showFocusDriftReminder: Boolean,
     onDismissFocusDriftReminder: () -> Unit,
@@ -995,6 +1015,7 @@ private fun SidePanel(
     onPomodoroDurationChange: (Int) -> Unit,
     onPomodoroStart: () -> Unit,
     onPomodoroStop: () -> Unit,
+    onPomodoroClose: (FocusClosureOutcome) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
@@ -1016,6 +1037,7 @@ private fun SidePanel(
         FocusPanel(
             progress = pomodoro,
             intention = focusIntention,
+            lastClosure = lastFocusClosure,
             onIntentionChange = onFocusIntentionChange,
             showDriftReminder = showFocusDriftReminder,
             onDismissDriftReminder = onDismissFocusDriftReminder,
@@ -1024,6 +1046,7 @@ private fun SidePanel(
             onDurationChange = onPomodoroDurationChange,
             onStart = onPomodoroStart,
             onStop = onPomodoroStop,
+            onClose = onPomodoroClose,
         )
         Spacer(Modifier.height(18.dp))
 
@@ -1044,6 +1067,7 @@ private fun SidePanel(
 private fun FocusPanel(
     progress: PomodoroProgress,
     intention: String,
+    lastClosure: FocusClosureOutcome?,
     onIntentionChange: (String) -> Unit,
     showDriftReminder: Boolean,
     onDismissDriftReminder: () -> Unit,
@@ -1052,6 +1076,7 @@ private fun FocusPanel(
     onDurationChange: (Int) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onClose: (FocusClosureOutcome) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val animatedRatio by animateFloatAsState(progress.remainingRatio, tween(500), label = "focus-progress")
@@ -1189,7 +1214,71 @@ private fun FocusPanel(
                         .background(colors.amber, CircleShape),
                 )
             }
+        } else if (progress.status == PomodoroStatus.FINISHED) {
+            Text(
+                "VOTRE INTENTION",
+                color = colors.muted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                intention.ifBlank { "Une seule chose à la fois." },
+                color = colors.cloud,
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(14.dp))
+            Text(
+                "COMMENT S’EST PASSÉ CE FOCUS ?",
+                color = colors.muted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = .9.sp,
+            )
+            Spacer(Modifier.height(9.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                FocusActionButton(
+                    "TERMINÉ",
+                    colors.mint,
+                    modifier = Modifier.weight(1f),
+                    filled = true,
+                    onClick = { onClose(FocusClosureOutcome.COMPLETED) },
+                )
+                FocusActionButton(
+                    "AVANCÉ",
+                    colors.amber,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onClose(FocusClosureOutcome.PROGRESSED) },
+                )
+                FocusActionButton(
+                    "À REPRENDRE",
+                    colors.mint,
+                    modifier = Modifier.weight(1.25f),
+                    onClick = { onClose(FocusClosureOutcome.TO_RESUME) },
+                )
+            }
         } else {
+            if (lastClosure != null) {
+                val closureLabel = when (lastClosure) {
+                    FocusClosureOutcome.COMPLETED -> "TERMINÉ"
+                    FocusClosureOutcome.PROGRESSED -> "AVANCÉ"
+                    FocusClosureOutcome.TO_RESUME -> "À REPRENDRE"
+                }
+                Text(
+                    "FOCUS CLÔTURÉ · $closureLabel",
+                    color = colors.mint,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = .9.sp,
+                )
+                Spacer(Modifier.height(10.dp))
+            }
             Text(
                 "À LA FIN DE CE FOCUS, J’AURAI…",
                 color = colors.muted,
@@ -1220,7 +1309,7 @@ private fun FocusPanel(
             }
             Spacer(Modifier.height(13.dp))
             FocusActionButton(
-                if (progress.status == PomodoroStatus.FINISHED) "REPARTIR" else "DÉMARRER LE FOCUS",
+                "DÉMARRER LE FOCUS",
                 colors.amber,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = intention.isNotBlank(),

@@ -60,4 +60,11 @@ class PomodoroTest {
         assertEquals("23m", formatPomodoroCompactMinutes(progress))
         assertEquals("22m", formatPomodoroCompactMinutes(progress.copy(remainingMillis = 22 * 60_000L)))
     }
+
+    @Test
+    fun onlyToResumeClosureKeepsTheFocusIntention() {
+        assertEquals(false, FocusClosureOutcome.COMPLETED.keepsIntention)
+        assertEquals(false, FocusClosureOutcome.PROGRESSED.keepsIntention)
+        assertEquals(true, FocusClosureOutcome.TO_RESUME.keepsIntention)
+    }
 }
