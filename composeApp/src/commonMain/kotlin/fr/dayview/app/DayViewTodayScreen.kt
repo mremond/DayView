@@ -31,13 +31,18 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,17 +51,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -156,9 +161,7 @@ internal fun DayViewScreen(
                         Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
                             title = state.goalTitle,
-                            deadlineText = state.goalDeadlineText,
                             deadlineMillis = state.goalDeadlineMillis,
-                            startText = state.goalStartText,
                             startMillis = state.goalStartMillis,
                             nowMillis = state.nowMillis,
                             workStartMinutes = progress.startHour * 60 + progress.startMinute,
@@ -334,10 +337,9 @@ private fun CompactTodayContent(
             ) {
                 GoalEditorContent(
                     title = state.goalTitle,
-                    deadlineText = state.goalDeadlineText,
                     deadlineMillis = state.goalDeadlineMillis,
-                    startText = state.goalStartText,
                     startMillis = state.goalStartMillis,
+                    nowMillis = state.nowMillis,
                     onTitleChange = actions.changeGoalTitle,
                     onDeadlineChange = actions.changeGoalDeadline,
                     onDeadlineCommit = actions.commitGoalDeadline,
@@ -464,10 +466,9 @@ private fun FocusClosureChip(outcome: FocusClosureOutcome) {
 @Composable
 private fun GoalEditorContent(
     title: String,
-    deadlineText: String,
     deadlineMillis: Long?,
-    startText: String,
     startMillis: Long?,
+    nowMillis: Long,
     onTitleChange: (String) -> Unit,
     onDeadlineChange: (String) -> Unit,
     onDeadlineCommit: () -> Unit,
@@ -475,7 +476,6 @@ private fun GoalEditorContent(
     onStartCommit: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    val deadlineIsValid = deadlineText.isBlank() || parseGoalDeadline(deadlineText) != null
     Text("OBJECTIF GLOBAL", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
     Spacer(Modifier.height(12.dp))
     GoalTextField(
@@ -486,33 +486,15 @@ private fun GoalEditorContent(
         imeAction = ImeAction.Next,
     )
     Spacer(Modifier.height(9.dp))
-    GoalTextField(
-        value = deadlineText,
-        semanticLabel = "Date limite de l’objectif",
-        placeholder = GOAL_DATE_PLACEHOLDER,
-        onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
-        isError = !deadlineIsValid,
-        keyboardType = KeyboardType.Number,
-        onFocusLost = onDeadlineCommit,
+    GoalDateRow(
+        deadlineMillis = deadlineMillis,
+        startMillis = startMillis,
+        nowMillis = nowMillis,
+        onDeadlineChange = onDeadlineChange,
+        onDeadlineCommit = onDeadlineCommit,
+        onStartChange = onStartChange,
+        onStartCommit = onStartCommit,
     )
-    if (deadlineMillis != null && startMillis != null) {
-        val startIsValid = startText.isBlank() ||
-            (parseGoalDeadline(startText)?.let { it < deadlineMillis } ?: false)
-        Spacer(Modifier.height(9.dp))
-        GoalTextField(
-            value = startText,
-            semanticLabel = "Début de l’objectif",
-            placeholder = GOAL_DATE_PLACEHOLDER,
-            onValueChange = { onStartChange(formatGoalDeadlineInput(it)) },
-            isError = !startIsValid,
-            keyboardType = KeyboardType.Number,
-            onFocusLost = onStartCommit,
-        )
-    }
-    if (!deadlineIsValid) {
-        Spacer(Modifier.height(6.dp))
-        Text("Format attendu : $GOAL_DATE_PLACEHOLDER", color = colors.red, fontSize = 10.sp)
-    }
 }
 
 @Composable
@@ -1217,9 +1199,7 @@ internal fun FocusActionButton(
 @Composable
 private fun GlobalGoalPanel(
     title: String,
-    deadlineText: String,
     deadlineMillis: Long?,
-    startText: String,
     startMillis: Long?,
     nowMillis: Long,
     workStartMinutes: Int,
@@ -1231,7 +1211,6 @@ private fun GlobalGoalPanel(
     onStartCommit: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    val deadlineIsValid = deadlineText.isBlank() || parseGoalDeadline(deadlineText) != null
     Column(
         modifier = Modifier.fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(18.dp))
@@ -1283,47 +1262,16 @@ private fun GlobalGoalPanel(
             onValueChange = onTitleChange,
             imeAction = ImeAction.Next,
         )
-        var editing by remember { mutableStateOf(GoalDateTarget.NONE) }
-        val startIsValid = startText.isBlank() ||
-            (parseGoalDeadline(startText)?.let { deadlineMillis == null || it < deadlineMillis } ?: false)
         Spacer(Modifier.height(9.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (deadlineMillis != null) {
-                GoalDateSlot(
-                    showField = editing == GoalDateTarget.START,
-                    autoFocus = editing == GoalDateTarget.START,
-                    label = formatGoalDateShort(startMillis ?: nowMillis),
-                    value = startText,
-                    semanticLabel = "Début de l’objectif",
-                    isError = !startIsValid,
-                    onClick = { editing = GoalDateTarget.START },
-                    onValueChange = { onStartChange(formatGoalDeadlineInput(it)) },
-                    onCommit = {
-                        onStartCommit()
-                        editing = GoalDateTarget.NONE
-                    },
-                )
-                Text("→", color = colors.muted, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 6.dp))
-            }
-            GoalDateSlot(
-                showField = editing == GoalDateTarget.END || deadlineMillis == null,
-                autoFocus = editing == GoalDateTarget.END,
-                label = deadlineMillis?.let(::formatGoalDateShort).orEmpty(),
-                value = deadlineText,
-                semanticLabel = "Date limite de l’objectif",
-                isError = !deadlineIsValid,
-                onClick = { editing = GoalDateTarget.END },
-                onValueChange = { onDeadlineChange(formatGoalDeadlineInput(it)) },
-                onCommit = {
-                    onDeadlineCommit()
-                    editing = GoalDateTarget.NONE
-                },
-            )
-        }
-        if (!deadlineIsValid) {
-            Spacer(Modifier.height(6.dp))
-            Text("Format attendu : $GOAL_DATE_PLACEHOLDER", color = colors.red, fontSize = 10.sp)
-        }
+        GoalDateRow(
+            deadlineMillis = deadlineMillis,
+            startMillis = startMillis,
+            nowMillis = nowMillis,
+            onDeadlineChange = onDeadlineChange,
+            onDeadlineCommit = onDeadlineCommit,
+            onStartChange = onStartChange,
+            onStartCommit = onStartCommit,
+        )
     }
 }
 
@@ -1337,16 +1285,11 @@ internal fun GoalTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Done,
     onFocusLost: () -> Unit = {},
-    autoFocus: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
     val focusManager = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
     var wasFocused by remember { mutableStateOf(false) }
-    if (autoFocus) {
-        LaunchedEffect(Unit) { focusRequester.requestFocus() }
-    }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -1359,7 +1302,6 @@ internal fun GoalTextField(
         textStyle = TextStyle(color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium),
         cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
         modifier = modifier.fillMaxWidth()
-            .focusRequester(focusRequester)
             .onFocusChanged { focusState ->
                 if (wasFocused && !focusState.isFocused) onFocusLost()
                 wasFocused = focusState.isFocused
@@ -1426,44 +1368,176 @@ private fun GoalProgressBar(
     }
 }
 
-/** A goal date shown as a glanceable label that swaps to an editable field on tap. */
+/** Start → end goal dates as glanceable labels, each opening a date/time picker on tap. */
 @Composable
-private fun GoalDateSlot(
-    showField: Boolean,
-    autoFocus: Boolean,
-    label: String,
-    value: String,
-    semanticLabel: String,
-    isError: Boolean,
-    onClick: () -> Unit,
-    onValueChange: (String) -> Unit,
-    onCommit: () -> Unit,
+private fun GoalDateRow(
+    deadlineMillis: Long?,
+    startMillis: Long?,
+    nowMillis: Long,
+    onDeadlineChange: (String) -> Unit,
+    onDeadlineCommit: () -> Unit,
+    onStartChange: (String) -> Unit,
+    onStartCommit: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    if (showField) {
-        GoalTextField(
-            value = value,
-            semanticLabel = semanticLabel,
-            placeholder = GOAL_DATE_PLACEHOLDER,
-            onValueChange = onValueChange,
-            isError = isError,
-            keyboardType = KeyboardType.Number,
-            onFocusLost = onCommit,
-            autoFocus = autoFocus,
-            modifier = Modifier.width(148.dp),
+    var picker by remember { mutableStateOf(GoalDateTarget.NONE) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (deadlineMillis != null) {
+            GoalDateLabel(
+                text = formatGoalDateShort(startMillis ?: nowMillis),
+                semanticLabel = "Début de l’objectif",
+                isPlaceholder = false,
+                onClick = { picker = GoalDateTarget.START },
+            )
+            Text("→", color = colors.muted, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 6.dp))
+        }
+        GoalDateLabel(
+            text = deadlineMillis?.let(::formatGoalDateShort) ?: "+ Définir une échéance",
+            semanticLabel = "Date limite de l’objectif",
+            isPlaceholder = deadlineMillis == null,
+            onClick = { picker = GoalDateTarget.END },
         )
-    } else {
-        Text(
-            label,
-            color = colors.cloud,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(role = Role.Button, onClickLabel = semanticLabel, onClick = onClick)
-                .padding(horizontal = 10.dp, vertical = 8.dp)
-                .semantics { contentDescription = semanticLabel },
+    }
+    when (picker) {
+        GoalDateTarget.START -> GoalDateTimeDialog(
+            initialMillis = startMillis ?: nowMillis,
+            validate = { candidate ->
+                if (deadlineMillis != null && candidate >= deadlineMillis) {
+                    "Le début doit précéder l’échéance."
+                } else {
+                    null
+                }
+            },
+            onConfirm = {
+                onStartChange(it)
+                onStartCommit()
+                picker = GoalDateTarget.NONE
+            },
+            onDismiss = { picker = GoalDateTarget.NONE },
         )
+        GoalDateTarget.END -> GoalDateTimeDialog(
+            initialMillis = deadlineMillis ?: nowMillis,
+            validate = { null },
+            onConfirm = {
+                onDeadlineChange(it)
+                onDeadlineCommit()
+                picker = GoalDateTarget.NONE
+            },
+            onDismiss = { picker = GoalDateTarget.NONE },
+        )
+        GoalDateTarget.NONE -> Unit
+    }
+}
+
+/** A glanceable goal date that opens a picker dialog on tap. */
+@Composable
+private fun GoalDateLabel(
+    text: String,
+    semanticLabel: String,
+    isPlaceholder: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Text(
+        text,
+        color = if (isPlaceholder) colors.muted else colors.cloud,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(role = Role.Button, onClickLabel = semanticLabel, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .semantics { contentDescription = semanticLabel },
+    )
+}
+
+/**
+ * Material3 date + time picker for a goal date. Confirms with the canonical
+ * `dd/MM/yyyy HH:mm` string; [validate] returns an error message to keep the dialog
+ * open, or null to accept.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GoalDateTimeDialog(
+    initialMillis: Long,
+    validate: (Long) -> String?,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    val dateState = rememberDatePickerState(initialSelectedDateMillis = goalPickerDateMillis(initialMillis))
+    val timeState = rememberTimePickerState(
+        initialHour = goalPickerHour(initialMillis),
+        initialMinute = goalPickerMinute(initialMillis),
+        is24Hour = true,
+    )
+    var error by remember { mutableStateOf<String?>(null) }
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val day = dateState.selectedDateMillis
+                if (day == null) {
+                    error = "Choisissez une date."
+                    return@TextButton
+                }
+                val input = formatGoalPickerInput(day, timeState.hour, timeState.minute)
+                val parsed = parseGoalDeadline(input)
+                val message = if (parsed == null) "Heure invalide (changement d’heure)." else validate(parsed)
+                if (message != null) error = message else onConfirm(input)
+            }) { Text("OK", color = colors.mint, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Annuler", color = colors.muted) }
+        },
+    ) {
+        Column(
+            Modifier
+                .scaledContent(goalPickerScale)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            DatePicker(
+                state = dateState,
+                showModeToggle = false,
+                title = null,
+                headline = null,
+            )
+            TimeInput(
+                state = timeState,
+                modifier = Modifier.padding(start = 24.dp, top = 8.dp, bottom = 8.dp),
+            )
+            error?.let {
+                Text(
+                    it,
+                    color = colors.red,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Renders content at [scale] and reports the scaled size to the parent, so a fixed-size
+ * child (the Material3 calendar) shrinks the dialog around it instead of leaving margins.
+ */
+private fun Modifier.scaledContent(scale: Float): Modifier = if (scale == 1f) {
+    this
+} else {
+    layout { measurable, constraints ->
+        val expanded = constraints.copy(
+            maxWidth = if (constraints.hasBoundedWidth) (constraints.maxWidth / scale).roundToInt() else constraints.maxWidth,
+            maxHeight = if (constraints.hasBoundedHeight) (constraints.maxHeight / scale).roundToInt() else constraints.maxHeight,
+        )
+        val placeable = measurable.measure(expanded)
+        layout((placeable.width * scale).roundToInt(), (placeable.height * scale).roundToInt()) {
+            placeable.placeWithLayer(0, 0) {
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = TransformOrigin(0f, 0f)
+            }
+        }
     }
 }
 

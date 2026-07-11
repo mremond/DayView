@@ -83,9 +83,10 @@ internal data class DayViewUiState(
 internal class DayViewController(
     private val preferences: DayPreferences,
     private val scope: CoroutineScope,
+    initialSnapshot: DayPreferencesSnapshot,
     initialNowMillis: Long = Clock.System.now().toEpochMilliseconds(),
 ) {
-    var state: DayViewUiState by mutableStateOf(preferences.snapshot().toUiState(initialNowMillis))
+    var state: DayViewUiState by mutableStateOf(initialSnapshot.toUiState(initialNowMillis))
         private set
 
     // Count of our own persists still running. While any is in flight, every
@@ -239,7 +240,7 @@ internal class DayViewController(
 
     fun setOnGoalApps(apps: Set<AppRef>) {
         state = state.copy(onGoalApps = apps)
-        preferences.saveOnGoalApps(DEFAULT_GOAL_ID, apps)
+        persistState()
     }
 
     fun setFocusPresenceIntervals(intervals: List<FocusPresenceInterval>) {
@@ -280,6 +281,7 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     pomodoroEndMillis = pomodoroEndMillis,
     focusIntention = focusIntention,
     netTimeSettings = netTimeSettings,
+    onGoalApps = onGoalApps,
 ).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {

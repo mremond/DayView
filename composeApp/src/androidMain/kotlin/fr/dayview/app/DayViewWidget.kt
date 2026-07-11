@@ -16,6 +16,8 @@ import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
@@ -35,7 +37,8 @@ internal fun selectDayViewWidgetLayout(widthDp: Int, heightDp: Int): DayViewWidg
 
 class DayViewWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
-        appWidgetIds.forEach { update(context, manager, it) }
+        val snapshot = readSnapshot(context)
+        appWidgetIds.forEach { update(context, manager, it, snapshot) }
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -44,7 +47,7 @@ class DayViewWidget : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: android.os.Bundle,
     ) {
-        update(context, appWidgetManager, appWidgetId)
+        update(context, appWidgetManager, appWidgetId, readSnapshot(context))
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -53,25 +56,44 @@ class DayViewWidget : AppWidgetProvider() {
     }
 
     companion object {
+        /**
+         * Reads the current preferences and redraws every placed widget. Use this for
+         * system-initiated updates (time changes, [onUpdate]) where no snapshot is in hand.
+         */
         fun updateAll(context: Context) {
-            val manager = AppWidgetManager.getInstance(context)
-            val component = ComponentName(context, DayViewWidget::class.java)
-            manager.getAppWidgetIds(component).forEach { update(context, manager, it) }
+            render(context, readSnapshot(context))
         }
 
-        private fun update(context: Context, manager: AppWidgetManager, widgetId: Int) {
-            val preferences = AndroidDayPreferences(context, notifyWidgets = false)
+        /**
+         * Redraws every placed widget from an already-loaded [snapshot], without touching
+         * DataStore. The persist path uses this so saving a preference never triggers a
+         * blocking re-read on the caller's thread (see WidgetRefreshingPreferences).
+         */
+        fun render(context: Context, snapshot: DayPreferencesSnapshot) {
+            val manager = AppWidgetManager.getInstance(context)
+            val component = ComponentName(context, DayViewWidget::class.java)
+            manager.getAppWidgetIds(component).forEach { update(context, manager, it, snapshot) }
+        }
+
+        private fun readSnapshot(context: Context): DayPreferencesSnapshot = runBlocking { DayViewPreferences.get(context).snapshots.first() }
+
+        private fun update(
+            context: Context,
+            manager: AppWidgetManager,
+            widgetId: Int,
+            snapshot: DayPreferencesSnapshot,
+        ) {
             val now = System.currentTimeMillis()
             val progress = calculateDayProgress(
                 nowMillis = now,
-                startMinutesOfDay = preferences.loadStartMinutes(),
-                endMinutesOfDay = preferences.loadEndMinutes(),
+                startMinutesOfDay = snapshot.startMinutes,
+                endMinutesOfDay = snapshot.endMinutes,
             )
             val content = WidgetContent(
                 progress = progress,
-                goal = preferences.loadGoalTitle().trim(),
-                focusEndMillis = preferences.loadPomodoroEndMillis()?.takeIf { it > now },
-                focusIntention = preferences.loadFocusIntention().trim(),
+                goal = snapshot.goalTitle.trim(),
+                focusEndMillis = snapshot.pomodoroEndMillis?.takeIf { it > now },
+                focusIntention = snapshot.focusIntention.trim(),
                 nowMillis = now,
                 ring = renderRing(context, progress),
             )

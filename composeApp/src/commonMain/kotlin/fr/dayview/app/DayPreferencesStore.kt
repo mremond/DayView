@@ -28,6 +28,7 @@ internal object DayPreferenceKeys {
     const val FOCUS_INTENTION = "focus_intention"
     const val NET_TIME_ENABLED = "net_time_enabled"
     const val NET_TIME_CALENDARS = "net_time_calendars"
+    const val ON_GOAL_APPS = "on_goal_apps"
     const val NO_DEADLINE = -1L
 }
 
@@ -48,13 +49,14 @@ private val pomodoroEndKey = longPreferencesKey(DayPreferenceKeys.POMODORO_END)
 private val focusIntentionKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_INTENTION)
 private val netTimeEnabledKey = booleanPreferencesKey(DayPreferenceKeys.NET_TIME_ENABLED)
 private val netTimeCalendarsKey = stringPreferencesKey(DayPreferenceKeys.NET_TIME_CALENDARS)
+private val onGoalAppsKey = stringPreferencesKey(DayPreferenceKeys.ON_GOAL_APPS)
 
 class DayPreferencesStore(
     private val dataStore: DataStore<Preferences>,
-) {
-    val snapshots: Flow<DayPreferencesSnapshot> = dataStore.data.map { it.toSnapshot() }
+) : DayPreferences {
+    override val snapshots: Flow<DayPreferencesSnapshot> = dataStore.data.map { it.toSnapshot() }
 
-    suspend fun persist(snapshot: DayPreferencesSnapshot) {
+    override suspend fun persist(snapshot: DayPreferencesSnapshot) {
         dataStore.edit { prefs ->
             prefs[startKey] = snapshot.startMinutes
             prefs[endKey] = snapshot.endMinutes
@@ -73,6 +75,7 @@ class DayPreferencesStore(
             prefs[focusIntentionKey] = snapshot.focusIntention
             prefs[netTimeEnabledKey] = snapshot.netTimeSettings.enabled
             prefs[netTimeCalendarsKey] = snapshot.netTimeSettings.includedCalendarIds.joinToString("\n")
+            prefs[onGoalAppsKey] = encodeAppRefs(snapshot.onGoalApps)
         }
     }
 }
@@ -102,5 +105,6 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
             includedCalendarIds = this[netTimeCalendarsKey].orEmpty()
                 .split("\n").filter { it.isNotBlank() }.toSet(),
         ),
+        onGoalApps = decodeAppRefs(this[onGoalAppsKey].orEmpty()),
     )
 }

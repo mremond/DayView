@@ -11,9 +11,11 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
-    private lateinit var preferences: AndroidDayPreferences
+    private lateinit var preferences: DayPreferences
     private lateinit var focusAlarmScheduler: FocusAlarmScheduler
     private var requestExactAfterNotificationPermission = false
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -33,7 +35,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        preferences = AndroidDayPreferences(applicationContext)
+        preferences = DayViewPreferences.get(applicationContext)
         focusAlarmScheduler = FocusAlarmScheduler(applicationContext)
         initCalendarSource(applicationContext)
         restoreActiveFocusAlarm()
@@ -64,11 +66,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun restoreActiveFocusAlarm() {
-        val endMillis = preferences.loadPomodoroEndMillis() ?: return
+        val snap = runBlocking { preferences.snapshots.first() }
+        val endMillis = snap.pomodoroEndMillis ?: return
         if (endMillis > System.currentTimeMillis()) {
-            focusAlarmScheduler.schedule(endMillis, preferences.loadFocusIntention())
+            focusAlarmScheduler.schedule(endMillis, snap.focusIntention)
         } else {
-            focusAlarmScheduler.restoreBreakReminders(endMillis, preferences.loadFocusIntention())
+            focusAlarmScheduler.restoreBreakReminders(endMillis, snap.focusIntention)
         }
     }
 

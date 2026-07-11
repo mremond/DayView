@@ -11,9 +11,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.eventFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
@@ -38,7 +42,8 @@ fun DayViewApp(
     DayViewTheme { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
             val scope = rememberCoroutineScope()
-            val controller = remember(preferences) { DayViewController(preferences, scope) }
+            val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
+            val controller = remember(preferences) { DayViewController(preferences, scope, initialSnapshot) }
             val state = controller.state
             val hasRunningApps = remember { runningApps().isNotEmpty() }
             val soundPlayer = remember { createSoundCuePlayer() }
@@ -47,9 +52,8 @@ fun DayViewApp(
             val calendarScope = rememberCoroutineScope()
             var calendarPermissionProbe by remember { mutableIntStateOf(0) }
 
-            DisposableEffect(controller, preferences) {
-                val stopObserving = preferences.observe { controller.onPreferencesChanged(it) }
-                onDispose(stopObserving)
+            LaunchedEffect(preferences) {
+                preferences.snapshots.collect { controller.onPreferencesChanged(it) }
             }
 
             LaunchedEffect(focusPresenceIntervals) {
@@ -115,6 +119,17 @@ fun DayViewApp(
                     }
                     delay(refreshDelay)
                 }
+            }
+            // The ticker above relies on a coroutine delay that does not advance
+            // during device deep sleep, so the shown time can lag after the screen
+            // wakes. Re-read the clock on every resume to correct it immediately.
+            val lifecycle = LocalLifecycleOwner.current.lifecycle
+            LaunchedEffect(lifecycle, controller) {
+                refreshClockOnResume(
+                    events = lifecycle.eventFlow,
+                    now = { Clock.System.now().toEpochMilliseconds() },
+                    tick = controller::tick,
+                )
             }
             LaunchedEffect(
                 state.nowMillis,

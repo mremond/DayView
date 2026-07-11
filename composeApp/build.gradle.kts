@@ -63,6 +63,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.androidx.datastore.preferences.core)
+                implementation(libs.jetbrains.lifecycle.runtime.compose)
             }
         }
         val commonTest by getting {
@@ -76,12 +77,14 @@ kotlin {
             dependencies {
                 implementation(libs.compose.ui.tooling.preview)
                 implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.datastore.preferences)
             }
         }
         val androidUnitTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.robolectric)
+                implementation(libs.androidx.test.core)
             }
         }
         val desktopMain by getting {
