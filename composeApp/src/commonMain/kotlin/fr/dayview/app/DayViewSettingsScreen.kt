@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -148,6 +149,7 @@ internal fun SettingsScreen(
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.2.sp,
                     modifier = Modifier.minimumInteractiveComponentSize()
+                        .testTag(DayViewTestTags.SettingsBack)
                         .clickable(role = Role.Button, onClick = actions.back)
                         .padding(vertical = 10.dp, horizontal = 4.dp),
                 )
@@ -203,6 +205,7 @@ internal fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth()
+                        .testTag(DayViewTestTags.SettingsShowSeconds)
                         .background(colors.panel, RoundedCornerShape(18.dp))
                         .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
                         .toggleable(
