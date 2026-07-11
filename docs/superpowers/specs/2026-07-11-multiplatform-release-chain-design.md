@@ -39,7 +39,10 @@ Locked during brainstorming:
   the existing **debug** signing config so it stays sideload-installable; macOS
   `.dmg` and Linux packages are unsigned.
 - **Linux formats:** AppImage + `.deb` + `.rpm`.
-- **Android artifact:** APK (not AAB).
+- **Desktop build variant:** minified **release** builds for both macOS and
+  Linux (Compose `Release` packaging tasks, R8/ProGuard enabled).
+- **Android artifact:** APK (not AAB), debug-signed, not minified for this first
+  chain.
 - **Version wiring:** fixed in `build.gradle.kts` (approved), so the tag is the
   single source of truth for all three platforms.
 
@@ -86,16 +89,30 @@ fallback (e.g. `"0.0.0-dev"`) for local builds where the property is absent:
    `versionCode`.
 2. Apply the version to Android `defaultConfig` and Compose
    `nativeDistributions.packageVersion`.
-3. **Fix the hardcoded DMG path**: `customizePackagedDmg` and `copyPackagedDmg`
-   must reference the configured `packageVersion` instead of the literal
-   `DayView-1.0.0.dmg`, so they keep working as the version changes.
-4. Expand desktop `targetFormats` to
+3. **Fix the hardcoded DMG path and switch to the release variant**:
+   `customizePackagedDmg` and `copyPackagedDmg` currently match the
+   `packageDmg` task and read the literal path `main/dmg/DayView-1.0.0.dmg`.
+   Rewire them to the release flow: match/finalize `packageReleaseDmg`, and
+   build the path from the configured `packageVersion` under the **release**
+   output subdirectory (`main-release/dmg/DayView-<version>.dmg`). The
+   `cleanNativePackagingOutput` dependency, currently keyed on
+   `createDistributable`, must also cover `createReleaseDistributable`.
+4. **Enable minification** for the desktop release build via
+   `compose.desktop.application.buildTypes.release.proguard`
+   (`isEnabled = true`) with a project ProGuard rules file. Keep rules are
+   required for: the `fr.dayview.app.MainKt` entry point; JNA
+   (`net.java.dev.jna` / `com.sun.jna.**`, which uses reflection + native
+   binding); and Compose's generated resources class
+   (`fr.dayview.app.generated.resources.**`). Additional keep rules are added
+   as verification surfaces missing-class / stripped-symbol failures.
+5. Expand desktop `targetFormats` to
    `TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage`.
    Compose only builds formats valid for the current OS, so macOS runners still
    produce just the `.dmg` and Linux runners produce the three Linux formats.
-5. Point the Android `release` build type at the existing **debug** signing
+6. Point the Android `release` build type at the existing **debug** signing
    config, with a comment marking it temporary until a real upload keystore is
-   added. This keeps `assembleRelease` output installable via sideload.
+   added. This keeps `assembleRelease` output installable via sideload. Android
+   minification stays off for this first chain.
 
 ### Per-platform build commands
 
@@ -103,30 +120,42 @@ fallback (e.g. `"0.0.0-dev"`) for local builds where the property is absent:
   -Pappversion=$VERSION`. Rename the output to `DayView-<version>.apk`.
 - **Linux** (`ubuntu-latest`): `apt-get install` `rpm` and `fakeroot` (jpackage
   needs them for `.rpm`), then `./gradlew
-  :composeApp:packageDistributionForCurrentOS -Pappversion=$VERSION`.
+  :composeApp:packageReleaseDistributionForCurrentOS -Pappversion=$VERSION`.
   Swift-helper and DMG tasks are skipped by their existing `onlyIf { Mac }`.
-- **macOS** (`macos-latest`): existing `./gradlew :composeApp:packageDmg
-  -Pappversion=$VERSION` flow (the `customizePackagedDmg`/`copyPackagedDmg`
-  finalizers stay wired to `packageDmg`). `xcrun`/Swift helper work on the
-  runner.
+- **macOS** (`macos-latest`): `./gradlew :composeApp:packageReleaseDmg
+  -Pappversion=$VERSION` (the `customizePackagedDmg`/`copyPackagedDmg`
+  finalizers are rewired to `packageReleaseDmg`). `xcrun`/Swift helper work on
+  the runner.
 
-Both desktop jobs use the non-`Release` packaging tasks (no R8/minification),
-matching the current README workflow.
+Both desktop jobs use the `Release` packaging tasks, so the app is minified
+with R8/ProGuard.
 
-## Runtime risk (Linux)
+## Risks
 
-During an active Focus session on Linux, `Main.kt` calls
-`frontmostApplicationProvider.bundleIdentifier()`. Verify that path is guarded
-like its siblings; if not, add a one-line `isMacOS` guard so the Linux app can't
-trip `Native.load("objc")`. Small and contained.
+- **ProGuard stripping (both desktop platforms).** Minification can strip
+  classes reached only via reflection or native binding, causing the packaged
+  app to crash at launch. Highest-risk areas: JNA, the `MainKt` entry point,
+  and Compose's generated resources. Mitigation: the keep rules above, plus a
+  mandatory launch smoke test of the *minified* build before trusting the
+  chain (see Testing). This is the main new risk introduced by the release
+  variant.
+- **Linux runtime (Native.load).** During an active Focus session on Linux,
+  `Main.kt` calls `frontmostApplicationProvider.bundleIdentifier()`. Verify that
+  path is guarded like its siblings; if not, add a one-line `isMacOS` guard so
+  the Linux app can't trip `Native.load("objc")`. Small and contained.
 
 ## Testing / verification
 
 - **Local (this Mac):** confirm the Gradle changes still produce a working
-  `.dmg` and a release APK when a version is passed via `-Pappversion`, e.g.
-  `./gradlew :composeApp:packageDmg :composeApp:assembleRelease
+  minified `.dmg` and a release APK when a version is passed via `-Pappversion`,
+  e.g. `./gradlew :composeApp:packageReleaseDmg :composeApp:assembleRelease
   -Pappversion=9.9.9` — check the artifact filenames carry the version and the
-  DMG customize/copy tasks still succeed.
+  DMG customize/copy tasks still succeed against the `main-release/dmg` path.
+- **Minified launch smoke test (critical):** actually launch the minified
+  macOS build (`./gradlew :composeApp:runRelease -Pappversion=9.9.9`, or open
+  the packaged `.dmg` app) and exercise the tray, main window, and a Focus
+  session to confirm ProGuard didn't strip anything needed. Add keep rules
+  until it launches and runs cleanly.
 - **CI dry run:** push a throwaway tag (e.g. `v0.0.1-test`) once the workflow
   lands and confirm all three artifacts attach to the resulting Release. Delete
   the test tag/Release afterward.
