@@ -9,6 +9,7 @@ class DayPreferencesTest {
     fun fallbackPreferencesExposeSafeDefaults() {
         assertEquals(8 * 60, DefaultDayPreferences.loadStartMinutes())
         assertEquals(18 * 60, DefaultDayPreferences.loadEndMinutes())
+        assertEquals(true, DefaultDayPreferences.loadShowSeconds())
         assertEquals("", DefaultDayPreferences.loadGoalTitle())
         assertNull(DefaultDayPreferences.loadGoalDeadlineMillis())
         assertEquals(25, DefaultDayPreferences.loadPomodoroMinutes())
@@ -19,12 +20,14 @@ class DayPreferencesTest {
     @Test
     fun fallbackPreferencesAcceptWritesWithoutChangingDefaults() {
         DefaultDayPreferences.saveDayRange(0, 1)
+        DefaultDayPreferences.saveShowSeconds(false)
         DefaultDayPreferences.saveGlobalGoal("Temporaire", 42L)
         DefaultDayPreferences.savePomodoro(50, 123L)
         DefaultDayPreferences.saveFocusIntention("Terminer le test")
 
         assertEquals(8 * 60, DefaultDayPreferences.loadStartMinutes())
         assertEquals(18 * 60, DefaultDayPreferences.loadEndMinutes())
+        assertEquals(true, DefaultDayPreferences.loadShowSeconds())
         assertEquals("", DefaultDayPreferences.loadGoalTitle())
         assertNull(DefaultDayPreferences.loadGoalDeadlineMillis())
         assertEquals(25, DefaultDayPreferences.loadPomodoroMinutes())

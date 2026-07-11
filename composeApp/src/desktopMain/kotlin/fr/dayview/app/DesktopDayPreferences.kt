@@ -15,6 +15,12 @@ class DesktopDayPreferences internal constructor(
         storage.putInt(KEY_END, endMinutes)
     }
 
+    override fun loadShowSeconds(): Boolean = storage.getBoolean(KEY_SHOW_SECONDS, true)
+
+    override fun saveShowSeconds(showSeconds: Boolean) {
+        storage.putBoolean(KEY_SHOW_SECONDS, showSeconds)
+    }
+
     override fun loadGoalTitle(): String = storage.get(KEY_GOAL_TITLE, "")
 
     override fun loadGoalDeadlineMillis(): Long? =
@@ -44,6 +50,7 @@ class DesktopDayPreferences internal constructor(
     private companion object {
         const val KEY_START = "start_minutes"
         const val KEY_END = "end_minutes"
+        const val KEY_SHOW_SECONDS = "show_seconds"
         const val KEY_GOAL_TITLE = "goal_title"
         const val KEY_GOAL_DEADLINE = "goal_deadline"
         const val NO_DEADLINE = -1L

@@ -16,6 +16,12 @@ class AndroidDayPreferences(context: Context) : DayPreferences {
             .apply()
     }
 
+    override fun loadShowSeconds(): Boolean = storage.getBoolean(KEY_SHOW_SECONDS, true)
+
+    override fun saveShowSeconds(showSeconds: Boolean) {
+        storage.edit().putBoolean(KEY_SHOW_SECONDS, showSeconds).apply()
+    }
+
     override fun loadGoalTitle(): String = storage.getString(KEY_GOAL_TITLE, "").orEmpty()
 
     override fun loadGoalDeadlineMillis(): Long? =
@@ -49,6 +55,7 @@ class AndroidDayPreferences(context: Context) : DayPreferences {
     private companion object {
         const val KEY_START = "start_minutes"
         const val KEY_END = "end_minutes"
+        const val KEY_SHOW_SECONDS = "show_seconds"
         const val KEY_GOAL_TITLE = "goal_title"
         const val KEY_GOAL_DEADLINE = "goal_deadline"
         const val NO_DEADLINE = -1L

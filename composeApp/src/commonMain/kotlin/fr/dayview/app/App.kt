@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -150,15 +151,23 @@ fun DayViewApp(
                 mutableStateOf(preferences.loadFocusIntention())
             }
             var destination by remember { mutableStateOf(DayViewDestination.TODAY) }
+            var showSeconds by remember(preferences) { mutableStateOf(preferences.loadShowSeconds()) }
 
-            LaunchedEffect(Unit) {
+            LaunchedEffect(showSeconds, pomodoroEndMillis) {
                 while (true) {
                     nowMillis = Clock.System.now().toEpochMilliseconds()
-                    delay(1_000)
+                    val focusIsActive = pomodoroEndMillis?.let { it > nowMillis } == true
+                    val refreshDelay = if (showSeconds || focusIsActive) {
+                        1_000L
+                    } else {
+                        60_000L - nowMillis % 60_000L
+                    }
+                    delay(refreshDelay)
                 }
             }
 
-            val progress = calculateDayProgress(nowMillis, startMinutes, endMinutes)
+            val dayNowMillis = if (showSeconds) nowMillis else nowMillis - nowMillis % 60_000L
+            val progress = calculateDayProgress(dayNowMillis, startMinutes, endMinutes)
             val pomodoro = calculatePomodoroProgress(nowMillis, pomodoroMinutes, pomodoroEndMillis)
             val onMoveStart: (Int) -> Unit = { delta ->
                 startMinutes = (startMinutes + delta).coerceIn(0, endMinutes - 30)
@@ -174,11 +183,17 @@ fun DayViewApp(
                     progress = progress,
                     onMoveStart = onMoveStart,
                     onMoveEnd = onMoveEnd,
+                    showSeconds = showSeconds,
+                    onShowSecondsChange = { enabled ->
+                        showSeconds = enabled
+                        preferences.saveShowSeconds(enabled)
+                    },
                     onBack = { destination = DayViewDestination.TODAY },
                 )
             } else {
                 DayViewScreen(
                     progress = progress,
+                    showSeconds = showSeconds,
                     onOpenSettings = { destination = DayViewDestination.SETTINGS },
                     goalTitle = goalTitle,
                     goalDeadlineText = goalDeadlineText,
@@ -230,6 +245,7 @@ fun DayViewApp(
 @Composable
 private fun DayViewScreen(
     progress: DayProgress,
+    showSeconds: Boolean,
     onOpenSettings: () -> Unit,
     goalTitle: String,
     goalDeadlineText: String,
@@ -275,7 +291,7 @@ private fun DayViewScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(64.dp),
                 ) {
-                    CountdownCircle(progress, Modifier.weight(1.15f))
+                    CountdownCircle(progress, showSeconds, Modifier.weight(1.15f))
                     SidePanel(
                         progress = progress,
                         goalTitle = goalTitle,
@@ -296,7 +312,7 @@ private fun DayViewScreen(
                     )
                 }
             } else {
-                CountdownCircle(progress, Modifier.fillMaxWidth().height(340.dp))
+                CountdownCircle(progress, showSeconds, Modifier.fillMaxWidth().height(340.dp))
                 Spacer(Modifier.height(18.dp))
                 SidePanel(
                     progress = progress,
@@ -348,6 +364,8 @@ private fun SettingsScreen(
     progress: DayProgress,
     onMoveStart: (Int) -> Unit,
     onMoveEnd: (Int) -> Unit,
+    showSeconds: Boolean,
+    onShowSecondsChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
@@ -415,6 +433,39 @@ private fun SettingsScreen(
                         onMove = onMoveEnd,
                     )
                 }
+                Spacer(Modifier.height(24.dp))
+                Text("AFFICHAGE", color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(colors.panel, RoundedCornerShape(18.dp))
+                        .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                        .clickable { onShowSecondsChange(!showSeconds) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "AFFICHER LES SECONDES",
+                            color = colors.cloud,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.1.sp,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Désactivez-les pour un affichage plus calme et moins de rafraîchissements.",
+                            color = colors.muted,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                        )
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Switch(
+                        checked = showSeconds,
+                        onCheckedChange = onShowSecondsChange,
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "Les changements sont enregistrés automatiquement et s’appliquent à tous les jours.",
@@ -428,7 +479,11 @@ private fun SettingsScreen(
 }
 
 @Composable
-private fun CountdownCircle(progress: DayProgress, modifier: Modifier = Modifier) {
+private fun CountdownCircle(
+    progress: DayProgress,
+    showSeconds: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalDayViewColors.current
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
     val accent by animateColorAsState(
@@ -531,12 +586,14 @@ private fun CountdownCircle(progress: DayProgress, modifier: Modifier = Modifier
                             Text("h", color = colors.muted, fontSize = 19.sp, modifier = Modifier.padding(bottom = 9.dp, start = 3.dp, end = 7.dp))
                             Text(progress.remainingMinutes.toString().padStart(2, '0'), color = colors.cloud, fontSize = 52.sp, fontWeight = FontWeight.Light)
                         }
-                        Text(
-                            "${progress.remainingSeconds.toString().padStart(2, '0')} secondes",
-                            color = colors.muted,
-                            fontSize = 12.sp,
-                            letterSpacing = .8.sp,
-                        )
+                        if (showSeconds) {
+                            Text(
+                                "${progress.remainingSeconds.toString().padStart(2, '0')} secondes",
+                                color = colors.muted,
+                                fontSize = 12.sp,
+                                letterSpacing = .8.sp,
+                            )
+                        }
                     }
                 }
             }

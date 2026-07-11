@@ -21,6 +21,7 @@ class DesktopDayPreferencesTest {
     fun freshStorageUsesExpectedDefaults() {
         assertEquals(8 * 60, preferences.loadStartMinutes())
         assertEquals(18 * 60, preferences.loadEndMinutes())
+        assertEquals(true, preferences.loadShowSeconds())
         assertEquals("", preferences.loadGoalTitle())
         assertNull(preferences.loadGoalDeadlineMillis())
         assertEquals(25, preferences.loadPomodoroMinutes())
@@ -36,6 +37,15 @@ class DesktopDayPreferencesTest {
 
         assertEquals(7 * 60 + 30, reloaded.loadStartMinutes())
         assertEquals(19 * 60, reloaded.loadEndMinutes())
+    }
+
+    @Test
+    fun secondsDisplayPreferenceSurvivesANewPreferencesInstance() {
+        preferences.saveShowSeconds(false)
+
+        val reloaded = DesktopDayPreferences(storage)
+
+        assertEquals(false, reloaded.loadShowSeconds())
     }
 
     @Test
