@@ -108,6 +108,18 @@ internal class DayViewController(
         preferences.saveGlobalGoal(state.goalTitle, parsed, start)
     }
 
+    fun setGoalStartText(value: String) {
+        state = state.copy(goalStartText = value.take(16))
+    }
+
+    fun commitGoalStart() {
+        val deadline = state.goalDeadlineMillis ?: return
+        val parsed = parseGoalDeadline(state.goalStartText) ?: return
+        if (parsed >= deadline) return
+        state = state.copy(goalStartMillis = parsed)
+        preferences.saveGlobalGoal(state.goalTitle, deadline, parsed)
+    }
+
     fun setFocusIntention(value: String) {
         val updated = value.take(100)
         state = state.copy(focusIntention = updated, lastFocusClosure = null)
