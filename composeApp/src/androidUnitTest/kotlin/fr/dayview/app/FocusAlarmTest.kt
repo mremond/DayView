@@ -54,7 +54,7 @@ class FocusAlarmTest {
         assertTrue(notification.flags and Notification.FLAG_ONGOING_EVENT != 0)
         assertTrue(notification.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER))
         assertEquals("Écrire les tests", notification.extras.getString(Notification.EXTRA_TEXT))
-        assertEquals("Arrêter", notification.actions.single().title)
+        assertEquals("Stop", notification.actions.single().title)
     }
 
     @Test
@@ -119,16 +119,16 @@ class FocusAlarmTest {
             context.getSystemService(NotificationManager::class.java),
         )
         val notification = notifications.allNotifications.first {
-            it.extras.getString(Notification.EXTRA_TITLE) == "Focus terminé"
+            it.extras.getString(Notification.EXTRA_TITLE) == "Focus ended"
         }
-        assertEquals("Focus terminé", notification.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Focus ended", notification.extras.getString(Notification.EXTRA_TITLE))
         assertEquals("Préparer la démo", notification.extras.getString(Notification.EXTRA_TEXT))
         val breakNotification = notifications.allNotifications.first {
-            it.extras.getString(Notification.EXTRA_TITLE) == "Pause en cours"
+            it.extras.getString(Notification.EXTRA_TITLE) == "On break"
         }
         assertTrue(breakNotification.flags and Notification.FLAG_ONGOING_EVENT != 0)
         assertTrue(breakNotification.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER))
-        assertEquals("Reprendre", breakNotification.actions.single().title)
+        assertEquals("Resume", breakNotification.actions.single().title)
         assertEquals(breakStart + 10 * 60_000L, nextAlarm().getTriggerAtMs())
     }
 
@@ -146,11 +146,11 @@ class FocusAlarmTest {
             context.getSystemService(NotificationManager::class.java),
         )
         val notification = notifications.allNotifications.first {
-            it.extras.getString(Notification.EXTRA_TITLE) == "Pause · 20 minutes"
+            it.extras.getString(Notification.EXTRA_TITLE) == "Break · 20 minutes"
         }
-        assertEquals("Pause · 20 minutes", notification.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("Break · 20 minutes", notification.extras.getString(Notification.EXTRA_TITLE))
         assertEquals(
-            "Souhaitez-vous reprendre un focus ou terminer la série ?",
+            "Would you like to resume a focus or end the series?",
             notification.extras.getString(Notification.EXTRA_TEXT),
         )
         assertEquals(breakStart + 30 * 60_000L, nextAlarm().getTriggerAtMs())

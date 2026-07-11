@@ -1,30 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default (English) Android-native strings for the widget, tile and notifications.
+  values-fr/strings.xml overrides these for French. Android formats via String.format,
+  so a literal percent sign is escaped as %% here.
+-->
 <resources>
-    <string name="widget_description">Le temps restant dans votre journée et votre Focus en cours.</string>
+    <string name="widget_description">The time left in your day and your current Focus.</string>
     <string name="widget_name">DAYVIEW</string>
     <string name="widget_focus_label">FOCUS</string>
-    <string name="widget_ring_preview_description">Progression de la journée</string>
-    <string name="widget_ring_description">%1$d %% de la journée restante</string>
-    <string name="widget_day_not_started">JOURNÉE À VENIR</string>
-    <string name="widget_day_finished">JOURNÉE TERMINÉE</string>
-    <string name="widget_day_remaining">RESTANTES AUJOURD’HUI</string>
+    <string name="widget_ring_preview_description">Day progress</string>
+    <string name="widget_ring_description">%1$d%% of the day left</string>
+    <string name="widget_day_not_started">DAY AHEAD</string>
+    <string name="widget_day_finished">DAY OVER</string>
+    <string name="widget_day_remaining">LEFT TODAY</string>
     <string name="widget_day_range">%1$s — %2$s</string>
-    <string name="widget_goal">Cap · %1$s</string>
-    <string name="widget_focus_default">Session en cours</string>
+    <string name="widget_goal">Goal · %1$s</string>
+    <string name="widget_focus_default">Session in progress</string>
     <string name="widget_preview_remaining">4 h 12</string>
     <string name="widget_preview_day_range">08:00 — 18:00</string>
-    <string name="widget_preview_goal">Cap · Lancer DayView</string>
-    <string name="widget_preview_focus">Écrire la proposition</string>
-    <string name="focus_notification_channel">Focus en cours</string>
-    <string name="focus_notification_channel_description">Affiche le compte à rebours de la session active</string>
-    <string name="focus_notification_title">Focus en cours</string>
-    <string name="focus_notification_break_title">Pause en cours</string>
-    <string name="focus_notification_stop">Arrêter</string>
-    <string name="focus_notification_resume">Reprendre</string>
+    <string name="widget_preview_goal">Goal · Launch DayView</string>
+    <string name="widget_preview_focus">Write the proposal</string>
+    <string name="focus_notification_channel">Focus in progress</string>
+    <string name="focus_notification_channel_description">Shows the countdown for the active session</string>
+    <string name="focus_notification_title">Focus in progress</string>
+    <string name="focus_notification_break_title">On break</string>
+    <string name="focus_notification_stop">Stop</string>
+    <string name="focus_notification_resume">Resume</string>
     <string name="focus_tile_name">DayView Focus</string>
-    <string name="focus_tile_start">Lancer Focus</string>
-    <string name="focus_tile_active">Focus actif</string>
-    <string name="focus_tile_break">Pause en cours</string>
-    <string name="focus_tile_subtitle">Dernière intention</string>
-    <string name="focus_tile_break_subtitle">Toucher pour reprendre</string>
+    <string name="focus_tile_start">Start Focus</string>
+    <string name="focus_tile_active">Focus active</string>
+    <string name="focus_tile_break">On break</string>
+    <string name="focus_tile_subtitle">Last intention</string>
+    <string name="focus_tile_break_subtitle">Tap to resume</string>
+    <string name="focus_alarm_channel">Focus session end</string>
+    <string name="focus_alarm_channel_description">Notifies when a Focus session ends</string>
+    <string name="focus_end_title">Focus ended</string>
+    <string name="focus_end_body">Your session is over. The break begins.</string>
+    <string name="break_reminder_title">Break · %1$d minutes</string>
+    <string name="break_reminder_body">Would you like to resume a focus or end the series?</string>
 </resources>
