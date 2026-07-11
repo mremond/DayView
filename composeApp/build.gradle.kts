@@ -109,6 +109,10 @@ android {
 
     buildTypes {
         release {
+            // TEMPORARY: sign with the debug key so the release APK installs via
+            // sideload from a GitHub Release. Replace with a real upload keystore
+            // (GitHub secrets) before any Play distribution.
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
