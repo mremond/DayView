@@ -7,6 +7,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -45,7 +46,14 @@ fun DayViewApp(
             val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
             val controller = remember(preferences) { DayViewController(preferences, scope, initialSnapshot) }
             val state = controller.state
-            val hasRunningApps = remember { runningApps().isNotEmpty() }
+            // Recompute when the user opens Settings to edit the on-goal apps, rather
+            // than freezing the check at launch (when no target app may be running yet).
+            var hasRunningApps by remember { mutableStateOf(false) }
+            LaunchedEffect(state.destination) {
+                if (state.destination == DayViewDestination.SETTINGS) {
+                    hasRunningApps = runningApps().isNotEmpty()
+                }
+            }
             val soundPlayer = remember { createSoundCuePlayer() }
             val soundScheduler = remember { SoundAlertScheduler() }
             val calendarSource = remember { createCalendarSource() }
