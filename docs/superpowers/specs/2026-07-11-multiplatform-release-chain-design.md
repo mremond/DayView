@@ -38,6 +38,13 @@ Locked during brainstorming:
 - **Signing:** Skipped for this first chain. Android release APK is signed with
   the existing **debug** signing config so it stays sideload-installable; macOS
   `.dmg` and Linux packages are unsigned.
+- **Toolchain:** JDK **21** (the repo's `ci.yml` and `jvmToolchain(21)` already
+  require it — Robolectric needs 21 for compileSdk 36). ktlint is enforced
+  repo-wide (`./gradlew ktlintCheck`), so all Gradle-script edits must be
+  ktlint-clean.
+- **Android minification:** the merged CI already enabled `isMinifyEnabled` +
+  `isShrinkResources` on the `release` build type and proves `assembleRelease`
+  builds; this chain keeps that and only adds the debug `signingConfig`.
 - **Linux formats:** `.deb` + `.rpm` (built directly by Compose) **and** a true
   single-file `.AppImage`. Note: Compose's `TargetFormat.AppImage` is *not* a
   Linux `.AppImage` — it maps to jpackage's `app-image` (a plain application
@@ -70,7 +77,7 @@ tag v1.2.0 pushed
   `softprops/action-gh-release` (creates the Release for the tag, attaches
   files). No secrets required.
 - Common setup per build job: `actions/checkout`, `actions/setup-java`
-  (Temurin 17), `gradle/actions/setup-gradle` for caching. The Android job also
+  (Temurin 21), `gradle/actions/setup-gradle` for caching. The Android job also
   runs `android-actions/setup-android`.
 
 ### Version derivation

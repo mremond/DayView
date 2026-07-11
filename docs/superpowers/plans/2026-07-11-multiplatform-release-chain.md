@@ -2,52 +2,76 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** On pushing a `v*` git tag, automatically build minified macOS `.dmg`, Linux `.deb`/`.rpm`/`.AppImage`, and an Android `.apk`, and publish them all to a single GitHub Release.
+**Goal:** On pushing a `v*` git tag, automatically build a minified macOS `.dmg`, Linux `.deb`/`.rpm`/`.AppImage`, and a signed Android `.apk`, and publish them all to a single GitHub Release.
 
 **Architecture:** One GitHub Actions workflow triggered on tag push fans out into three per-OS build jobs (android + linux on `ubuntu-latest`, macos on `macos-latest`), each uploading its artifact; a final `release` job downloads all artifacts and creates the GitHub Release. The tag is the single source of truth for the version, threaded into Gradle via `-Pappversion`. Desktop builds use Compose's minified `Release` packaging tasks; the portable Linux `.AppImage` is assembled from Compose's app-image output by a helper script wrapping `appimagetool`.
 
 **Tech Stack:** Kotlin Multiplatform + Compose Multiplatform, Gradle (Kotlin DSL), GitHub Actions, jpackage (via Compose), R8/ProGuard, appimagetool.
 
+## Rebase reconciliation (read first)
+
+This plan was rebased onto `origin/main`, which already merged `e9562aa "ci: add PR workflow and harden build tooling"`. That commit changed the baseline in ways this plan now assumes:
+
+- `composeApp/build.gradle.kts` already defines `val appVersion = "1.0.0"`, and `android.defaultConfig.versionName` + `compose.desktop … packageVersion` already reference it.
+- The Android `release` build type already exists with `isMinifyEnabled = true`, `isShrinkResources = true`, and `proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")` — but **no `signingConfig`**.
+- `composeApp/proguard-rules.pro` already exists (Android R8 rules, currently no app-specific rules).
+- The build uses `kotlin { jvmToolchain(21) }`; CI (`.github/workflows/ci.yml`) runs on **JDK 21 (Temurin)**.
+- **ktlint** is applied (`libs.plugins.ktlint`) and enforced by `./gradlew ktlintCheck`. Every `.kt`/`.kts` edit must pass it.
+- Existing CI (`ci.yml`) already builds `:composeApp:assembleRelease` (minified) on every PR, so Android minification is known-good.
+
 ## Global Constraints
 
-- JDK **17** (Temurin) everywhere.
-- Compose **1.11.1**, Kotlin **2.3.20**, AGP **8.12.3** (already pinned in `gradle/libs.versions.toml` — do not change).
+- JDK **21** (Temurin) everywhere — matches `ci.yml` and `jvmToolchain(21)`.
+- ktlint-clean: after any `.kt`/`.kts` edit, `./gradlew ktlintCheck` must pass (run `./gradlew ktlintFormat` to auto-fix).
+- Compose **1.11.1**, Kotlin **2.3.20**, AGP **8.12.3** (pinned in `gradle/libs.versions.toml` — do not change).
 - `packageName = "DayView"`, `applicationId = "fr.dayview.app"`, `mainClass = "fr.dayview.app.MainKt"`.
-- Version source of truth: the git tag, minus a leading `v` (`v1.2.0` → `1.2.0`), passed to Gradle as `-Pappversion=<version>`.
+- Version source of truth: the git tag minus a leading `v` (`v1.2.0` → `1.2.0`), passed to Gradle as `-Pappversion=<version>`. Default when absent: `1.0.0`.
 - Android `versionCode` = `major*10000 + minor*100 + patch`, floored at 1.
-- Local builds without `-Pappversion` fall back to version name `0.0.0-dev`; native packagers get `1.0.0` (jpackage requires a numeric version whose first component ≥ 1).
-- Publish target: **GitHub Releases only**. No store upload. **No secrets** anywhere.
-- Desktop (macOS + Linux) ships **minified `Release`** builds. Android ships a **debug-signed, non-minified** APK (temporary until a real upload keystore exists).
-- Never obfuscate the desktop ProGuard build (`obfuscate = false`) to keep crash traces readable.
+- Native packagers (jpackage: dmg/deb/rpm) get a strictly numeric `X.Y.Z` version, first component ≥ 1 (`appPackageVersion`).
+- Publish target: **GitHub Releases only**. **No secrets** anywhere.
+- Desktop (macOS + Linux) ships **minified `Release`** builds; never obfuscate (`obfuscate = false`) so crash traces stay readable.
+- Android ships a **debug-signed** APK; keep the already-enabled minification/shrinking.
 
-**Note on verification style:** this is build/CI configuration, so "tests" are Gradle/CLI invocations whose output is inspected, not unit tests. Where possible each task first runs a command to observe the *current* (wrong) behavior, then makes it right — a red/green cycle.
+**Verification style:** this is build/CI configuration, so "tests" are Gradle/CLI invocations whose output is inspected. Where possible each task first observes the *current* (wrong) behavior, then makes it right.
 
-**Working directory:** repo root `/Users/mremond/AIProjects/DayView/.claude/worktrees/release-chain-multiplatform-43c6ae` (a git worktree; branch `claude/release-chain-multiplatform-43c6ae`).
+**Working directory:** repo root `/Users/mremond/AIProjects/DayView/.claude/worktrees/release-chain-multiplatform-43c6ae` (git worktree; branch `claude/release-chain-multiplatform-43c6ae`, already rebased on `origin/main`).
 
 ---
 
-### Task 1: Thread the tag version through Gradle
+### Task 1: Derive the app version from the `appversion` property
 
 **Files:**
-- Modify: `composeApp/build.gradle.kts` (add version derivation near the top; use it in the `android` and `compose.desktop` blocks)
+- Modify: `composeApp/build.gradle.kts` (the `val appVersion` declaration near the top; `versionCode` in `android.defaultConfig`; `packageVersion` in `compose.desktop`)
 
 **Interfaces:**
-- Produces: three top-level Gradle vals available to the rest of the build script — `val appVersionName: String`, `val appVersionCode: Int`, `val appPackageVersion: String`. Later tasks (DMG path, Android signing) rely on `appPackageVersion` and the `android`/`compose.desktop` wiring done here.
+- Produces: three top-level Gradle vals — `val appVersion: String` (raw, tag-derived or `1.0.0`), `val appVersionCode: Int`, `val appPackageVersion: String` (numeric, jpackage-valid). Also `val isMacHost: Boolean`. Tasks 3 and 4 consume `appPackageVersion` and `isMacHost`.
 
-- [ ] **Step 1: Observe the version is currently hardcoded (red)**
+- [ ] **Step 1: Observe the version is hardcoded (red)**
 
 Run: `./gradlew :composeApp:assembleRelease -Pappversion=9.9.9`
 Then: `cat composeApp/build/outputs/apk/release/output-metadata.json`
-Expected (current, wrong): JSON shows `"versionName": "1.0"` and `"versionCode": 1` — the `-Pappversion` flag is ignored. (The APK will be `composeApp-release-unsigned.apk` at this stage; that's fine, signing is Task 2.)
+Expected (current, wrong): `"versionName": "1.0.0"` and `"versionCode": 1` — `-Pappversion` is ignored. (APK is `composeApp-release-unsigned.apk` at this stage; signing is Task 2.)
 
-- [ ] **Step 2: Add version derivation to the top of `composeApp/build.gradle.kts`**
+- [ ] **Step 2: Replace the `appVersion` declaration**
 
-Insert this block immediately after the `plugins { ... }` block (before `kotlin { ... }`):
+In `composeApp/build.gradle.kts`, replace this block (the two comment lines + the val):
 
 ```kotlin
-val appVersionName: String =
-    (findProperty("appversion") as String?)?.takeIf { it.isNotBlank() } ?: "0.0.0-dev"
+// Single source of truth for the app version: Android versionName,
+// the desktop package version, and the DMG customization task all derive from it.
+val appVersion = "1.0.0"
+```
 
+with:
+
+```kotlin
+// Single source of truth for the app version: Android versionName/versionCode,
+// the desktop package version, and the DMG customization task all derive from it.
+// Overridable at release time via -Pappversion=<tag> (see .github/workflows/release.yml).
+val appVersion: String =
+    (findProperty("appversion") as String?)?.takeIf { it.isNotBlank() } ?: "1.0.0"
+
+// Android requires a monotonic integer; derive it from the semver core.
 fun deriveVersionCode(version: String): Int {
     val core = version.substringBefore('-').substringBefore('+')
     val parts = core.split('.')
@@ -56,42 +80,40 @@ fun deriveVersionCode(version: String): Int {
     val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
     return (major * 10_000 + minor * 100 + patch).coerceAtLeast(1)
 }
-val appVersionCode: Int = deriveVersionCode(appVersionName)
+val appVersionCode: Int = deriveVersionCode(appVersion)
 
-// jpackage (used for dmg/deb/rpm) requires a strictly numeric version whose
-// first component is >= 1. Map the dev fallback (and any 0.0.0 core) to 1.0.0.
+// jpackage (dmg/deb/rpm) requires a strictly numeric X.Y.Z whose first component
+// is >= 1; map any pre-release suffix or 0.0.0 to a valid numeric version.
 val appPackageVersion: String =
-    appVersionName.substringBefore('-').substringBefore('+')
+    appVersion.substringBefore('-').substringBefore('+')
         .let { core -> if (core.isBlank() || core == "0.0.0") "1.0.0" else core }
 
 val isMacHost: Boolean =
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
 ```
 
-(`isMacHost` is defined here because Task 3 also needs it.)
+- [ ] **Step 3: Use `appVersionCode` for the Android version code**
 
-- [ ] **Step 3: Use the derived version in the `android { defaultConfig { ... } }` block**
-
-Replace:
+In `android { defaultConfig { ... } }`, replace:
 
 ```kotlin
         versionCode = 1
-        versionName = "1.0"
 ```
 
 with:
 
 ```kotlin
         versionCode = appVersionCode
-        versionName = appVersionName
 ```
 
-- [ ] **Step 4: Use the derived version for Compose packaging**
+(Leave `versionName = appVersion` as-is.)
 
-In the `compose.desktop { application { nativeDistributions { ... } } }` block, replace:
+- [ ] **Step 4: Use `appPackageVersion` for desktop packaging**
+
+In `compose.desktop { application { nativeDistributions { ... } } }`, replace:
 
 ```kotlin
-            packageVersion = "1.0.0"
+            packageVersion = appVersion
 ```
 
 with:
@@ -100,16 +122,18 @@ with:
             packageVersion = appPackageVersion
 ```
 
-- [ ] **Step 5: Verify the version now flows through (green)**
+- [ ] **Step 5: ktlint + verify the version flows through (green)**
+
+Run: `./gradlew ktlintFormat ktlintCheck`
+Expected: PASS (no violations).
 
 Run: `./gradlew :composeApp:assembleRelease -Pappversion=9.9.9`
 Then: `cat composeApp/build/outputs/apk/release/output-metadata.json`
 Expected: `"versionName": "9.9.9"` and `"versionCode": 90909`.
 
-Then verify the local fallback:
-Run: `./gradlew :composeApp:assembleRelease`
+Run: `./gradlew :composeApp:assembleRelease` (no property)
 Then: `cat composeApp/build/outputs/apk/release/output-metadata.json`
-Expected: `"versionName": "0.0.0-dev"` and `"versionCode": 1`.
+Expected: `"versionName": "1.0.0"` and `"versionCode": 10000`.
 
 - [ ] **Step 6: Commit**
 
@@ -123,42 +147,47 @@ git commit -m "build: derive app version from the appversion property"
 ### Task 2: Sign the Android release APK with the debug key
 
 **Files:**
-- Modify: `composeApp/build.gradle.kts` (add a `buildTypes` block inside `android { ... }`)
+- Modify: `composeApp/build.gradle.kts` (the existing `android { buildTypes { release { ... } } }` block)
 
 **Interfaces:**
-- Consumes: nothing new (uses AGP's built-in `debug` signing config).
+- Consumes: the existing minified `release` build type.
 - Produces: `assembleRelease` now emits a signed, installable `composeApp-release.apk`.
 
 - [ ] **Step 1: Observe the release APK is unsigned (red)**
 
 Run: `./gradlew :composeApp:assembleRelease -Pappversion=9.9.9`
 Then: `ls composeApp/build/outputs/apk/release/`
-Expected (current, wrong): the file is named `composeApp-release-unsigned.apk` (the `-unsigned` suffix means it can't be installed).
+Expected (current, wrong): the file is `composeApp-release-unsigned.apk`.
 
-- [ ] **Step 2: Add a `buildTypes` block to `android { ... }`**
+- [ ] **Step 2: Add a `signingConfig` to the existing `release` block**
 
-Inside the `android { ... }` block (e.g. right after the `defaultConfig { ... }` block), add:
+In `android { buildTypes { release { ... } } }`, add the `signingConfig` line as the first statement inside `release { ... }` (keep the existing minify/shrink/proguard lines unchanged):
 
 ```kotlin
-    buildTypes {
-        getByName("release") {
-            // TEMPORARY: sign the release build with the debug key so the APK is
-            // installable via sideload from a GitHub Release. Replace this with a
-            // real upload keystore backed by GitHub secrets before any Play upload.
+        release {
+            // TEMPORARY: sign with the debug key so the release APK installs via
+            // sideload from a GitHub Release. Replace with a real upload keystore
+            // (GitHub secrets) before any Play distribution.
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
-    }
 ```
 
-- [ ] **Step 3: Verify the release APK is now signed (green)**
+- [ ] **Step 3: ktlint + verify the APK is signed (green)**
+
+Run: `./gradlew ktlintCheck`
+Expected: PASS.
 
 Run: `./gradlew :composeApp:assembleRelease -Pappversion=9.9.9`
 Then: `ls composeApp/build/outputs/apk/release/`
-Expected: the file is named `composeApp-release.apk` (no `-unsigned` suffix).
+Expected: the file is `composeApp-release.apk` (no `-unsigned` suffix).
 
-Optional deeper check (if `apksigner` is on PATH via the Android SDK build-tools):
-Run: `"$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs composeApp/build/outputs/apk/release/composeApp-release.apk`
-Expected: prints a certificate (the debug cert) and exits 0.
+Optional (if `apksigner` is on PATH): `"$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs composeApp/build/outputs/apk/release/composeApp-release.apk` → prints the debug cert, exits 0.
 
 - [ ] **Step 4: Commit**
 
@@ -172,18 +201,22 @@ git commit -m "build: sign Android release APK with the debug key (temporary)"
 ### Task 3: Enable minified desktop release builds + add Linux target formats
 
 **Files:**
-- Create: `composeApp/proguard-rules.pro`
+- Create: `composeApp/proguard-desktop.pro`
 - Modify: `composeApp/build.gradle.kts` (`compose.desktop { application { ... } }`: add the ProGuard block, guard `outputBaseDir` to macOS, expand `targetFormats`)
 
 **Interfaces:**
 - Consumes: `appPackageVersion` and `isMacHost` (Task 1).
-- Produces: the desktop `Release` packaging tasks (`runRelease`, `packageReleaseDmg`, `packageReleaseDistributionForCurrentOS`) now build a minified app with R8/ProGuard. `targetFormats` now includes `Deb` and `Rpm`. On non-macOS hosts, packaging output lands in the standard `composeApp/build/compose/binaries/` tree (needed by Task 5/6).
+- Produces: desktop `Release` packaging tasks (`runRelease`, `packageReleaseDmg`, `packageReleaseDistributionForCurrentOS`) build a minified app; `targetFormats` includes `Deb` + `Rpm`; on non-macOS hosts, packaging output lands in the standard `composeApp/build/compose/binaries/` tree (needed by Tasks 5/6).
 
-- [ ] **Step 1: Create the ProGuard keep rules**
+**Note:** a separate `proguard-desktop.pro` is used (not Android's `proguard-rules.pro`) to keep desktop-only keep rules — JNA, the desktop entry point, Compose resources — out of the Android config.
 
-Create `composeApp/proguard-rules.pro`:
+- [ ] **Step 1: Create the desktop ProGuard keep rules**
+
+Create `composeApp/proguard-desktop.pro`:
 
 ```proguard
+# Keep rules for the minified Compose Desktop (macOS/Linux) release build.
+
 # Desktop entry point launched reflectively by the Compose/JVM launcher.
 -keep class fr.dayview.app.MainKt { *; }
 
@@ -197,26 +230,30 @@ Create `composeApp/proguard-rules.pro`:
 # Compose-generated resource accessors are reached by name.
 -keep class fr.dayview.app.generated.resources.** { *; }
 
-# Optional/desktop-only references that R8 can't see through.
+# Optional/desktop-only references R8 can't see through.
 -dontwarn org.jetbrains.**
 -dontwarn com.sun.jna.**
 ```
 
-- [ ] **Step 2: Enable ProGuard and guard `outputBaseDir` in `compose.desktop`**
+- [ ] **Step 2: Enable ProGuard and guard `outputBaseDir` (macOS-only)**
 
-In `composeApp/build.gradle.kts`, inside `compose.desktop { application { ... } }`, add the ProGuard block right after `mainClass = "fr.dayview.app.MainKt"`:
+In `compose.desktop { application { ... } }`, add the ProGuard block right after `mainClass = "fr.dayview.app.MainKt"`:
 
 ```kotlin
         buildTypes.release.proguard {
             isEnabled.set(true)
             obfuscate.set(false)
-            configurationFiles.from(project.file("proguard-rules.pro"))
+            configurationFiles.from(project.file("proguard-desktop.pro"))
         }
 ```
 
 Then wrap the existing `outputBaseDir.set(...)` call (inside `nativeDistributions { ... }`) in an `if (isMacHost)` guard. Replace:
 
 ```kotlin
+            // Building an app bundle inside an iCloud/FileProvider-backed Documents
+            // folder makes macOS attach com.apple.FinderInfo while jpackage is still
+            // running. codesign rejects that attribute, so package in a local temp
+            // directory and copy only the completed DMG back into build/.
             outputBaseDir.set(
                 layout.dir(
                     providers.provider {
@@ -229,9 +266,11 @@ Then wrap the existing `outputBaseDir.set(...)` call (inside `nativeDistribution
 with:
 
 ```kotlin
-            // This temp-dir redirect only exists to dodge a macOS
-            // iCloud/FinderInfo codesign issue during jpackage. On Linux it
-            // would push .deb/.rpm/app-image into $TMPDIR, so scope it to macOS.
+            // Building an app bundle inside an iCloud/FileProvider-backed Documents
+            // folder makes macOS attach com.apple.FinderInfo while jpackage is still
+            // running. codesign rejects that attribute, so package in a local temp
+            // directory and copy only the completed DMG back into build/. This only
+            // applies to macOS; on Linux it would push .deb/.rpm/app-image into $TMPDIR.
             if (isMacHost) {
                 outputBaseDir.set(
                     layout.dir(
@@ -245,7 +284,7 @@ with:
 
 - [ ] **Step 3: Expand `targetFormats`**
 
-In the same `nativeDistributions { ... }` block, replace:
+Replace:
 
 ```kotlin
             targetFormats(TargetFormat.Dmg)
@@ -257,21 +296,24 @@ with:
             targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm)
 ```
 
-- [ ] **Step 4: Verify the project still configures**
+- [ ] **Step 4: ktlint + verify configuration**
 
-Run: `./gradlew :composeApp:tasks --group compose desktop -Pappversion=9.9.9`
-Expected: configuration succeeds (no compile error), and the task list includes `packageReleaseDmg` and `packageReleaseDistributionForCurrentOS`.
+Run: `./gradlew ktlintFormat ktlintCheck`
+Expected: PASS.
+
+Run: `./gradlew :composeApp:tasks --group "compose desktop" -Pappversion=9.9.9`
+Expected: configuration succeeds and the list includes `packageReleaseDmg` and `packageReleaseDistributionForCurrentOS`.
 
 - [ ] **Step 5: Minified launch smoke test (critical — macOS)**
 
 Run: `./gradlew :composeApp:runRelease -Pappversion=9.9.9`
 Expected: the DayView window opens and the menu-bar tray appears. Manually exercise: open/hide the window from the tray, and start a 25-minute Focus with an intention.
-Watch the console for `ClassNotFoundException` / `NoSuchMethodError` / `MissingResourceException` — any of these means ProGuard stripped something. If so, add a matching `-keep` rule to `composeApp/proguard-rules.pro` and re-run until it launches and a Focus session runs cleanly. Quit via the tray's "Quitter DayView".
+Watch the console for `ClassNotFoundException` / `NoSuchMethodError` / `MissingResourceException` — any means ProGuard stripped something. If so, add a matching `-keep` rule to `composeApp/proguard-desktop.pro` and re-run until it launches and a Focus session runs cleanly. Quit via the tray's "Quitter DayView".
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add composeApp/build.gradle.kts composeApp/proguard-rules.pro
+git add composeApp/build.gradle.kts composeApp/proguard-desktop.pro
 git commit -m "build: minify desktop release builds and add Linux deb/rpm formats"
 ```
 
@@ -280,20 +322,20 @@ git commit -m "build: minify desktop release builds and add Linux deb/rpm format
 ### Task 4: Rewire the DMG customization to the release variant
 
 **Files:**
-- Modify: `composeApp/build.gradle.kts` (the `customizePackagedDmg` / `copyPackagedDmg` task definitions and the `tasks.matching { ... }` wiring at the bottom)
+- Modify: `composeApp/build.gradle.kts` (`customizePackagedDmg` / `copyPackagedDmg` definitions and the `tasks.matching { ... }` wiring)
 
 **Interfaces:**
-- Consumes: `appPackageVersion` (Task 1); the minified release packaging from Task 3.
+- Consumes: `appPackageVersion` (Task 1); the minified release packaging (Task 3).
 - Produces: `packageReleaseDmg` yields a customized, versioned DMG at `composeApp/build/compose/binaries/main-release/dmg/DayView-<version>.dmg`.
 
-**Background:** the release packaging variant writes under `main-release/` (not `main/`), the customize task must key off `packageReleaseDmg` (not `packageDmg`), and the clean hook must also cover `createReleaseDistributable`. The DMG filename is currently the literal `DayView-1.0.0.dmg`.
+**Background:** the release variant writes under `main-release/` (not `main/`), the customize task must key off `packageReleaseDmg` (not `packageDmg`), and the clean hook must also cover `createReleaseDistributable`. The DMG path currently uses `main/dmg/DayView-$appVersion.dmg`.
 
 - [ ] **Step 1: Point the customize task at the release DMG path**
 
-In `composeApp/build.gradle.kts`, in the `customizePackagedDmg` task, replace:
+In the `customizePackagedDmg` task, replace:
 
 ```kotlin
-    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-1.0.0.dmg")
+    val packagedDmg = nativePackagingOutput.resolve("main/dmg/DayView-$appVersion.dmg")
 ```
 
 with:
@@ -346,14 +388,17 @@ tasks.matching { it.name == "packageReleaseDmg" }.configureEach {
 }
 ```
 
-(Leave the final `customizePackagedDmg.configure { finalizedBy(copyPackagedDmg) }` line unchanged.)
+(Leave `customizePackagedDmg.configure { finalizedBy(copyPackagedDmg) }` unchanged.)
 
-- [ ] **Step 4: Verify the customized release DMG is produced (macOS)**
+- [ ] **Step 4: ktlint + verify the customized release DMG (macOS)**
+
+Run: `./gradlew ktlintCheck`
+Expected: PASS.
 
 Run: `./gradlew :composeApp:packageReleaseDmg -Pappversion=9.9.9`
 Then: `ls composeApp/build/compose/binaries/main-release/dmg/`
 Expected: `DayView-9.9.9.dmg` exists.
-Optional: `hdiutil attach composeApp/build/compose/binaries/main-release/dmg/DayView-9.9.9.dmg` and confirm the volume shows the DayView app next to an `/Applications` shortcut, then `hdiutil detach` the mounted volume.
+Optional: `hdiutil attach …/DayView-9.9.9.dmg` → confirm the volume shows DayView next to an `/Applications` shortcut, then `hdiutil detach` it.
 
 - [ ] **Step 5: Commit**
 
@@ -370,7 +415,7 @@ git commit -m "build: package the customized DMG from the minified release varia
 - Create: `scripts/build_appimage.sh` (executable)
 
 **Interfaces:**
-- Consumes: Compose's release app-image directory at `composeApp/build/compose/binaries/main-release/app/DayView` (produced by `packageReleaseDistributionForCurrentOS` / `createReleaseDistributable` on Linux), plus a PNG icon and a version.
+- Consumes: Compose's release app-image directory `composeApp/build/compose/binaries/main-release/app/DayView` (produced by `packageReleaseDistributionForCurrentOS` on Linux), plus a PNG icon and a version.
 - Produces: `<out-dir>/DayView-<version>.x86_64.AppImage`. Invoked by the Linux CI job (Task 6). Requires `appimagetool` on `PATH`.
 
 - [ ] **Step 1: Create `scripts/build_appimage.sh`**
@@ -432,10 +477,10 @@ echo "built ${OUT_DIR}/DayView-${VERSION}.x86_64.AppImage"
 chmod +x scripts/build_appimage.sh
 ```
 
-- [ ] **Step 3: Verify the script is syntactically valid**
+- [ ] **Step 3: Verify syntax + executable bit**
 
 Run: `bash -n scripts/build_appimage.sh && test -x scripts/build_appimage.sh && echo OK`
-Expected: prints `OK` (no syntax errors, file is executable). Full functional execution happens on Linux in the Task 6 CI dry run.
+Expected: prints `OK`. Full functional execution happens on Linux in the Task 6 dry run.
 
 - [ ] **Step 4: Commit**
 
@@ -453,7 +498,7 @@ git commit -m "build: add AppImage packaging script"
 
 **Interfaces:**
 - Consumes: all Gradle wiring (Tasks 1–4) and `scripts/build_appimage.sh` (Task 5).
-- Produces: a GitHub Release for each pushed `v*` tag, with the APK, DMG, DEB, RPM, and AppImage attached.
+- Produces: a GitHub Release per pushed `v*` tag, with the APK, DMG, DEB, RPM, and AppImage attached.
 
 - [ ] **Step 1: Create `.github/workflows/release.yml`**
 
@@ -473,10 +518,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/wrapper-validation@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
       - name: Resolve version
@@ -499,10 +545,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/wrapper-validation@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
       - name: Install packaging tools
         run: |
@@ -544,10 +591,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: gradle/actions/wrapper-validation@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
       - name: Resolve version
         id: version
@@ -583,9 +631,9 @@ jobs:
 - [ ] **Step 2: Static-check the workflow (if `actionlint` is available)**
 
 Run: `actionlint .github/workflows/release.yml`
-Expected: no errors. (If `actionlint` isn't installed, skip — the CI dry run in Step 4 is the real check.)
+Expected: no errors. (If `actionlint` isn't installed, skip — the dry run is the real check.)
 
-- [ ] **Step 3: Commit and push the workflow**
+- [ ] **Step 3: Commit and push the branch**
 
 ```bash
 git add .github/workflows/release.yml
@@ -593,9 +641,9 @@ git commit -m "ci: add tag-triggered multiplatform release workflow"
 git push -u origin claude/release-chain-multiplatform-43c6ae
 ```
 
-- [ ] **Step 4: CI dry run with a throwaway tag**
+- [ ] **Step 4: CI dry run with a throwaway tag** *(outward-facing — confirm with the user before running)*
 
-The workflow only exists on the default branch once merged, but tag-triggered workflows run from the tagged commit's workflow file, so a test tag on this branch's HEAD works.
+Tag-triggered workflows run from the tagged commit's workflow file, so a test tag on this branch's HEAD works.
 
 ```bash
 git tag v0.0.1-test
@@ -603,20 +651,20 @@ git push origin v0.0.1-test
 gh run watch "$(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
 ```
 
-Expected: all four jobs (android, linux, macos, release) succeed. Then confirm the Release assets:
+Expected: all four jobs (android, linux, macos, release) succeed. Then:
 
 ```bash
 gh release view v0.0.1-test --json assets --jq '.assets[].name'
 ```
 
-Expected asset names (version `0.0.1-test`, package version `0.0.1`):
+Expected asset names (tag version `0.0.1-test`, jpackage version `0.0.1`):
 - `DayView-0.0.1-test.apk`
 - `DayView-0.0.1.dmg`
-- `DayView-0.0.1.x86_64.AppImage` (script uses the raw tag version → `0.0.1-test`; confirm exact name from the listing)
+- `DayView-0.0.1-test.x86_64.AppImage`
 - a `.deb` (e.g. `dayview_0.0.1_amd64.deb`)
 - a `.rpm` (e.g. `dayview-0.0.1-1.x86_64.rpm`)
 
-> Note: the `.dmg`/`.deb`/`.rpm` carry the jpackage numeric version (`0.0.1`), while the `.apk` and `.AppImage` carry the raw tag string (`0.0.1-test`). This is expected given jpackage's numeric-only constraint.
+> Note: `.dmg`/`.deb`/`.rpm` carry the numeric jpackage version (`0.0.1`); `.apk` and `.AppImage` carry the raw tag string (`0.0.1-test`). Expected, given jpackage's numeric-only constraint. Confirm exact `.deb`/`.rpm` names from the listing.
 
 - [ ] **Step 5: Clean up the test tag and release**
 
@@ -628,34 +676,33 @@ git tag -d v0.0.1-test
 
 - [ ] **Step 6: Manual Linux launch smoke test (not automatable from macOS)**
 
-On a Linux machine (or VM), download the AppImage produced by the dry run (before deleting the release, or from a re-run), then:
+On a Linux machine/VM, capture the AppImage from the dry run before cleanup, then:
 
 ```bash
 chmod +x DayView-*.AppImage
 ./DayView-*.AppImage
 ```
 
-Expected: the DayView window opens; macOS-only features (menu-bar status item, login launcher, focus-drift detection) are simply inactive; no crash from `Native.load`. If deleting the test release first, capture the AppImage locally beforehand.
+Expected: the window opens; macOS-only features (menu-bar status item, login launcher, focus-drift detection) are inactive; no crash from `Native.load`.
 
 ---
 
 ## Self-Review
 
 **1. Spec coverage:**
-- GitHub Actions on tag → Task 6. ✓
-- Four jobs (android/linux/macos + release publish) → Task 6. ✓
-- GitHub Releases only, no secrets → Task 6 (`softprops/action-gh-release`, `permissions: contents: write`, no secrets referenced). ✓
-- Version derived from tag; versionName/versionCode/packageVersion; dev fallback; numeric package version → Task 1. ✓
-- DMG hardcoded-path fix + release variant path + clean hook for `createReleaseDistributable` → Task 4. ✓
-- Minification (ProGuard enabled + keep rules) → Task 3. ✓
+- GitHub Actions on tag + four jobs + Releases-only publish + no secrets → Task 6. ✓
+- JDK 21 + ktlint-clean edits → Global Constraints + every Gradle task's Step. ✓
+- Version from tag; versionName/versionCode/packageVersion; `1.0.0` default; numeric package version → Task 1. ✓
+- Android debug signing on the existing minified release block → Task 2. ✓
+- Desktop minification (ProGuard enabled + keep rules, `obfuscate=false`) → Task 3. ✓
 - `targetFormats` Dmg/Deb/Rpm; `outputBaseDir` macOS-only → Task 3. ✓
-- Android release signed with debug config, not minified → Task 2. ✓
+- DMG release-variant path fix + clean hook for `createReleaseDistributable` → Task 4. ✓
 - Linux `.deb`/`.rpm` via Compose + `.AppImage` via `scripts/build_appimage.sh` + `rsvg-convert` icon → Tasks 5, 6. ✓
-- Linux `Native.load` runtime risk → verified already guarded in the spec (no code task); covered by the Task 6 Step 6 smoke test. ✓
+- Linux `Native.load` runtime risk → verified already guarded (spec), covered by Task 6 Step 6. ✓
 - Minified launch smoke test → Task 3 Step 5 (macOS) + Task 6 Step 6 (Linux). ✓
 
-**2. Placeholder scan:** No TBD/TODO/"handle edge cases"/"similar to Task N" — all steps carry concrete code or commands. ✓
+**2. Placeholder scan:** No TBD/TODO/"handle edge cases"/"similar to Task N" — every step carries concrete code or commands. ✓
 
-**3. Type consistency:** `appVersionName` / `appVersionCode` / `appPackageVersion` / `isMacHost` are defined once in Task 1 Step 2 and referenced consistently in Tasks 1–4. Task names `packageReleaseDmg`, `createReleaseDistributable`, `packageReleaseDistributionForCurrentOS`, `runRelease` used consistently. AppImage app-image path `main-release/app/DayView` matches `packageName = "DayView"`. ✓
+**3. Type consistency:** `appVersion` / `appVersionCode` / `appPackageVersion` / `isMacHost` defined once (Task 1 Step 2), referenced consistently in Tasks 1–4. Desktop ProGuard file `proguard-desktop.pro` named consistently across Task 3 Steps 1/2/6. Task names `packageReleaseDmg`, `createReleaseDistributable`, `packageReleaseDistributionForCurrentOS`, `runRelease` consistent. App-image path `main-release/app/DayView` matches `packageName = "DayView"`. ✓
 
-**Known residual uncertainties (verified in the CI dry run, Task 6 Step 4):** exact jpackage `.deb`/`.rpm` filenames, and that `packageReleaseDistributionForCurrentOS` emits the app-image directory at the assumed path on the Linux runner. The `find`-based staging and the dry run are designed to surface these without guesswork.
+**Known residual uncertainties (verified in the Task 6 dry run):** exact jpackage `.deb`/`.rpm` filenames, and that `packageReleaseDistributionForCurrentOS` emits the app-image at the assumed Linux path. The `find`-based staging and the dry run surface these without guesswork.
