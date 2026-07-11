@@ -41,7 +41,8 @@ compileSdk 36) and the Android SDK.
   trailer, or any other reference to Claude, Anthropic, or an AI assistant in commit
   messages. Commit messages describe the change only.
 - **Never** add any reference to Claude, Anthropic, or an AI assistant in pull requests.
-  Focus the pull request on a clear summary of the change. Do not add test plans.
+  Focus the pull request on a clear summary of the change. Do not add test plans, and do
+  not add a Verification or tests section to commit messages or pull requests.
 - **Do not reference internal working documents** (design specs, implementation plans,
   or anything under `docs/superpowers/`) in commit messages or pull requests. These are
   private planning artifacts; describe the change on its own terms.
