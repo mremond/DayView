@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -58,6 +60,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 internal data class DayViewScreenActions(
     val openSettings: () -> Unit,
@@ -65,6 +68,8 @@ internal data class DayViewScreenActions(
     val changeGoalTitle: (String) -> Unit,
     val changeGoalDeadline: (String) -> Unit,
     val commitGoalDeadline: () -> Unit,
+    val changeGoalStart: (String) -> Unit,
+    val commitGoalStart: () -> Unit,
     val changeFocusIntention: (String) -> Unit,
     val changePomodoroDuration: (Int) -> Unit,
     val startPomodoro: () -> Unit,
@@ -130,12 +135,16 @@ internal fun DayViewScreen(
                             title = state.goalTitle,
                             deadlineText = state.goalDeadlineText,
                             deadlineMillis = state.goalDeadlineMillis,
+                            startText = state.goalStartText,
+                            startMillis = state.goalStartMillis,
                             nowMillis = state.nowMillis,
                             workStartMinutes = progress.startHour * 60 + progress.startMinute,
                             workEndMinutes = progress.endHour * 60 + progress.endMinute,
                             onTitleChange = actions.changeGoalTitle,
                             onDeadlineChange = actions.changeGoalDeadline,
                             onDeadlineCommit = actions.commitGoalDeadline,
+                            onStartChange = actions.changeGoalStart,
+                            onStartCommit = actions.commitGoalStart,
                         )
                     }
                     SidePanel(
@@ -162,12 +171,16 @@ internal fun DayViewScreen(
                     title = state.goalTitle,
                     deadlineText = state.goalDeadlineText,
                     deadlineMillis = state.goalDeadlineMillis,
+                    startText = state.goalStartText,
+                    startMillis = state.goalStartMillis,
                     nowMillis = state.nowMillis,
                     workStartMinutes = progress.startHour * 60 + progress.startMinute,
                     workEndMinutes = progress.endHour * 60 + progress.endMinute,
                     onTitleChange = actions.changeGoalTitle,
                     onDeadlineChange = actions.changeGoalDeadline,
                     onDeadlineCommit = actions.commitGoalDeadline,
+                    onStartChange = actions.changeGoalStart,
+                    onStartCommit = actions.commitGoalStart,
                 )
                 Spacer(Modifier.height(18.dp))
                 SidePanel(
@@ -747,12 +760,16 @@ private fun GlobalGoalPanel(
     title: String,
     deadlineText: String,
     deadlineMillis: Long?,
+    startText: String,
+    startMillis: Long?,
     nowMillis: Long,
     workStartMinutes: Int,
     workEndMinutes: Int,
     onTitleChange: (String) -> Unit,
     onDeadlineChange: (String) -> Unit,
     onDeadlineCommit: () -> Unit,
+    onStartChange: (String) -> Unit,
+    onStartCommit: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val deadlineIsValid = deadlineText.isBlank() || parseGoalDeadline(deadlineText) != null
@@ -836,6 +853,59 @@ private fun GlobalGoalPanel(
                     )
                 }
             }
+        }
+        if (deadlineMillis != null && startMillis != null) {
+            val progress = remember(
+                nowMillis / 60_000,
+                startMillis,
+                deadlineMillis,
+                workStartMinutes,
+                workEndMinutes,
+            ) {
+                calculateGoalProgress(
+                    nowMillis = nowMillis,
+                    startMillis = startMillis,
+                    deadlineMillis = deadlineMillis,
+                    startMinutesOfDay = workStartMinutes,
+                    endMinutesOfDay = workEndMinutes,
+                )
+            }
+            val animatedProgress by animateFloatAsState(progress, tween(650), label = "goal-progress")
+            val startIsValid = startText.isBlank() ||
+                (parseGoalDeadline(startText)?.let { it < deadlineMillis } ?: false)
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(colors.overlay.copy(alpha = .12f)),
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight()
+                            .fillMaxWidth(animatedProgress)
+                            .background(colors.mint, RoundedCornerShape(3.dp)),
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "${(progress * 100).roundToInt()} %",
+                    color = colors.muted,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            GoalTextField(
+                value = startText,
+                semanticLabel = "Début de l’objectif",
+                placeholder = GOAL_DATE_PLACEHOLDER,
+                onValueChange = { onStartChange(formatGoalDeadlineInput(it)) },
+                isError = !startIsValid,
+                keyboardType = KeyboardType.Number,
+                onFocusLost = onStartCommit,
+                modifier = Modifier.width(148.dp),
+            )
         }
         if (!deadlineIsValid) {
             Spacer(Modifier.height(6.dp))

@@ -105,6 +105,8 @@ fun DayViewApp(
                         changeGoalTitle = { controller.setGoalTitle(it) },
                         changeGoalDeadline = { controller.setGoalDeadlineText(it) },
                         commitGoalDeadline = { controller.commitGoalDeadline() },
+                        changeGoalStart = { controller.setGoalStartText(it) },
+                        commitGoalStart = { controller.commitGoalStart() },
                         changeFocusIntention = { controller.setFocusIntention(it) },
                         changePomodoroDuration = { controller.changePomodoroDuration(it) },
                         startPomodoro = {
