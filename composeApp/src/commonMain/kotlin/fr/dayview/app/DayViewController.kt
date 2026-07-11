@@ -95,10 +95,11 @@ internal class DayViewController(
     fun commitGoalDeadline() {
         val parsed = parseGoalDeadline(state.goalDeadlineText)
         if (parsed == null && state.goalDeadlineText.isNotBlank()) return
+        val existingStart = state.goalStartMillis
         val start = when {
             parsed == null -> null
-            state.goalStartMillis == null -> state.nowMillis
-            else -> state.goalStartMillis
+            existingStart == null || existingStart >= parsed -> state.nowMillis
+            else -> existingStart
         }
         state = state.copy(
             goalDeadlineMillis = parsed,

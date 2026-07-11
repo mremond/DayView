@@ -224,6 +224,22 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun editingTheDeadlineBeforeAnExistingStartResetsTheStartToNow() {
+        val start = parseGoalDeadline("20/12/2026 09:00")!!
+        val deadline = parseGoalDeadline("24/12/2026 18:30")!!
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(goalDeadlineMillis = deadline, goalStartMillis = start),
+        )
+        val controller = DayViewController(preferences, initialNowMillis = 5_000L)
+
+        controller.setGoalDeadlineText("15/12/2026 18:30")
+        controller.commitGoalDeadline()
+
+        assertEquals(5_000L, controller.state.goalStartMillis)
+        assertEquals(5_000L, preferences.current.goalStartMillis)
+    }
+
+    @Test
     fun commitGoalStartPersistsAValidEarlierStart() {
         val deadline = parseGoalDeadline("24/12/2026 18:30")!!
         val preferences = InMemoryDayPreferences(
