@@ -76,6 +76,7 @@ class FocusAlarmReceiver : BroadcastReceiver() {
         }
         val notification = builder
             .setSmallIcon(R.drawable.ic_dayview_notification)
+            .setColor(context.getColor(R.color.dayview_notification_accent))
             .setContentTitle("Focus terminé")
             .setContentText(intention.takeIf(String::isNotBlank) ?: "Votre session est terminée.")
             .setCategory(Notification.CATEGORY_ALARM)
