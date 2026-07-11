@@ -1,5 +1,9 @@
 package fr.dayview.app
 
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+
 data class DayPreferencesSnapshot(
     val startMinutes: Int = 8 * 60,
     val endMinutes: Int = 18 * 60,
@@ -51,6 +55,21 @@ interface DayPreferences {
     fun observe(observer: (DayPreferencesSnapshot) -> Unit): () -> Unit {
         observer(snapshot())
         return {}
+    }
+
+    val snapshots: Flow<DayPreferencesSnapshot>
+        get() = callbackFlow {
+            val stopObserving = observe { trySend(it) }
+            awaitClose { stopObserving() }
+        }
+
+    suspend fun persist(snapshot: DayPreferencesSnapshot) {
+        saveDayRange(snapshot.startMinutes, snapshot.endMinutes)
+        saveShowSeconds(snapshot.showSeconds)
+        saveSoundSettings(snapshot.soundSettings)
+        saveGlobalGoal(snapshot.goalTitle, snapshot.goalDeadlineMillis)
+        savePomodoro(snapshot.pomodoroMinutes, snapshot.pomodoroEndMillis)
+        saveFocusIntention(snapshot.focusIntention)
     }
 }
 
