@@ -86,6 +86,8 @@ import fr.dayview.app.generated.resources.busy_time_range
 import fr.dayview.app.generated.resources.countdown_day_over
 import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
+import fr.dayview.app.generated.resources.detour_time_range
+import fr.dayview.app.generated.resources.detours_today
 import fr.dayview.app.generated.resources.dialog_cancel
 import fr.dayview.app.generated.resources.dialog_ok
 import fr.dayview.app.generated.resources.focus_break_conscious
@@ -230,6 +232,9 @@ internal fun DayViewScreen(
                             focusedToday = state.focusedToday,
                             windowStart = state.dayWindow.first,
                             windowEnd = state.dayWindow.second,
+                            detourBodies = state.detourBodiesState,
+                            detoursTotal = state.detoursTotalToday,
+                            hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                         )
                         Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
@@ -274,6 +279,9 @@ internal fun DayViewScreen(
                     focusedToday = state.focusedToday,
                     windowStart = state.dayWindow.first,
                     windowEnd = state.dayWindow.second,
+                    detourBodies = state.detourBodiesState,
+                    detoursTotal = state.detoursTotalToday,
+                    hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                 )
                 Spacer(Modifier.height(12.dp))
                 CompactTodayContent(
@@ -616,6 +624,9 @@ internal fun CountdownCircle(
     focusedToday: Duration = Duration.ZERO,
     windowStart: Instant = Instant.fromEpochMilliseconds(0L),
     windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
+    detourBodies: List<DetourBody> = emptyList(),
+    detoursTotal: Duration = Duration.ZERO,
+    hasGoal: Boolean = false,
 ) {
     val colors = LocalDayViewColors.current
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
@@ -628,6 +639,7 @@ internal fun CountdownCircle(
         label = "accent",
     )
     var hoveredBusy by remember { mutableStateOf<HoveredBusyArc?>(null) }
+    var hoveredDetour by remember { mutableStateOf<HoveredDetourBody?>(null) }
 
     Box(modifier = modifier.testTag(DayViewTestTags.Countdown), contentAlignment = Alignment.Center) {
         BoxWithConstraints(
@@ -635,22 +647,29 @@ internal fun CountdownCircle(
             contentAlignment = Alignment.Center,
         ) {
             val circleSize = minOf(maxWidth, maxHeight, 510.dp)
-            val circleModifier = if (busyArcs.isEmpty()) {
+            val circleModifier = if (busyArcs.isEmpty() && detourBodies.isEmpty()) {
                 Modifier.size(circleSize)
             } else {
-                Modifier.size(circleSize).pointerInput(busyArcs) {
+                Modifier.size(circleSize).pointerInput(busyArcs, detourBodies) {
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent()
                             val position = event.changes.firstOrNull()?.position
                             if (event.type == PointerEventType.Exit || position == null) {
                                 hoveredBusy = null
+                                hoveredDetour = null
                             } else if (
                                 event.type == PointerEventType.Move ||
                                 event.type == PointerEventType.Enter
                             ) {
-                                hoveredBusy = hitTestBusyArc(position, size.width, size.height, busyArcs)
-                                    ?.let { HoveredBusyArc(it, position) }
+                                val body = hitTestDetourBody(position.x, position.y, size.width, size.height, detourBodies)
+                                hoveredDetour = body?.let { HoveredDetourBody(it, position) }
+                                hoveredBusy = if (body != null) {
+                                    null
+                                } else {
+                                    hitTestBusyArc(position, size.width, size.height, busyArcs)
+                                        ?.let { HoveredBusyArc(it, position) }
+                                }
                             }
                         }
                     }
@@ -671,6 +690,19 @@ internal fun CountdownCircle(
                         size = arcSize,
                         style = Stroke(strokeWidth, cap = StrokeCap.Round),
                     )
+
+                    if (hasGoal) {
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(colors.amber.copy(alpha = .10f), Color.Transparent),
+                                center = center,
+                                radius = size.minDimension * .30f,
+                            ),
+                            radius = size.minDimension * .30f,
+                            center = center,
+                        )
+                    }
 
                     busyArcs.forEach { arc ->
                         drawArc(
@@ -770,6 +802,20 @@ internal fun CountdownCircle(
                             )
                         }
                     }
+
+                    detourBodies.forEach { body ->
+                        val angleRadians = Math.toRadians(body.angleDegrees.toDouble())
+                        val arcRadius = arcSize.width / 2f
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val bodyCenter = center + Offset(
+                            x = (kotlin.math.cos(angleRadians) * arcRadius).toFloat(),
+                            y = (kotlin.math.sin(angleRadians) * arcRadius).toFloat(),
+                        )
+                        val color = colors.detours[body.colorIndex % colors.detours.size]
+                        val radius = strokeWidth * (.3f + .38f * body.sizeFraction)
+                        drawCircle(color = color.copy(alpha = .25f), radius = radius * 1.45f, center = bodyCenter)
+                        drawCircle(color = color, radius = radius, center = bodyCenter)
+                    }
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -823,6 +869,16 @@ internal fun CountdownCircle(
                                 letterSpacing = .5.sp,
                             )
                         }
+                        if (detoursTotal > Duration.ZERO) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                stringResource(Res.string.detours_today, formatDurationHm(detoursTotal)),
+                                color = colors.amber,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = .5.sp,
+                            )
+                        }
                     }
                 }
 
@@ -868,12 +924,44 @@ internal fun CountdownCircle(
                         }
                     }
                 }
+
+                hoveredDetour?.let { hovered ->
+                    val body = hovered.body
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset {
+                                IntOffset(
+                                    hovered.position.x.roundToInt() + 14,
+                                    hovered.position.y.roundToInt() + 14,
+                                )
+                            }
+                            .background(colors.panel, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Column {
+                            Text(body.motif, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                stringResource(
+                                    Res.string.detour_time_range,
+                                    formatClockHm(body.start),
+                                    formatClockHm(body.end),
+                                    formatDurationHm(body.end - body.start),
+                                ),
+                                color = colors.muted,
+                                fontSize = 11.sp,
+                                letterSpacing = .5.sp,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 private data class HoveredBusyArc(val arc: BusyArc, val position: Offset)
+private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 
 /** Renvoie l'arc occupé sous le pointeur, ou null si le pointeur n'est pas sur l'anneau. */
 private fun hitTestBusyArc(

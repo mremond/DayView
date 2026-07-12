@@ -180,4 +180,8 @@
     <string name="desktop_minute">Minute</string>
     <string name="desktop_choose_time">Choose the time</string>
     <string name="desktop_nudge_title">Back to the essential</string>
+
+    <!-- Detours -->
+    <string name="detours_today">Detours %1$s</string>
+    <string name="detour_time_range">%1$s – %2$s · %3$s</string>
 </resources>

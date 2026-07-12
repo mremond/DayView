@@ -22,6 +22,7 @@ internal data class DayViewColors(
     val red: Color,
     val glow: Color,
     val overlay: Color,
+    val detours: List<Color>,
 )
 
 internal val DarkDayViewColors = DayViewColors(
@@ -34,6 +35,14 @@ internal val DarkDayViewColors = DayViewColors(
     red = Color(0xFFFF7272),
     glow = Color(0xFF171B22),
     overlay = Color.White,
+    detours = listOf(
+        Color(0xFFFFB86B), // amber
+        Color(0xFFE7CE6B), // gold
+        Color(0xFFF2856D), // coral
+        Color(0xFFE58FB6), // rose
+        Color(0xFFB48EE0), // plum
+        Color(0xFFD9B08C), // sand
+    ),
 )
 
 internal val LightDayViewColors = DayViewColors(
@@ -46,6 +55,14 @@ internal val LightDayViewColors = DayViewColors(
     red = Color(0xFFC74646),
     glow = Color(0xFFDCEAE3),
     overlay = Color(0xFF16211D),
+    detours = listOf(
+        Color(0xFFB76218), // amber
+        Color(0xFF8F7A1C), // gold
+        Color(0xFFB0492F), // coral
+        Color(0xFFA34D74), // rose
+        Color(0xFF6E4AA3), // plum
+        Color(0xFF8A6844), // sand
+    ),
 )
 
 internal val LocalDayViewColors = staticCompositionLocalOf { DarkDayViewColors }
