@@ -16,6 +16,14 @@ internal enum class DayViewDestination {
     SETTINGS,
 }
 
+internal enum class SettingsCategory {
+    DAY,
+    DISPLAY,
+    SOUNDS,
+    NET_TIME,
+    ON_GOAL,
+}
+
 internal data class DayViewUiState(
     val now: Instant,
     val startMinutes: Int,
@@ -41,6 +49,7 @@ internal data class DayViewUiState(
     val detours: List<DetourEpisode> = emptyList(),
     val recentDetourMotifs: List<String> = emptyList(),
     val destination: DayViewDestination = DayViewDestination.TODAY,
+    val settingsCategory: SettingsCategory? = null,
 ) {
     private val dayNow: Instant
         get() = if (showSeconds) now else now - (now.toEpochMilliseconds() % 60_000L).milliseconds
@@ -150,7 +159,15 @@ internal class DayViewController(
     }
 
     fun openSettings() {
-        state = state.copy(destination = DayViewDestination.SETTINGS)
+        state = state.copy(destination = DayViewDestination.SETTINGS, settingsCategory = null)
+    }
+
+    fun openSettingsCategory(category: SettingsCategory) {
+        state = state.copy(settingsCategory = category)
+    }
+
+    fun closeSettingsCategory() {
+        state = state.copy(settingsCategory = null)
     }
 
     fun openToday() {

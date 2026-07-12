@@ -16,5 +16,11 @@ internal object DayViewTestTags {
     const val FocusStop = "focusStop"
     const val SettingsShowSeconds = "settingsShowSeconds"
     const val SettingsBack = "settingsBack"
-    const val SettingsSounds = "settingsSounds"
+    const val SettingsDayScreen = "settingsDayScreen"
+    const val SettingsDisplayScreen = "settingsDisplayScreen"
+    const val SettingsSoundsScreen = "settingsSoundsScreen"
+    const val SettingsNetTimeScreen = "settingsNetTimeScreen"
+    const val SettingsOnGoalScreen = "settingsOnGoalScreen"
+
+    fun settingsCategoryRow(category: SettingsCategory): String = "settingsCategoryRow_${category.name}"
 }

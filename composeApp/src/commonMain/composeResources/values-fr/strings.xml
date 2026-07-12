@@ -160,6 +160,16 @@
     <string name="volume_increase">Augmenter le volume de 10 %</string>
     <string name="sound_preview">ÉCOUTER</string>
 
+    <!-- Settings — category list summaries -->
+    <string name="settings_summary_day">%1$s – %2$s</string>
+    <string name="settings_summary_on">Activé</string>
+    <string name="settings_summary_off">Désactivé</string>
+    <string name="settings_summary_seconds_on">Secondes affichées</string>
+    <string name="settings_summary_seconds_off">Secondes masquées</string>
+    <string name="settings_summary_sounds_on">Activé · toutes les %1$s min</string>
+    <string name="settings_summary_apps">%1$s applis</string>
+    <string name="settings_summary_no_apps">Aucune</string>
+
     <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
          macOS focus-nudge notification (used from desktopMain). -->
     <string name="desktop_day_over">Journée terminée</string>

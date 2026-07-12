@@ -505,4 +505,37 @@ class DayViewControllerTest {
         controller.addDetour("Réunion", 30)
         assertEquals(10, controller.state.detoursToday.single().duration.inWholeMinutes)
     }
+
+    @Test
+    fun openingSettingsStartsOnTheCategoryList() {
+        val controller = testController(InMemoryDayPreferences(), 1_000L)
+        controller.openSettingsCategory(SettingsCategory.SOUNDS)
+
+        controller.openSettings()
+
+        assertEquals(DayViewDestination.SETTINGS, controller.state.destination)
+        assertEquals(null, controller.state.settingsCategory)
+    }
+
+    @Test
+    fun openingACategoryDrillsIn() {
+        val controller = testController(InMemoryDayPreferences(), 1_000L)
+        controller.openSettings()
+
+        controller.openSettingsCategory(SettingsCategory.DAY)
+
+        assertEquals(SettingsCategory.DAY, controller.state.settingsCategory)
+    }
+
+    @Test
+    fun closingACategoryReturnsToTheList() {
+        val controller = testController(InMemoryDayPreferences(), 1_000L)
+        controller.openSettings()
+        controller.openSettingsCategory(SettingsCategory.DAY)
+
+        controller.closeSettingsCategory()
+
+        assertEquals(DayViewDestination.SETTINGS, controller.state.destination)
+        assertEquals(null, controller.state.settingsCategory)
+    }
 }
