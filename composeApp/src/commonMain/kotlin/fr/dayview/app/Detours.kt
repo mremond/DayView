@@ -166,6 +166,21 @@ fun hitTestDetourBody(
         ?.takeIf { angularDistance(it.angleDegrees, angle) <= 7f + 5f * it.sizeFraction }
 }
 
+/**
+ * Minutes-of-day for the "ends now" default start shown in the quick-capture dialog:
+ * a detour that ends at [now] and lasts [durationMinutes]. Clamped to a valid time of
+ * day; the day-window clamp stays in [DayViewController.addDetour].
+ */
+fun detourDefaultStartMinutes(
+    now: Instant,
+    durationMinutes: Int,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Int {
+    val local = now.toLocalDateTime(timeZone)
+    val nowMinutes = local.hour * 60 + local.minute
+    return (nowMinutes - durationMinutes.coerceIn(1, 12 * 60)).coerceIn(0, 23 * 60 + 59)
+}
+
 /** Build an episode on the same local day as [dayReference], for the list editor. */
 fun detourEpisodeAt(
     dayReference: Instant,

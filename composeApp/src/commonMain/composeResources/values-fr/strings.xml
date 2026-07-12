@@ -212,6 +212,7 @@
     <string name="detour_close_button">FERMER</string>
     <string name="detour_list_add_button">AJOUTER UN DÉTOUR</string>
     <string name="detour_start_section">DÉBUT</string>
+    <string name="detour_start_adjust">Ajuster le début</string>
     <string name="detour_duration_label">DURÉE</string>
     <string name="detour_start_decrease">Avancer le début de 5 minutes</string>
     <string name="detour_start_increase">Retarder le début de 5 minutes</string>

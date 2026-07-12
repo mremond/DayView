@@ -315,8 +315,15 @@ internal fun DayViewScreen(
         if (showDetourCapture) {
             DetourCaptureDialog(
                 recentMotifs = state.recentDetourMotifs,
-                onConfirm = { motif, durationMinutes ->
-                    actions.addDetour(motif, durationMinutes)
+                now = state.now,
+                onConfirm = { motif, durationMinutes, startMinutesOfDay ->
+                    if (startMinutesOfDay == null) {
+                        actions.addDetour(motif, durationMinutes)
+                    } else {
+                        actions.addDetourEpisode(
+                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, motif),
+                        )
+                    }
                     showDetourCapture = false
                 },
                 onDismiss = { showDetourCapture = false },
@@ -1799,12 +1806,13 @@ internal fun TimeButton(
     enabled: Boolean,
     onClickLabel: String,
     valueDescription: String,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val color = if (enabled) colors.cloud else colors.muted.copy(alpha = .4f)
     Box(
-        modifier = Modifier.size(48.dp)
+        modifier = modifier.size(48.dp)
             .background(colors.overlay.copy(alpha = if (enabled) .08f else .025f), CircleShape)
             .semantics { stateDescription = valueDescription }
             .clickable(

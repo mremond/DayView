@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,6 +63,7 @@ import fr.dayview.app.generated.resources.detour_overflow
 import fr.dayview.app.generated.resources.detour_save_button
 import fr.dayview.app.generated.resources.detour_section
 import fr.dayview.app.generated.resources.detour_source_total
+import fr.dayview.app.generated.resources.detour_start_adjust
 import fr.dayview.app.generated.resources.detour_start_decrease
 import fr.dayview.app.generated.resources.detour_start_increase
 import fr.dayview.app.generated.resources.detour_start_section
@@ -161,67 +163,130 @@ private val DETOUR_DURATION_CHOICES = listOf(5, 15, 30, 45, 60)
 @Composable
 internal fun DetourCaptureDialog(
     recentMotifs: List<String>,
-    onConfirm: (motif: String, durationMinutes: Int) -> Unit,
+    now: Instant,
+    onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        DetourCaptureContent(recentMotifs, now, onConfirm, onDismiss)
+    }
+}
+
+/**
+ * The quick-capture form, split out of [DetourCaptureDialog] so Compose UI tests can
+ * drive it without a desktop Dialog window (which `runComposeUiTest` cannot reach).
+ */
+@Composable
+internal fun DetourCaptureContent(
+    recentMotifs: List<String>,
+    now: Instant,
+    onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
+    val timeZone = TimeZone.currentSystemDefault()
     var motif by remember { mutableStateOf("") }
     var durationMinutes by remember { mutableIntStateOf(15) }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier.widthIn(max = 380.dp).fillMaxWidth()
-                .background(colors.panel, RoundedCornerShape(18.dp))
-                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                .padding(20.dp),
-        ) {
-            Text(stringResource(Res.string.detour_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+    var showStart by remember { mutableStateOf(false) }
+    var startPinned by remember { mutableStateOf(false) }
+    var pinnedStartMinutes by remember { mutableIntStateOf(0) }
+    // "Ends now" default: the start tracks the duration until the user pins it by nudging.
+    val startMinutes = if (startPinned) pinnedStartMinutes else detourDefaultStartMinutes(now, durationMinutes, timeZone)
+    Column(
+        modifier = Modifier.widthIn(max = 380.dp).fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .padding(20.dp),
+    ) {
+        Text(stringResource(Res.string.detour_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+        Spacer(Modifier.height(10.dp))
+        Text(
+            stringResource(Res.string.detour_capture_prompt),
+            color = colors.cloud,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.height(10.dp))
+        GoalTextField(
+            value = motif,
+            semanticLabel = stringResource(Res.string.detour_motif_label),
+            placeholder = stringResource(Res.string.detour_motif_placeholder),
+            onValueChange = { motif = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourMotifField),
+        )
+        if (recentMotifs.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text(
-                stringResource(Res.string.detour_capture_prompt),
-                color = colors.cloud,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Spacer(Modifier.height(10.dp))
-            GoalTextField(
-                value = motif,
-                semanticLabel = stringResource(Res.string.detour_motif_label),
-                placeholder = stringResource(Res.string.detour_motif_placeholder),
-                onValueChange = { motif = it },
-            )
-            if (recentMotifs.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                Row(Modifier.horizontalScroll(rememberScrollState())) {
-                    recentMotifs.take(6).forEachIndexed { index, recent ->
-                        if (index > 0) Spacer(Modifier.width(7.dp))
-                        DetourChip(recent, selected = recent == motif) { motif = recent }
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Spacer(Modifier.height(8.dp))
             Row(Modifier.horizontalScroll(rememberScrollState())) {
-                DETOUR_DURATION_CHOICES.forEachIndexed { index, minutes ->
+                recentMotifs.take(6).forEachIndexed { index, recent ->
                     if (index > 0) Spacer(Modifier.width(7.dp))
-                    DetourChip(
-                        stringResource(Res.string.detour_minutes_chip, minutes.toString()),
-                        selected = minutes == durationMinutes,
-                    ) { durationMinutes = minutes }
+                    DetourChip(recent, selected = recent == motif) { motif = recent }
                 }
             }
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
-                FocusActionButton(
-                    stringResource(Res.string.detour_confirm_button),
-                    colors.amber,
-                    modifier = Modifier.weight(1f),
-                    enabled = motif.isNotBlank(),
-                    filled = true,
-                    onClick = { onConfirm(motif, durationMinutes) },
-                )
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.horizontalScroll(rememberScrollState())) {
+            DETOUR_DURATION_CHOICES.forEachIndexed { index, minutes ->
+                if (index > 0) Spacer(Modifier.width(7.dp))
+                DetourChip(
+                    stringResource(Res.string.detour_minutes_chip, minutes.toString()),
+                    selected = minutes == durationMinutes,
+                ) { durationMinutes = minutes }
             }
+        }
+        Spacer(Modifier.height(14.dp))
+        if (!showStart) {
+            Text(
+                stringResource(Res.string.detour_start_adjust),
+                color = colors.amber,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.minimumInteractiveComponentSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button) { showStart = true }
+                    .testTag(DayViewTestTags.DetourStartAdjust)
+                    .padding(vertical = 6.dp, horizontal = 6.dp),
+            )
+        } else {
+            Text(stringResource(Res.string.detour_start_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TimeButton(
+                    label = "−",
+                    enabled = startMinutes >= 5,
+                    onClickLabel = stringResource(Res.string.detour_start_decrease),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
+                ) {
+                    pinnedStartMinutes = (startMinutes - 5).coerceAtLeast(0)
+                    startPinned = true
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(formatMinutesOfDay(startMinutes), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
+                Spacer(Modifier.width(10.dp))
+                TimeButton(
+                    label = "+",
+                    enabled = startMinutes <= 23 * 60 + 54,
+                    onClickLabel = stringResource(Res.string.detour_start_increase),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
+                    modifier = Modifier.testTag(DayViewTestTags.DetourStartIncrease),
+                ) {
+                    pinnedStartMinutes = (startMinutes + 5).coerceAtMost(23 * 60 + 59)
+                    startPinned = true
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+            FocusActionButton(
+                stringResource(Res.string.detour_confirm_button),
+                colors.amber,
+                modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourConfirm),
+                enabled = motif.isNotBlank(),
+                filled = true,
+                onClick = { onConfirm(motif, durationMinutes, if (startPinned) startMinutes else null) },
+            )
         }
     }
 }

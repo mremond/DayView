@@ -156,6 +156,21 @@ class DetoursTest {
     }
 
     @Test
+    fun defaultStartMinutesEndsNow() {
+        val zone = TimeZone.of("Europe/Paris")
+        val now = Instant.parse("2026-07-12T10:00:00Z") // 12:00 local
+        assertEquals(12 * 60 - 15, detourDefaultStartMinutes(now, 15, zone))
+        assertEquals(12 * 60 - 60, detourDefaultStartMinutes(now, 60, zone))
+    }
+
+    @Test
+    fun defaultStartMinutesClampsToMidnight() {
+        val zone = TimeZone.of("Europe/Paris")
+        val now = Instant.parse("2026-07-11T22:20:00Z") // 00:20 local on 07-12
+        assertEquals(0, detourDefaultStartMinutes(now, 60, zone))
+    }
+
+    @Test
     fun sanitizeIsIdempotentAtTheTruncationBoundary() {
         val raw = "a".repeat(59) + " bcd" // truncates to 59 'a' + trailing space
         val once = sanitizeDetourMotif(raw)
