@@ -1,5 +1,10 @@
 package fr.dayview.app
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.datetime.LocalDateTime
@@ -56,3 +61,47 @@ internal fun noopSettingsActions(
     previewSound = previewSound,
     back = back,
 )
+
+/** A full [DayViewScreenActions] of no-ops with the relevant callbacks overridable. */
+internal fun noopDayViewActions(
+    openSettings: () -> Unit = {},
+    changeFocusIntention: (String) -> Unit = {},
+    changePomodoroDuration: (Int) -> Unit = {},
+    startPomodoro: () -> Unit = {},
+    stopPomodoro: () -> Unit = {},
+    closePomodoro: (FocusClosureOutcome) -> Unit = {},
+): DayViewScreenActions = DayViewScreenActions(
+    openSettings = openSettings,
+    openMiniWindow = null,
+    changeGoalTitle = {},
+    changeGoalDeadline = {},
+    commitGoalDeadline = {},
+    changeGoalStart = {},
+    commitGoalStart = {},
+    changeFocusIntention = changeFocusIntention,
+    changePomodoroDuration = changePomodoroDuration,
+    startPomodoro = startPomodoro,
+    stopPomodoro = stopPomodoro,
+    closePomodoro = closePomodoro,
+)
+
+internal fun noReminders(): FocusReminderUiState = FocusReminderUiState(
+    showDriftReminder = false,
+    dismissDriftReminder = {},
+    showResumeRitual = false,
+    dismissResumeRitual = {},
+)
+
+/** Renders [DayViewScreen] forced into the wide layout so Goal/Focus panels render inline. */
+@Composable
+internal fun WideDayView(
+    state: DayViewUiState,
+    actions: DayViewScreenActions,
+    reminders: FocusReminderUiState = noReminders(),
+) {
+    DayViewTheme {
+        Box(Modifier.requiredSize(1100.dp, 900.dp)) {
+            DayViewScreen(state = state, actions = actions, reminders = reminders)
+        }
+    }
+}

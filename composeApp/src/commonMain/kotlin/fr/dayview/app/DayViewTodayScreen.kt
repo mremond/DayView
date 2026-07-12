@@ -64,6 +64,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -628,7 +629,7 @@ internal fun CountdownCircle(
     )
     var hoveredBusy by remember { mutableStateOf<HoveredBusyArc?>(null) }
 
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(modifier = modifier.testTag(DayViewTestTags.Countdown), contentAlignment = Alignment.Center) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
@@ -1096,7 +1097,12 @@ private fun FocusPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(formatPomodoroClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
                 Spacer(Modifier.weight(1f))
-                FocusActionButton(stringResource(Res.string.focus_stop), colors.red, onClick = onStop)
+                FocusActionButton(
+                    stringResource(Res.string.focus_stop),
+                    colors.red,
+                    modifier = Modifier.testTag(DayViewTestTags.FocusStop),
+                    onClick = onStop,
+                )
             }
             Spacer(Modifier.height(12.dp))
             Box(
@@ -1239,7 +1245,7 @@ private fun FocusCreationContent(
     FocusActionButton(
         stringResource(Res.string.focus_start_full_button),
         colors.amber,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.FocusStart),
         enabled = intention.isNotBlank(),
         filled = true,
         onClick = onStart,
