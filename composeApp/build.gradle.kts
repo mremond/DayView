@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 // Single source of truth for the app version: Android versionName/versionCode,
@@ -64,6 +65,12 @@ kotlin {
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.androidx.datastore.preferences.core)
                 implementation(libs.jetbrains.lifecycle.runtime.compose)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.json)
+                implementation(libs.cryptography.core)
+                implementation(libs.cryptography.provider.jdk)
             }
         }
         val commonTest by getting {
@@ -71,6 +78,7 @@ kotlin {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.okio.fakefilesystem)
+                implementation(libs.ktor.client.mock)
             }
         }
         val androidMain by getting {
@@ -78,6 +86,7 @@ kotlin {
                 implementation(libs.compose.ui.tooling.preview)
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.datastore.preferences)
+                implementation(libs.ktor.client.okhttp)
             }
         }
         val androidUnitTest by getting {
@@ -92,6 +101,7 @@ kotlin {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.jna)
+                implementation(libs.ktor.client.java)
             }
         }
         val desktopTest by getting {
