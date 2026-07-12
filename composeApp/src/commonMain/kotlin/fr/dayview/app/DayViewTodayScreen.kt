@@ -1087,10 +1087,15 @@ private fun hitTestBusyArc(
     val cy = height / 2f
     val dx = position.x - cx
     val dy = position.y - cy
+    // The busy band rides an inner lane, so the radius window reaches further in than the
+    // detour band; the nearest arc within a small angular tolerance wins, which gives very
+    // short events (a thin arc) a hoverable margin instead of a pixel-wide target.
     val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
-    if (radiusFraction !in 0.70f..1.02f) return null
+    if (radiusFraction !in 0.60f..1.02f) return null
     val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-    return busyBlockArcs.firstOrNull { arcContainsAngle(it.startAngleDegrees, it.sweepDegrees, angle) }
+    return busyBlockArcs
+        .minByOrNull { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angle) }
+        ?.takeIf { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angle) <= 5f }
 }
 
 @Composable

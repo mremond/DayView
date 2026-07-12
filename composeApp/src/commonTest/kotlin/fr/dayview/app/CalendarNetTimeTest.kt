@@ -137,6 +137,18 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun angularDistanceToArcIsZeroInsideAndGrowsOutside() {
+        // Arc bas-gauche 200°..240°.
+        assertEquals(0f, angularDistanceToArc(200f, 40f, 220f)) // à l'intérieur
+        assertEquals(5f, angularDistanceToArc(200f, 40f, 195f)) // 5° avant le début
+        assertEquals(10f, angularDistanceToArc(200f, 40f, 250f)) // 10° après la fin (240°)
+        // Wraparound : -140° ≡ 220°, donc à l'intérieur.
+        assertEquals(0f, angularDistanceToArc(200f, 40f, -140f))
+        // Arc au sommet à cheval sur -90° : -90° est dedans, 0° est à 70° de la fin.
+        assertEquals(0f, angularDistanceToArc(-100f, 20f, -90f))
+    }
+
+    @Test
     fun durationFormatting() {
         assertEquals("2 h 45", formatDurationHm(2.hours + 45.minutes))
         assertEquals("27 min", formatDurationHm(27.minutes))

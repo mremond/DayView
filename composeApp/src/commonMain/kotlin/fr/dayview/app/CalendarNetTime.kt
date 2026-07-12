@@ -180,6 +180,20 @@ fun arcContainsAngle(startAngleDegrees: Float, sweepDegrees: Float, angleDegrees
     return delta <= sweepDegrees
 }
 
+/**
+ * Écart angulaire (degrés) entre [angleDegrees] et le balayage de l'arc : 0 à l'intérieur,
+ * sinon la distance à l'extrémité la plus proche (wraparound compris). Sert à donner une marge
+ * de survol aux créneaux très courts, dont l'arc est trop mince pour être visé directement.
+ */
+fun angularDistanceToArc(startAngleDegrees: Float, sweepDegrees: Float, angleDegrees: Float): Float {
+    if (arcContainsAngle(startAngleDegrees, sweepDegrees, angleDegrees)) return 0f
+    fun gap(a: Float, b: Float): Float {
+        val d = (((a - b) % 360f) + 360f) % 360f
+        return minOf(d, 360f - d)
+    }
+    return minOf(gap(angleDegrees, startAngleDegrees), gap(angleDegrees, startAngleDegrees + sweepDegrees))
+}
+
 data class FocusArc(
     val startAngleDegrees: Float,
     val sweepDegrees: Float,
