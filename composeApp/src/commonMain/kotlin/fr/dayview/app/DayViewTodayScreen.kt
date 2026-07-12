@@ -84,6 +84,8 @@ import fr.dayview.app.generated.resources.app_wordmark
 import fr.dayview.app.generated.resources.busy_generic
 import fr.dayview.app.generated.resources.busy_remaining
 import fr.dayview.app.generated.resources.busy_time_range
+import fr.dayview.app.generated.resources.clean_sessions_today
+import fr.dayview.app.generated.resources.clean_streak
 import fr.dayview.app.generated.resources.countdown_day_over
 import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
@@ -241,6 +243,8 @@ internal fun DayViewScreen(
                             windowEnd = state.dayWindow.second,
                             detourBodies = state.detourBodiesState,
                             detoursTotal = state.detoursTotalToday,
+                            cleanSessionsToday = state.cleanSessionsToday,
+                            streakDays = state.cleanStreakDays,
                             hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                             onOpenDetourList = { showDetourList = true },
                         )
@@ -295,6 +299,8 @@ internal fun DayViewScreen(
                     windowEnd = state.dayWindow.second,
                     detourBodies = state.detourBodiesState,
                     detoursTotal = state.detoursTotalToday,
+                    cleanSessionsToday = state.cleanSessionsToday,
+                    streakDays = state.cleanStreakDays,
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                     onOpenDetourList = { showDetourList = true },
                 )
@@ -678,6 +684,8 @@ internal fun CountdownCircle(
     windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
     detourBodies: List<DetourBody> = emptyList(),
     detoursTotal: Duration = Duration.ZERO,
+    cleanSessionsToday: Int = 0,
+    streakDays: Int = 0,
     hasGoal: Boolean = false,
     onOpenDetourList: (() -> Unit)? = null,
 ) {
@@ -948,6 +956,23 @@ internal fun CountdownCircle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 letterSpacing = .5.sp,
+                            )
+                        }
+                        if (cleanSessionsToday > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            val label = if (streakDays > 0) {
+                                stringResource(Res.string.clean_sessions_today, cleanSessionsToday) +
+                                    " · " + stringResource(Res.string.clean_streak, streakDays)
+                            } else {
+                                stringResource(Res.string.clean_sessions_today, cleanSessionsToday)
+                            }
+                            Text(
+                                label,
+                                color = colors.mint,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = .5.sp,
+                                modifier = Modifier.testTag(DayViewTestTags.CleanSessions),
                             )
                         }
                     }
