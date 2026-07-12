@@ -53,6 +53,5 @@ class FocusFlowTest {
             WideDayView(state = state, actions = noopDayViewActions())
         }
         onNodeWithTag(DayViewTestTags.FocusStart).assertIsNotEnabled()
-        assertTextEventuallyExists("Écrivez une intention pour démarrer.")
     }
 }

@@ -14,4 +14,5 @@ internal object DayViewTestTags {
     const val FocusStop = "focusStop"
     const val SettingsShowSeconds = "settingsShowSeconds"
     const val SettingsBack = "settingsBack"
+    const val SettingsSounds = "settingsSounds"
 }

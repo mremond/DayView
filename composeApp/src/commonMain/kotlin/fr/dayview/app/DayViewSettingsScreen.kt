@@ -620,7 +620,14 @@ private fun SoundSettingsPanel(
     onPreview: (SoundCue) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Text(stringResource(Res.string.settings_section_sounds), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+    Text(
+        stringResource(Res.string.settings_section_sounds),
+        color = colors.mint,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.4.sp,
+        modifier = Modifier.testTag(DayViewTestTags.SettingsSounds),
+    )
     Spacer(Modifier.height(8.dp))
     Text(
         stringResource(Res.string.settings_sounds_description),
