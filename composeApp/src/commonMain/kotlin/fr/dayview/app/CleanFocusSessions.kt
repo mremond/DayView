@@ -59,3 +59,39 @@ class SessionCleanlinessTracker {
         return accumulated
     }
 }
+
+/**
+ * Day-scoped tally of serious sessions plus streak state. Persisted; the empty default
+ * (all sentinels) is what a fresh install reads back.
+ */
+data class CleanSessionLedger(
+    val dayKey: Long = -1L,
+    val cleanToday: Int = 0,
+    val streakDays: Int = 0,
+    val streakLastDayKey: Long = -1L,
+)
+
+/** Reset today's count when the day changed; leave streak state untouched (broken lazily). */
+fun rollOver(ledger: CleanSessionLedger, dayKey: Long): CleanSessionLedger = if (ledger.dayKey == dayKey) ledger else ledger.copy(dayKey = dayKey, cleanToday = 0)
+
+/**
+ * Record one serious session on [dayKey]: increment today's count and, if it is the day's
+ * first, extend the streak (consecutive day) or restart it at 1 (after a gap).
+ */
+fun registerCleanSession(ledger: CleanSessionLedger, dayKey: Long): CleanSessionLedger {
+    val rolled = rollOver(ledger, dayKey)
+    val firstToday = rolled.cleanToday == 0
+    val streakDays = when {
+        !firstToday -> rolled.streakDays
+        rolled.streakLastDayKey == dayKey - 1 -> rolled.streakDays + 1
+        else -> 1
+    }
+    return rolled.copy(
+        cleanToday = rolled.cleanToday + 1,
+        streakDays = streakDays,
+        streakLastDayKey = dayKey,
+    )
+}
+
+/** Streak to show today: the stored value only while still alive, else 0 (never stale). */
+fun displayedStreak(ledger: CleanSessionLedger, dayKey: Long): Int = if (ledger.streakLastDayKey >= dayKey - 1) ledger.streakDays else 0

@@ -98,4 +98,57 @@ class CleanFocusSessionsTest {
         tracker.observe(at(10_000L), null, OnGoalState.OFF_GOAL)
         assertEquals(0.seconds, tracker.offGoalDuration)
     }
+
+    @Test
+    fun firstCleanSessionStartsCountAndStreak() {
+        val after = registerCleanSession(CleanSessionLedger(), dayKey = 100L)
+        assertEquals(100L, after.dayKey)
+        assertEquals(1, after.cleanToday)
+        assertEquals(1, after.streakDays)
+        assertEquals(100L, after.streakLastDayKey)
+    }
+
+    @Test
+    fun secondCleanSessionSameDayIncrementsCountNotStreak() {
+        val first = registerCleanSession(CleanSessionLedger(), dayKey = 100L)
+        val second = registerCleanSession(first, dayKey = 100L)
+        assertEquals(2, second.cleanToday)
+        assertEquals(1, second.streakDays)
+    }
+
+    @Test
+    fun consecutiveDayExtendsStreakAndResetsCount() {
+        val day100 = registerCleanSession(CleanSessionLedger(), dayKey = 100L)
+        val day101 = registerCleanSession(day100, dayKey = 101L)
+        assertEquals(1, day101.cleanToday)
+        assertEquals(2, day101.streakDays)
+        assertEquals(101L, day101.streakLastDayKey)
+    }
+
+    @Test
+    fun gapRestartsStreakAtOne() {
+        val day100 = registerCleanSession(CleanSessionLedger(), dayKey = 100L)
+        val day103 = registerCleanSession(day100, dayKey = 103L)
+        assertEquals(1, day103.streakDays)
+    }
+
+    @Test
+    fun rollOverResetsCountButKeepsStreakState() {
+        val day100 = registerCleanSession(CleanSessionLedger(), dayKey = 100L)
+        val rolled = rollOver(day100, dayKey = 101L)
+        assertEquals(101L, rolled.dayKey)
+        assertEquals(0, rolled.cleanToday)
+        assertEquals(1, rolled.streakDays)
+        assertEquals(100L, rolled.streakLastDayKey)
+    }
+
+    @Test
+    fun displayedStreakHidesADeadStreak() {
+        val ledger = CleanSessionLedger(dayKey = 100L, cleanToday = 0, streakDays = 3, streakLastDayKey = 100L)
+        // Same day and next day: still alive.
+        assertEquals(3, displayedStreak(ledger, dayKey = 100L))
+        assertEquals(3, displayedStreak(ledger, dayKey = 101L))
+        // A day was missed with nothing yet today: shown as 0.
+        assertEquals(0, displayedStreak(ledger, dayKey = 102L))
+    }
 }
