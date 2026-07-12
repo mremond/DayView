@@ -699,10 +699,11 @@ internal fun CountdownCircle(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            val circleSize = minOf(maxWidth, maxHeight, 510.dp)
-            // Shrink the counter type in step with the ring so the numerals keep their
-            // proportion instead of dwarfing the dial in the mini and compact windows.
-            val counterScale = (circleSize / 380.dp).coerceIn(.72f, 1f)
+            val circleSize = countdownCircleSize(minOf(maxWidth, maxHeight))
+            // Scale the counter type in step with the ring so the numerals keep their
+            // proportion: they shrink in the mini and compact windows and grow to fill a
+            // large dial on Supernote / a maximized desktop window.
+            val counterScale = countdownCounterScale(circleSize)
             val circleModifier = if (busyArcs.isEmpty() && detourBodies.isEmpty()) {
                 Modifier.size(circleSize)
             } else {
