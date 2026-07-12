@@ -23,4 +23,17 @@ class OnGoalAppsTest {
     fun decodeOfEmptyStringIsEmptySet() {
         assertEquals(emptySet(), decodeAppRefs(""))
     }
+
+    @Test
+    fun selectableExcludesDayViewItself() {
+        val apps = listOf(
+            AppRef("com.apple.dt.Xcode", "Xcode"),
+            AppRef(DAYVIEW_BUNDLE_ID, "DayView"),
+            AppRef("com.processone.draftline", "Draftline"),
+        )
+        assertEquals(
+            listOf(AppRef("com.apple.dt.Xcode", "Xcode"), AppRef("com.processone.draftline", "Draftline")),
+            selectableApps(apps),
+        )
+    }
 }

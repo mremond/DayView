@@ -23,6 +23,7 @@ class MacRunningApplicationsProvider {
             val name = readString(app, "localizedName") ?: bundleId
             AppRef(bundleId, name)
         }.distinctBy { it.bundleId }.sortedBy { it.displayName.lowercase() }
+            .let(::selectableApps)
     }.getOrDefault(emptyList())
 
     private fun cls(name: String): Pointer? = runtime.objc_getClass(name)

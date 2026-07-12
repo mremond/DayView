@@ -37,7 +37,7 @@ internal class FocusDriftDetector(
     private val initialGrace: Duration = 30.seconds,
     private val reminderCooldown: Duration = 5.minutes,
     private val sustainedOffGoal: Duration = 120.seconds,
-    private val dayViewBundleId: String = "fr.dayview.app",
+    private val dayViewBundleId: String = DAYVIEW_BUNDLE_ID,
 ) {
     private val switchTimes = ArrayDeque<Instant>()
     private var wasActive = false
