@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,8 +41,6 @@ import fr.dayview.app.generated.resources.calendar_no_name
 import fr.dayview.app.generated.resources.day_end
 import fr.dayview.app.generated.resources.day_start
 import fr.dayview.app.generated.resources.interval_minutes
-import fr.dayview.app.generated.resources.modify
-import fr.dayview.app.generated.resources.modify_label
 import fr.dayview.app.generated.resources.settings_add_app
 import fr.dayview.app.generated.resources.settings_add_apps
 import fr.dayview.app.generated.resources.settings_autosave_note
@@ -84,7 +83,6 @@ import fr.dayview.app.generated.resources.sound_interval_detail
 import fr.dayview.app.generated.resources.sound_interval_increase
 import fr.dayview.app.generated.resources.sound_interval_label
 import fr.dayview.app.generated.resources.sound_interval_value
-import fr.dayview.app.generated.resources.sound_preview
 import fr.dayview.app.generated.resources.sound_volume
 import fr.dayview.app.generated.resources.volume_decrease
 import fr.dayview.app.generated.resources.volume_increase
@@ -168,12 +166,7 @@ internal fun SettingsScreen(
                     lineHeight = 19.sp,
                 )
                 Spacer(Modifier.height(18.dp))
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                        .background(colors.panel, RoundedCornerShape(18.dp))
-                        .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                ) {
+                SettingsPanelCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
                     TimePreferenceRow(
                         label = stringResource(Res.string.day_start),
                         hour = progress.startHour,
@@ -186,7 +179,7 @@ internal fun SettingsScreen(
                             )
                         },
                     )
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.overlay.copy(alpha = .06f)))
+                    SettingsDivider()
                     TimePreferenceRow(
                         label = stringResource(Res.string.day_end),
                         hour = progress.endHour,
@@ -203,117 +196,33 @@ internal fun SettingsScreen(
                 Spacer(Modifier.height(24.dp))
                 Text(stringResource(Res.string.settings_section_display), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .testTag(DayViewTestTags.SettingsShowSeconds)
-                        .background(colors.panel, RoundedCornerShape(18.dp))
-                        .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                        .toggleable(
-                            value = state.showSeconds,
-                            role = Role.Switch,
-                            onValueChange = actions.changeShowSeconds,
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(Res.string.settings_show_seconds),
-                            color = colors.cloud,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.1.sp,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(Res.string.settings_show_seconds_description),
-                            color = colors.muted,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                        )
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    Switch(
-                        checked = state.showSeconds,
-                        onCheckedChange = null,
-                    )
-                }
+                SettingsToggleRow(
+                    title = stringResource(Res.string.settings_show_seconds),
+                    description = stringResource(Res.string.settings_show_seconds_description),
+                    checked = state.showSeconds,
+                    onCheckedChange = actions.changeShowSeconds,
+                    modifier = Modifier.testTag(DayViewTestTags.SettingsShowSeconds),
+                )
                 if (
                     platformState.monochromeMenuBarIcon != null &&
                     actions.changeMonochromeMenuBarIcon != null
                 ) {
                     Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .background(colors.panel, RoundedCornerShape(18.dp))
-                            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                            .toggleable(
-                                value = platformState.monochromeMenuBarIcon,
-                                role = Role.Switch,
-                                onValueChange = actions.changeMonochromeMenuBarIcon,
-                            )
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(Res.string.settings_monochrome_icon),
-                                color = colors.cloud,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.1.sp,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                stringResource(Res.string.settings_monochrome_icon_description),
-                                color = colors.muted,
-                                fontSize = 11.sp,
-                                lineHeight = 16.sp,
-                            )
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Switch(
-                            checked = platformState.monochromeMenuBarIcon,
-                            onCheckedChange = null,
-                        )
-                    }
+                    SettingsToggleRow(
+                        title = stringResource(Res.string.settings_monochrome_icon),
+                        description = stringResource(Res.string.settings_monochrome_icon_description),
+                        checked = platformState.monochromeMenuBarIcon,
+                        onCheckedChange = actions.changeMonochromeMenuBarIcon,
+                    )
                 }
                 if (platformState.launchAtLogin != null && actions.changeLaunchAtLogin != null) {
                     Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .background(colors.panel, RoundedCornerShape(18.dp))
-                            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                            .toggleable(
-                                value = platformState.launchAtLogin,
-                                role = Role.Switch,
-                                onValueChange = actions.changeLaunchAtLogin,
-                            )
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(Res.string.settings_launch_at_login),
-                                color = colors.cloud,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.1.sp,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                stringResource(Res.string.settings_launch_at_login_description),
-                                color = colors.muted,
-                                fontSize = 11.sp,
-                                lineHeight = 16.sp,
-                            )
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Switch(
-                            checked = platformState.launchAtLogin,
-                            onCheckedChange = null,
-                        )
-                    }
+                    SettingsToggleRow(
+                        title = stringResource(Res.string.settings_launch_at_login),
+                        description = stringResource(Res.string.settings_launch_at_login_description),
+                        checked = platformState.launchAtLogin,
+                        onCheckedChange = actions.changeLaunchAtLogin,
+                    )
                 }
                 Spacer(Modifier.height(24.dp))
                 SoundSettingsPanel(
@@ -360,44 +269,22 @@ private fun NetTimeSettingsPanel(
     onRequestPermission: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Text(stringResource(Res.string.settings_section_net_time), color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-    Spacer(Modifier.height(8.dp))
-    Text(
-        stringResource(Res.string.settings_net_time_description),
-        color = colors.muted,
-        fontSize = 13.sp,
-        lineHeight = 19.sp,
+    SettingsSectionHeader(
+        title = stringResource(Res.string.settings_section_net_time),
+        description = stringResource(Res.string.settings_net_time_description),
     )
     Spacer(Modifier.height(14.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .background(colors.panel, RoundedCornerShape(18.dp))
-            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-            .toggleable(
-                value = settings.enabled,
-                role = Role.Switch,
-                onValueChange = { onSettingsChange(settings.copy(enabled = it)) },
-            )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(Res.string.settings_net_time_toggle), color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(Res.string.settings_disabled_default_m), color = colors.muted, fontSize = 11.sp)
-        }
-        Switch(checked = settings.enabled, onCheckedChange = null)
-    }
+    SettingsToggleRow(
+        title = stringResource(Res.string.settings_net_time_toggle),
+        description = stringResource(Res.string.settings_disabled_default_m),
+        checked = settings.enabled,
+        onCheckedChange = { onSettingsChange(settings.copy(enabled = it)) },
+    )
 
     if (settings.enabled) {
         Spacer(Modifier.height(10.dp))
         if (!hasPermission) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-                    .background(colors.panel, RoundedCornerShape(18.dp))
-                    .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                    .padding(16.dp),
-            ) {
+            SettingsPanelCard(contentPadding = PaddingValues(16.dp)) {
                 Text(
                     stringResource(Res.string.settings_calendar_permission_prompt),
                     color = colors.cloud,
@@ -405,30 +292,13 @@ private fun NetTimeSettingsPanel(
                     lineHeight = 18.sp,
                 )
                 Spacer(Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier.minimumInteractiveComponentSize()
-                        .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(10.dp))
-                        .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(10.dp))
-                        .clickable(role = Role.Button, onClick = onRequestPermission)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        stringResource(Res.string.settings_grant_calendar_access),
-                        color = colors.mint,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = .7.sp,
-                    )
-                }
+                SettingsAccentButton(
+                    text = stringResource(Res.string.settings_grant_calendar_access),
+                    onClick = onRequestPermission,
+                )
             }
         } else {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-                    .background(colors.panel, RoundedCornerShape(18.dp))
-                    .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-            ) {
+            SettingsPanelCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
                 Text(
                     stringResource(Res.string.settings_calendars),
                     color = colors.muted,
@@ -620,50 +490,23 @@ private fun SoundSettingsPanel(
     onPreview: (SoundCue) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Text(
-        stringResource(Res.string.settings_section_sounds),
-        color = colors.mint,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.4.sp,
-        modifier = Modifier.testTag(DayViewTestTags.SettingsSounds),
-    )
-    Spacer(Modifier.height(8.dp))
-    Text(
-        stringResource(Res.string.settings_sounds_description),
-        color = colors.muted,
-        fontSize = 13.sp,
-        lineHeight = 19.sp,
-    )
-    Spacer(Modifier.height(14.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .background(colors.panel, RoundedCornerShape(18.dp))
-            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-            .toggleable(
-                value = settings.enabled,
-                role = Role.Switch,
-                onValueChange = { onSettingsChange(settings.copy(enabled = it)) },
-            )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(Res.string.settings_sound_cues), color = colors.cloud, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(Res.string.settings_disabled_default_p), color = colors.muted, fontSize = 11.sp)
-        }
-        Switch(checked = settings.enabled, onCheckedChange = null)
+    Column(modifier = Modifier.testTag(DayViewTestTags.SettingsSounds)) {
+        SettingsSectionHeader(
+            title = stringResource(Res.string.settings_section_sounds),
+            description = stringResource(Res.string.settings_sounds_description),
+        )
     }
+    Spacer(Modifier.height(14.dp))
+    SettingsToggleRow(
+        title = stringResource(Res.string.settings_sound_cues),
+        description = stringResource(Res.string.settings_disabled_default_p),
+        checked = settings.enabled,
+        onCheckedChange = { onSettingsChange(settings.copy(enabled = it)) },
+    )
 
     if (settings.enabled) {
         Spacer(Modifier.height(10.dp))
-        Column(
-            modifier = Modifier.fillMaxWidth()
-                .background(colors.panel, RoundedCornerShape(18.dp))
-                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-        ) {
+        SettingsPanelCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
             SoundCueSettingRow(
                 label = stringResource(Res.string.day_start),
                 detail = stringResource(Res.string.sound_day_start_detail),
@@ -682,32 +525,18 @@ private fun SoundSettingsPanel(
             if (settings.intervalCueEnabled) {
                 val choices = SoundSettings.INTERVAL_CHOICES
                 val currentIndex = choices.indexOf(SoundSettings.snapIntervalMinutes(settings.intervalMinutes))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(stringResource(Res.string.sound_every), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                    Spacer(Modifier.weight(1f))
-                    TimeButton(
-                        label = "−",
-                        enabled = currentIndex > 0,
-                        onClickLabel = stringResource(Res.string.sound_interval_decrease),
-                        valueDescription = stringResource(Res.string.sound_interval_value, settings.intervalMinutes.toString()),
-                    ) {
-                        onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex - 1]))
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Text(stringResource(Res.string.interval_minutes, settings.intervalMinutes.toString()), color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.width(10.dp))
-                    TimeButton(
-                        label = "+",
-                        enabled = currentIndex < choices.lastIndex,
-                        onClickLabel = stringResource(Res.string.sound_interval_increase),
-                        valueDescription = stringResource(Res.string.sound_interval_value, settings.intervalMinutes.toString()),
-                    ) {
-                        onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex + 1]))
-                    }
-                }
+                SettingsStepper(
+                    label = stringResource(Res.string.sound_every),
+                    valueText = stringResource(Res.string.interval_minutes, settings.intervalMinutes.toString()),
+                    canDecrease = currentIndex > 0,
+                    canIncrease = currentIndex < choices.lastIndex,
+                    decreaseLabel = stringResource(Res.string.sound_interval_decrease),
+                    increaseLabel = stringResource(Res.string.sound_interval_increase),
+                    valueDescription = stringResource(Res.string.sound_interval_value, settings.intervalMinutes.toString()),
+                    onDecrease = { onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex - 1])) },
+                    onIncrease = { onSettingsChange(settings.copy(intervalMinutes = choices[currentIndex + 1])) },
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
             }
             SettingsDivider()
             SoundCueSettingRow(
@@ -771,65 +600,5 @@ private fun SoundCueSettingRow(
         PreviewSoundButton(onPreview)
         Spacer(Modifier.width(10.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-private fun PreviewSoundButton(onClick: () -> Unit) {
-    val colors = LocalDayViewColors.current
-    Box(
-        modifier = Modifier.minimumInteractiveComponentSize()
-            .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(9.dp))
-            .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(9.dp))
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(stringResource(Res.string.sound_preview), color = colors.mint, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
-    }
-}
-
-@Composable
-private fun SettingsDivider() {
-    val colors = LocalDayViewColors.current
-    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.overlay.copy(alpha = .06f)))
-}
-
-@Composable
-private fun TimePreferenceRow(
-    label: String,
-    hour: Int,
-    minute: Int,
-    onClick: () -> Unit,
-) {
-    val colors = LocalDayViewColors.current
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .clickable(
-                role = Role.Button,
-                onClickLabel = stringResource(Res.string.modify_label, label),
-                onClick = onClick,
-            )
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column {
-            Text(label, color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
-            Spacer(Modifier.height(3.dp))
-            Text(
-                "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}",
-                color = colors.cloud,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        Text(
-            stringResource(Res.string.modify),
-            color = colors.mint,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp,
-        )
     }
 }
