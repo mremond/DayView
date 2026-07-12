@@ -7,6 +7,7 @@ plugins {
 }
 
 kotlin {
+    applyDefaultHierarchyTemplate()
     jvmToolchain(21)
 
     androidTarget()
@@ -33,6 +34,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
+        val macosMain by getting { }
         // okio-fakefilesystem is JVM-only here: adding it to the native test binary
         // triggers a Kotlin/Native IR linker crash (duplicate kotlinx.datetime.Clock
         // typealias binding). The DataStore round-trip test runs on JVM; the store's

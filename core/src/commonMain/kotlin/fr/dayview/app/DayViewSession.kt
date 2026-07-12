@@ -1,8 +1,6 @@
 package fr.dayview.app
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -47,17 +45,4 @@ class DayViewSession internal constructor(
     fun changePomodoroDuration(deltaMinutes: Int) = controller.changePomodoroDuration(deltaMinutes)
 
     fun close() = scope.cancel()
-}
-
-/** Single entry point Swift calls to build the whole graph with in-memory preferences. */
-object DayViewNative {
-    fun create(): DayViewSession {
-        val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-        val controller = DayViewController(
-            DefaultDayPreferences,
-            scope,
-            initialSnapshot = DayPreferencesSnapshot(),
-        )
-        return DayViewSession(controller, scope)
-    }
 }
