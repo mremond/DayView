@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
@@ -714,15 +715,23 @@ internal fun CountdownCircle(
                         // leading edge (the moment marker) to give relief; on a full 360° ring it
                         // would surface a visible seam where its two ends meet.
                         if (progress.hasStarted) {
-                            drawArc(
-                                brush = Brush.sweepGradient(listOf(accent.copy(alpha = .62f), accent)),
-                                startAngle = momentAngle,
-                                sweepAngle = animatedRemaining * 360f,
-                                useCenter = false,
-                                topLeft = Offset(inset, inset),
-                                size = arcSize,
-                                style = Stroke(strokeWidth, cap = StrokeCap.Round),
-                            )
+                            // A sweep gradient is anchored to the canvas (it ramps from its first
+                            // colour at 0° clockwise to its last colour at 360°, with a hard seam
+                            // where the two ends meet). Rotate the draw scope by the moment angle so
+                            // that seam coincides with the arc's own start — the gap in the ring —
+                            // instead of falling mid-arc as a visible band. The colour then ramps
+                            // smoothly from the bright leading edge to a dimmer tail.
+                            rotate(momentAngle, pivot = Offset(size.width / 2f, size.height / 2f)) {
+                                drawArc(
+                                    brush = Brush.sweepGradient(listOf(accent, accent.copy(alpha = .62f))),
+                                    startAngle = 0f,
+                                    sweepAngle = animatedRemaining * 360f,
+                                    useCenter = false,
+                                    topLeft = Offset(inset, inset),
+                                    size = arcSize,
+                                    style = Stroke(strokeWidth, cap = StrokeCap.Round),
+                                )
+                            }
                         } else {
                             drawArc(
                                 color = accent,
