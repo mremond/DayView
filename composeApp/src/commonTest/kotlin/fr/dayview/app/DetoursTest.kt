@@ -53,6 +53,18 @@ class DetoursTest {
     }
 
     @Test
+    fun removeRecentDropsMotifCaseInsensitively() {
+        assertEquals(listOf("Slack"), removeRecentDetourMotif(listOf("Slack", "dsfdsf"), "DSFDSF"))
+        assertEquals(emptyList(), removeRecentDetourMotif(listOf("Slack"), "  slack  "))
+    }
+
+    @Test
+    fun removeRecentLeavesListUntouchedWhenAbsent() {
+        assertEquals(listOf("Slack", "Appels"), removeRecentDetourMotif(listOf("Slack", "Appels"), "absent"))
+        assertEquals(listOf("Slack"), removeRecentDetourMotif(listOf("Slack"), "  "))
+    }
+
+    @Test
     fun dayKeyMatchesLocalCalendarDay() {
         val zone = TimeZone.of("Europe/Paris")
         // 2026-07-12 08:00 and 17:00 Paris are the same day; 2026-07-13 01:00 is the next.

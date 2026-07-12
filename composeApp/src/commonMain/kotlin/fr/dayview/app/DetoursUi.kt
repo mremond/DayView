@@ -1,8 +1,10 @@
 package fr.dayview.app
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +55,9 @@ import fr.dayview.app.generated.resources.detour_duration_label
 import fr.dayview.app.generated.resources.detour_duration_section
 import fr.dayview.app.generated.resources.detour_duration_value
 import fr.dayview.app.generated.resources.detour_edit_row_label
+import fr.dayview.app.generated.resources.detour_forget_confirm
+import fr.dayview.app.generated.resources.detour_forget_prompt
+import fr.dayview.app.generated.resources.detour_forget_row_label
 import fr.dayview.app.generated.resources.detour_list_add_button
 import fr.dayview.app.generated.resources.detour_list_empty
 import fr.dayview.app.generated.resources.detour_list_open_label
@@ -133,26 +139,46 @@ internal fun DetourRow(
     }
 }
 
-/** Small selectable pill used for suggestions and duration picks. */
+/**
+ * Small selectable pill used for suggestions and duration picks. A non-null [onLongClick]
+ * makes the pill long-pressable (the recent-motif suggestions use it to offer removal).
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun DetourChip(
     label: String,
     selected: Boolean,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     onClick: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
+    val clickModifier = if (onLongClick != null) {
+        Modifier.combinedClickable(
+            role = Role.Button,
+            onLongClickLabel = onLongClickLabel,
+            onLongClick = onLongClick,
+            onClick = onClick,
+        )
+    } else {
+        Modifier.clickable(role = Role.Button, onClick = onClick)
+    }
     Text(
         label,
         color = if (selected) colors.ink else colors.cloud,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
-        modifier = Modifier
+        maxLines = 1,
+        textAlign = textAlign,
+        modifier = modifier
             .clip(RoundedCornerShape(9.dp))
             .background(
                 if (selected) colors.amber else colors.overlay.copy(alpha = .07f),
                 RoundedCornerShape(9.dp),
             )
-            .clickable(role = Role.Button, onClick = onClick)
+            .then(clickModifier)
             .padding(horizontal = 12.dp, vertical = 7.dp),
     )
 }
@@ -165,10 +191,11 @@ internal fun DetourCaptureDialog(
     recentMotifs: List<String>,
     now: Instant,
     onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
+    onForget: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        DetourCaptureContent(recentMotifs, now, onConfirm, onDismiss)
+        DetourCaptureContent(recentMotifs, now, onConfirm, onForget, onDismiss)
     }
 }
 
@@ -181,15 +208,18 @@ internal fun DetourCaptureContent(
     recentMotifs: List<String>,
     now: Instant,
     onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
+    onForget: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val timeZone = TimeZone.currentSystemDefault()
+    val forgetRowLabel = stringResource(Res.string.detour_forget_row_label)
     var motif by remember { mutableStateOf("") }
     var durationMinutes by remember { mutableIntStateOf(15) }
     var showStart by remember { mutableStateOf(false) }
     var startPinned by remember { mutableStateOf(false) }
     var pinnedStartMinutes by remember { mutableIntStateOf(0) }
+    var motifPendingForget by remember { mutableStateOf<String?>(null) }
     // "Ends now" default: the start tracks the duration until the user pins it by nudging.
     val startMinutes = if (startPinned) pinnedStartMinutes else detourDefaultStartMinutes(now, durationMinutes, timeZone)
     Column(
@@ -219,19 +249,28 @@ internal fun DetourCaptureContent(
             Row(Modifier.horizontalScroll(rememberScrollState())) {
                 recentMotifs.take(6).forEachIndexed { index, recent ->
                     if (index > 0) Spacer(Modifier.width(7.dp))
-                    DetourChip(recent, selected = recent == motif) { motif = recent }
+                    DetourChip(
+                        recent,
+                        selected = recent == motif,
+                        onLongClick = { motifPendingForget = recent },
+                        onLongClickLabel = forgetRowLabel,
+                    ) { motif = recent }
                 }
             }
         }
         Spacer(Modifier.height(14.dp))
         Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
-            DETOUR_DURATION_CHOICES.forEachIndexed { index, minutes ->
-                if (index > 0) Spacer(Modifier.width(7.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            DETOUR_DURATION_CHOICES.forEach { minutes ->
                 DetourChip(
                     stringResource(Res.string.detour_minutes_chip, minutes.toString()),
                     selected = minutes == durationMinutes,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
                 ) { durationMinutes = minutes }
             }
         }
@@ -287,6 +326,55 @@ internal fun DetourCaptureContent(
                 filled = true,
                 onClick = { onConfirm(motif, durationMinutes, if (startPinned) startMinutes else null) },
             )
+        }
+    }
+    val pending = motifPendingForget
+    if (pending != null) {
+        DetourForgetConfirmDialog(
+            motif = pending,
+            onConfirm = {
+                onForget(pending)
+                motifPendingForget = null
+            },
+            onDismiss = { motifPendingForget = null },
+        )
+    }
+}
+
+/** Confirmation for dropping a suggestion from the recent-motif list. */
+@Composable
+private fun DetourForgetConfirmDialog(
+    motif: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth()
+                .background(colors.panel, RoundedCornerShape(18.dp))
+                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                .padding(20.dp),
+        ) {
+            Text(
+                stringResource(Res.string.detour_forget_prompt),
+                color = colors.cloud,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(motif, color = colors.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+                FocusActionButton(
+                    stringResource(Res.string.detour_forget_confirm),
+                    colors.red,
+                    modifier = Modifier.weight(1f),
+                    filled = true,
+                    onClick = onConfirm,
+                )
+            }
         }
     }
 }

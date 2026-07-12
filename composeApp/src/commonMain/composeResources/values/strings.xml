@@ -209,6 +209,9 @@
     <string name="detour_capture_prompt">What pulled you off the path?</string>
     <string name="detour_motif_label">Detour reason</string>
     <string name="detour_motif_placeholder">E.g. unexpected call</string>
+    <string name="detour_forget_row_label">Forget this reason</string>
+    <string name="detour_forget_prompt">Forget this reason?</string>
+    <string name="detour_forget_confirm">FORGET</string>
     <string name="detour_duration_section">APPROXIMATE DURATION</string>
     <string name="detour_minutes_chip">%1$s min</string>
     <string name="detour_source_total">%1$s %2$s</string>

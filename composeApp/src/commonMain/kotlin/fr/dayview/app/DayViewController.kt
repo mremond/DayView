@@ -335,6 +335,14 @@ internal class DayViewController(
         commitDetours(today.toMutableList().also { it.removeAt(index) })
     }
 
+    /** Drop a motif from the recent-suggestions list; the day's episodes are untouched. */
+    fun forgetRecentDetourMotif(motif: String) {
+        val pruned = removeRecentDetourMotif(state.recentDetourMotifs, motif)
+        if (pruned == state.recentDetourMotifs) return
+        state = state.copy(recentDetourMotifs = pruned)
+        persistState()
+    }
+
     private fun commitDetours(
         episodes: List<DetourEpisode>,
         pushMotif: String? = null,
