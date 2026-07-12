@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -181,6 +183,7 @@ private fun FontSizeSelector(
     onFontScaleChange: (Float) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
+    val percentLabel = stringResource(Res.string.settings_font_size_value, (fontScale * 100).roundToInt())
     SettingsPanelCard(contentPadding = PaddingValues(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -192,7 +195,7 @@ private fun FontSizeSelector(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                stringResource(Res.string.settings_font_size_value, (fontScale * 100).roundToInt()),
+                percentLabel,
                 color = colors.mint,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -211,7 +214,9 @@ private fun FontSizeSelector(
             onValueChange = onFontScaleChange,
             valueRange = 1.0f..1.5f,
             steps = 9,
-            modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SettingsFontScale),
+            modifier = Modifier.fillMaxWidth()
+                .testTag(DayViewTestTags.SettingsFontScale)
+                .semantics { stateDescription = percentLabel },
         )
     }
 }

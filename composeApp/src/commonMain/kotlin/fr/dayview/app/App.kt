@@ -52,7 +52,10 @@ fun DayViewApp(
         // OS font setting, so the in-app slider stacks on top of it; on desktop it is the
         // sole text-scale control.
         val scaledDensity = Density(baseDensity.density, baseDensity.fontScale * themeSnapshot.fontScale)
-        CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        CompositionLocalProvider(
+            LocalDensity provides scaledDensity,
+            LocalPreferenceFontScale provides themeSnapshot.fontScale,
+        ) {
             Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
                 val scope = rememberCoroutineScope()
                 val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
