@@ -66,6 +66,7 @@ import fr.dayview.app.generated.resources.detour_list_title
 import fr.dayview.app.generated.resources.detour_minutes_chip
 import fr.dayview.app.generated.resources.detour_motif_label
 import fr.dayview.app.generated.resources.detour_motif_placeholder
+import fr.dayview.app.generated.resources.detour_off_window_tag
 import fr.dayview.app.generated.resources.detour_overflow
 import fr.dayview.app.generated.resources.detour_save_button
 import fr.dayview.app.generated.resources.detour_section
@@ -426,6 +427,8 @@ private sealed interface DetourEdit {
 internal fun DetourListDialog(
     episodes: List<DetourEpisode>,
     now: Instant,
+    windowStart: Instant,
+    windowEnd: Instant,
     onUpdate: (Int, DetourEpisode) -> Unit,
     onRemove: (Int) -> Unit,
     onAdd: (DetourEpisode) -> Unit,
@@ -481,6 +484,15 @@ internal fun DetourListDialog(
                                             color = colors.muted,
                                             fontSize = 11.sp,
                                         )
+                                        if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) {
+                                            Text(
+                                                stringResource(Res.string.detour_off_window_tag),
+                                                color = colors.muted,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                letterSpacing = .5.sp,
+                                            )
+                                        }
                                     }
                                 }
                             }

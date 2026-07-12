@@ -157,6 +157,12 @@ internal data class DayViewUiState(
     val detoursTotalToday: Duration
         get() = detoursTotal(detoursToday)
 
+    val detoursOffWindowTotalToday: Duration
+        get() {
+            val (start, end) = dayWindow
+            return offWindowDetoursTotal(start, end, detoursToday)
+        }
+
     val cleanSessionsToday: Int
         get() = if (cleanSessions.dayKey == dayKeyOf(dayNow)) cleanSessions.cleanToday else 0
 
@@ -429,9 +435,9 @@ internal class DayViewController(
         val clean = sanitizeDetourMotif(motif)
         if (clean.isEmpty()) return
         val end = state.now
-        val windowStart = state.dayWindow.first
-        var start = end - durationMinutes.coerceIn(1, 12 * 60).minutes
-        if (start < windowStart && end > windowStart) start = windowStart
+        // Keep the full declared span; only floor at the start of the local day so a very long
+        // capture cannot cross into yesterday and break the day-scoped, time-only list display.
+        val start = maxOf(end - durationMinutes.coerceIn(1, 12 * 60).minutes, startOfLocalDay(end))
         commitDetours(state.detoursToday + DetourEpisode(start, end, clean), pushMotif = clean)
     }
 

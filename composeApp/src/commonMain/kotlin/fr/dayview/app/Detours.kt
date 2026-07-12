@@ -63,6 +63,16 @@ fun removeRecentDetourMotif(recents: List<String>, motif: String): List<String> 
     return recents.filter { it.lowercase() != clean.lowercase() }
 }
 
+/** Start of the local calendar day containing [now]; mirrors the day-window construction. */
+fun startOfLocalDay(
+    now: Instant,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Instant {
+    val local = now.toLocalDateTime(timeZone)
+    return LocalDateTime(year = local.year, month = local.month, day = local.day, hour = 0, minute = 0)
+        .toInstant(timeZone)
+}
+
 /** Same day-key convention as the desktop presence loop: local epoch days. */
 fun dayKeyOf(
     now: Instant,
@@ -102,6 +112,29 @@ fun detourSources(episodes: List<DetourEpisode>): List<DetourSource> {
 /** Total declared detour time (raw durations; episodes are day-scoped by construction). */
 fun detoursTotal(episodes: List<DetourEpisode>): Duration = episodes.fold(Duration.ZERO) { acc, episode -> acc + episode.duration }
 
+/**
+ * True when the episode's midpoint falls outside the day window — the exact condition under
+ * which [detourBodies] drops the episode from the ring. Shared so the ring, the off-window
+ * total and the list tag can never disagree.
+ */
+fun detourMidpointOutsideWindow(
+    episode: DetourEpisode,
+    windowStart: Instant,
+    windowEnd: Instant,
+): Boolean {
+    val midpoint = episode.start + episode.duration / 2
+    return midpoint < windowStart || midpoint > windowEnd
+}
+
+/** Summed duration of the episodes the ring drops (midpoint outside the window). */
+fun offWindowDetoursTotal(
+    windowStart: Instant,
+    windowEnd: Instant,
+    episodes: List<DetourEpisode>,
+): Duration = episodes.fold(Duration.ZERO) { acc, episode ->
+    if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) acc + episode.duration else acc
+}
+
 /** A detour episode projected on the ring, ready to draw. */
 data class DetourBody(
     val angleDegrees: Float,
@@ -132,7 +165,7 @@ fun detourBodies(
     return episodes.sortedBy { it.start }.mapNotNull { episode ->
         val colorIndex = colorBySource[sourceKey(episode.motif)] ?: return@mapNotNull null
         val midpoint = episode.start + episode.duration / 2
-        if (midpoint < windowStart || midpoint > windowEnd) return@mapNotNull null
+        if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) return@mapNotNull null
         val fraction = ((midpoint - windowStart) / total).toFloat()
         val linearFraction = ((episode.duration - MIN_BODY_DURATION) / (MAX_BODY_DURATION - MIN_BODY_DURATION))
             .toFloat().coerceIn(0f, 1f)

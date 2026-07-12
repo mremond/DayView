@@ -6,7 +6,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -540,19 +539,6 @@ class DayViewControllerTest {
     }
 
     @Test
-    fun addDetourClampsStartToTheDayWindowStart() {
-        val now = 1_800_000_000_000L
-        val nowLocal = t(now).toLocalDateTime(TimeZone.currentSystemDefault())
-        val nowMinutes = nowLocal.hour * 60 + nowLocal.minute
-        val preferences = InMemoryDayPreferences(
-            DayPreferencesSnapshot(startMinutes = nowMinutes - 10, endMinutes = nowMinutes + 30),
-        )
-        val controller = testController(preferences, now)
-        controller.addDetour("Réunion", 30)
-        assertEquals(10, controller.state.detoursToday.single().duration.inWholeMinutes)
-    }
-
-    @Test
     fun addPlannedObligationStoresItDayScopedAndCapsAtThree() {
         val preferences = InMemoryDayPreferences()
         val now = 1_800_000_000_000L
@@ -723,5 +709,47 @@ class DayViewControllerTest {
         controller.setFontScale(5.0f)
         assertEquals(1.5f, controller.state.fontScale)
         assertEquals(1.5f, preferences.current.fontScale)
+    }
+
+    @Test
+    fun addDetourKeepsFullSpanWhenStartPredatesWindow() {
+        val zone = TimeZone.currentSystemDefault()
+        // 08:30 local, just after the 08:00 window opens.
+        val now = LocalDateTime(2026, 7, 12, 8, 30).toInstant(zone).toEpochMilliseconds()
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, now)
+
+        controller.addDetour("longue lecture", 60) // would start 07:30, before the window
+
+        val episode = controller.state.detoursToday.single()
+        assertEquals(60, episode.duration.inWholeMinutes) // no longer clamped to 30
+        assertEquals(t(now), episode.end) // still ends now; the full 60 min is preserved before it
+    }
+
+    @Test
+    fun addDetourFloorsPathologicalStartAtLocalMidnight() {
+        val zone = TimeZone.currentSystemDefault()
+        val now = LocalDateTime(2026, 7, 12, 8, 30).toInstant(zone).toEpochMilliseconds()
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, now)
+
+        controller.addDetour("marathon", 12 * 60) // 12 h would cross into the previous day
+
+        val episode = controller.state.detoursToday.single()
+        assertEquals(startOfLocalDay(t(now)), episode.start) // floored to today's 00:00
+        assertEquals(t(now), episode.end)
+    }
+
+    @Test
+    fun offWindowTotalStateCountsDroppedEpisodes() {
+        val zone = TimeZone.currentSystemDefault()
+        val now = LocalDateTime(2026, 7, 12, 21, 0).toInstant(zone).toEpochMilliseconds() // evening, past 18:00
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, now)
+
+        controller.addDetour("série", 45) // 20:15–21:00, entirely after the window
+
+        assertEquals(45, controller.state.detoursOffWindowTotalToday.inWholeMinutes)
+        assertEquals(controller.state.detoursTotalToday, controller.state.detoursOffWindowTotalToday)
     }
 }

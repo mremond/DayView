@@ -217,9 +217,11 @@
 
     <!-- Detours -->
     <string name="detours_today">Détours %1$s</string>
+    <string name="detours_today_off_window">Détours %1$s (%2$s hors plage)</string>
     <string name="clean_sessions_today">Sérieux %1$d</string>
     <string name="clean_streak">Série %1$d j</string>
     <string name="detour_time_range">%1$s – %2$s · %3$s</string>
+    <string name="detour_off_window_tag">hors plage</string>
     <string name="detour_add_button">+ DÉTOUR</string>
     <string name="detour_capture_open_label">Déclarer un détour</string>
     <string name="detour_list_open_label">Détours du jour</string>

@@ -3,6 +3,7 @@ package fr.dayview.app
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
@@ -204,5 +205,37 @@ class DetoursTest {
             listOf(DetourEpisode(t(0L), t(1_800_000L), motif)),
         ).single()
         assertEquals("a".repeat(59), body.motif)
+    }
+
+    @Test
+    fun midpointOutsideWindowMatchesBodyDrop() {
+        val start = t(10_000_000L)
+        val end = t(20_000_000L)
+        val before = DetourEpisode(t(0L), t(1_000_000L), "early") // midpoint 500_000 < start
+        val inside = DetourEpisode(t(12_000_000L), t(14_000_000L), "mid") // midpoint 13_000_000 in window
+        assertTrue(detourMidpointOutsideWindow(before, start, end))
+        assertFalse(detourMidpointOutsideWindow(inside, start, end))
+        // An episode dropped from the ring is exactly one flagged off-window.
+        assertEquals(emptyList(), detourBodies(start, end, listOf(before)))
+        assertEquals(1, detourBodies(start, end, listOf(inside)).size)
+    }
+
+    @Test
+    fun offWindowTotalSumsOnlyDroppedEpisodes() {
+        val start = t(10_000_000L)
+        val end = t(20_000_000L)
+        val before = DetourEpisode(t(0L), t(2_000_000L), "early") // 2000s duration, midpoint 1_000_000 outside
+        val inside = DetourEpisode(t(12_000_000L), t(15_000_000L), "mid") // 3000s, midpoint 13_500_000 inside
+        val total = offWindowDetoursTotal(start, end, listOf(before, inside))
+        assertEquals(before.duration, total)
+        assertEquals(kotlin.time.Duration.ZERO, offWindowDetoursTotal(start, end, emptyList()))
+        assertEquals(kotlin.time.Duration.ZERO, offWindowDetoursTotal(start, end, listOf(inside)))
+    }
+
+    @Test
+    fun startOfLocalDayIsMidnightOfTheInstantsDay() {
+        val zone = TimeZone.UTC
+        val noon = Instant.parse("2026-07-12T12:34:56Z")
+        assertEquals(Instant.parse("2026-07-12T00:00:00Z"), startOfLocalDay(noon, zone))
     }
 }
