@@ -250,4 +250,59 @@ class CalendarNetTimeTest {
         assertEquals(300L, work.total.inWholeMilliseconds) // 100 + 200
         assertEquals(100L, home.total.inWholeMilliseconds)
     }
+
+    @Test
+    fun busyBlockArcsProjectWithColorAndName() {
+        // Fenêtre 0..1000. work 250..500 -> quart..moitié, couleur 0, nom mappé.
+        val arcs = busyBlockArcs(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(250), t(500), listOf("Atelier"), calendarId = "work")),
+            mapOf("work" to "Travail"),
+        )
+        assertEquals(1, arcs.size)
+        assertEquals(-90f + 0.25f * 360f, arcs[0].startAngleDegrees)
+        assertEquals(0.25f * 360f, arcs[0].sweepDegrees)
+        assertEquals(0, arcs[0].colorIndex)
+        assertEquals(listOf("Atelier"), arcs[0].titles)
+        assertEquals("Travail", arcs[0].calendarName)
+    }
+
+    @Test
+    fun busyBlockArcsFallBackToBlankNameForUnknownCalendar() {
+        val arcs = busyBlockArcs(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(100), t(200), calendarId = "ghost")),
+            emptyMap(),
+        )
+        assertEquals("", arcs[0].calendarName)
+    }
+
+    @Test
+    fun busyBlockBodiesProjectMidpointAndClampSize() {
+        // 5 min .. 60 min band ; ici durée 300 ms sur fenêtre 0..1000 -> minuscule -> sizeFraction 0.
+        val bodies = busyBlockBodies(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(400), t(700), listOf("Point"), calendarId = "work")),
+            mapOf("work" to "Travail"),
+        )
+        assertEquals(1, bodies.size)
+        assertEquals(-90f + 0.55f * 360f, bodies[0].angleDegrees) // midpoint 550/1000
+        assertEquals(0f, bodies[0].sizeFraction) // 300 ms << 5 min -> clamped to 0
+        assertEquals("Travail", bodies[0].calendarName)
+    }
+
+    @Test
+    fun busyBlockBodiesDropMidpointOutsideWindow() {
+        // Créneau -400..-200 : hors fenêtre après clip il n'existe pas ; midpoint hors fenêtre.
+        val bodies = busyBlockBodies(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(1200), t(1600), calendarId = "work")),
+            mapOf("work" to "Travail"),
+        )
+        assertEquals(emptyList(), bodies)
+    }
 }
