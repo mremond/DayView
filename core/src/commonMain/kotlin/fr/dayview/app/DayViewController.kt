@@ -346,21 +346,30 @@ class DayViewController(
         state = state.copy(goalDeadlineText = value.take(16))
     }
 
-    fun commitGoalDeadline() {
-        val parsed = parseGoalDeadline(state.goalDeadlineText)
-        if (parsed == null && state.goalDeadlineText.isNotBlank()) return
+    private fun applyGoalDeadline(deadline: Instant?, deadlineText: String) {
         val existingStart = state.goalStart
         val start = when {
-            parsed == null -> null
-            existingStart == null || existingStart >= parsed -> state.now
+            deadline == null -> null
+            existingStart == null || existingStart >= deadline -> state.now
             else -> existingStart
         }
         state = state.copy(
-            goalDeadline = parsed,
+            goalDeadline = deadline,
+            goalDeadlineText = deadlineText,
             goalStart = start,
             goalStartText = start?.let(::formatGoalDeadline).orEmpty(),
         )
         persistState()
+    }
+
+    fun commitGoalDeadline() {
+        val parsed = parseGoalDeadline(state.goalDeadlineText)
+        if (parsed == null && state.goalDeadlineText.isNotBlank()) return
+        applyGoalDeadline(parsed, state.goalDeadlineText)
+    }
+
+    fun setGoalDeadlineInstant(deadline: Instant?) {
+        applyGoalDeadline(deadline, deadline?.let(::formatGoalDeadline).orEmpty())
     }
 
     fun setGoalStartText(value: String) {
