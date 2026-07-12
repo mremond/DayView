@@ -4,6 +4,7 @@ import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
@@ -237,5 +238,19 @@ class DetoursTest {
         val zone = TimeZone.UTC
         val noon = Instant.parse("2026-07-12T12:34:56Z")
         assertEquals(Instant.parse("2026-07-12T00:00:00Z"), startOfLocalDay(noon, zone))
+    }
+
+    @Test
+    fun detourBodyAtAngleFindsBodyNearItsMidpointAngle() {
+        val windowStart = t(0L)
+        val windowEnd = t(24L * 60 * 60 * 1000) // 24 h window: 15°/h, midpoint drives the angle
+        // A 60-min detour centred at 06:00 -> midpoint fraction .25 -> angle -90 + 90 = 0°.
+        val episodes = listOf(DetourEpisode(t(5L * 3_600_000), t(7L * 3_600_000), "Slack"))
+        val bodies = detourBodies(windowStart, windowEnd, episodes)
+        assertEquals(1, bodies.size)
+        val body = bodies.first()
+        // At the exact midpoint angle it is found; far away (180° across) it is not.
+        assertEquals(body, detourBodyAtAngle(bodies, body.angleDegrees))
+        assertNull(detourBodyAtAngle(bodies, body.angleDegrees + 180f))
     }
 }
