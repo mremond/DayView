@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -480,5 +481,28 @@ class DayViewControllerTest {
 
         assertEquals(listOf("Slack"), controller.state.detoursToday.map { it.motif })
         assertTrue(controller.state.detoursTotalToday.inWholeMinutes == 15L)
+    }
+
+    @Test
+    fun editsAndDeletesDoNotTouchRecentMotifs() {
+        val now = 1_800_000_000_000L
+        val controller = testController(InMemoryDayPreferences(), now)
+        controller.addDetour("Slack", 15)
+        controller.updateDetour(0, DetourEpisode(t(now - 600_000L), t(now), "Réunion"))
+        controller.removeDetour(0)
+        assertEquals(listOf("Slack"), controller.state.recentDetourMotifs)
+    }
+
+    @Test
+    fun addDetourClampsStartToTheDayWindowStart() {
+        val now = 1_800_000_000_000L
+        val nowLocal = t(now).toLocalDateTime(TimeZone.currentSystemDefault())
+        val nowMinutes = nowLocal.hour * 60 + nowLocal.minute
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(startMinutes = nowMinutes - 10, endMinutes = nowMinutes + 30),
+        )
+        val controller = testController(preferences, now)
+        controller.addDetour("Réunion", 30)
+        assertEquals(10, controller.state.detoursToday.single().duration.inWholeMinutes)
     }
 }

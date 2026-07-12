@@ -54,7 +54,7 @@ private val focusIntentionKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_INT
 private val netTimeEnabledKey = booleanPreferencesKey(DayPreferenceKeys.NET_TIME_ENABLED)
 private val netTimeCalendarsKey = stringPreferencesKey(DayPreferenceKeys.NET_TIME_CALENDARS)
 private val onGoalAppsKey = stringPreferencesKey(DayPreferenceKeys.ON_GOAL_APPS)
-private val detoursDayKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY)
+private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY)
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
 private val detourRecentMotifsKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_MOTIFS)
 
@@ -83,7 +83,7 @@ class DayPreferencesStore(
             prefs[netTimeEnabledKey] = snapshot.netTimeSettings.enabled
             prefs[netTimeCalendarsKey] = snapshot.netTimeSettings.includedCalendarIds.joinToString("\n")
             prefs[onGoalAppsKey] = encodeAppRefs(snapshot.onGoalApps)
-            prefs[detoursDayKey] = snapshot.detoursDayKey
+            prefs[detoursDayPrefKey] = snapshot.detoursDayKey
             prefs[detoursKey] = encodeDetours(snapshot.detours)
             prefs[detourRecentMotifsKey] = encodeRecentDetourMotifs(snapshot.recentDetourMotifs)
         }
@@ -122,7 +122,7 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
                 .split("\n").filter { it.isNotBlank() }.toSet(),
         ),
         onGoalApps = decodeAppRefs(this[onGoalAppsKey].orEmpty()),
-        detoursDayKey = this[detoursDayKey] ?: -1L,
+        detoursDayKey = this[detoursDayPrefKey] ?: defaults.detoursDayKey,
         detours = decodeDetours(this[detoursKey].orEmpty()),
         recentDetourMotifs = decodeRecentDetourMotifs(this[detourRecentMotifsKey].orEmpty()),
     )
