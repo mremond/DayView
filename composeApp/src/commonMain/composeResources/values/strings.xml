@@ -184,4 +184,17 @@
     <!-- Detours -->
     <string name="detours_today">Detours %1$s</string>
     <string name="detour_time_range">%1$s – %2$s · %3$s</string>
+    <string name="detour_add_button">+ DÉTOUR</string>
+    <string name="detour_capture_open_label">Déclarer un détour</string>
+    <string name="detour_list_open_label">Détours du jour</string>
+    <string name="detour_section">DÉTOUR</string>
+    <string name="detour_capture_prompt">Qu’est-ce qui vous a détourné du chemin ?</string>
+    <string name="detour_motif_label">Motif du détour</string>
+    <string name="detour_motif_placeholder">Ex. appel imprévu</string>
+    <string name="detour_duration_section">DURÉE APPROXIMATIVE</string>
+    <string name="detour_minutes_chip">%1$s min</string>
+    <string name="detour_source_total">%1$s %2$s</string>
+    <string name="detour_overflow">+%1$s</string>
+    <string name="detour_cancel_button">ANNULER</string>
+    <string name="detour_confirm_button">AJOUTER</string>
 </resources>

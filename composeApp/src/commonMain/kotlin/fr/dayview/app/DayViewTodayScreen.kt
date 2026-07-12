@@ -168,6 +168,10 @@ internal data class DayViewScreenActions(
     val startPomodoro: () -> Unit,
     val stopPomodoro: () -> Unit,
     val closePomodoro: (FocusClosureOutcome) -> Unit,
+    val addDetour: (String, Int) -> Unit,
+    val updateDetour: (Int, DetourEpisode) -> Unit,
+    val removeDetour: (Int) -> Unit,
+    val addDetourEpisode: (DetourEpisode) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -186,6 +190,8 @@ internal fun DayViewScreen(
     val colors = LocalDayViewColors.current
     val progress = state.dayProgress
     val pomodoro = state.pomodoroProgress
+    var showDetourCapture by remember { mutableStateOf(false) }
+    var showDetourList by remember { mutableStateOf(false) }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
             .background(
@@ -236,6 +242,12 @@ internal fun DayViewScreen(
                             detoursTotal = state.detoursTotalToday,
                             hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                         )
+                        Spacer(Modifier.height(6.dp))
+                        DetourRow(
+                            sources = state.detourSourcesState,
+                            onOpenList = { showDetourList = true },
+                            onCapture = { showDetourCapture = true },
+                        )
                         Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
                             title = state.goalTitle,
@@ -283,6 +295,12 @@ internal fun DayViewScreen(
                     detoursTotal = state.detoursTotalToday,
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                 )
+                Spacer(Modifier.height(6.dp))
+                DetourRow(
+                    sources = state.detourSourcesState,
+                    onOpenList = { showDetourList = true },
+                    onCapture = { showDetourCapture = true },
+                )
                 Spacer(Modifier.height(12.dp))
                 CompactTodayContent(
                     state = state,
@@ -290,6 +308,16 @@ internal fun DayViewScreen(
                     reminders = reminders,
                 )
             }
+        }
+        if (showDetourCapture) {
+            DetourCaptureDialog(
+                recentMotifs = state.recentDetourMotifs,
+                onConfirm = { motif, durationMinutes ->
+                    actions.addDetour(motif, durationMinutes)
+                    showDetourCapture = false
+                },
+                onDismiss = { showDetourCapture = false },
+            )
         }
     }
 }

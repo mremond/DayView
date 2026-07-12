@@ -212,6 +212,10 @@ fun DayViewApp(
                             controller.closePomodoro(outcome)
                             onFocusAlarmChange(null, intention)
                         },
+                        addDetour = { motif, durationMinutes -> controller.addDetour(motif, durationMinutes) },
+                        updateDetour = { index, episode -> controller.updateDetour(index, episode) },
+                        removeDetour = { controller.removeDetour(it) },
+                        addDetourEpisode = { controller.addDetourEpisode(it) },
                     ),
                     reminders = FocusReminderUiState(
                         showDriftReminder = showFocusDriftReminder,

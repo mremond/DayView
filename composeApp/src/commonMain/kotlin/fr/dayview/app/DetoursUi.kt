@@ -1,0 +1,202 @@
+package fr.dayview.app
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.detour_add_button
+import fr.dayview.app.generated.resources.detour_cancel_button
+import fr.dayview.app.generated.resources.detour_capture_open_label
+import fr.dayview.app.generated.resources.detour_capture_prompt
+import fr.dayview.app.generated.resources.detour_confirm_button
+import fr.dayview.app.generated.resources.detour_duration_section
+import fr.dayview.app.generated.resources.detour_list_open_label
+import fr.dayview.app.generated.resources.detour_minutes_chip
+import fr.dayview.app.generated.resources.detour_motif_label
+import fr.dayview.app.generated.resources.detour_motif_placeholder
+import fr.dayview.app.generated.resources.detour_overflow
+import fr.dayview.app.generated.resources.detour_section
+import fr.dayview.app.generated.resources.detour_source_total
+import org.jetbrains.compose.resources.stringResource
+
+/** Per-source tally under the dial plus the capture affordance. */
+@Composable
+internal fun DetourRow(
+    sources: List<DetourSource>,
+    onOpenList: () -> Unit,
+    onCapture: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (sources.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_list_open_label), onClick = onOpenList)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+            ) {
+                sources.take(3).forEachIndexed { index, source ->
+                    if (index > 0) Spacer(Modifier.width(10.dp))
+                    Box(
+                        Modifier.size(7.dp)
+                            .background(colors.detours[source.colorIndex % colors.detours.size], CircleShape),
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        stringResource(Res.string.detour_source_total, source.label, formatDurationHm(source.total)),
+                        color = colors.muted,
+                        fontSize = 11.sp,
+                    )
+                }
+                if (sources.size > 3) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(Res.string.detour_overflow, (sources.size - 3).toString()),
+                        color = colors.muted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(
+            stringResource(Res.string.detour_add_button),
+            color = colors.muted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp,
+            modifier = Modifier.minimumInteractiveComponentSize()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_capture_open_label), onClick = onCapture)
+                .padding(vertical = 8.dp, horizontal = 6.dp),
+        )
+    }
+}
+
+/** Small selectable pill used for suggestions and duration picks. */
+@Composable
+internal fun DetourChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Text(
+        label,
+        color = if (selected) colors.ink else colors.cloud,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(
+                if (selected) colors.amber else colors.overlay.copy(alpha = .07f),
+                RoundedCornerShape(9.dp),
+            )
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+    )
+}
+
+private val DETOUR_DURATION_CHOICES = listOf(5, 15, 30, 45, 60)
+
+/** Quick capture: required motif, recent-motif suggestions, quick duration picks. */
+@Composable
+internal fun DetourCaptureDialog(
+    recentMotifs: List<String>,
+    onConfirm: (motif: String, durationMinutes: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    var motif by remember { mutableStateOf("") }
+    var durationMinutes by remember { mutableIntStateOf(15) }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.widthIn(max = 380.dp).fillMaxWidth()
+                .background(colors.panel, RoundedCornerShape(18.dp))
+                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                .padding(20.dp),
+        ) {
+            Text(stringResource(Res.string.detour_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(Res.string.detour_capture_prompt),
+                color = colors.cloud,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(10.dp))
+            GoalTextField(
+                value = motif,
+                semanticLabel = stringResource(Res.string.detour_motif_label),
+                placeholder = stringResource(Res.string.detour_motif_placeholder),
+                onValueChange = { motif = it },
+            )
+            if (recentMotifs.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.horizontalScroll(rememberScrollState())) {
+                    recentMotifs.take(6).forEachIndexed { index, recent ->
+                        if (index > 0) Spacer(Modifier.width(7.dp))
+                        DetourChip(recent, selected = recent == motif) { motif = recent }
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Spacer(Modifier.height(8.dp))
+            Row {
+                DETOUR_DURATION_CHOICES.forEachIndexed { index, minutes ->
+                    if (index > 0) Spacer(Modifier.width(7.dp))
+                    DetourChip(
+                        stringResource(Res.string.detour_minutes_chip, minutes.toString()),
+                        selected = minutes == durationMinutes,
+                    ) { durationMinutes = minutes }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+                FocusActionButton(
+                    stringResource(Res.string.detour_confirm_button),
+                    colors.amber,
+                    modifier = Modifier.weight(1f),
+                    enabled = motif.isNotBlank(),
+                    filled = true,
+                    onClick = { onConfirm(motif, durationMinutes) },
+                )
+            }
+        }
+    }
+}
