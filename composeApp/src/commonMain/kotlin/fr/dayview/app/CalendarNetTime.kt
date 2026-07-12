@@ -83,7 +83,7 @@ private val MAX_BUSY_BODY_DURATION = 60.minutes
 /**
  * Arcs colorés par calendrier : fusion intra-calendrier, clip à la fenêtre, couleur stable
  * de [busyCalendars], nom depuis [calendarNames] (vide si inconnu). Même convention d'angle
- * que [busyArcs].
+ * que [busyBlockArcs].
  */
 fun busyBlockArcs(
     windowStart: Instant,
@@ -245,7 +245,7 @@ private fun clipToWindow(
     )
 }.filter { it.end > it.start }
 
-/** Project intense-focus intervals to ring arcs (same convention as [busyArcs]). */
+/** Project intense-focus intervals to ring arcs (same convention as [busyBlockArcs]). */
 fun focusArcs(
     windowStart: Instant,
     windowEnd: Instant,

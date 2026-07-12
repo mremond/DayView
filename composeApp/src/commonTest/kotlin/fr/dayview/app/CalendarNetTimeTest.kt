@@ -256,6 +256,33 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun busyBlockArcsClipToWindow() {
+        // Créneau -200..200 sur fenêtre 0..1000 : rogné à 0..200 -> début au sommet.
+        val arcs = busyBlockArcs(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(-200), t(200), listOf("Y"), calendarId = "work")),
+            mapOf("work" to "Travail"),
+        )
+        assertEquals(1, arcs.size)
+        assertEquals(-90f, arcs[0].startAngleDegrees)
+        assertEquals(0.2f * 360f, arcs[0].sweepDegrees)
+    }
+
+    @Test
+    fun busyBlockArcsHandleDegenerateWindow() {
+        assertEquals(
+            emptyList(),
+            busyBlockArcs(
+                t(500),
+                t(500),
+                listOf(BusyInterval(t(400), t(600), calendarId = "work")),
+                mapOf("work" to "Travail"),
+            ),
+        )
+    }
+
+    @Test
     fun busyBlockBodiesProjectMidpointAndClampSize() {
         // 5 min .. 60 min band ; ici durée 300 ms sur fenêtre 0..1000 -> minuscule -> sizeFraction 0.
         val bodies = busyBlockBodies(
