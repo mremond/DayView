@@ -1,5 +1,6 @@
 package fr.dayview.app
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +51,9 @@ fun main() {
     // ("MainKt") when DayView runs unbundled via Gradle. Set the AWT application name
     // before the toolkit initialises so the menu reads "DayView" instead.
     System.setProperty("apple.awt.application.name", "DayView")
+    // Let the JVM honor an explicit light/dark window appearance we set below,
+    // instead of always following the OS. "system" is the neutral starting point.
+    System.setProperty("apple.awt.application.appearance", "system")
     runApplication()
 }
 
@@ -165,6 +169,16 @@ private fun runApplication() = application {
             wasFocusActive = focusIsActive
             delay(1_000)
         }
+    }
+
+    // Keep the native window chrome (title bar, traffic lights) matching the
+    // in-app theme even when it disagrees with the OS appearance.
+    val appearanceIsDark = preferenceSnapshot.themeMode.resolveIsDark(isSystemInDarkTheme())
+    LaunchedEffect(appearanceIsDark) {
+        System.setProperty(
+            "apple.awt.application.appearance",
+            if (appearanceIsDark) "NSAppearanceNameDarkAqua" else "NSAppearanceNameAqua",
+        )
     }
 
     val startMinutes = preferenceSnapshot.startMinutes
