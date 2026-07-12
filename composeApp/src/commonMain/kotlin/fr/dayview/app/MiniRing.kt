@@ -50,7 +50,7 @@ internal fun MiniRing(
             style = Stroke(strokeWidth, cap = StrokeCap.Round),
         )
 
-        // Focus arcs.
+        // Focus arcs, on the main lane.
         focusArcs.forEach { arc ->
             drawArc(
                 color = colors.mint.copy(alpha = .55f),
@@ -63,15 +63,19 @@ internal fun MiniRing(
             )
         }
 
-        // Calendar busy lane, one arc per merged interval, colour keyed by calendar.
+        // Calendar busy lane, one arc per merged interval, colour keyed by calendar. Mirrors
+        // CountdownCircle's busyInset/busyLaneSize: a concentric lane pulled further inside the
+        // main lane so busy never overpaints the focus arcs drawn above.
+        val busyInset = inset + strokeWidth * .95f
+        val busyLaneSize = Size(size.width - busyInset * 2, size.height - busyInset * 2)
         busyBlockArcs.forEach { arc ->
             drawArc(
                 color = colors.busy[arc.colorIndex % colors.busy.size],
                 startAngle = arc.startAngleDegrees,
                 sweepAngle = arc.sweepDegrees,
                 useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
+                topLeft = Offset(busyInset, busyInset),
+                size = busyLaneSize,
                 style = Stroke(strokeWidth * .7f, cap = StrokeCap.Round),
             )
         }
