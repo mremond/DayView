@@ -88,8 +88,8 @@ private fun <T> buildItems(
     }
     val presentKeys = present.map { it.id }.toSet()
     val tombstones = baseByKey.values
-        .filter { it.id !in presentKeys && !it.deleted }
-        .map { it.copy(deleted = true, stamp = fresh) }
+        .filter { it.id !in presentKeys }
+        .map { if (it.deleted) it else it.copy(deleted = true, stamp = fresh) }
     return present + tombstones
 }
 

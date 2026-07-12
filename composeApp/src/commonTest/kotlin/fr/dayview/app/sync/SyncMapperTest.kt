@@ -1,5 +1,6 @@
 package fr.dayview.app.sync
 
+import fr.dayview.app.AppRef
 import fr.dayview.app.DayPreferencesSnapshot
 import fr.dayview.app.DetourEpisode
 import fr.dayview.app.NetTimeSettings
@@ -73,5 +74,29 @@ class SyncMapperTest {
         val first = buildDocument(withDetour, base = null, deviceId = "a", now = 100)
         val second = buildDocument(withDetour.copy(detours = emptyList()), base = first, deviceId = "a", now = 200)
         assertTrue(applyDocument(second, withDetour).detours.isEmpty())
+    }
+
+    @Test
+    fun buildCarriesTombstoneForwardOnNoOpRebuild() {
+        val withDetour = base.copy(
+            detoursDayKey = 19000,
+            detours = listOf(DetourEpisode(Instant.fromEpochMilliseconds(10), Instant.fromEpochMilliseconds(20), "coffee")),
+        )
+        val removed = withDetour.copy(detours = emptyList())
+        val first = buildDocument(withDetour, base = null, deviceId = "a", now = 100)
+        val second = buildDocument(removed, base = first, deviceId = "a", now = 200)
+        // Third build is a no-op rebuild against a base that already holds the tombstone.
+        val third = buildDocument(removed, base = second, deviceId = "a", now = 300)
+        val item = third.detours.items.single()
+        assertTrue(item.deleted) // must survive the no-op rebuild, not vanish
+    }
+
+    @Test
+    fun applyDocumentPreservesOnGoalApps() {
+        val onGoalApps = setOf(AppRef("com.example.focus", "Focus App"))
+        val local = base.copy(onGoalApps = onGoalApps)
+        val doc = buildDocument(base.copy(startMinutes = 500), base = null, deviceId = "a", now = 100)
+        val result = applyDocument(doc, local)
+        assertEquals(onGoalApps, result.onGoalApps)
     }
 }
