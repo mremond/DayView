@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
@@ -712,7 +713,9 @@ internal fun CountdownCircle(
                                         ?.let { HoveredBusyArc(it, position) }
                                 }
                             } else if (event.type == PointerEventType.Press) {
-                                if (hitTestDetourBody(position.x, position.y, size.width, size.height, detourBodies) != null) {
+                                if (event.changes.firstOrNull()?.type == PointerType.Mouse &&
+                                    hitTestDetourBody(position.x, position.y, size.width, size.height, detourBodies) != null
+                                ) {
                                     onOpenDetourList?.invoke()
                                 }
                             }
