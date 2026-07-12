@@ -81,9 +81,9 @@
     <string name="focus_drift_dismiss">C’EST REPARTI</string>
     <string name="focus_my_intention">MON INTENTION</string>
     <string name="focus_single_thing">Une seule chose à la fois.</string>
-    <string name="focus_intention_prompt">À LA FIN DE CE FOCUS, J’AURAI…</string>
+    <string name="focus_intention_prompt">DURANT CE FOCUS, JE VAIS…</string>
     <string name="focus_intention_label">Intention du Focus</string>
-    <string name="focus_intention_placeholder">Ex. terminé le plan de la présentation</string>
+    <string name="focus_intention_placeholder">Ex. terminer le plan de la présentation</string>
     <string name="focus_intention_hint">Écrivez une intention pour démarrer.</string>
     <string name="focus_duration_decrease">Diminuer la durée du Focus de 5 minutes</string>
     <string name="focus_duration_increase">Augmenter la durée du Focus de 5 minutes</string>

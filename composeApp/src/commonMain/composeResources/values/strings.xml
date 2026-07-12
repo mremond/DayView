@@ -82,9 +82,9 @@
     <string name="focus_drift_dismiss">BACK AT IT</string>
     <string name="focus_my_intention">MY INTENTION</string>
     <string name="focus_single_thing">One thing at a time.</string>
-    <string name="focus_intention_prompt">BY THE END OF THIS FOCUS, I WILL HAVE…</string>
+    <string name="focus_intention_prompt">DURING THIS FOCUS, I WILL…</string>
     <string name="focus_intention_label">Focus intention</string>
-    <string name="focus_intention_placeholder">E.g. finished the presentation outline</string>
+    <string name="focus_intention_placeholder">E.g. finish the presentation outline</string>
     <string name="focus_intention_hint">Write an intention to start.</string>
     <string name="focus_duration_decrease">Decrease the Focus duration by 5 minutes</string>
     <string name="focus_duration_increase">Increase the Focus duration by 5 minutes</string>
