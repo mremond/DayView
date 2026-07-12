@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -34,6 +35,7 @@ internal object DayPreferenceKeys {
     const val DETOURS = "detours"
     const val DETOUR_RECENT_MOTIFS = "detour_recent_motifs"
     const val THEME_MODE = "theme_mode"
+    const val FONT_SCALE = "font_scale"
     const val NO_DEADLINE = -1L
 }
 
@@ -59,6 +61,7 @@ private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
 private val detourRecentMotifsKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_MOTIFS)
 private val themeModeKey = stringPreferencesKey(DayPreferenceKeys.THEME_MODE)
+private val fontScaleKey = floatPreferencesKey(DayPreferenceKeys.FONT_SCALE)
 
 class DayPreferencesStore(
     private val dataStore: DataStore<Preferences>,
@@ -89,6 +92,7 @@ class DayPreferencesStore(
             prefs[detoursKey] = encodeDetours(snapshot.detours)
             prefs[detourRecentMotifsKey] = encodeRecentDetourMotifs(snapshot.recentDetourMotifs)
             prefs[themeModeKey] = snapshot.themeMode.name
+            prefs[fontScaleKey] = snapshot.fontScale
         }
     }
 }
@@ -131,5 +135,6 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         themeMode = this[themeModeKey]
             ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
             ?: defaults.themeMode,
+        fontScale = (this[fontScaleKey] ?: defaults.fontScale).coerceIn(1.0f, 1.5f),
     )
 }
