@@ -561,13 +561,28 @@ class DayViewControllerTest {
         val controller = testController(preferences, now)
         controller.addPlannedObligation("Appel client")
 
-        controller.completePlannedObligation("Appel client", 30)
+        controller.completePlannedObligation("Appel client", "Appel client", 30, null)
 
         val stored = preferences.current
         assertEquals(emptyList(), stored.plannedObligations)
         val episode = stored.detours.single()
         assertEquals("Appel client", episode.motif)
         assertEquals(30, episode.duration.inWholeMinutes)
+    }
+
+    @Test
+    fun completePlannedObligationRemovesTheOriginalWhenMotifWasEdited() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L
+        val controller = testController(preferences, now)
+        controller.addPlannedObligation("Appel client")
+
+        controller.completePlannedObligation("Appel client", "Appel client re: contract", 30, null)
+
+        val stored = preferences.current
+        assertEquals(emptyList(), stored.plannedObligations)
+        val episode = stored.detours.single()
+        assertEquals("Appel client re: contract", episode.motif)
     }
 
     @Test

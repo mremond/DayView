@@ -391,9 +391,18 @@ internal class DayViewController(
         commitPlannedObligations(removePlannedObligation(state.plannedObligationsToday, motif))
     }
 
-    fun completePlannedObligation(motif: String, durationMinutes: Int) {
-        addDetour(motif, durationMinutes)
-        removePlannedObligation(motif)
+    fun completePlannedObligation(
+        originalMotif: String,
+        detourMotif: String,
+        durationMinutes: Int,
+        startMinutesOfDay: Int?,
+    ) {
+        if (startMinutesOfDay == null) {
+            addDetour(detourMotif, durationMinutes)
+        } else {
+            addDetourEpisode(detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourMotif))
+        }
+        removePlannedObligation(originalMotif)
     }
 
     private fun commitPlannedObligations(obligations: List<String>) {
