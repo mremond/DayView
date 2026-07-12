@@ -153,6 +153,7 @@ import fr.dayview.app.generated.resources.today_status_ending
 import fr.dayview.app.generated.resources.today_status_finished
 import fr.dayview.app.generated.resources.today_status_not_started
 import fr.dayview.app.generated.resources.today_status_ongoing
+import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.atan2
 import kotlin.math.hypot
@@ -1173,13 +1174,22 @@ private fun SidePanel(
 ) {
     val colors = LocalDayViewColors.current
     Column(modifier = modifier.widthIn(max = 430.dp)) {
-        Text(
-            text = when {
-                !progress.hasStarted -> stringResource(Res.string.today_hero_not_started)
-                progress.isFinished -> stringResource(Res.string.today_hero_finished)
-                progress.remainingRatio < .2f -> stringResource(Res.string.today_hero_ending)
-                else -> stringResource(Res.string.today_hero_ongoing)
+        val heroSlot = when {
+            !progress.hasStarted -> HeroQuoteSlot.NOT_STARTED
+            progress.isFinished -> HeroQuoteSlot.FINISHED
+            progress.remainingRatio < .2f -> HeroQuoteSlot.ENDING
+            else -> HeroQuoteSlot.ONGOING
+        }
+        val heroQuotes = stringArrayResource(
+            when (heroSlot) {
+                HeroQuoteSlot.NOT_STARTED -> Res.array.today_hero_not_started
+                HeroQuoteSlot.FINISHED -> Res.array.today_hero_finished
+                HeroQuoteSlot.ENDING -> Res.array.today_hero_ending
+                HeroQuoteSlot.ONGOING -> Res.array.today_hero_ongoing
             },
+        )
+        Text(
+            text = heroQuotes[heroQuoteIndex(heroQuotes.size, HeroQuoteSelection.seed(heroSlot))],
             color = colors.cloud,
             fontSize = 22.sp,
             lineHeight = 29.sp,

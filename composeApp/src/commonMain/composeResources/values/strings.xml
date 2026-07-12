@@ -22,10 +22,19 @@
     <string name="today_status_ongoing">Stay the course, no pressure.</string>
 
     <!-- Today screen — wide hero (two lines) -->
-    <string name="today_hero_not_started">Your day hasn’t started yet.\nThe circle is still whole.</string>
-    <string name="today_hero_finished">Your planned time is up.\nYou can let the day go.</string>
-    <string name="today_hero_ending">The day is drawing to a close.\nChoose one essential thing.</string>
-    <string name="today_hero_ongoing">See the time.\nStay the course, no pressure.</string>
+    <string-array name="today_hero_not_started">
+        <item>Your day hasn’t started yet.\nThe circle is still whole.</item>
+    </string-array>
+    <string-array name="today_hero_finished">
+        <item>Your planned time is up.\nYou can let the day go.</item>
+    </string-array>
+    <string-array name="today_hero_ending">
+        <item>The day is drawing to a close.\nChoose one essential thing.</item>
+    </string-array>
+    <string-array name="today_hero_ongoing">
+        <item>See the time.\nStay the course, no pressure.</item>
+        <item>Rules for Writers\nRule One: You Must Write\n…\n― Robert A. Heinlein</item>
+    </string-array>
 
     <!-- Countdown circle -->
     <string name="countdown_time_left">TIME LEFT</string>
