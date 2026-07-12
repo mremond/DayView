@@ -700,6 +700,9 @@ internal fun CountdownCircle(
             contentAlignment = Alignment.Center,
         ) {
             val circleSize = minOf(maxWidth, maxHeight, 510.dp)
+            // Shrink the counter type in step with the ring so the numerals keep their
+            // proportion instead of dwarfing the dial in the mini and compact windows.
+            val counterScale = (circleSize / 380.dp).coerceIn(.72f, 1f)
             val circleModifier = if (busyArcs.isEmpty() && detourBodies.isEmpty()) {
                 Modifier.size(circleSize)
             } else {
@@ -890,25 +893,25 @@ internal fun CountdownCircle(
                     Text(
                         if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
                         color = if (progress.isFinished) colors.red else colors.muted,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp,
+                        fontSize = (11 * counterScale).sp,
+                        lineHeight = (15 * counterScale).sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.8.sp,
+                        letterSpacing = (1.8f * counterScale).sp,
                         textAlign = TextAlign.Center,
                     )
                     if (!progress.isFinished) {
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(8.dp * counterScale))
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text(progress.remainingHours.toString().padStart(2, '0'), color = colors.cloud, fontSize = 52.sp, fontWeight = FontWeight.Light)
-                            Text("h", color = colors.muted, fontSize = 19.sp, modifier = Modifier.padding(bottom = 9.dp, start = 3.dp, end = 7.dp))
-                            Text(progress.remainingMinutes.toString().padStart(2, '0'), color = colors.cloud, fontSize = 52.sp, fontWeight = FontWeight.Light)
+                            Text(progress.remainingHours.toString().padStart(2, '0'), color = colors.cloud, fontSize = (52 * counterScale).sp, fontWeight = FontWeight.Light)
+                            Text("h", color = colors.muted, fontSize = (19 * counterScale).sp, modifier = Modifier.padding(bottom = 9.dp * counterScale, start = 3.dp * counterScale, end = 7.dp * counterScale))
+                            Text(progress.remainingMinutes.toString().padStart(2, '0'), color = colors.cloud, fontSize = (52 * counterScale).sp, fontWeight = FontWeight.Light)
                         }
                         if (showSeconds) {
                             Text(
                                 stringResource(Res.string.seconds_remaining, progress.remainingSeconds.toString().padStart(2, '0')),
                                 color = colors.muted,
-                                fontSize = 12.sp,
-                                letterSpacing = .8.sp,
+                                fontSize = (12 * counterScale).sp,
+                                letterSpacing = (.8f * counterScale).sp,
                             )
                         }
                         if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
