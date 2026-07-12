@@ -19,6 +19,7 @@ internal object DayViewTestTags {
     const val DetourStartAdjust = "detourStartAdjust"
     const val DetourStartIncrease = "detourStartIncrease"
     const val DetourConfirm = "detourConfirm"
+    const val DetourLongToggle = "detourLongToggle"
     const val PlannedObligationInput = "plannedObligationInput"
     const val PlannedObligationAdd = "plannedObligationAdd"
     const val PlannedObligationDone = "plannedObligationDone"
@@ -36,4 +37,5 @@ internal object DayViewTestTags {
     const val SettingsOnGoalScreen = "settingsOnGoalScreen"
 
     fun settingsCategoryRow(category: SettingsCategory): String = "settingsCategoryRow_${category.name}"
+    fun detourDurationChip(minutes: Int): String = "detourDuration$minutes"
 }

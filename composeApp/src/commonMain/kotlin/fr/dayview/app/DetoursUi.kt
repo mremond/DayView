@@ -52,6 +52,7 @@ import fr.dayview.app.generated.resources.detour_delete_button
 import fr.dayview.app.generated.resources.detour_duration_decrease
 import fr.dayview.app.generated.resources.detour_duration_increase
 import fr.dayview.app.generated.resources.detour_duration_label
+import fr.dayview.app.generated.resources.detour_duration_more
 import fr.dayview.app.generated.resources.detour_duration_section
 import fr.dayview.app.generated.resources.detour_duration_value
 import fr.dayview.app.generated.resources.detour_edit_row_label
@@ -78,6 +79,7 @@ import fr.dayview.app.generated.resources.detour_time_range
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /** Per-source tally under the dial plus the capture affordance. */
@@ -184,6 +186,7 @@ internal fun DetourChip(
 }
 
 private val DETOUR_DURATION_CHOICES = listOf(5, 15, 30, 45, 60)
+private val DETOUR_LONG_DURATION_CHOICES = listOf(90, 120, 180)
 
 /** Quick capture: required motif, recent-motif suggestions, quick duration picks. */
 @Composable
@@ -223,6 +226,7 @@ internal fun DetourCaptureContent(
     var startPinned by remember { mutableStateOf(false) }
     var pinnedStartMinutes by remember { mutableIntStateOf(0) }
     var motifPendingForget by remember { mutableStateOf<String?>(null) }
+    var showLongDurations by remember { mutableStateOf(false) }
     // "Ends now" default: the start tracks the duration until the user pins it by nudging.
     val startMinutes = if (startPinned) pinnedStartMinutes else detourDefaultStartMinutes(now, durationMinutes, timeZone)
     Column(
@@ -275,6 +279,34 @@ internal fun DetourCaptureContent(
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                 ) { durationMinutes = minutes }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        if (!showLongDurations) {
+            Text(
+                stringResource(Res.string.detour_duration_more),
+                color = colors.amber,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.minimumInteractiveComponentSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button) { showLongDurations = true }
+                    .testTag(DayViewTestTags.DetourLongToggle)
+                    .padding(vertical = 6.dp, horizontal = 6.dp),
+            )
+        } else {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                DETOUR_LONG_DURATION_CHOICES.forEach { minutes ->
+                    DetourChip(
+                        formatDurationHm(minutes.minutes),
+                        selected = minutes == durationMinutes,
+                        modifier = Modifier.weight(1f).testTag(DayViewTestTags.detourDurationChip(minutes)),
+                        textAlign = TextAlign.Center,
+                    ) { durationMinutes = minutes }
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
