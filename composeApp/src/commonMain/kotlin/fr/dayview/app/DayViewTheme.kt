@@ -94,7 +94,10 @@ internal fun DayViewTheme(
         )
     }
     PlatformThemeChrome(isDark = isDark)
-    CompositionLocalProvider(LocalDayViewColors provides colors) {
+    CompositionLocalProvider(
+        LocalDayViewColors provides colors,
+        LocalUses24HourClock provides rememberUses24HourClock(),
+    ) {
         MaterialTheme(colorScheme = colorScheme) {
             content(colors)
         }
