@@ -21,7 +21,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
-internal enum class DayViewDestination {
+enum class DayViewDestination {
     TODAY,
     SETTINGS,
     HISTORY,
@@ -38,7 +38,7 @@ private val weekdayLabelResources: List<StringResource> = listOf(
     Res.string.weekday_sun,
 )
 
-internal enum class SettingsCategory {
+enum class SettingsCategory {
     DAY,
     DISPLAY,
     SOUNDS,
@@ -47,7 +47,7 @@ internal enum class SettingsCategory {
     SYNC,
 }
 
-internal data class DayViewUiState(
+data class DayViewUiState(
     val now: Instant,
     val startMinutes: Int,
     val endMinutes: Int,
@@ -171,7 +171,7 @@ internal data class DayViewUiState(
         get() = displayedStreak(cleanSessions, dayKeyOf(dayNow))
 }
 
-internal class DayViewController(
+class DayViewController(
     private val preferences: DayPreferences,
     private val scope: CoroutineScope,
     initialSnapshot: DayPreferencesSnapshot,
