@@ -42,7 +42,7 @@ fun DayViewApp(
 ) {
     val initialThemeSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
     val themeSnapshot by preferences.snapshots.collectAsState(initial = initialThemeSnapshot)
-    DayViewTheme(themeMode = themeSnapshot.themeMode) { colors ->
+    DayViewTheme(themeMode = themeSnapshot.themeMode, uses24Hour = rememberUses24HourClock()) { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
             val scope = rememberCoroutineScope()
             val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
