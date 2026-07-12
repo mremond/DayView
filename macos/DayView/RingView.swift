@@ -3,52 +3,102 @@ import DayViewKit
 
 struct RingView: View {
     @StateObject private var model = TodayModel()
+    @State private var intention: String = ""
+    @State private var goalTitle: String = ""
+    @State private var deadline: Date = Date()
+    @State private var seeded = false
 
     var body: some View {
-        VStack(spacing: 24) {
+        ScrollView {
+            VStack(spacing: 28) {
+                ringSection
+                focusSection
+                goalSection
+            }
+            .padding(32)
+        }
+        .onReceive(model.$snapshot) { snap in
+            // Seed the local text/date fields once from persisted state.
+            if !seeded {
+                intention = snap.focusIntention
+                goalTitle = snap.goalTitle
+                if snap.goalHasDeadline {
+                    deadline = Date(timeIntervalSince1970: Double(snap.goalDeadlineEpochMillis) / 1000)
+                }
+                seeded = true
+            }
+        }
+    }
+
+    private var ringSection: some View {
+        VStack(spacing: 8) {
             Canvas { context, size in
                 let inset: CGFloat = 40
                 let side = min(size.width, size.height) - inset * 2
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                let radius = side / 2
+                let radius = max(side / 2, 1)
                 let lineWidth: CGFloat = 18
-
                 var track = Path()
-                track.addArc(
-                    center: center, radius: radius,
-                    startAngle: .degrees(0), endAngle: .degrees(360),
-                    clockwise: false
-                )
+                track.addArc(center: center, radius: radius, startAngle: .degrees(0), endAngle: .degrees(360), clockwise: false)
                 context.stroke(track, with: .color(.gray.opacity(0.2)), lineWidth: lineWidth)
-
                 var sweep = Path()
-                sweep.addArc(
-                    center: center, radius: radius,
-                    startAngle: .degrees(-90),
-                    endAngle: .degrees(model.snapshot.momentAngleDegrees),
-                    clockwise: false
-                )
-                context.stroke(
-                    sweep,
-                    with: .color(.accentColor),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
+                sweep.addArc(center: center, radius: radius, startAngle: .degrees(-90), endAngle: .degrees(model.snapshot.momentAngleDegrees), clockwise: false)
+                context.stroke(sweep, with: .color(.accentColor), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
+            .frame(height: 260)
             Text(model.snapshot.dayStatus)
-                .font(.system(size: 44, weight: .semibold, design: .rounded))
+                .font(.system(size: 40, weight: .semibold, design: .rounded))
                 .monospacedDigit()
+        }
+    }
 
-            Text(focusText)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 16) {
-                Button("Start focus") { model.startFocus() }
-                Button("Stop focus") { model.stopFocus() }
+    private var focusSection: some View {
+        GroupBox("Focus") {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("What are you focusing on?", text: $intention)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { model.setFocusIntention(intention) }
+                HStack {
+                    Stepper("Duration: \(model.snapshot.pomodoroMinutes) min",
+                            onIncrement: { model.changePomodoroDuration(5) },
+                            onDecrement: { model.changePomodoroDuration(-5) })
+                    Spacer()
+                    if model.snapshot.pomodoroStatus == "IDLE" {
+                        Button("Start focus") {
+                            model.setFocusIntention(intention)
+                            model.startFocus(intention: intention)
+                        }
+                        .disabled(intention.isEmpty)
+                    } else {
+                        Button("Stop focus") { model.stopFocus() }
+                    }
+                }
+                Text(focusText).foregroundStyle(.secondary)
             }
         }
-        .padding(32)
+    }
+
+    private var goalSection: some View {
+        GroupBox("Goal") {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("Goal title", text: $goalTitle)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { model.setGoalTitle(goalTitle) }
+                HStack {
+                    DatePicker("Deadline", selection: $deadline)
+                        .onChange(of: deadline) { newValue in
+                            model.setGoalDeadline(epochMillis: Int64(newValue.timeIntervalSince1970 * 1000))
+                        }
+                    if model.snapshot.goalHasDeadline {
+                        Button("Clear") { model.clearGoalDeadline() }
+                    }
+                }
+                if model.snapshot.goalHasDeadline {
+                    Text("\(model.snapshot.goalHoursRemaining)h of working time left")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     private var focusText: String {

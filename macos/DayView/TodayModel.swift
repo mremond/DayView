@@ -19,8 +19,13 @@ final class TodayModel: ObservableObject {
         timer = t
     }
 
-    func startFocus() { session.startFocus(intention: "Ship it") }
     func stopFocus() { session.stopFocus() }
+    func setFocusIntention(_ text: String) { session.setFocusIntention(intention: text) }
+    func changePomodoroDuration(_ delta: Int32) { session.changePomodoroDuration(deltaMinutes: delta) }
+    func startFocus(intention: String) { session.startFocus(intention: intention) }
+    func setGoalTitle(_ title: String) { session.setGoalTitle(title: title) }
+    func setGoalDeadline(epochMillis: Int64) { session.setGoalDeadline(epochMillis: epochMillis) }
+    func clearGoalDeadline() { session.setGoalDeadline(epochMillis: 0) }
 
     deinit {
         subscription?.cancel()
