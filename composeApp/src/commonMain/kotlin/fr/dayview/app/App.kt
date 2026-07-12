@@ -102,7 +102,7 @@ internal fun DayViewApp(
                             onLocalWrite = { localWriteSignal.tryEmit(Unit) },
                         )
                     }
-                    val state = controller.state
+                    val state by controller.stateFlow.collectAsState()
                     // Recompute when the user opens Settings to edit the on-goal apps, rather
                     // than freezing the check at launch (when no target app may be running yet).
                     var hasRunningApps by remember { mutableStateOf(false) }

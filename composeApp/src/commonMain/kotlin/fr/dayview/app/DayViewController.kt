@@ -1,8 +1,5 @@
 package fr.dayview.app
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.weekday_fri
 import fr.dayview.app.generated.resources.weekday_mon
@@ -12,6 +9,9 @@ import fr.dayview.app.generated.resources.weekday_thu
 import fr.dayview.app.generated.resources.weekday_tue
 import fr.dayview.app.generated.resources.weekday_wed
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
@@ -184,10 +184,15 @@ internal class DayViewController(
     // (DesktopPreferences.loadFocusPresence). Seed it into the initial state so the
     // synchronous init archival below captures the previous day's presence too; the live
     // ticker overwrites it via setFocusPresenceIntervals once composition starts.
-    var state: DayViewUiState by mutableStateOf(
+    private val _stateFlow = MutableStateFlow(
         initialSnapshot.toUiState(initialNow).copy(focusPresenceIntervals = initialFocusPresenceIntervals),
     )
-        private set
+    val stateFlow: StateFlow<DayViewUiState> = _stateFlow.asStateFlow()
+    var state: DayViewUiState
+        get() = _stateFlow.value
+        private set(value) {
+            _stateFlow.value = value
+        }
 
     // Count of our own persists still running. While any is in flight, every
     // notification is necessarily an echo of one of them (the bridged persist()
