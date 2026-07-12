@@ -199,6 +199,8 @@
 
     <!-- Detours -->
     <string name="detours_today">Detours %1$s</string>
+    <string name="clean_sessions_today">Serious %1$d</string>
+    <string name="clean_streak">Streak %1$d d</string>
     <string name="detour_time_range">%1$s – %2$s · %3$s</string>
     <string name="detour_add_button">+ DETOUR</string>
     <string name="detour_capture_open_label">Declare a detour</string>

@@ -87,6 +87,8 @@ import fr.dayview.app.generated.resources.app_wordmark
 import fr.dayview.app.generated.resources.busy_generic
 import fr.dayview.app.generated.resources.busy_remaining
 import fr.dayview.app.generated.resources.busy_time_range
+import fr.dayview.app.generated.resources.clean_sessions_today
+import fr.dayview.app.generated.resources.clean_streak
 import fr.dayview.app.generated.resources.countdown_day_over
 import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
@@ -158,6 +160,8 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
+
+private const val CLEAN_SESSION_PIP_CAP = 8
 
 internal data class DayViewScreenActions(
     val openSettings: () -> Unit,
@@ -248,6 +252,8 @@ internal fun DayViewScreen(
                             windowEnd = state.dayWindow.second,
                             detourBodies = state.detourBodiesState,
                             detoursTotal = state.detoursTotalToday,
+                            cleanSessionsToday = state.cleanSessionsToday,
+                            streakDays = state.cleanStreakDays,
                             hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                             onOpenDetourList = { showDetourList = true },
                         )
@@ -302,6 +308,8 @@ internal fun DayViewScreen(
                     windowEnd = state.dayWindow.second,
                     detourBodies = state.detourBodiesState,
                     detoursTotal = state.detoursTotalToday,
+                    cleanSessionsToday = state.cleanSessionsToday,
+                    streakDays = state.cleanStreakDays,
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                     onOpenDetourList = { showDetourList = true },
                 )
@@ -686,6 +694,8 @@ internal fun CountdownCircle(
     windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
     detourBodies: List<DetourBody> = emptyList(),
     detoursTotal: Duration = Duration.ZERO,
+    cleanSessionsToday: Int = 0,
+    streakDays: Int = 0,
     hasGoal: Boolean = false,
     onOpenDetourList: (() -> Unit)? = null,
 ) {
@@ -964,6 +974,44 @@ internal fun CountdownCircle(
                                 Text(
                                     stringResource(Res.string.detours_today, formatDurationHm(detoursTotal)),
                                     color = colors.amber,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
+                        }
+                        if (cleanSessionsToday > 0 || streakDays > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            val countLabel = if (cleanSessionsToday > 0) {
+                                stringResource(Res.string.clean_sessions_today, cleanSessionsToday)
+                            } else {
+                                null
+                            }
+                            val streakLabel = if (streakDays > 0) {
+                                stringResource(Res.string.clean_streak, streakDays)
+                            } else {
+                                null
+                            }
+                            val label = listOfNotNull(countLabel, streakLabel).joinToString(" · ")
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.testTag(DayViewTestTags.CleanSessions),
+                            ) {
+                                if (cleanSessionsToday > 0) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        repeat(cleanSessionsToday.coerceAtMost(CLEAN_SESSION_PIP_CAP)) {
+                                            Box(
+                                                Modifier
+                                                    .size(6.dp)
+                                                    .background(colors.mint, CircleShape),
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                }
+                                Text(
+                                    label,
+                                    color = colors.mint,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     letterSpacing = .5.sp,

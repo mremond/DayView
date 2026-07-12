@@ -115,6 +115,20 @@ class DayPreferencesStoreTest {
     }
 
     @Test
+    fun persistsAndRestoresCleanSessionLedger() = runTest {
+        val store = newStore(FakeFileSystem())
+        val ledger = CleanSessionLedger(dayKey = 42L, cleanToday = 3, streakDays = 5, streakLastDayKey = 41L)
+        store.persist(DayPreferencesSnapshot(cleanSessions = ledger))
+        assertEquals(ledger, store.snapshots.first().cleanSessions)
+    }
+
+    @Test
+    fun absentLedgerKeysRestoreEmptyLedger() = runTest {
+        val store = newStore(FakeFileSystem())
+        assertEquals(CleanSessionLedger(), store.snapshots.first().cleanSessions)
+    }
+
+    @Test
     fun fontScaleRoundTripsAndDefaultsToOne() = runTest {
         val store = newStore(FakeFileSystem())
         // Absent value falls back to the 1.0 default.

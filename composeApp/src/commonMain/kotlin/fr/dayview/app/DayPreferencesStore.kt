@@ -35,6 +35,10 @@ internal object DayPreferenceKeys {
     const val DETOURS = "detours"
     const val DETOUR_RECENT_MOTIFS = "detour_recent_motifs"
     const val THEME_MODE = "theme_mode"
+    const val CLEAN_SESSIONS_DAY = "clean_sessions_day"
+    const val CLEAN_SESSIONS_TODAY = "clean_sessions_today"
+    const val CLEAN_STREAK_DAYS = "clean_streak_days"
+    const val CLEAN_STREAK_LAST_DAY = "clean_streak_last_day"
     const val FONT_SCALE = "font_scale"
     const val NO_DEADLINE = -1L
 }
@@ -61,6 +65,10 @@ private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
 private val detourRecentMotifsKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_MOTIFS)
 private val themeModeKey = stringPreferencesKey(DayPreferenceKeys.THEME_MODE)
+private val cleanSessionsDayKey = longPreferencesKey(DayPreferenceKeys.CLEAN_SESSIONS_DAY)
+private val cleanSessionsTodayKey = intPreferencesKey(DayPreferenceKeys.CLEAN_SESSIONS_TODAY)
+private val cleanStreakDaysKey = intPreferencesKey(DayPreferenceKeys.CLEAN_STREAK_DAYS)
+private val cleanStreakLastDayKey = longPreferencesKey(DayPreferenceKeys.CLEAN_STREAK_LAST_DAY)
 private val fontScaleKey = floatPreferencesKey(DayPreferenceKeys.FONT_SCALE)
 
 class DayPreferencesStore(
@@ -92,6 +100,10 @@ class DayPreferencesStore(
             prefs[detoursKey] = encodeDetours(snapshot.detours)
             prefs[detourRecentMotifsKey] = encodeRecentDetourMotifs(snapshot.recentDetourMotifs)
             prefs[themeModeKey] = snapshot.themeMode.name
+            prefs[cleanSessionsDayKey] = snapshot.cleanSessions.dayKey
+            prefs[cleanSessionsTodayKey] = snapshot.cleanSessions.cleanToday
+            prefs[cleanStreakDaysKey] = snapshot.cleanSessions.streakDays
+            prefs[cleanStreakLastDayKey] = snapshot.cleanSessions.streakLastDayKey
             prefs[fontScaleKey] = snapshot.fontScale
         }
     }
@@ -135,6 +147,12 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         themeMode = this[themeModeKey]
             ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
             ?: defaults.themeMode,
+        cleanSessions = CleanSessionLedger(
+            dayKey = this[cleanSessionsDayKey] ?: defaults.cleanSessions.dayKey,
+            cleanToday = this[cleanSessionsTodayKey] ?: defaults.cleanSessions.cleanToday,
+            streakDays = this[cleanStreakDaysKey] ?: defaults.cleanSessions.streakDays,
+            streakLastDayKey = this[cleanStreakLastDayKey] ?: defaults.cleanSessions.streakLastDayKey,
+        ),
         fontScale = (this[fontScaleKey] ?: defaults.fontScale).coerceIn(1.0f, 1.5f),
     )
 }
