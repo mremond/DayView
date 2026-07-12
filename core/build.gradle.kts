@@ -23,11 +23,13 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(libs.kotlinx.datetime)
+                implementation(libs.kotlinx.coroutines.core)
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
     }

@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.sqrt
@@ -237,7 +238,7 @@ fun hitTestDetourBody(
     val dy = y - height / 2f
     val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
     if (radiusFraction !in 0.70f..1.02f) return null
-    val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+    val angle = (atan2(dy.toDouble(), dx.toDouble()) * 180.0 / PI).toFloat()
     return bodies
         .minByOrNull { angularDistance(it.angleDegrees, angle) }
         ?.takeIf { angularDistance(it.angleDegrees, angle) <= 7f + 5f * it.sizeFraction }
