@@ -64,6 +64,24 @@ fun decodeBusyIntervals(encoded: String): List<BusyInterval> = encoded.split("\n
     BusyInterval(Instant.fromEpochMilliseconds(start), Instant.fromEpochMilliseconds(end), titles, calendarId)
 }
 
+private fun encodeCalendarNameB64(text: String): String = Base64.encode(text.encodeToByteArray())
+
+private fun decodeCalendarNameB64(b64: String): String = Base64.decode(b64).decodeToString()
+
+/**
+ * `id,displayName` per line, each field Base64-encoded so names never collide with the
+ * `,`/`\n` structure. Shared by the history codec and the day-preferences store so a single
+ * lossless calendar-name encoding is used everywhere.
+ */
+internal fun encodeCalendarNames(names: Map<String, String>): String = names.entries.joinToString("\n") { "${encodeCalendarNameB64(it.key)},${encodeCalendarNameB64(it.value)}" }
+
+/** Inverse of [encodeCalendarNames]; blank or malformed lines are skipped. */
+internal fun decodeCalendarNames(encoded: String): Map<String, String> = encoded.split("\n").mapNotNull { line ->
+    if (line.isEmpty()) return@mapNotNull null
+    val parts = line.split(",", limit = 2)
+    if (parts.size != 2) null else decodeCalendarNameB64(parts[0]) to decodeCalendarNameB64(parts[1])
+}.toMap()
+
 fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
     val sorted = intervals.filter { it.end > it.start }.sortedBy { it.start }
     val merged = mutableListOf<BusyInterval>()

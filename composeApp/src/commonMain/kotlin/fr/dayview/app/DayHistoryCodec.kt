@@ -19,14 +19,6 @@ internal object DayHistoryCodec {
     private fun enc(text: String): String = Base64.encode(text.encodeToByteArray())
     private fun dec(b64: String): String = Base64.decode(b64).decodeToString()
 
-    private fun encodeCalendarNames(names: Map<String, String>): String = names.entries.joinToString("\n") { "${enc(it.key)},${enc(it.value)}" }
-
-    private fun decodeCalendarNames(encoded: String): Map<String, String> = encoded.split("\n").mapNotNull { line ->
-        if (line.isEmpty()) return@mapNotNull null
-        val parts = line.split(",", limit = 2)
-        if (parts.size != 2) null else dec(parts[0]) to dec(parts[1])
-    }.toMap()
-
     fun encode(record: DayHistoryRecord): String = buildString {
         appendLine(VERSION_HEADER)
         appendLine("dayKey=${record.dayKey}")

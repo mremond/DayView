@@ -65,6 +65,7 @@ internal fun DayHistoryRecord.toFrozenUiState(
     pomodoroEnd = pomodoroEnd,
     focusIntention = focusIntention,
     netTimeSettings = netTimeSettings,
+    busyDayKey = dayKey,
     availableCalendars = calendarNames.map { CalendarInfo(it.key, it.value) },
     busyIntervals = busyIntervals,
     focusPresenceIntervals = focusPresenceIntervals,

@@ -58,6 +58,29 @@ class HistoryNavigationTest {
     }
 
     @Test
+    fun openHistoryBuildsTodaysCellFromLiveState() {
+        val now = midWindowNow()
+        val todayKey = dayKeyOf(now)
+        // Live state carries today's calendar-busy layer; today is never archived, so the cell
+        // must be built from the live state rather than read (as null) from the store.
+        val snapshot = DayPreferencesSnapshot(
+            netTimeSettings = NetTimeSettings(enabled = true),
+            busyDayKey = todayKey,
+            busyIntervals = listOf(
+                BusyInterval(now, now + kotlin.time.Duration.parse("30m"), listOf("Standup"), "cal-a"),
+            ),
+            availableCalendars = listOf(CalendarInfo("cal-a", "Work")),
+        )
+        val controller = controllerWith(snapshot, now, InMemoryDayHistoryStore())
+
+        controller.openHistory()
+
+        val todayRecord = controller.state.historyWeek.firstOrNull { it.dayKey == todayKey }?.record
+        assertTrue(todayRecord != null)
+        assertEquals(1, todayRecord.busyIntervals.size)
+    }
+
+    @Test
     fun openHistoryDaySelectsADay() {
         val controller = controllerWith(DayPreferencesSnapshot(), midWindowNow(), InMemoryDayHistoryStore())
         controller.openHistory()

@@ -62,6 +62,7 @@ internal data class DayViewUiState(
     val focusIntention: String,
     val netTimeSettings: NetTimeSettings = NetTimeSettings(),
     val netCalendarPermission: Boolean = false,
+    val busyDayKey: Long = -1L,
     val availableCalendars: List<CalendarInfo> = emptyList(),
     val busyIntervals: List<BusyInterval> = emptyList(),
     val onGoalApps: Set<AppRef> = emptySet(),
@@ -95,13 +96,21 @@ internal data class DayViewUiState(
     val dayWindow: Pair<Instant, Instant>
         get() = dayWindow(dayNow, startMinutes, endMinutes)
 
+    /** Busy layer of the current local day; stale storage from a previous day reads as empty. */
+    val busyIntervalsToday: List<BusyInterval>
+        get() = if (busyDayKey == dayKeyOf(dayNow)) busyIntervals else emptyList()
+
+    /** Calendars of the current local day; stale storage from a previous day reads as empty. */
+    val availableCalendarsToday: List<CalendarInfo>
+        get() = if (busyDayKey == dayKeyOf(dayNow)) availableCalendars else emptyList()
+
     private val calendarNamesById: Map<String, String>
-        get() = availableCalendars.associate { it.id to it.displayName }
+        get() = availableCalendarsToday.associate { it.id to it.displayName }
 
     val busyBlockArcsState: List<BusyBlockArc>
         get() = if (netTimeSettings.enabled) {
             val (start, end) = dayWindow
-            busyBlockArcs(start, end, busyIntervals, calendarNamesById)
+            busyBlockArcs(start, end, busyIntervalsToday, calendarNamesById)
         } else {
             emptyList()
         }
@@ -109,7 +118,7 @@ internal data class DayViewUiState(
     val netTime: NetTime?
         get() = if (netTimeSettings.enabled) {
             val (start, end) = dayWindow
-            calculateNetTime(dayProgress, dayNow, start, end, busyIntervals)
+            calculateNetTime(dayProgress, dayNow, start, end, busyIntervalsToday)
         } else {
             null
         }
@@ -155,8 +164,15 @@ internal class DayViewController(
     initialSnapshot: DayPreferencesSnapshot,
     initialNow: Instant = Clock.System.now(),
     private val history: DayHistoryStore = InMemoryDayHistoryStore(),
+    initialFocusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
 ) {
-    var state: DayViewUiState by mutableStateOf(initialSnapshot.toUiState(initialNow))
+    // Focus presence is desktop-only and persisted outside the shared snapshot
+    // (DesktopPreferences.loadFocusPresence). Seed it into the initial state so the
+    // synchronous init archival below captures the previous day's presence too; the live
+    // ticker overwrites it via setFocusPresenceIntervals once composition starts.
+    var state: DayViewUiState by mutableStateOf(
+        initialSnapshot.toUiState(initialNow).copy(focusPresenceIntervals = initialFocusPresenceIntervals),
+    )
         private set
 
     // Count of our own persists still running. While any is in flight, every
@@ -193,8 +209,8 @@ internal class DayViewController(
         maybeArchivePreviousDay()
     }
 
-    /** The day the persisted day-scoped fields (detours, clean-session ledger) belong to. */
-    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(state.detoursDayKey, state.cleanSessions.dayKey).filter { it != -1L }.maxOrNull()
+    /** The day the persisted day-scoped fields (detours, clean-session ledger, calendar busy) belong to. */
+    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(state.detoursDayKey, state.cleanSessions.dayKey, state.busyDayKey).filter { it != -1L }.maxOrNull()
 
     /**
      * Archives the previous day's ring before its day-scoped data is discarded on
@@ -238,8 +254,16 @@ internal class DayViewController(
         scope.launch {
             val present = history.listDays(keys.first()..keys.last()).toSet()
             val labels = weekdayLabelResources.map { getString(it) }
+            // Today is never archived (maybeArchivePreviousDay skips the current day), so its
+            // stored cell is always null. Build it from the live state so today renders a real,
+            // clickable ring instead of a greyed placeholder.
+            val todayRecord = state.toHistoryRecord(todayKey)
             val days = keys.mapIndexed { i, key ->
-                val record = if (key in present) history.read(key) else null
+                val record = when {
+                    key == todayKey -> todayRecord
+                    key in present -> history.read(key)
+                    else -> null
+                }
                 HistoryWeekDay(key, labels[i], record)
             }
             state = state.copy(historyWeek = days)
@@ -458,11 +482,26 @@ internal class DayViewController(
         busyIntervals: List<BusyInterval>,
         availableCalendars: List<CalendarInfo>,
     ) {
+        // The day's calendar-busy layer is transient in-memory data; persist it (day-tagged)
+        // so a cold launch on the next day archives a faithful ring (see maybeArchivePreviousDay).
+        // Day-tag and persist only when there is an actual busy layer, mirroring how detours and
+        // clean-sessions tag their day on real activity: this keeps empty days out of history and
+        // avoids a per-minute write when the calendar read (re-run every minute) is unchanged.
+        val hasBusyLayer = busyIntervals.isNotEmpty()
+        val dayKey = if (hasBusyLayer) dayKeyOf(state.now) else state.busyDayKey
+        val changed = hasBusyLayer &&
+            (
+                state.busyIntervals != busyIntervals ||
+                    state.availableCalendars != availableCalendars ||
+                    state.busyDayKey != dayKey
+                )
         state = state.copy(
             netCalendarPermission = hasPermission,
+            busyDayKey = dayKey,
             busyIntervals = busyIntervals,
             availableCalendars = availableCalendars,
         )
+        if (changed) persistState()
     }
 
     fun onPreferencesChanged(snapshot: DayPreferencesSnapshot) {
@@ -487,6 +526,9 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     focusIntention = focusIntention,
     netTimeSettings = netTimeSettings,
     onGoalApps = onGoalApps,
+    busyDayKey = busyDayKey,
+    busyIntervals = busyIntervals,
+    availableCalendars = availableCalendars,
     detoursDayKey = detoursDayKey,
     detours = detours,
     recentDetourMotifs = recentDetourMotifs,
@@ -533,6 +575,9 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
         onGoalApps = safe.onGoalApps,
+        busyDayKey = safe.busyDayKey,
+        busyIntervals = safe.busyIntervals,
+        availableCalendars = safe.availableCalendars,
         detoursDayKey = safe.detoursDayKey,
         detours = safe.detours,
         recentDetourMotifs = safe.recentDetourMotifs,

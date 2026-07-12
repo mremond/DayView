@@ -101,6 +101,40 @@ class DayPreferencesStoreTest {
     }
 
     @Test
+    fun calendarBusyLayerRoundTrips() = runTest {
+        val store = newStore(FakeFileSystem())
+        val snapshot = DayPreferencesSnapshot(
+            busyDayKey = 20_646L,
+            busyIntervals = listOf(
+                BusyInterval(
+                    Instant.fromEpochMilliseconds(1_000L),
+                    Instant.fromEpochMilliseconds(2_000L),
+                    listOf("Standup, daily", "1:1|pipe"),
+                    "cal-a",
+                ),
+            ),
+            availableCalendars = listOf(
+                CalendarInfo("cal-a", "Work = life"),
+                CalendarInfo("cal-b", "Perso"),
+            ),
+        )
+        store.persist(snapshot)
+        val read = store.snapshots.first()
+        assertEquals(snapshot.busyDayKey, read.busyDayKey)
+        assertEquals(snapshot.busyIntervals, read.busyIntervals)
+        assertEquals(snapshot.availableCalendars, read.availableCalendars)
+    }
+
+    @Test
+    fun absentCalendarBusyLayerRestoresEmpty() = runTest {
+        val store = newStore(FakeFileSystem())
+        val read = store.snapshots.first()
+        assertEquals(-1L, read.busyDayKey)
+        assertEquals(emptyList(), read.busyIntervals)
+        assertEquals(emptyList(), read.availableCalendars)
+    }
+
+    @Test
     fun themeModeRoundTrips() = runTest {
         val store = newStore(FakeFileSystem())
         val snapshot = DayPreferencesSnapshot(themeMode = ThemeMode.DARK)

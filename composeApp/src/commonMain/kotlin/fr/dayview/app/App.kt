@@ -69,7 +69,15 @@ internal fun DayViewApp(
                 Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
                     val scope = rememberCoroutineScope()
                     val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
-                    val controller = remember(preferences) { DayViewController(preferences, scope, initialSnapshot, history = history) }
+                    val controller = remember(preferences) {
+                        DayViewController(
+                            preferences,
+                            scope,
+                            initialSnapshot,
+                            history = history,
+                            initialFocusPresenceIntervals = focusPresenceIntervals,
+                        )
+                    }
                     val state = controller.state
                     // Recompute when the user opens Settings to edit the on-goal apps, rather
                     // than freezing the check at launch (when no target app may be running yet).

@@ -30,6 +30,9 @@ internal object DayPreferenceKeys {
     const val FOCUS_INTENTION = "focus_intention"
     const val NET_TIME_ENABLED = "net_time_enabled"
     const val NET_TIME_CALENDARS = "net_time_calendars"
+    const val BUSY_DAY = "busy_day"
+    const val BUSY_INTERVALS = "busy_intervals"
+    const val AVAILABLE_CALENDARS = "available_calendars"
     const val ON_GOAL_APPS = "on_goal_apps"
     const val DETOURS_DAY = "detours_day"
     const val DETOURS = "detours"
@@ -60,6 +63,9 @@ private val pomodoroEndKey = longPreferencesKey(DayPreferenceKeys.POMODORO_END)
 private val focusIntentionKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_INTENTION)
 private val netTimeEnabledKey = booleanPreferencesKey(DayPreferenceKeys.NET_TIME_ENABLED)
 private val netTimeCalendarsKey = stringPreferencesKey(DayPreferenceKeys.NET_TIME_CALENDARS)
+private val busyDayPrefKey = longPreferencesKey(DayPreferenceKeys.BUSY_DAY)
+private val busyIntervalsKey = stringPreferencesKey(DayPreferenceKeys.BUSY_INTERVALS)
+private val availableCalendarsKey = stringPreferencesKey(DayPreferenceKeys.AVAILABLE_CALENDARS)
 private val onGoalAppsKey = stringPreferencesKey(DayPreferenceKeys.ON_GOAL_APPS)
 private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY)
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
@@ -95,6 +101,9 @@ class DayPreferencesStore(
             prefs[focusIntentionKey] = snapshot.focusIntention
             prefs[netTimeEnabledKey] = snapshot.netTimeSettings.enabled
             prefs[netTimeCalendarsKey] = snapshot.netTimeSettings.includedCalendarIds.joinToString("\n")
+            prefs[busyDayPrefKey] = snapshot.busyDayKey
+            prefs[busyIntervalsKey] = encodeBusyIntervals(snapshot.busyIntervals)
+            prefs[availableCalendarsKey] = encodeCalendarNames(snapshot.availableCalendars.associate { it.id to it.displayName })
             prefs[onGoalAppsKey] = encodeAppRefs(snapshot.onGoalApps)
             prefs[detoursDayPrefKey] = snapshot.detoursDayKey
             prefs[detoursKey] = encodeDetours(snapshot.detours)
@@ -140,6 +149,10 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
             includedCalendarIds = this[netTimeCalendarsKey].orEmpty()
                 .split("\n").filter { it.isNotBlank() }.toSet(),
         ),
+        busyDayKey = this[busyDayPrefKey] ?: defaults.busyDayKey,
+        busyIntervals = decodeBusyIntervals(this[busyIntervalsKey].orEmpty()),
+        availableCalendars = decodeCalendarNames(this[availableCalendarsKey].orEmpty())
+            .map { CalendarInfo(it.key, it.value) },
         onGoalApps = decodeAppRefs(this[onGoalAppsKey].orEmpty()),
         detoursDayKey = this[detoursDayPrefKey] ?: defaults.detoursDayKey,
         detours = decodeDetours(this[detoursKey].orEmpty()),
