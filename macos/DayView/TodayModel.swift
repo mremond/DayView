@@ -12,9 +12,11 @@ final class TodayModel: ObservableObject {
         subscription = session.subscribe { [weak self] snap in
             self?.snapshot = snap
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             self?.session.tick()
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     func startFocus() { session.startFocus(intention: "Ship it") }

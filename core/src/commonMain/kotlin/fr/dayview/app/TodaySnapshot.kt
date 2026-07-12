@@ -8,7 +8,10 @@ data class TodaySnapshot(
     val isFinished: Boolean,
     val remainingHours: Long,
     val remainingMinutes: Long,
-    val pomodoroStatus: String, // "IDLE" | "ACTIVE" | "BREAK"
+    // "IDLE" | "ACTIVE" | "BREAK" — the Swift RingView.focusText switches on these exact
+    // strings, so renaming PomodoroStatus enum constants would silently degrade the Swift UI
+    // to "Idle" instead of failing to compile.
+    val pomodoroStatus: String,
     val pomodoroClock: String, // formatted clock, "" when idle
     val focusIntention: String,
     val dayStatus: String, // remaining-time headline or "Day over"

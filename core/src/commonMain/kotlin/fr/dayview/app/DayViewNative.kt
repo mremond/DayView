@@ -15,6 +15,10 @@ interface DayViewSubscription {
 /**
  * Native-facing wrapper over [DayViewController]: emits [TodaySnapshot]s and forwards actions.
  * All emissions run on the scope's dispatcher; [DayViewNative.create] uses the main dispatcher.
+ *
+ * Intended to be used from the main thread: [DayViewNative.create]'s scope runs on
+ * [Dispatchers.Main], and Swift calls tick/actions from the main thread. Controller state
+ * mutation is not synchronized, so its thread-safety relies on this invariant.
  */
 class DayViewSession internal constructor(
     private val controller: DayViewController,
