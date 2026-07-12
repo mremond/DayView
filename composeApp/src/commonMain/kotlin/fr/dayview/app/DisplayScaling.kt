@@ -6,10 +6,10 @@ package fr.dayview.app
  * bigger, so a large or high-density e-ink tablet (e.g. Supernote) that under-reports its
  * density does not leave the UI physically tiny.
  */
-internal const val DISPLAY_SCALE_REFERENCE_DP = 420f
+internal const val DISPLAY_SCALE_REFERENCE_DP = 480f
 
 /** Upper bound on the automatic display zoom, so an extreme canvas cannot balloon the UI. */
-internal const val DISPLAY_SCALE_MAX = 2.0f
+internal const val DISPLAY_SCALE_MAX = 1.6f
 
 /**
  * Automatic whole-UI zoom factor derived purely from the available space. It scales the
