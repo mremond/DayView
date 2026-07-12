@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Instant
 
 @Composable
@@ -39,6 +40,7 @@ fun DayViewApp(
     scheduleSoundAlerts: Boolean = true,
     runningApps: () -> List<AppRef> = { emptyList() },
     focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
+    sessionOffGoal: Duration = Duration.ZERO,
 ) {
     val initialThemeSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
     val themeSnapshot by preferences.snapshots.collectAsState(initial = initialThemeSnapshot)
@@ -68,6 +70,10 @@ fun DayViewApp(
 
             LaunchedEffect(focusPresenceIntervals) {
                 controller.setFocusPresenceIntervals(focusPresenceIntervals)
+            }
+
+            LaunchedEffect(sessionOffGoal) {
+                controller.setSessionOffGoal(sessionOffGoal)
             }
 
             val netMinute = state.now.toEpochMilliseconds() / 60_000L
