@@ -62,10 +62,10 @@ struct RingView: View {
                     Stepper("Duration: \(model.snapshot.pomodoroMinutes) min",
                             onIncrement: { model.changePomodoroDuration(5) },
                             onDecrement: { model.changePomodoroDuration(-5) })
+                        .disabled(model.snapshot.pomodoroStatus != "IDLE")
                     Spacer()
                     if model.snapshot.pomodoroStatus == "IDLE" {
                         Button("Start focus") {
-                            model.setFocusIntention(intention)
                             model.startFocus(intention: intention)
                         }
                         .disabled(intention.isEmpty)
@@ -87,7 +87,9 @@ struct RingView: View {
                 HStack {
                     DatePicker("Deadline", selection: $deadline)
                         .onChange(of: deadline) { newValue in
-                            model.setGoalDeadline(epochMillis: Int64(newValue.timeIntervalSince1970 * 1000))
+                            if seeded {
+                                model.setGoalDeadline(epochMillis: Int64(newValue.timeIntervalSince1970 * 1000))
+                            }
                         }
                     if model.snapshot.goalHasDeadline {
                         Button("Clear") { model.clearGoalDeadline() }
