@@ -173,6 +173,7 @@ internal data class DayViewScreenActions(
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
+    val forgetDetourMotif: (String) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -326,6 +327,7 @@ internal fun DayViewScreen(
                     }
                     showDetourCapture = false
                 },
+                onForget = actions.forgetDetourMotif,
                 onDismiss = { showDetourCapture = false },
             )
         }

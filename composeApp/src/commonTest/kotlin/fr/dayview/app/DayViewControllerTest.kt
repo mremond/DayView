@@ -494,6 +494,22 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun forgetRecentMotifRemovesItFromStateAndPersists() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L
+        val controller = testController(preferences, now)
+        controller.addDetour("Slack", 15)
+        controller.addDetour("dsfdsf", 15)
+
+        controller.forgetRecentDetourMotif("DSFDSF")
+
+        assertEquals(listOf("Slack"), controller.state.recentDetourMotifs)
+        assertEquals(listOf("Slack"), preferences.current.recentDetourMotifs)
+        // The day's episodes stay put; only the suggestion is forgotten.
+        assertEquals(listOf("Slack", "dsfdsf"), controller.state.detoursToday.map { it.motif })
+    }
+
+    @Test
     fun addDetourClampsStartToTheDayWindowStart() {
         val now = 1_800_000_000_000L
         val nowLocal = t(now).toLocalDateTime(TimeZone.currentSystemDefault())

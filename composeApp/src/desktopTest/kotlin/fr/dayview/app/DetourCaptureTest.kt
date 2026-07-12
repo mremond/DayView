@@ -20,6 +20,7 @@ class DetourCaptureTest {
                 recentMotifs = emptyList(),
                 now = midWindowNow(),
                 onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onForget = {},
                 onDismiss = {},
             )
         }
@@ -40,6 +41,7 @@ class DetourCaptureTest {
                 recentMotifs = emptyList(),
                 now = midWindowNow(),
                 onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onForget = {},
                 onDismiss = {},
             )
         }
