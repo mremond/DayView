@@ -18,6 +18,16 @@ private const val NOW_TOLERANCE_DEGREES = 3f
 private const val BUSY_TOLERANCE_DEGREES = 5f
 
 /**
+ * Fold an arbitrary angle (e.g. a raw atan2 result in (-180°, 180°]) into the ring's
+ * drawArc domain [-90°, 270°), where -90° is the window start. [angleToInstant] and the
+ * scrub readout assume this domain.
+ */
+fun normalizeRingAngle(degrees: Float): Float {
+    val wrapped = ((degrees + 90f) % 360f + 360f) % 360f // [0, 360)
+    return wrapped - 90f // [-90, 270)
+}
+
+/**
  * Read every ring layer present at [angleDegrees] (drawArc convention, -90° = window start).
  * [momentAngleDegrees] is null before the day starts / after it ends. Busy and detour use
  * the same tolerances as the mouse hover hit-tests so thin arcs and small bodies stay

@@ -128,4 +128,29 @@ class RingScrubTest {
         assertTrue(r.focus)
         assertTrue(r.isNow)
     }
+
+    @Test
+    fun normalizeRingAngleFoldsIntoDrawArcDomain() {
+        assertEquals(225f, normalizeRingAngle(-135f), 0.001f)
+        assertEquals(0f, normalizeRingAngle(0f), 0.001f)
+        assertEquals(180f, normalizeRingAngle(180f), 0.001f)
+        assertEquals(-90f, normalizeRingAngle(270f), 0.001f)
+    }
+
+    @Test
+    fun topLeftQuadrantAngleMapsToLateInTheDay() {
+        // A raw atan2 result of -135° (top-left quadrant) must normalize to 225°, which is
+        // fraction 0.875 of the 24h window -> 21:00, not windowStart as the un-normalized
+        // angle would incorrectly coerce to.
+        val r = ringReadoutAt(
+            angleDegrees = normalizeRingAngle(-135f),
+            windowStart = windowStart,
+            windowEnd = windowEnd,
+            busyBlockArcs = emptyList(),
+            detourBodies = emptyList(),
+            focusArcs = emptyList(),
+            momentAngleDegrees = null,
+        )
+        assertEquals(ms(21L * 3_600_000), r.time)
+    }
 }

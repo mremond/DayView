@@ -839,22 +839,26 @@ internal fun CountdownCircle(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (down.type != PointerType.Touch) return@awaitEachGesture
                     val pressed = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     fun angleOf(pos: Offset): Float {
                         val dx = pos.x - size.width / 2f
                         val dy = pos.y - size.height / 2f
-                        return Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                        val raw = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                        return normalizeRingAngle(raw)
                     }
-                    scrubAngle = angleOf(pressed.position)
-                    pressed.consume()
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
-                        scrubAngle = angleOf(change.position)
-                        change.consume()
+                    try {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scrubAngle = angleOf(pressed.position)
+                        pressed.consume()
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            scrubAngle = angleOf(change.position)
+                            change.consume()
+                        }
+                    } finally {
+                        scrubAngle = null
                     }
-                    scrubAngle = null
                 }
             }
             Box(scrubModifier, contentAlignment = Alignment.Center) {
