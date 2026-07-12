@@ -241,6 +241,7 @@ internal fun DayViewScreen(
                             detourBodies = state.detourBodiesState,
                             detoursTotal = state.detoursTotalToday,
                             hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
+                            onOpenDetourList = { showDetourList = true },
                         )
                         Spacer(Modifier.height(6.dp))
                         DetourRow(
@@ -294,6 +295,7 @@ internal fun DayViewScreen(
                     detourBodies = state.detourBodiesState,
                     detoursTotal = state.detoursTotalToday,
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
+                    onOpenDetourList = { showDetourList = true },
                 )
                 Spacer(Modifier.height(6.dp))
                 DetourRow(
@@ -665,6 +667,7 @@ internal fun CountdownCircle(
     detourBodies: List<DetourBody> = emptyList(),
     detoursTotal: Duration = Duration.ZERO,
     hasGoal: Boolean = false,
+    onOpenDetourList: (() -> Unit)? = null,
 ) {
     val colors = LocalDayViewColors.current
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
@@ -707,6 +710,10 @@ internal fun CountdownCircle(
                                 } else {
                                     hitTestBusyArc(position, size.width, size.height, busyArcs)
                                         ?.let { HoveredBusyArc(it, position) }
+                                }
+                            } else if (event.type == PointerEventType.Press) {
+                                if (hitTestDetourBody(position.x, position.y, size.width, size.height, detourBodies) != null) {
+                                    onOpenDetourList?.invoke()
                                 }
                             }
                         }
