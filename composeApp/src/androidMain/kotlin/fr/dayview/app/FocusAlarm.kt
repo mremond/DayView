@@ -132,7 +132,7 @@ class FocusAlarmReceiver : BroadcastReceiver() {
         }
 
         val notificationManager = context.getSystemService(NotificationManager::class.java)
-        createChannel(notificationManager)
+        createChannel(context, notificationManager)
         val openApp = PendingIntent.getActivity(
             context,
             0,
@@ -152,12 +152,18 @@ class FocusAlarmReceiver : BroadcastReceiver() {
         val notification = builder
             .setSmallIcon(R.drawable.ic_dayview_notification)
             .setColor(context.getColor(R.color.dayview_notification_accent))
-            .setContentTitle(if (kind == KIND_BREAK_REMINDER) "Pause · $elapsedMinutes minutes" else "Focus terminé")
+            .setContentTitle(
+                if (kind == KIND_BREAK_REMINDER) {
+                    context.getString(R.string.break_reminder_title, elapsedMinutes)
+                } else {
+                    context.getString(R.string.focus_end_title)
+                },
+            )
             .setContentText(
                 if (kind == KIND_BREAK_REMINDER) {
-                    "Souhaitez-vous reprendre un focus ou terminer la série ?"
+                    context.getString(R.string.break_reminder_body)
                 } else {
-                    intention.takeIf(String::isNotBlank) ?: "Votre session est terminée. La pause commence."
+                    intention.takeIf(String::isNotBlank) ?: context.getString(R.string.focus_end_body)
                 },
             )
             .setCategory(Notification.CATEGORY_ALARM)
@@ -167,14 +173,14 @@ class FocusAlarmReceiver : BroadcastReceiver() {
         notificationManager.notify(FOCUS_NOTIFICATION_ID, notification)
     }
 
-    private fun createChannel(manager: NotificationManager) {
+    private fun createChannel(context: Context, manager: NotificationManager) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Fin des sessions Focus",
+                context.getString(R.string.focus_alarm_channel),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
-                description = "Prévient lorsqu’une session Focus se termine"
+                description = context.getString(R.string.focus_alarm_channel_description)
             }
             manager.createNotificationChannel(channel)
         }

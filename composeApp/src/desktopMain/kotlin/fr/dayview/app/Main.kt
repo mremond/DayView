@@ -15,13 +15,30 @@ import androidx.compose.ui.window.rememberWindowState
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dayview_tray
 import fr.dayview.app.generated.resources.dayview_tray_monochrome
+import fr.dayview.app.generated.resources.desktop_break
+import fr.dayview.app.generated.resources.desktop_day_over
+import fr.dayview.app.generated.resources.desktop_focus
+import fr.dayview.app.generated.resources.desktop_goal_deadline_reached
+import fr.dayview.app.generated.resources.desktop_goal_hours
+import fr.dayview.app.generated.resources.desktop_goal_title_hours
+import fr.dayview.app.generated.resources.desktop_hide_dayview
+import fr.dayview.app.generated.resources.desktop_menubar_break
+import fr.dayview.app.generated.resources.desktop_nudge_title
+import fr.dayview.app.generated.resources.desktop_open_dayview
+import fr.dayview.app.generated.resources.desktop_open_full_window
+import fr.dayview.app.generated.resources.desktop_quit_dayview
+import fr.dayview.app.generated.resources.desktop_show_mini_window
+import fr.dayview.app.generated.resources.desktop_today_remaining
+import fr.dayview.app.generated.resources.focus_single_thing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.ceil
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
@@ -116,7 +133,13 @@ private fun runApplication() = application {
                 )
             ) {
                 focusDriftReminderId = currentNow
-                nudgeNotifier.notify(currentPreferences.focusIntention)
+                nudgeNotifier.notify(
+                    title = getString(Res.string.desktop_nudge_title),
+                    body = FocusNudgeCopy.body(
+                        currentPreferences.focusIntention,
+                        getString(Res.string.focus_single_thing),
+                    ),
+                )
             } else if (!focusIsActive) {
                 focusDriftReminderId = null
                 focusResumeRitualId = null
@@ -154,27 +177,31 @@ private fun runApplication() = application {
     val showSeconds = preferenceSnapshot.showSeconds
     val dayProgress = calculateDayProgress(now, startMinutes, endMinutes)
     val dayStatus = if (dayProgress.isFinished) {
-        "Journée terminée"
+        stringResource(Res.string.desktop_day_over)
     } else {
-        "Aujourd’hui · ${dayProgress.remainingHours} h ${dayProgress.remainingMinutes.toString().padStart(2, '0')}"
+        stringResource(
+            Res.string.desktop_today_remaining,
+            dayProgress.remainingHours.toString(),
+            dayProgress.remainingMinutes.toString().padStart(2, '0'),
+        )
     }
     val goalStatus = goalDeadline?.let { deadline ->
         val working = calculateGoalWorkingTime(now, deadline, startMinutes, endMinutes)
         val hours = ceil(working.toDouble(DurationUnit.HOURS)).toLong()
         when {
-            deadline <= now -> "Objectif · échéance atteinte"
-            goalTitle.isBlank() -> "Objectif · $hours h"
-            else -> "${goalTitle.take(24)} · $hours h"
+            deadline <= now -> stringResource(Res.string.desktop_goal_deadline_reached)
+            goalTitle.isBlank() -> stringResource(Res.string.desktop_goal_hours, hours.toString())
+            else -> stringResource(Res.string.desktop_goal_title_hours, goalTitle.take(24), hours.toString())
         }
     }
     val pomodoro = calculatePomodoroProgress(now, pomodoroMinutes, pomodoroEnd)
     val focusStatus = when (pomodoro.status) {
         PomodoroStatus.ACTIVE -> listOfNotNull(
-            "Focus",
+            stringResource(Res.string.desktop_focus),
             focusIntention.take(24).takeIf(String::isNotBlank),
             formatPomodoroClock(pomodoro),
         ).joinToString(" · ")
-        PomodoroStatus.BREAK -> "Pause · ${formatBreakClock(pomodoro)}"
+        PomodoroStatus.BREAK -> stringResource(Res.string.desktop_break, formatBreakClock(pomodoro))
         PomodoroStatus.IDLE -> null
     }
 
@@ -182,7 +209,8 @@ private fun runApplication() = application {
         focusStatusItem.update(
             when (pomodoro.status) {
                 PomodoroStatus.ACTIVE -> formatPomodoroCompactMinutes(pomodoro)
-                PomodoroStatus.BREAK -> "P ${pomodoro.breakElapsed.inWholeMinutes}m"
+                PomodoroStatus.BREAK ->
+                    getString(Res.string.desktop_menubar_break, pomodoro.breakElapsed.inWholeMinutes.toString())
                 PomodoroStatus.IDLE -> null
             },
         )
@@ -207,11 +235,23 @@ private fun runApplication() = application {
         Item(dayStatus, enabled = false, onClick = {})
         goalStatus?.let { Item(it, enabled = false, onClick = {}) }
         Separator()
-        Item(if (isMiniWindowVisible) "Ouvrir la fenêtre complète" else "Afficher la mini-fenêtre") {
+        Item(
+            if (isMiniWindowVisible) {
+                stringResource(Res.string.desktop_open_full_window)
+            } else {
+                stringResource(Res.string.desktop_show_mini_window)
+            },
+        ) {
             isMiniWindowVisible = !isMiniWindowVisible
             isWindowVisible = !isMiniWindowVisible
         }
-        Item(if (isWindowVisible) "Masquer DayView" else "Ouvrir DayView") {
+        Item(
+            if (isWindowVisible) {
+                stringResource(Res.string.desktop_hide_dayview)
+            } else {
+                stringResource(Res.string.desktop_open_dayview)
+            },
+        ) {
             if (isWindowVisible) {
                 isWindowVisible = false
             } else {
@@ -219,7 +259,7 @@ private fun runApplication() = application {
                 isWindowVisible = true
             }
         }
-        Item("Quitter DayView", onClick = ::exitApplication)
+        Item(stringResource(Res.string.desktop_quit_dayview), onClick = ::exitApplication)
     }
 
     if (isWindowVisible) {

@@ -6,28 +6,29 @@ import kotlin.test.assertNotNull
 
 class MacFocusNudgeNotifierTest {
     @Test
-    fun buildsNotificationWithTitleAndProvidedBody() {
+    fun buildsNotificationWithTheProvidedTitleAndBody() {
         if (!System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) return
 
         val notifier = MacFocusNudgeNotifier()
-        val notification = assertNotNull(notifier.buildNotification("Terminer le rapport"))
-        assertEquals("Reviens à l'essentiel", notifier.readString(notification, "title"))
-        assertEquals("Terminer le rapport", notifier.readString(notification, "informativeText"))
+        val notification = assertNotNull(notifier.buildNotification("Back to the essential", "Finish the report"))
+        assertEquals("Back to the essential", notifier.readString(notification, "title"))
+        assertEquals("Finish the report", notifier.readString(notification, "informativeText"))
     }
 
     @Test
-    fun fallsBackToDefaultBodyWhenIntentionBlank() {
+    fun rendersTheBodyResolvedFromABlankIntentionFallback() {
         if (!System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) return
 
         val notifier = MacFocusNudgeNotifier()
-        val notification = assertNotNull(notifier.buildNotification("   "))
-        assertEquals("Une seule chose à la fois.", notifier.readString(notification, "informativeText"))
+        val body = FocusNudgeCopy.body("   ", "One thing at a time.")
+        val notification = assertNotNull(notifier.buildNotification("Back to the essential", body))
+        assertEquals("One thing at a time.", notifier.readString(notification, "informativeText"))
     }
 
     @Test
     fun deliverDoesNotThrow() {
         if (!System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) return
 
-        MacFocusNudgeNotifier().notify("Terminer le rapport")
+        MacFocusNudgeNotifier().notify("Back to the essential", "Finish the report")
     }
 }

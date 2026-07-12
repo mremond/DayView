@@ -167,7 +167,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "DayView"
             packageVersion = appPackageVersion
-            description = "Une représentation visuelle du temps qu'il reste aujourd'hui."
+            description = "A visual representation of the time left in your day."
             vendor = "DayView"
             macOS {
                 bundleID = "fr.dayview.app"
@@ -179,9 +179,9 @@ compose.desktop {
                 infoPlist {
                     extraKeysRawXml = """
                         <key>NSCalendarsFullAccessUsageDescription</key>
-                        <string>DayView lit votre calendrier en lecture seule pour soustraire les plages occupées du temps qu'il vous reste aujourd'hui.</string>
+                        <string>DayView reads your calendar in read-only mode to subtract busy slots from the time you have left today.</string>
                         <key>NSCalendarsUsageDescription</key>
-                        <string>DayView lit votre calendrier en lecture seule pour soustraire les plages occupées du temps qu'il vous reste aujourd'hui.</string>
+                        <string>DayView reads your calendar in read-only mode to subtract busy slots from the time you have left today.</string>
                     """.trimIndent()
                 }
             }

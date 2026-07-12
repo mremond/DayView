@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  French (fr) locale overrides for the shared Compose screens. The default (English)
+  wording lives in values/strings.xml; keep the two in sync key-for-key.
+  Parameterised strings pass their values as %1$s (plain strings) so the numbers are
+  never locale-grouped; a literal percent sign stays a single % (Compose Multiplatform
+  substitutes %n$s placeholders but does not treat %% as an escape).
+-->
+<resources>
+    <!-- Shared / chrome -->
+    <string name="app_wordmark">DAYVIEW</string>
+    <string name="settings_title">RÉGLAGES</string>
+    <string name="mini_window_button">MINI</string>
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Annuler</string>
+
+    <!-- Today screen — compact status line -->
+    <string name="today_status_not_started">La journée n’a pas commencé.</string>
+    <string name="today_status_finished">Le temps prévu est écoulé.</string>
+    <string name="today_status_ending">La journée touche à sa fin.</string>
+    <string name="today_status_ongoing">Gardez le cap, sans pression.</string>
+
+    <!-- Today screen — wide hero (two lines) -->
+    <string name="today_hero_not_started">Votre journée n’a pas commencé.\nLe cercle est encore intact.</string>
+    <string name="today_hero_finished">Le temps prévu est écoulé.\nVous pouvez relâcher la journée.</string>
+    <string name="today_hero_ending">La journée touche à sa fin.\nChoisissez une seule chose essentielle.</string>
+    <string name="today_hero_ongoing">Voyez le temps.\nGardez le cap, sans pression.</string>
+
+    <!-- Countdown circle -->
+    <string name="countdown_time_left">IL RESTE</string>
+    <string name="countdown_day_over">JOURNÉE\nTERMINÉE</string>
+    <string name="seconds_remaining">%1$s secondes</string>
+    <string name="net_remaining">Net %1$s</string>
+    <string name="busy_remaining">%1$s occupé</string>
+    <string name="focused_today">Focus %1$s</string>
+    <string name="busy_generic">Occupé</string>
+    <string name="busy_time_range">%1$s – %2$s</string>
+    <string name="day_available_percent">%1$s % de la journée disponible</string>
+
+    <!-- Global goal -->
+    <string name="goal_section_title">OBJECTIF GLOBAL</string>
+    <string name="goal_badge">OBJECTIF</string>
+    <string name="goal_define">+ Définir un objectif</string>
+    <string name="goal_define_deadline">+ Définir une échéance</string>
+    <string name="goal_title_label">Objectif du jour</string>
+    <string name="goal_title_placeholder">Que voulez-vous accomplir ?</string>
+    <string name="goal_start_label">Début de l’objectif</string>
+    <string name="goal_deadline_label">Date limite de l’objectif</string>
+    <string name="goal_start_before_deadline">Le début doit précéder l’échéance.</string>
+    <string name="goal_choose_date">Choisissez une date.</string>
+    <string name="goal_invalid_time">Heure invalide (changement d’heure).</string>
+    <string name="goal_progress_percent">%1$s %</string>
+    <string name="goal_deadline_reached">Échéance atteinte</string>
+    <string name="goal_hours_remaining">Encore %1$s h</string>
+    <string name="goal_less_than_an_hour">Moins d’une heure de travail</string>
+
+    <!-- Focus -->
+    <string name="focus_section">FOCUS</string>
+    <string name="focus_start_button">DÉMARRER UN FOCUS</string>
+    <string name="focus_start_full_button">DÉMARRER LE FOCUS</string>
+    <string name="focus_start_short_button">DÉMARRER</string>
+    <string name="focus_cancel_button">ANNULER</string>
+    <string name="focus_stop">ARRÊTER</string>
+    <string name="focus_resume">REPRENDRE</string>
+    <string name="focus_resume_button">REPRENDRE UN FOCUS</string>
+    <string name="focus_outcome_completed">TERMINÉ</string>
+    <string name="focus_outcome_progressed">AVANCÉ</string>
+    <string name="focus_outcome_to_resume">À REPRENDRE</string>
+    <string name="focus_closed">FOCUS CLÔTURÉ · %1$s</string>
+    <string name="focus_state_idle">PRÊT À S’ENGAGER</string>
+    <string name="focus_state_active">EN COURS</string>
+    <string name="focus_state_break_active">PAUSE EN COURS</string>
+    <string name="focus_state_series_inactive">SÉRIE INACTIVE</string>
+    <string name="focus_break_since">PAUSE DEPUIS</string>
+    <string name="focus_break_disconnect">PRENEZ LE TEMPS DE DÉCONNECTER</string>
+    <string name="focus_break_conscious">REPRENDRE RESTE UN CHOIX CONSCIENT</string>
+    <string name="focus_close_section">CLÔTURER CE FOCUS</string>
+    <string name="focus_resume_point">VOTRE POINT DE REPRISE</string>
+    <string name="focus_resume_time_left">Il reste %1$s pour garder le cap.</string>
+    <string name="focus_drift_title">REVENIR À L’ESSENTIEL</string>
+    <string name="focus_drift_dismiss">C’EST REPARTI</string>
+    <string name="focus_my_intention">MON INTENTION</string>
+    <string name="focus_single_thing">Une seule chose à la fois.</string>
+    <string name="focus_intention_prompt">À LA FIN DE CE FOCUS, J’AURAI…</string>
+    <string name="focus_intention_label">Intention du Focus</string>
+    <string name="focus_intention_placeholder">Ex. terminé le plan de la présentation</string>
+    <string name="focus_intention_hint">Écrivez une intention pour démarrer.</string>
+    <string name="focus_duration_decrease">Diminuer la durée du Focus de 5 minutes</string>
+    <string name="focus_duration_increase">Augmenter la durée du Focus de 5 minutes</string>
+    <string name="focus_duration_value">Durée du Focus : %1$s minutes</string>
+    <string name="minutes_label">MINUTES</string>
+
+    <!-- Mini window -->
+    <string name="mini_no_goal">Aucun objectif défini</string>
+    <string name="mini_start_focus_label">Démarrer un focus</string>
+    <string name="mini_stop_focus_label">Arrêter le focus</string>
+    <string name="mini_focus_active">FOCUS EN COURS</string>
+    <string name="mini_focus_single_thing">Une seule chose à la fois</string>
+
+    <!-- Settings — day window -->
+    <string name="settings_back">‹  AUJOURD’HUI</string>
+    <string name="settings_section_day">JOURNÉE</string>
+    <string name="settings_day_description">Définissez la plage utilisée pour représenter le temps disponible chaque jour.</string>
+    <string name="day_start">DÉBUT DE JOURNÉE</string>
+    <string name="day_end">FIN DE JOURNÉE</string>
+    <string name="modify">MODIFIER</string>
+    <string name="modify_label">Modifier %1$s</string>
+
+    <!-- Settings — display -->
+    <string name="settings_section_display">AFFICHAGE</string>
+    <string name="settings_show_seconds">AFFICHER LES SECONDES</string>
+    <string name="settings_show_seconds_description">Désactivez-les pour un affichage plus calme et moins de rafraîchissements.</string>
+    <string name="settings_monochrome_icon">ICÔNE DE BARRE DE MENU SANS COULEUR</string>
+    <string name="settings_monochrome_icon_description">Utilise une icône monochrome plus discrète dans la barre de menu.</string>
+    <string name="settings_launch_at_login">OUVRIR À LA CONNEXION</string>
+    <string name="settings_launch_at_login_description">Lance automatiquement DayView à l’ouverture de votre session.</string>
+    <string name="settings_autosave_note">Les changements sont enregistrés automatiquement et s’appliquent à tous les jours.</string>
+
+    <!-- Settings — net time -->
+    <string name="settings_section_net_time">TEMPS NET</string>
+    <string name="settings_net_time_description">Soustrait les plages occupées de votre calendrier et les grise sur le cercle.</string>
+    <string name="settings_net_time_toggle">CALCUL DU TEMPS NET</string>
+    <string name="settings_disabled_default_m">Désactivé par défaut.</string>
+    <string name="settings_calendar_permission_prompt">DayView a besoin d’accéder à votre calendrier, en lecture seule.</string>
+    <string name="settings_grant_calendar_access">AUTORISER L’ACCÈS AU CALENDRIER</string>
+    <string name="settings_calendars">CALENDRIERS</string>
+    <string name="settings_no_calendars">Aucun calendrier disponible.</string>
+    <string name="calendar_no_name">Sans nom</string>
+    <string name="settings_net_time_footnote">Seuls les événements marqués occupé (hors journée entière) sont soustraits.</string>
+
+    <!-- Settings — on-goal apps -->
+    <string name="settings_section_on_goal">APPLICATIONS DE L’OBJECTIF</string>
+    <string name="settings_on_goal_description">Ces applications comptent comme du travail sur l’objectif pendant une session de focus.</string>
+    <string name="settings_no_apps_selected">Aucune application sélectionnée.</string>
+    <string name="settings_no_apps_available">Aucune application disponible.</string>
+    <string name="settings_close">FERMER</string>
+    <string name="settings_add_apps">AJOUTER DES APPLICATIONS</string>
+    <string name="settings_add_app">Ajouter %1$s</string>
+    <string name="settings_remove_app">Retirer %1$s</string>
+    <string name="settings_remove">RETIRER</string>
+
+    <!-- Settings — sounds -->
+    <string name="settings_section_sounds">SONS</string>
+    <string name="settings_sounds_description">Des repères doux pour sentir le temps sans surveiller l’écran.</string>
+    <string name="settings_sound_cues">REPÈRES SONORES</string>
+    <string name="settings_disabled_default_p">Désactivés par défaut.</string>
+    <string name="sound_day_start_detail">Bol clair</string>
+    <string name="sound_interval_label">REPÈRE INTERMÉDIAIRE</string>
+    <string name="sound_interval_detail">Tintement léger</string>
+    <string name="sound_every">TOUTES LES</string>
+    <string name="sound_interval_decrease">Diminuer l’intervalle des rappels</string>
+    <string name="sound_interval_increase">Augmenter l’intervalle des rappels</string>
+    <string name="sound_interval_value">Intervalle des rappels : %1$s minutes</string>
+    <string name="interval_minutes">%1$s min</string>
+    <string name="sound_day_end_detail">Gong grave</string>
+    <string name="sound_volume">VOLUME</string>
+    <string name="volume_percent">%1$s %</string>
+    <string name="volume_value">Volume : %1$s %</string>
+    <string name="volume_decrease">Diminuer le volume de 10 %</string>
+    <string name="volume_increase">Augmenter le volume de 10 %</string>
+    <string name="sound_preview">ÉCOUTER</string>
+
+    <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
+         macOS focus-nudge notification (used from desktopMain). -->
+    <string name="desktop_day_over">Journée terminée</string>
+    <string name="desktop_today_remaining">Aujourd’hui · %1$s h %2$s</string>
+    <string name="desktop_goal_deadline_reached">Objectif · échéance atteinte</string>
+    <string name="desktop_goal_hours">Objectif · %1$s h</string>
+    <string name="desktop_goal_title_hours">%1$s · %2$s h</string>
+    <string name="desktop_focus">Focus</string>
+    <string name="desktop_break">Pause · %1$s</string>
+    <string name="desktop_menubar_break">P %1$sm</string>
+    <string name="desktop_open_full_window">Ouvrir la fenêtre complète</string>
+    <string name="desktop_show_mini_window">Afficher la mini-fenêtre</string>
+    <string name="desktop_hide_dayview">Masquer DayView</string>
+    <string name="desktop_open_dayview">Ouvrir DayView</string>
+    <string name="desktop_quit_dayview">Quitter DayView</string>
+    <string name="desktop_hour">Heure</string>
+    <string name="desktop_minute">Minute</string>
+    <string name="desktop_choose_time">Choisir l’heure</string>
+    <string name="desktop_nudge_title">Reviens à l’essentiel</string>
+</resources>

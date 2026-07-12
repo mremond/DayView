@@ -6,16 +6,15 @@ import kotlin.test.assertEquals
 class FocusNudgeCopyTest {
     @Test
     fun bodyUsesIntentionWhenPresent() {
-        assertEquals("Terminer le rapport", FocusNudgeCopy.body("Terminer le rapport"))
+        assertEquals("Finish the report", FocusNudgeCopy.body("Finish the report", DEFAULT))
     }
 
     @Test
-    fun bodyFallsBackWhenBlank() {
-        assertEquals("Une seule chose à la fois.", FocusNudgeCopy.body("   "))
+    fun bodyFallsBackToTheDefaultWhenBlank() {
+        assertEquals(DEFAULT, FocusNudgeCopy.body("   ", DEFAULT))
     }
 
-    @Test
-    fun titleIsStable() {
-        assertEquals("Reviens à l'essentiel", FocusNudgeCopy.TITLE)
+    private companion object {
+        const val DEFAULT = "One thing at a time."
     }
 }

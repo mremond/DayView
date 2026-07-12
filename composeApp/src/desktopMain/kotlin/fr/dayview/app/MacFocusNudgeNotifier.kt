@@ -4,12 +4,10 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 
-/** Textes de la notification de dispersion (logique de repli isolée pour être testable). */
+/** Repli du corps de la notification de dispersion (isolé pour être testable) : l'intention si
+ *  elle est renseignée, sinon [defaultBody]. Les textes eux-mêmes viennent des ressources i18n. */
 internal object FocusNudgeCopy {
-    const val TITLE = "Reviens à l'essentiel"
-    const val DEFAULT_BODY = "Une seule chose à la fois."
-
-    fun body(intention: String): String = intention.ifBlank { DEFAULT_BODY }
+    fun body(intention: String, defaultBody: String): String = intention.ifBlank { defaultBody }
 }
 
 /**
@@ -20,8 +18,8 @@ internal object FocusNudgeCopy {
  * [MacFrontmostApplicationProvider] : appels natifs enveloppés dans runCatching, no-op hors macOS.
  */
 internal class MacFocusNudgeNotifier {
-    fun notify(intention: String) {
-        val notification = buildNotification(intention) ?: return
+    fun notify(title: String, body: String) {
+        val notification = buildNotification(title, body) ?: return
         runCatching {
             val centerClass = runtime.objc_getClass("NSUserNotificationCenter")
             val center = message(centerClass, "defaultUserNotificationCenter")
@@ -30,14 +28,14 @@ internal class MacFocusNudgeNotifier {
     }
 
     /** Construit la NSUserNotification (titre + corps) ; null hors macOS ou si un appel natif échoue. Exposé pour les tests. */
-    internal fun buildNotification(intention: String): Pointer? {
+    internal fun buildNotification(title: String, body: String): Pointer? {
         if (!isMacOS) return null
         return runCatching {
             val notificationClass = runtime.objc_getClass("NSUserNotification")
             val notification = message(message(notificationClass, "alloc"), "init")
             if (notification != null) {
-                setString(notification, "setTitle:", FocusNudgeCopy.TITLE)
-                setString(notification, "setInformativeText:", FocusNudgeCopy.body(intention))
+                setString(notification, "setTitle:", title)
+                setString(notification, "setInformativeText:", body)
             }
             notification
         }.getOrNull()
