@@ -549,4 +549,19 @@ class DayViewControllerTest {
         assertEquals(ThemeMode.LIGHT, controller.state.themeMode)
         assertEquals(ThemeMode.LIGHT, prefs.current.themeMode)
     }
+
+    @Test
+    fun setFontScalePersistsAndCoerces() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 10_000L)
+
+        controller.setFontScale(1.3f)
+        assertEquals(1.3f, controller.state.fontScale)
+        assertEquals(1.3f, preferences.current.fontScale)
+
+        // Out-of-range input is clamped.
+        controller.setFontScale(5.0f)
+        assertEquals(1.5f, controller.state.fontScale)
+        assertEquals(1.5f, preferences.current.fontScale)
+    }
 }
