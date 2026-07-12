@@ -80,14 +80,6 @@ internal data class DayViewUiState(
             emptyList()
         }
 
-    val busyBlockBodiesState: List<BusyBlockBody>
-        get() = if (netTimeSettings.enabled) {
-            val (start, end) = dayWindow
-            busyBlockBodies(start, end, busyIntervals, calendarNamesById)
-        } else {
-            emptyList()
-        }
-
     val netTime: NetTime?
         get() = if (netTimeSettings.enabled) {
             val (start, end) = dayWindow

@@ -5,7 +5,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 data class BusyInterval(
@@ -66,20 +65,6 @@ data class BusyBlockArc(
     val calendarName: String,
 )
 
-/** Un créneau agenda projeté en « bloc céleste » à son milieu, taille selon la durée. */
-data class BusyBlockBody(
-    val angleDegrees: Float,
-    val sizeFraction: Float,
-    val colorIndex: Int,
-    val titles: List<String>,
-    val calendarName: String,
-    val start: Instant,
-    val end: Instant,
-)
-
-private val MIN_BUSY_BODY_DURATION = 5.minutes
-private val MAX_BUSY_BODY_DURATION = 60.minutes
-
 /**
  * Arcs colorés par calendrier : fusion intra-calendrier, clip à la fenêtre, couleur stable
  * de [busyCalendars], nom depuis [calendarNames] (vide si inconnu). Même convention d'angle
@@ -112,40 +97,6 @@ fun busyBlockArcs(
             colorIndex = colorByCal[it.calendarId] ?: 0,
             titles = it.titles,
             calendarName = calendarNames[it.calendarId] ?: "",
-        )
-    }
-}
-
-/**
- * Blocs célestes : un par créneau fusionné intra-calendrier, à son milieu ; les créneaux dont
- * le milieu tombe hors fenêtre sont écartés. `sizeFraction` 0..1 depuis la durée bornée à
- * [5 min, 60 min] — même règle que [detourBodies].
- */
-fun busyBlockBodies(
-    windowStart: Instant,
-    windowEnd: Instant,
-    intervals: List<BusyInterval>,
-    calendarNames: Map<String, String>,
-): List<BusyBlockBody> {
-    val total = windowEnd - windowStart
-    if (total <= Duration.ZERO) return emptyList()
-    val colorByCal = busyCalendars(intervals).associate { it.calendarId to it.colorIndex }
-    return mergeBusyIntervalsByCalendar(intervals).sortedBy { it.start }.mapNotNull { interval ->
-        if (interval.end <= interval.start) return@mapNotNull null
-        val duration = interval.end - interval.start
-        val midpoint = interval.start + duration / 2
-        if (midpoint < windowStart || midpoint > windowEnd) return@mapNotNull null
-        val fraction = ((midpoint - windowStart) / total).toFloat()
-        val sizeFraction = ((duration - MIN_BUSY_BODY_DURATION) / (MAX_BUSY_BODY_DURATION - MIN_BUSY_BODY_DURATION))
-            .toFloat().coerceIn(0f, 1f)
-        BusyBlockBody(
-            angleDegrees = -90f + fraction * 360f,
-            sizeFraction = sizeFraction,
-            colorIndex = colorByCal[interval.calendarId] ?: 0,
-            titles = interval.titles,
-            calendarName = calendarNames[interval.calendarId] ?: "",
-            start = interval.start,
-            end = interval.end,
         )
     }
 }

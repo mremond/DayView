@@ -281,31 +281,4 @@ class CalendarNetTimeTest {
             ),
         )
     }
-
-    @Test
-    fun busyBlockBodiesProjectMidpointAndClampSize() {
-        // 5 min .. 60 min band ; ici durée 300 ms sur fenêtre 0..1000 -> minuscule -> sizeFraction 0.
-        val bodies = busyBlockBodies(
-            t(0),
-            t(1000),
-            listOf(BusyInterval(t(400), t(700), listOf("Point"), calendarId = "work")),
-            mapOf("work" to "Travail"),
-        )
-        assertEquals(1, bodies.size)
-        assertEquals(-90f + 0.55f * 360f, bodies[0].angleDegrees) // midpoint 550/1000
-        assertEquals(0f, bodies[0].sizeFraction) // 300 ms << 5 min -> clamped to 0
-        assertEquals("Travail", bodies[0].calendarName)
-    }
-
-    @Test
-    fun busyBlockBodiesDropMidpointOutsideWindow() {
-        // Créneau -400..-200 : hors fenêtre après clip il n'existe pas ; midpoint hors fenêtre.
-        val bodies = busyBlockBodies(
-            t(0),
-            t(1000),
-            listOf(BusyInterval(t(1200), t(1600), calendarId = "work")),
-            mapOf("work" to "Travail"),
-        )
-        assertEquals(emptyList(), bodies)
-    }
 }
