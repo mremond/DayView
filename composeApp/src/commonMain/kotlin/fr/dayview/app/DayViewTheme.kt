@@ -68,8 +68,11 @@ internal val LightDayViewColors = DayViewColors(
 internal val LocalDayViewColors = staticCompositionLocalOf { DarkDayViewColors }
 
 @Composable
-internal fun DayViewTheme(content: @Composable (DayViewColors) -> Unit) {
-    val isDark = isSystemInDarkTheme()
+internal fun DayViewTheme(
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    content: @Composable (DayViewColors) -> Unit,
+) {
+    val isDark = themeMode.resolveIsDark(isSystemInDarkTheme())
     val colors = if (isDark) DarkDayViewColors else LightDayViewColors
     val colorScheme = if (isDark) {
         darkColorScheme(
@@ -90,6 +93,7 @@ internal fun DayViewTheme(content: @Composable (DayViewColors) -> Unit) {
             error = colors.red,
         )
     }
+    PlatformThemeChrome(isDark = isDark)
     CompositionLocalProvider(LocalDayViewColors provides colors) {
         MaterialTheme(colorScheme = colorScheme) {
             content(colors)
