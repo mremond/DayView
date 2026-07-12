@@ -109,7 +109,11 @@ fun DayViewApp(
                 }
             }
             PlatformBackHandler(enabled = state.destination == DayViewDestination.SETTINGS) {
-                controller.openToday()
+                if (state.settingsCategory != null) {
+                    controller.closeSettingsCategory()
+                } else {
+                    controller.openToday()
+                }
             }
             DisposableEffect(soundPlayer) {
                 onDispose { soundPlayer.close() }
