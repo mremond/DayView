@@ -1,0 +1,26 @@
+name: DayView
+options:
+  bundleIdPrefix: fr.dayview
+  deploymentTarget:
+    macOS: "13.0"
+packages:
+  DayViewKit:
+    path: Packages/DayViewKit
+targets:
+  DayView:
+    type: application
+    platform: macOS
+    sources:
+      - path: DayView
+    dependencies:
+      - package: DayViewKit
+        product: DayViewKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fr.dayview.app
+        GENERATE_INFOPLIST_FILE: YES
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGNING_ALLOWED: NO
