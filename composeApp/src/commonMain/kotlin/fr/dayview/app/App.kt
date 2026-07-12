@@ -51,11 +51,11 @@ fun DayViewApp(
     DayViewTheme(themeMode = themeSnapshot.themeMode, uses24Hour = rememberUses24HourClock()) { colors ->
         val baseDensity = LocalDensity.current
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            // Automatic whole-UI zoom derived from the available space, so a large or
-            // high-density e-ink tablet (e.g. Supernote) that under-reports its density
-            // does not leave the ring and layout physically tiny. Scaling `density` grows
-            // the dp-based UI (ring, spacing) as well as text; the font slider then stacks
-            // on top via `fontScale`. Desktop opts out (its density is already correct).
+            // Automatic whole-UI zoom derived from the available space, so a physically
+            // large tablet (e.g. a Supernote e-ink) viewed at reading distance shows the
+            // ring and layout comfortably large instead of at phone size. Scaling `density`
+            // grows the dp-based UI (ring, spacing) as well as text; the font slider then
+            // stacks on top via `fontScale`. Desktop opts out.
             val autoScale = autoDisplayScale(minOf(maxWidth, maxHeight).value, platformAutoScaleEnabled())
             val scaledDensity = Density(
                 baseDensity.density * autoScale,

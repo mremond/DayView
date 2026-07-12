@@ -3,13 +3,13 @@ package fr.dayview.app
 /**
  * The smallest-dimension width (in dp) the layout is designed to look right at — a typical
  * phone. Canvases whose smaller side is larger than this render the whole UI proportionally
- * bigger, so a large or high-density e-ink tablet (e.g. Supernote) that under-reports its
- * density does not leave the UI physically tiny.
+ * bigger, so a physically large tablet (e.g. a Supernote e-ink) viewed at reading distance
+ * shows the UI comfortably large instead of at phone size.
  */
-internal const val DISPLAY_SCALE_REFERENCE_DP = 480f
+internal const val DISPLAY_SCALE_REFERENCE_DP = 560f
 
 /** Upper bound on the automatic display zoom, so an extreme canvas cannot balloon the UI. */
-internal const val DISPLAY_SCALE_MAX = 1.6f
+internal const val DISPLAY_SCALE_MAX = 1.5f
 
 /**
  * Automatic whole-UI zoom factor derived purely from the available space. It scales the

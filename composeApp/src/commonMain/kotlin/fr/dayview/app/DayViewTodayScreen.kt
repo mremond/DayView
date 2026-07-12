@@ -213,10 +213,12 @@ internal fun DayViewScreen(
             .imePadding(),
     ) {
         val wide = maxWidth >= 780.dp
-        // Let the ring track the available width up to a generous ceiling so it fills a
-        // large single-column screen instead of plateauing early; the inner
-        // countdownCircleSize() still caps the absolute diameter.
-        val compactCountdownHeight = (maxWidth - 48.dp).coerceIn(240.dp, 480.dp)
+        // Size the ring from the available width, but never let it take more than ~40% of
+        // the height, so on a tall single-column screen the content below stays visible
+        // instead of the circle pushing it off the bottom.
+        val compactCountdownHeight = (maxWidth - 48.dp)
+            .coerceAtMost(maxHeight * 0.40f)
+            .coerceIn(240.dp, 480.dp)
         val pageModifier = if (wide) {
             Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 28.dp)
         } else {
