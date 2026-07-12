@@ -130,6 +130,7 @@ internal class DayViewController(
     private val scope: CoroutineScope,
     initialSnapshot: DayPreferencesSnapshot,
     initialNow: Instant = Clock.System.now(),
+    private val history: DayHistoryStore = InMemoryDayHistoryStore(),
 ) {
     var state: DayViewUiState by mutableStateOf(initialSnapshot.toUiState(initialNow))
         private set
@@ -165,10 +166,28 @@ internal class DayViewController(
             )
             persistState()
         }
+        maybeArchivePreviousDay()
+    }
+
+    /** The day the persisted day-scoped fields (detours, clean-session ledger) belong to. */
+    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(state.detoursDayKey, state.cleanSessions.dayKey).filter { it != -1L }.maxOrNull()
+
+    /**
+     * Archives the previous day's ring before its day-scoped data is discarded on
+     * rollover. `write` is idempotent, so calling this more than once for the same
+     * stale day is harmless.
+     */
+    private fun maybeArchivePreviousDay() {
+        val key = persistedDayKey(state) ?: return
+        if (key == dayKeyOf(state.now)) return
+        val record = state.toHistoryRecord(key)
+        scope.launch { history.write(record) }
     }
 
     fun tick(now: Instant) {
+        val dayChanged = dayKeyOf(now) != dayKeyOf(state.now)
         state = state.copy(now = now)
+        if (dayChanged) maybeArchivePreviousDay()
     }
 
     fun openSettings() {
