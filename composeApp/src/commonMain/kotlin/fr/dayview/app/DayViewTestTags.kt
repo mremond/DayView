@@ -31,6 +31,11 @@ internal object DayViewTestTags {
     const val SettingsSoundsScreen = "settingsSoundsScreen"
     const val SettingsNetTimeScreen = "settingsNetTimeScreen"
     const val SettingsOnGoalScreen = "settingsOnGoalScreen"
+    const val MiniRing = "historyMiniRing"
+    const val HistoryIcon = "historyIcon"
+    const val HistoryBack = "historyBack"
 
     fun settingsCategoryRow(category: SettingsCategory): String = "settingsCategoryRow_${category.name}"
+
+    fun historyDayCell(dayKey: Long): String = "historyDayCell_$dayKey"
 }
