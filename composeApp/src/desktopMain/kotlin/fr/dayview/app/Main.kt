@@ -60,6 +60,7 @@ fun main() {
 
 private fun runApplication() = application {
     val preferences = remember { desktopDayPreferences() }
+    val history = remember { createDayHistoryStore() }
     val scope = rememberCoroutineScope()
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
@@ -299,6 +300,7 @@ private fun runApplication() = application {
             }
             DayViewApp(
                 preferences = preferences,
+                history = history,
                 monochromeMenuBarIcon = monochromeMenuBarIcon,
                 onMonochromeMenuBarIconChange = { monochrome ->
                     monochromeMenuBarIcon = monochrome

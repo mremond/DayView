@@ -140,6 +140,7 @@ import fr.dayview.app.generated.resources.goal_start_before_deadline
 import fr.dayview.app.generated.resources.goal_start_label
 import fr.dayview.app.generated.resources.goal_title_label
 import fr.dayview.app.generated.resources.goal_title_placeholder
+import fr.dayview.app.generated.resources.history_title
 import fr.dayview.app.generated.resources.mini_window_button
 import fr.dayview.app.generated.resources.minutes_label
 import fr.dayview.app.generated.resources.net_remaining
@@ -166,6 +167,7 @@ private const val CLEAN_SESSION_PIP_CAP = 8
 
 internal data class DayViewScreenActions(
     val openSettings: () -> Unit,
+    val onOpenHistory: () -> Unit,
     val openMiniWindow: (() -> Unit)?,
     val changeGoalTitle: (String) -> Unit,
     val changeGoalDeadline: (String) -> Unit,
@@ -235,7 +237,7 @@ internal fun DayViewScreen(
             modifier = pageModifier,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Header(actions.openSettings, actions.openMiniWindow)
+            Header(actions.openSettings, actions.onOpenHistory, actions.openMiniWindow)
             Spacer(Modifier.height(if (wide) 28.dp else 18.dp))
 
             if (wide) {
@@ -686,7 +688,7 @@ private fun GoalEditorContent(
 }
 
 @Composable
-private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) {
+private fun Header(onOpenSettings: () -> Unit, onOpenHistory: () -> Unit, onOpenMiniWindow: (() -> Unit)?) {
     val colors = LocalDayViewColors.current
     Row(
         modifier = Modifier.fillMaxWidth().widthIn(max = 1040.dp),
@@ -696,6 +698,19 @@ private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) 
         Spacer(Modifier.width(10.dp))
         Text(stringResource(Res.string.app_wordmark), color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
         Spacer(Modifier.weight(1f))
+        Text(
+            stringResource(Res.string.history_title),
+            color = colors.muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.4.sp,
+            modifier = Modifier
+                .testTag(DayViewTestTags.HistoryIcon)
+                .minimumInteractiveComponentSize()
+                .clickable(role = Role.Button, onClick = onOpenHistory)
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+        )
+        Spacer(Modifier.width(6.dp))
         Text(
             stringResource(Res.string.settings_title),
             color = colors.muted,

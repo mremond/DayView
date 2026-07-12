@@ -70,6 +70,36 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun updateNetTimeDataPersistsTheBusyLayerDayTagged() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 10_000L)
+        val expectedDay = dayKeyOf(t(10_000L))
+
+        controller.updateNetTimeData(
+            hasPermission = true,
+            busyIntervals = listOf(BusyInterval(t(11_000L), t(12_000L), listOf("Standup"), "cal-a")),
+            availableCalendars = listOf(CalendarInfo("cal-a", "Work")),
+        )
+
+        assertEquals(expectedDay, preferences.current.busyDayKey)
+        assertEquals(1, preferences.current.busyIntervals.size)
+        assertEquals(listOf(CalendarInfo("cal-a", "Work")), preferences.current.availableCalendars)
+    }
+
+    @Test
+    fun updateNetTimeDataWithoutBusyLayerDoesNotDayTagOrPersist() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 10_000L)
+
+        controller.updateNetTimeData(hasPermission = false, busyIntervals = emptyList(), availableCalendars = emptyList())
+
+        // No busy layer to preserve: the day is not tagged, so an otherwise-empty day is not
+        // spuriously made archivable, and no snapshot write happens.
+        assertEquals(-1L, preferences.current.busyDayKey)
+        assertEquals(emptyList(), preferences.current.busyIntervals)
+    }
+
+    @Test
     fun goalDeadlineIsPersistedOnlyWhenTheDraftIsCommitted() {
         val initialDeadline = parseGoalDeadline("24/12/2026 18:30")!!
         val preferences = InMemoryDayPreferences(

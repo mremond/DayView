@@ -28,8 +28,9 @@ import kotlin.time.Duration
 import kotlin.time.Instant
 
 @Composable
-fun DayViewApp(
+internal fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
+    history: DayHistoryStore = InMemoryDayHistoryStore(),
     monochromeMenuBarIcon: Boolean? = null,
     onMonochromeMenuBarIconChange: ((Boolean) -> Unit)? = null,
     launchAtLogin: Boolean? = null,
@@ -68,7 +69,15 @@ fun DayViewApp(
                 Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
                     val scope = rememberCoroutineScope()
                     val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
-                    val controller = remember(preferences) { DayViewController(preferences, scope, initialSnapshot) }
+                    val controller = remember(preferences) {
+                        DayViewController(
+                            preferences,
+                            scope,
+                            initialSnapshot,
+                            history = history,
+                            initialFocusPresenceIntervals = focusPresenceIntervals,
+                        )
+                    }
                     val state = controller.state
                     // Recompute when the user opens Settings to edit the on-goal apps, rather
                     // than freezing the check at launch (when no target app may be running yet).
@@ -137,11 +146,20 @@ fun DayViewApp(
                             }
                         }
                     }
-                    PlatformBackHandler(enabled = state.destination == DayViewDestination.SETTINGS) {
-                        if (state.settingsCategory != null) {
-                            controller.closeSettingsCategory()
-                        } else {
-                            controller.openToday()
+                    PlatformBackHandler(
+                        enabled = state.destination == DayViewDestination.SETTINGS ||
+                            state.destination == DayViewDestination.HISTORY,
+                    ) {
+                        when (state.destination) {
+                            DayViewDestination.SETTINGS -> {
+                                if (state.settingsCategory != null) {
+                                    controller.closeSettingsCategory()
+                                } else {
+                                    controller.openToday()
+                                }
+                            }
+                            DayViewDestination.HISTORY -> controller.closeHistory()
+                            DayViewDestination.TODAY -> {}
                         }
                     }
                     DisposableEffect(soundPlayer) {
@@ -187,8 +205,8 @@ fun DayViewApp(
                         }
                     }
 
-                    if (state.destination == DayViewDestination.SETTINGS) {
-                        SettingsScreen(
+                    when (state.destination) {
+                        DayViewDestination.SETTINGS -> SettingsScreen(
                             state = state,
                             platformState = SettingsPlatformUiState(
                                 monochromeMenuBarIcon = monochromeMenuBarIcon,
@@ -220,11 +238,24 @@ fun DayViewApp(
                                 back = { controller.openToday() },
                             ),
                         )
-                    } else {
-                        DayViewScreen(
+                        DayViewDestination.HISTORY -> {
+                            val selected = state.selectedHistoryDay
+                            val record = state.historyWeek.firstOrNull { it.dayKey == selected }?.record
+                            if (selected != null && record != null) {
+                                HistoryDayScreen(record = record, onBack = { controller.closeHistory() })
+                            } else {
+                                HistoryWeekScreen(
+                                    days = state.historyWeek,
+                                    onSelectDay = { controller.openHistoryDay(it) },
+                                    onBack = { controller.closeHistory() },
+                                )
+                            }
+                        }
+                        DayViewDestination.TODAY -> DayViewScreen(
                             state = state,
                             actions = DayViewScreenActions(
                                 openSettings = { controller.openSettings() },
+                                onOpenHistory = { controller.openHistory() },
                                 openMiniWindow = onOpenMiniWindow,
                                 changeGoalTitle = { controller.setGoalTitle(it) },
                                 changeGoalDeadline = { controller.setGoalDeadlineText(it) },

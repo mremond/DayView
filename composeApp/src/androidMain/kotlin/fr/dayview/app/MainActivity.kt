@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DayViewApp(
                 preferences = preferences,
+                history = DayViewPreferences.history(),
                 onFocusAlarmChange = { end, intention ->
                     if (end == null) {
                         focusAlarmScheduler.cancel()

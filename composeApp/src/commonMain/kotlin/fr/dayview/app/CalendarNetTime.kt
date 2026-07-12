@@ -1,9 +1,13 @@
+@file:OptIn(ExperimentalEncodingApi::class)
+
 package fr.dayview.app
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -13,6 +17,70 @@ data class BusyInterval(
     val titles: List<String> = emptyList(),
     val calendarId: String = "",
 )
+
+private const val TITLE_SEPARATOR = "|"
+
+/** Fixed non-empty marker prefixed to each Base64 token so an empty title still yields a non-empty token. */
+private const val TITLE_TOKEN_MARKER = "t"
+
+/**
+ * Each title is Base64-encoded individually and prefixed with [TITLE_TOKEN_MARKER], then
+ * joined with [TITLE_SEPARATOR] — a character Base64 never produces — so titles containing
+ * commas, pipes or newlines survive round-tripping. The marker keeps a token for an
+ * empty-string title non-empty, so [decodeTitles] can tell `listOf("")` apart from
+ * `emptyList()` (whose encoding is the empty string with no tokens at all).
+ */
+private fun encodeTitles(titles: List<String>): String = titles.joinToString(TITLE_SEPARATOR) { TITLE_TOKEN_MARKER + Base64.encode(it.encodeToByteArray()) }
+
+/**
+ * Inverse of [encodeTitles]. An empty [encoded] string means `emptyList()`; otherwise every
+ * `|`-separated token (even one decoding to an empty title) is kept.
+ */
+private fun decodeTitles(encoded: String): List<String> = if (encoded.isEmpty()) {
+    emptyList()
+} else {
+    encoded.split(TITLE_SEPARATOR).map { Base64.decode(it.removePrefix(TITLE_TOKEN_MARKER)).decodeToString() }
+}
+
+/** One busy interval per line: `startMillis,endMillis,base64(calendarId),<encoded titles>`. */
+fun encodeBusyIntervals(intervals: List<BusyInterval>): String = intervals.joinToString("\n") {
+    val calendarId = Base64.encode(it.calendarId.encodeToByteArray())
+    val titles = encodeTitles(it.titles)
+    "${it.start.toEpochMilliseconds()},${it.end.toEpochMilliseconds()},$calendarId,$titles"
+}
+
+/**
+ * Inverse of [encodeBusyIntervals]. The titles field is Base64-token-joined so it never
+ * contains a comma; blank, malformed or size-mismatched lines are skipped.
+ */
+fun decodeBusyIntervals(encoded: String): List<BusyInterval> = encoded.split("\n").mapNotNull { line ->
+    if (line.isEmpty()) return@mapNotNull null
+    val parts = line.split(",", limit = 4)
+    val start = parts.getOrNull(0)?.toLongOrNull()
+    val end = parts.getOrNull(1)?.toLongOrNull()
+    if (parts.size != 4 || start == null || end == null) return@mapNotNull null
+    val calendarId = Base64.decode(parts[2]).decodeToString()
+    val titles = decodeTitles(parts[3])
+    BusyInterval(Instant.fromEpochMilliseconds(start), Instant.fromEpochMilliseconds(end), titles, calendarId)
+}
+
+private fun encodeCalendarNameB64(text: String): String = Base64.encode(text.encodeToByteArray())
+
+private fun decodeCalendarNameB64(b64: String): String = Base64.decode(b64).decodeToString()
+
+/**
+ * `id,displayName` per line, each field Base64-encoded so names never collide with the
+ * `,`/`\n` structure. Shared by the history codec and the day-preferences store so a single
+ * lossless calendar-name encoding is used everywhere.
+ */
+internal fun encodeCalendarNames(names: Map<String, String>): String = names.entries.joinToString("\n") { "${encodeCalendarNameB64(it.key)},${encodeCalendarNameB64(it.value)}" }
+
+/** Inverse of [encodeCalendarNames]; blank or malformed lines are skipped. */
+internal fun decodeCalendarNames(encoded: String): Map<String, String> = encoded.split("\n").mapNotNull { line ->
+    if (line.isEmpty()) return@mapNotNull null
+    val parts = line.split(",", limit = 2)
+    if (parts.size != 2) null else decodeCalendarNameB64(parts[0]) to decodeCalendarNameB64(parts[1])
+}.toMap()
 
 fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
     val sorted = intervals.filter { it.end > it.start }.sortedBy { it.start }

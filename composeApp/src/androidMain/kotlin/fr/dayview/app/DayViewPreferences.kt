@@ -18,11 +18,23 @@ object DayViewPreferences {
     @Volatile
     private var instance: DayPreferences? = null
 
+    @Volatile
+    private var historyStoreInstance: DayHistoryStore? = null
+
     fun get(context: Context): DayPreferences {
         val app = context.applicationContext
         return instance ?: synchronized(this) {
             instance ?: WidgetRefreshingPreferences(androidDayPreferences(app), app).also { instance = it }
         }
+    }
+
+    /**
+     * Process-wide history store, backed by the app's files directory. `initCalendarSource`
+     * must have run first (it sets the app context [createHistoryFileSystem] reads from);
+     * `MainActivity.onCreate` guarantees this ordering.
+     */
+    internal fun history(): DayHistoryStore = historyStoreInstance ?: synchronized(this) {
+        historyStoreInstance ?: createDayHistoryStore().also { historyStoreInstance = it }
     }
 
     /**
@@ -41,6 +53,9 @@ object DayViewPreferences {
      */
     @VisibleForTesting
     internal fun resetForTest() {
-        synchronized(this) { instance = null }
+        synchronized(this) {
+            instance = null
+            historyStoreInstance = null
+        }
     }
 }
