@@ -14,7 +14,7 @@
 - Commit messages in English; never reference Claude/Anthropic/AI; never reference docs under `docs/superpowers/`.
 - Domain time is `kotlin.time.Instant` / `Duration`; epoch millis appear only inside encode/decode functions.
 - All new code in `composeApp/src/commonMain` (tests in `composeApp/src/commonTest`); zero `androidMain`/`desktopMain` changes.
-- UI copy is French and uses the typographic apostrophe `’` (see existing strings in `DayViewTodayScreen.kt`).
+- User-facing strings live in `composeApp/src/commonMain/composeResources/values/strings.xml` (French default wording, typographic apostrophe `’`), consumed via `stringResource(Res.string.<key>, …)` with one import per key from `fr.dayview.app.generated.resources`. Parameters are `%1$s` **plain strings** (pass numbers as `.toString()`; a literal percent stays a single `%`, never `%%`). Number/clock formatters (`formatDurationHm`, `formatClockHm`) stay plain functions.
 - ktlint is enforced — run `./gradlew ktlintFormat` if a check fails on formatting.
 - New preference keys must not collide with existing ones in `DayPreferenceKeys`.
 
@@ -887,7 +887,24 @@ Add to `LightDayViewColors`:
     ),
 ```
 
-- [ ] **Step 2: Extend `CountdownCircle`**
+- [ ] **Step 2: Add the string resources**
+
+In `composeApp/src/commonMain/composeResources/values/strings.xml`, before `</resources>`:
+
+```xml
+    <!-- Detours -->
+    <string name="detours_today">Détours %1$s</string>
+    <string name="detour_time_range">%1$s – %2$s · %3$s</string>
+```
+
+And in `DayViewTodayScreen.kt`, add the key imports (the `Res` object and `stringResource` are already imported there):
+
+```kotlin
+import fr.dayview.app.generated.resources.detour_time_range
+import fr.dayview.app.generated.resources.detours_today
+```
+
+- [ ] **Step 3: Extend `CountdownCircle`**
 
 In `DayViewTodayScreen.kt`, change the `CountdownCircle` signature:
 
@@ -991,7 +1008,7 @@ In the center `Column`, after the `if (focusedToday > Duration.ZERO) { ... }` bl
                         if (detoursTotal > Duration.ZERO) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Détours ${formatDurationHm(detoursTotal)}",
+                                stringResource(Res.string.detours_today, formatDurationHm(detoursTotal)),
                                 color = colors.amber,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -1020,7 +1037,12 @@ After the existing `hoveredBusy?.let { ... }` overlay, add the detour tooltip:
                         Column {
                             Text(body.motif, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             Text(
-                                "${formatClockHm(body.start)} – ${formatClockHm(body.end)} · ${formatDurationHm(body.end - body.start)}",
+                                stringResource(
+                                    Res.string.detour_time_range,
+                                    formatClockHm(body.start),
+                                    formatClockHm(body.end),
+                                    formatDurationHm(body.end - body.start),
+                                ),
                                 color = colors.muted,
                                 fontSize = 11.sp,
                                 letterSpacing = .5.sp,
@@ -1036,7 +1058,7 @@ Add the holder data class next to `HoveredBusyArc`:
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 ```
 
-- [ ] **Step 3: Feed the new params at both call sites**
+- [ ] **Step 4: Feed the new params at both call sites**
 
 In `DayViewScreen` (`DayViewTodayScreen.kt`), both `CountdownCircle(...)` calls (wide and compact) gain, after `windowEnd = state.dayWindow.second,`:
 
@@ -1048,7 +1070,7 @@ In `DayViewScreen` (`DayViewTodayScreen.kt`), both `CountdownCircle(...)` calls 
 
 (Adjust indentation to each call site; the compact call uses one level less.)
 
-- [ ] **Step 4: Build, lint, verify visually**
+- [ ] **Step 5: Build, lint, verify visually**
 
 ```bash
 ./gradlew ktlintCheck :composeApp:desktopTest
@@ -1061,10 +1083,10 @@ Then run the desktop app and check with a goal set: the halo is visible but subt
 ./gradlew :composeApp:run
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTheme.kt composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt
+git add composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTheme.kt composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt composeApp/src/commonMain/composeResources/values/strings.xml
 git commit -m "feat: draw detour bodies and totals on the day ring"
 ```
 
@@ -1085,7 +1107,27 @@ git commit -m "feat: draw detour bodies and totals on the day ring"
   - `DetourChip(label: String, selected: Boolean, onClick: () -> Unit)` (internal, reused by Task 7)
   - `DayViewScreenActions` gains `addDetour: (String, Int) -> Unit`, `updateDetour: (Int, DetourEpisode) -> Unit`, `removeDetour: (Int) -> Unit`, `addDetourEpisode: (DetourEpisode) -> Unit`
 
-- [ ] **Step 1: Create `DetoursUi.kt` with the row, chip and capture dialog**
+- [ ] **Step 1: Add the capture string resources**
+
+In `composeApp/src/commonMain/composeResources/values/strings.xml`, extend the `<!-- Detours -->` block added in Task 5:
+
+```xml
+    <string name="detour_add_button">+ DÉTOUR</string>
+    <string name="detour_capture_open_label">Déclarer un détour</string>
+    <string name="detour_list_open_label">Détours du jour</string>
+    <string name="detour_section">DÉTOUR</string>
+    <string name="detour_capture_prompt">Qu’est-ce qui vous a détourné du chemin ?</string>
+    <string name="detour_motif_label">Motif du détour</string>
+    <string name="detour_motif_placeholder">Ex. appel imprévu</string>
+    <string name="detour_duration_section">DURÉE APPROXIMATIVE</string>
+    <string name="detour_minutes_chip">%1$s min</string>
+    <string name="detour_source_total">%1$s %2$s</string>
+    <string name="detour_overflow">+%1$s</string>
+    <string name="detour_cancel_button">ANNULER</string>
+    <string name="detour_confirm_button">AJOUTER</string>
+```
+
+- [ ] **Step 2: Create `DetoursUi.kt` with the row, chip and capture dialog**
 
 ```kotlin
 package fr.dayview.app
@@ -1124,6 +1166,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.detour_add_button
+import fr.dayview.app.generated.resources.detour_cancel_button
+import fr.dayview.app.generated.resources.detour_capture_open_label
+import fr.dayview.app.generated.resources.detour_capture_prompt
+import fr.dayview.app.generated.resources.detour_confirm_button
+import fr.dayview.app.generated.resources.detour_duration_section
+import fr.dayview.app.generated.resources.detour_list_open_label
+import fr.dayview.app.generated.resources.detour_minutes_chip
+import fr.dayview.app.generated.resources.detour_motif_label
+import fr.dayview.app.generated.resources.detour_motif_placeholder
+import fr.dayview.app.generated.resources.detour_overflow
+import fr.dayview.app.generated.resources.detour_section
+import fr.dayview.app.generated.resources.detour_source_total
+import org.jetbrains.compose.resources.stringResource
 
 /** Per-source tally under the dial plus the capture affordance. */
 @Composable
@@ -1139,7 +1196,7 @@ internal fun DetourRow(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClickLabel = "Détours du jour", onClick = onOpenList)
+                    .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_list_open_label), onClick = onOpenList)
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
                 sources.take(3).forEachIndexed { index, source ->
@@ -1149,24 +1206,33 @@ internal fun DetourRow(
                             .background(colors.detours[source.colorIndex % colors.detours.size], CircleShape),
                     )
                     Spacer(Modifier.width(5.dp))
-                    Text("${source.label} ${formatDurationHm(source.total)}", color = colors.muted, fontSize = 11.sp)
+                    Text(
+                        stringResource(Res.string.detour_source_total, source.label, formatDurationHm(source.total)),
+                        color = colors.muted,
+                        fontSize = 11.sp,
+                    )
                 }
                 if (sources.size > 3) {
                     Spacer(Modifier.width(8.dp))
-                    Text("+${sources.size - 3}", color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(Res.string.detour_overflow, (sources.size - 3).toString()),
+                        color = colors.muted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
             Spacer(Modifier.width(10.dp))
         }
         Text(
-            "+ DÉTOUR",
+            stringResource(Res.string.detour_add_button),
             color = colors.muted,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.2.sp,
             modifier = Modifier.minimumInteractiveComponentSize()
                 .clip(RoundedCornerShape(8.dp))
-                .clickable(role = Role.Button, onClickLabel = "Déclarer un détour", onClick = onCapture)
+                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_capture_open_label), onClick = onCapture)
                 .padding(vertical = 8.dp, horizontal = 6.dp),
         )
     }
@@ -1215,10 +1281,10 @@ internal fun DetourCaptureDialog(
                 .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
                 .padding(20.dp),
         ) {
-            Text("DÉTOUR", color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Text(stringResource(Res.string.detour_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
             Spacer(Modifier.height(10.dp))
             Text(
-                "Qu’est-ce qui vous a détourné du chemin ?",
+                stringResource(Res.string.detour_capture_prompt),
                 color = colors.cloud,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
@@ -1226,8 +1292,8 @@ internal fun DetourCaptureDialog(
             Spacer(Modifier.height(10.dp))
             GoalTextField(
                 value = motif,
-                semanticLabel = "Motif du détour",
-                placeholder = "Ex. appel imprévu",
+                semanticLabel = stringResource(Res.string.detour_motif_label),
+                placeholder = stringResource(Res.string.detour_motif_placeholder),
                 onValueChange = { motif = it },
             )
             if (recentMotifs.isNotEmpty()) {
@@ -1240,19 +1306,22 @@ internal fun DetourCaptureDialog(
                 }
             }
             Spacer(Modifier.height(14.dp))
-            Text("DURÉE APPROXIMATIVE", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Spacer(Modifier.height(8.dp))
             Row {
                 DETOUR_DURATION_CHOICES.forEachIndexed { index, minutes ->
                     if (index > 0) Spacer(Modifier.width(7.dp))
-                    DetourChip("$minutes min", selected = minutes == durationMinutes) { durationMinutes = minutes }
+                    DetourChip(
+                        stringResource(Res.string.detour_minutes_chip, minutes.toString()),
+                        selected = minutes == durationMinutes,
+                    ) { durationMinutes = minutes }
                 }
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                FocusActionButton("ANNULER", colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+                FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
                 FocusActionButton(
-                    "AJOUTER",
+                    stringResource(Res.string.detour_confirm_button),
                     colors.amber,
                     modifier = Modifier.weight(1f),
                     enabled = motif.isNotBlank(),
@@ -1265,7 +1334,7 @@ internal fun DetourCaptureDialog(
 }
 ```
 
-- [ ] **Step 2: Extend the actions and insert the row in both layouts**
+- [ ] **Step 3: Extend the actions and insert the row in both layouts**
 
 In `DayViewTodayScreen.kt`, extend `DayViewScreenActions`:
 
@@ -1336,7 +1405,7 @@ At the end of `DayViewScreen`'s `BoxWithConstraints` body (after the closing `el
 
 For this task, `showDetourList` toggles state but shows nothing yet — the variable is written by `onOpenList` and read by nothing until Task 7 adds the dialog host. That compiles cleanly; leave it as is.
 
-- [ ] **Step 3: Wire the actions in `App.kt`**
+- [ ] **Step 4: Wire the actions in `App.kt`**
 
 In the `DayViewScreenActions(...)` construction inside `App.kt`, after `closePomodoro = { ... },`:
 
@@ -1347,7 +1416,7 @@ In the `DayViewScreenActions(...)` construction inside `App.kt`, after `closePom
                         addDetourEpisode = { controller.addDetourEpisode(it) },
 ```
 
-- [ ] **Step 4: Build, lint, verify by hand**
+- [ ] **Step 5: Build, lint, verify by hand**
 
 ```bash
 ./gradlew ktlintCheck :composeApp:testDebugUnitTest :composeApp:desktopTest
@@ -1356,10 +1425,10 @@ In the `DayViewScreenActions(...)` construction inside `App.kt`, after `closePom
 
 Manual check on desktop: `+ DÉTOUR` under the dial opens the dialog; adding "appel client" for 30 min draws an amber body on the ring at the last half hour, shows "Détours 30 min" under the countdown and "appel client 30 min" in the tally; hovering the body shows the tooltip; restarting the app restores everything.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add composeApp/src/commonMain/kotlin/fr/dayview/app/DetoursUi.kt composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt composeApp/src/commonMain/kotlin/fr/dayview/app/App.kt
+git add composeApp/src/commonMain/kotlin/fr/dayview/app/DetoursUi.kt composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt composeApp/src/commonMain/kotlin/fr/dayview/app/App.kt composeApp/src/commonMain/composeResources/values/strings.xml
 git commit -m "feat: capture detours from the today screen"
 ```
 
@@ -1375,13 +1444,51 @@ git commit -m "feat: capture detours from the today screen"
 - Consumes: `detourEpisodeAt`, `formatClockHm`, `formatDurationHm` (Tasks 1–2); `DetourChip`, actions (Task 6); `TimeButton` (existing in `DayViewTodayScreen.kt`, already `internal`).
 - Produces: `DetourListDialog(episodes: List<DetourEpisode>, now: Instant, onUpdate: (Int, DetourEpisode) -> Unit, onRemove: (Int) -> Unit, onAdd: (DetourEpisode) -> Unit, onDismiss: () -> Unit)`.
 
-- [ ] **Step 1: Append the list dialog to `DetoursUi.kt`**
+- [ ] **Step 1: Add the list string resources**
 
-Add these imports to the file's import block:
+In `composeApp/src/commonMain/composeResources/values/strings.xml`, extend the `<!-- Detours -->` block:
+
+```xml
+    <string name="detour_list_title">DÉTOURS DU JOUR</string>
+    <string name="detour_list_empty">Aucun détour déclaré aujourd’hui.</string>
+    <string name="detour_edit_row_label">Modifier le détour</string>
+    <string name="detour_close_button">FERMER</string>
+    <string name="detour_list_add_button">AJOUTER UN DÉTOUR</string>
+    <string name="detour_start_section">DÉBUT</string>
+    <string name="detour_duration_label">DURÉE</string>
+    <string name="detour_start_decrease">Avancer le début de 5 minutes</string>
+    <string name="detour_start_increase">Retarder le début de 5 minutes</string>
+    <string name="detour_start_value">Début : %1$s</string>
+    <string name="detour_duration_decrease">Diminuer la durée de 5 minutes</string>
+    <string name="detour_duration_increase">Augmenter la durée de 5 minutes</string>
+    <string name="detour_duration_value">Durée : %1$s minutes</string>
+    <string name="detour_delete_button">SUPPRIMER</string>
+    <string name="detour_save_button">ENREGISTRER</string>
+```
+
+- [ ] **Step 2: Append the list dialog to `DetoursUi.kt`**
+
+Add these imports to the file's import block (each in its sorted group):
 
 ```kotlin
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.verticalScroll
+import fr.dayview.app.generated.resources.detour_close_button
+import fr.dayview.app.generated.resources.detour_delete_button
+import fr.dayview.app.generated.resources.detour_duration_decrease
+import fr.dayview.app.generated.resources.detour_duration_increase
+import fr.dayview.app.generated.resources.detour_duration_label
+import fr.dayview.app.generated.resources.detour_duration_value
+import fr.dayview.app.generated.resources.detour_edit_row_label
+import fr.dayview.app.generated.resources.detour_list_add_button
+import fr.dayview.app.generated.resources.detour_list_empty
+import fr.dayview.app.generated.resources.detour_list_title
+import fr.dayview.app.generated.resources.detour_save_button
+import fr.dayview.app.generated.resources.detour_start_decrease
+import fr.dayview.app.generated.resources.detour_start_increase
+import fr.dayview.app.generated.resources.detour_start_section
+import fr.dayview.app.generated.resources.detour_start_value
+import fr.dayview.app.generated.resources.detour_time_range
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
@@ -1422,12 +1529,12 @@ internal fun DetourListDialog(
                 .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
                 .padding(20.dp),
         ) {
-            Text("DÉTOURS DU JOUR", color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Text(stringResource(Res.string.detour_list_title), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
             Spacer(Modifier.height(12.dp))
             when (val current = edit) {
                 null -> {
                     if (episodes.isEmpty()) {
-                        Text("Aucun détour déclaré aujourd’hui.", color = colors.muted, fontSize = 13.sp)
+                        Text(stringResource(Res.string.detour_list_empty), color = colors.muted, fontSize = 13.sp)
                     } else {
                         Column(
                             Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
@@ -1437,7 +1544,7 @@ internal fun DetourListDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
                                         .clip(RoundedCornerShape(10.dp))
-                                        .clickable(role = Role.Button, onClickLabel = "Modifier le détour") {
+                                        .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_edit_row_label)) {
                                             edit = DetourEdit.Existing(index, episode)
                                         }
                                         .padding(horizontal = 8.dp, vertical = 9.dp),
@@ -1447,7 +1554,12 @@ internal fun DetourListDialog(
                                     Column(Modifier.weight(1f)) {
                                         Text(episode.motif, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                         Text(
-                                            "${formatClockHm(episode.start)} – ${formatClockHm(episode.end)} · ${formatDurationHm(episode.duration)}",
+                                            stringResource(
+                                                Res.string.detour_time_range,
+                                                formatClockHm(episode.start),
+                                                formatClockHm(episode.end),
+                                                formatDurationHm(episode.duration),
+                                            ),
                                             color = colors.muted,
                                             fontSize = 11.sp,
                                         )
@@ -1458,9 +1570,9 @@ internal fun DetourListDialog(
                     }
                     Spacer(Modifier.height(14.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        FocusActionButton("FERMER", colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+                        FocusActionButton(stringResource(Res.string.detour_close_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
                         FocusActionButton(
-                            "AJOUTER UN DÉTOUR",
+                            stringResource(Res.string.detour_list_add_button),
                             colors.amber,
                             modifier = Modifier.weight(1f),
                             filled = true,
@@ -1514,21 +1626,21 @@ private fun DetourEditForm(
     }
     GoalTextField(
         value = motif,
-        semanticLabel = "Motif du détour",
-        placeholder = "Ex. appel imprévu",
+        semanticLabel = stringResource(Res.string.detour_motif_label),
+        placeholder = stringResource(Res.string.detour_motif_placeholder),
         onValueChange = { motif = it },
     )
     Spacer(Modifier.height(12.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("DÉBUT", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(stringResource(Res.string.detour_start_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TimeButton(
                     label = "−",
                     enabled = startMinutes >= 5,
-                    onClickLabel = "Avancer le début de 5 minutes",
-                    valueDescription = "Début : ${formatMinutesOfDay(startMinutes)}",
+                    onClickLabel = stringResource(Res.string.detour_start_decrease),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
                 ) { startMinutes = (startMinutes - 5).coerceAtLeast(0) }
                 Spacer(Modifier.width(10.dp))
                 Text(formatMinutesOfDay(startMinutes), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
@@ -1536,29 +1648,34 @@ private fun DetourEditForm(
                 TimeButton(
                     label = "+",
                     enabled = startMinutes <= 23 * 60 + 54,
-                    onClickLabel = "Retarder le début de 5 minutes",
-                    valueDescription = "Début : ${formatMinutesOfDay(startMinutes)}",
+                    onClickLabel = stringResource(Res.string.detour_start_increase),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
                 ) { startMinutes = (startMinutes + 5).coerceAtMost(23 * 60 + 59) }
             }
         }
         Column(Modifier.weight(1f)) {
-            Text("DURÉE", color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(stringResource(Res.string.detour_duration_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TimeButton(
                     label = "−",
                     enabled = durationMinutes > 5,
-                    onClickLabel = "Diminuer la durée de 5 minutes",
-                    valueDescription = "Durée : $durationMinutes minutes",
+                    onClickLabel = stringResource(Res.string.detour_duration_decrease),
+                    valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
                 ) { durationMinutes = (durationMinutes - 5).coerceAtLeast(5) }
                 Spacer(Modifier.width(10.dp))
-                Text("$durationMinutes min", color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
+                Text(
+                    stringResource(Res.string.detour_minutes_chip, durationMinutes.toString()),
+                    color = colors.cloud,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Light,
+                )
                 Spacer(Modifier.width(10.dp))
                 TimeButton(
                     label = "+",
                     enabled = durationMinutes < 12 * 60,
-                    onClickLabel = "Augmenter la durée de 5 minutes",
-                    valueDescription = "Durée : $durationMinutes minutes",
+                    onClickLabel = stringResource(Res.string.detour_duration_increase),
+                    valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
                 ) { durationMinutes = (durationMinutes + 5).coerceAtMost(12 * 60) }
             }
         }
@@ -1566,11 +1683,11 @@ private fun DetourEditForm(
     Spacer(Modifier.height(16.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
         if (onDelete != null) {
-            FocusActionButton("SUPPRIMER", colors.red, modifier = Modifier.weight(1f), onClick = onDelete)
+            FocusActionButton(stringResource(Res.string.detour_delete_button), colors.red, modifier = Modifier.weight(1f), onClick = onDelete)
         }
-        FocusActionButton("ANNULER", colors.muted, modifier = Modifier.weight(1f), onClick = onCancel)
+        FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onCancel)
         FocusActionButton(
-            "ENREGISTRER",
+            stringResource(Res.string.detour_save_button),
             colors.amber,
             modifier = Modifier.weight(1f),
             enabled = motif.isNotBlank(),
@@ -1586,7 +1703,7 @@ private fun formatMinutesOfDay(minutes: Int): String {
 }
 ```
 
-- [ ] **Step 2: Host the dialog in `DayViewScreen`**
+- [ ] **Step 3: Host the dialog in `DayViewScreen`**
 
 In `DayViewTodayScreen.kt`, next to the `DetourCaptureDialog` host added in Task 6, add:
 
@@ -1603,7 +1720,7 @@ In `DayViewTodayScreen.kt`, next to the `DetourCaptureDialog` host added in Task
         }
 ```
 
-- [ ] **Step 3: Build, lint, verify by hand**
+- [ ] **Step 4: Build, lint, verify by hand**
 
 ```bash
 ./gradlew ktlintCheck :composeApp:testDebugUnitTest :composeApp:desktopTest
@@ -1612,10 +1729,10 @@ In `DayViewTodayScreen.kt`, next to the `DetourCaptureDialog` host added in Task
 
 Manual check on desktop: capture two detours, click the tally → the list shows both chronologically; edit one (motif + start + duration) → the ring, tally and totals update immediately; delete one; add a forgotten one retroactively; relaunch → everything persisted.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add composeApp/src/commonMain/kotlin/fr/dayview/app/DetoursUi.kt composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt
+git add composeApp/src/commonMain/kotlin/fr/dayview/app/DetoursUi.kt composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt composeApp/src/commonMain/composeResources/values/strings.xml
 git commit -m "feat: edit the day's detours from a list dialog"
 ```
 
@@ -1685,3 +1802,4 @@ git commit -m "docs: document day detours in the README"
 - **Spec coverage:** model + serialization (Task 1), source aggregation/colors/geometry (Task 2), persistence (Task 3), controller with rollover and recents (Task 4), rendering with halo/bodies/totals/hover (Task 5), capture (Task 6), retouch list (Task 7), degenerate cases (defaults keep mini window and no-goal rendering working), out-of-scope items untouched.
 - **Deviation from spec, deliberate:** the spec's "halo behind the center goal title" is adapted to a halo at the dial center — in the real layout the goal lives in a panel, not the ring center; the dial center is the orbit's focal point.
 - **Type consistency:** `DetourEpisode(start, end, motif)` everywhere; controller indices always refer to `detoursToday` (sorted by start), and the list dialog receives that same list.
+- **i18n:** aligned with the string-resources refactor (#37) — every user-facing string added by Tasks 5–7 lives in `strings.xml` and is consumed via `stringResource(...)`; number/clock formatters stay plain functions, per the file's own convention.
