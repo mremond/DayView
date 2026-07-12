@@ -69,14 +69,6 @@ internal data class DayViewUiState(
     val dayWindow: Pair<Instant, Instant>
         get() = dayWindow(dayNow, startMinutes, endMinutes)
 
-    val busyArcsState: List<BusyArc>
-        get() = if (netTimeSettings.enabled) {
-            val (start, end) = dayWindow
-            busyArcs(start, end, busyIntervals)
-        } else {
-            emptyList()
-        }
-
     private val calendarNamesById: Map<String, String>
         get() = availableCalendars.associate { it.id to it.displayName }
 

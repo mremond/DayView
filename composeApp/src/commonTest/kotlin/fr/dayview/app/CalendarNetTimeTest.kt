@@ -125,28 +125,6 @@ class CalendarNetTimeTest {
     }
 
     @Test
-    fun busyArcsProjectAtElapsedFraction() {
-        // Fenêtre 0..1000. Plage 250..500 -> quart..moitié.
-        val arcs = busyArcs(t(0), t(1000), listOf(interval(250, 500, "X")))
-        assertEquals(1, arcs.size)
-        assertEquals(-90f + 0.25f * 360f, arcs[0].startAngleDegrees)
-        assertEquals(0.25f * 360f, arcs[0].sweepDegrees)
-        assertEquals(listOf("X"), arcs[0].titles)
-    }
-
-    @Test
-    fun busyArcsClipToWindow() {
-        val arcs = busyArcs(t(0), t(1000), listOf(interval(-200, 200, "Y")))
-        assertEquals(-90f, arcs[0].startAngleDegrees)
-        assertEquals(0.2f * 360f, arcs[0].sweepDegrees)
-    }
-
-    @Test
-    fun busyArcsHandleDegenerateWindow() {
-        assertEquals(emptyList(), busyArcs(t(500), t(500), listOf(interval(400, 600, "Z"))))
-    }
-
-    @Test
     fun arcContainsAngleHandlesSweepAndWraparound() {
         // Arc bas-gauche 200°..240°.
         assertEquals(true, arcContainsAngle(200f, 40f, 220f))

@@ -203,12 +203,6 @@ fun calculateNetTime(
     )
 }
 
-data class BusyArc(
-    val startAngleDegrees: Float,
-    val sweepDegrees: Float,
-    val titles: List<String>,
-)
-
 /** Durée « H h MM » (ou « MM min » sous une heure) pour l'affichage du temps net. */
 fun formatDurationHm(duration: Duration): String {
     val totalMinutes = duration.inWholeMinutes.coerceAtLeast(0)
@@ -233,32 +227,6 @@ fun angleToInstant(angleDegrees: Float, windowStart: Instant, windowEnd: Instant
 fun arcContainsAngle(startAngleDegrees: Float, sweepDegrees: Float, angleDegrees: Float): Boolean {
     val delta = (((angleDegrees - startAngleDegrees) % 360f) + 360f) % 360f
     return delta <= sweepDegrees
-}
-
-fun busyArcs(
-    windowStart: Instant,
-    windowEnd: Instant,
-    busy: List<BusyInterval>,
-): List<BusyArc> {
-    val total = windowEnd - windowStart
-    if (total <= Duration.ZERO) return emptyList()
-    val clipped = mergeBusyIntervals(
-        busy.map {
-            it.copy(
-                start = it.start.coerceIn(windowStart, windowEnd),
-                end = it.end.coerceIn(windowStart, windowEnd),
-            )
-        },
-    )
-    return clipped.map {
-        val fStart = ((it.start - windowStart) / total).toFloat()
-        val fEnd = ((it.end - windowStart) / total).toFloat()
-        BusyArc(
-            startAngleDegrees = -90f + fStart * 360f,
-            sweepDegrees = (fEnd - fStart) * 360f,
-            titles = it.titles,
-        )
-    }
 }
 
 data class FocusArc(
