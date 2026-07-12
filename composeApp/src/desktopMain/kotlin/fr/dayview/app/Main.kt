@@ -334,7 +334,7 @@ private fun runApplication() = application {
             alwaysOnTop = true,
             resizable = true,
         ) {
-            window.minimumSize = java.awt.Dimension(300, 400)
+            window.minimumSize = java.awt.Dimension(200, 300)
             DayViewMiniApp(
                 progress = dayProgress,
                 showSeconds = showSeconds,

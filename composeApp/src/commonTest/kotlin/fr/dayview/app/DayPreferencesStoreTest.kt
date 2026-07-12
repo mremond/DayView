@@ -178,4 +178,17 @@ class DayPreferencesStoreTest {
         store.persist(DayPreferencesSnapshot(fontScale = 9.0f))
         assertEquals(1.5f, store.snapshots.first().fontScale)
     }
+
+    @Test
+    fun plannedObligationsRoundTrip() = runTest {
+        val store = newStore(FakeFileSystem())
+        val snapshot = DayPreferencesSnapshot(
+            plannedObligationsDayKey = 20_646L,
+            plannedObligations = listOf("Appel client", "Facture"),
+        )
+        store.persist(snapshot)
+        val read = store.snapshots.first()
+        assertEquals(20_646L, read.plannedObligationsDayKey)
+        assertEquals(listOf("Appel client", "Facture"), read.plannedObligations)
+    }
 }

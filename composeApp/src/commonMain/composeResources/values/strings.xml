@@ -32,10 +32,19 @@
     <string name="today_status_ongoing">Stay the course, no pressure.</string>
 
     <!-- Today screen — wide hero (two lines) -->
-    <string name="today_hero_not_started">Your day hasn’t started yet.\nThe circle is still whole.</string>
-    <string name="today_hero_finished">Your planned time is up.\nYou can let the day go.</string>
-    <string name="today_hero_ending">The day is drawing to a close.\nChoose one essential thing.</string>
-    <string name="today_hero_ongoing">See the time.\nStay the course, no pressure.</string>
+    <string-array name="today_hero_not_started">
+        <item>Your day hasn’t started yet.\nThe circle is still whole.</item>
+    </string-array>
+    <string-array name="today_hero_finished">
+        <item>Your planned time is up.\nYou can let the day go.</item>
+    </string-array>
+    <string-array name="today_hero_ending">
+        <item>The day is drawing to a close.\nChoose one essential thing.</item>
+    </string-array>
+    <string-array name="today_hero_ongoing">
+        <item>See the time.\nStay the course, no pressure.</item>
+        <item>Rules for Writers\nRule One: You Must Write\n…\n― Robert A. Heinlein</item>
+    </string-array>
 
     <!-- Countdown circle -->
     <string name="countdown_time_left">TIME LEFT</string>
@@ -223,6 +232,7 @@
     <string name="detour_forget_prompt">Forget this reason?</string>
     <string name="detour_forget_confirm">FORGET</string>
     <string name="detour_duration_section">APPROXIMATE DURATION</string>
+    <string name="detour_duration_more">Longer</string>
     <string name="detour_minutes_chip">%1$s min</string>
     <string name="detour_source_total">%1$s %2$s</string>
     <string name="detour_overflow">+%1$s</string>
@@ -244,4 +254,11 @@
     <string name="detour_duration_value">Duration: %1$s minutes</string>
     <string name="detour_delete_button">DELETE</string>
     <string name="detour_save_button">SAVE</string>
+
+    <!-- Planned obligations -->
+    <string name="planned_obligations_title">Today's obligations</string>
+    <string name="planned_obligation_motif_label">Obligation to do today</string>
+    <string name="planned_obligation_motif_placeholder">e.g. Client call</string>
+    <string name="planned_obligation_add_button">ADD</string>
+    <string name="planned_obligation_done_button">DONE</string>
 </resources>

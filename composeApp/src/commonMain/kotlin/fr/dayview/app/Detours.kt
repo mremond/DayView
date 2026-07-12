@@ -6,6 +6,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.atan2
 import kotlin.math.hypot
+import kotlin.math.sqrt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -112,13 +113,13 @@ data class DetourBody(
 )
 
 private val MIN_BODY_DURATION = 5.minutes
-private val MAX_BODY_DURATION = 60.minutes
+private val MAX_BODY_DURATION = 180.minutes
 
 /**
  * Project episodes to bodies threaded on the ring: angle at the episode midpoint
  * (same `-90° = window start` convention as [busyBlockArcs]), size fraction 0..1 from the
- * duration clamped to [5 min, 60 min]. Episodes whose midpoint falls outside the
- * window are dropped.
+ * duration over [5 min, 3 h] on a square-root scale (steep early, gentle late).
+ * Episodes whose midpoint falls outside the window are dropped.
  */
 fun detourBodies(
     windowStart: Instant,
@@ -133,8 +134,9 @@ fun detourBodies(
         val midpoint = episode.start + episode.duration / 2
         if (midpoint < windowStart || midpoint > windowEnd) return@mapNotNull null
         val fraction = ((midpoint - windowStart) / total).toFloat()
-        val sizeFraction = ((episode.duration - MIN_BODY_DURATION) / (MAX_BODY_DURATION - MIN_BODY_DURATION))
+        val linearFraction = ((episode.duration - MIN_BODY_DURATION) / (MAX_BODY_DURATION - MIN_BODY_DURATION))
             .toFloat().coerceIn(0f, 1f)
+        val sizeFraction = sqrt(linearFraction)
         DetourBody(
             angleDegrees = -90f + fraction * 360f,
             sizeFraction = sizeFraction,

@@ -154,6 +154,7 @@ import fr.dayview.app.generated.resources.today_status_ending
 import fr.dayview.app.generated.resources.today_status_finished
 import fr.dayview.app.generated.resources.today_status_not_started
 import fr.dayview.app.generated.resources.today_status_ongoing
+import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.atan2
 import kotlin.math.hypot
@@ -183,6 +184,8 @@ internal data class DayViewScreenActions(
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
     val forgetDetourMotif: (String) -> Unit,
+    val addPlannedObligation: (String) -> Unit,
+    val completePlannedObligation: (String, String, Int, Int?) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -203,6 +206,7 @@ internal fun DayViewScreen(
     val pomodoro = state.pomodoroProgress
     var showDetourCapture by remember { mutableStateOf(false) }
     var showDetourList by remember { mutableStateOf(false) }
+    var obligationToComplete by remember { mutableStateOf<String?>(null) }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
             .background(
@@ -268,6 +272,12 @@ internal fun DayViewScreen(
                             onCapture = { showDetourCapture = true },
                         )
                         Spacer(Modifier.height(12.dp))
+                        PlannedObligationsSection(
+                            obligations = state.plannedObligationsToday,
+                            onAdd = actions.addPlannedObligation,
+                            onComplete = { obligationToComplete = it },
+                        )
+                        Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
                             title = state.goalTitle,
                             deadline = state.goalDeadline,
@@ -324,6 +334,12 @@ internal fun DayViewScreen(
                     onCapture = { showDetourCapture = true },
                 )
                 Spacer(Modifier.height(12.dp))
+                PlannedObligationsSection(
+                    obligations = state.plannedObligationsToday,
+                    onAdd = actions.addPlannedObligation,
+                    onComplete = { obligationToComplete = it },
+                )
+                Spacer(Modifier.height(12.dp))
                 CompactTodayContent(
                     state = state,
                     actions = actions,
@@ -347,6 +363,19 @@ internal fun DayViewScreen(
                 },
                 onForget = actions.forgetDetourMotif,
                 onDismiss = { showDetourCapture = false },
+            )
+        }
+        obligationToComplete?.let { motif ->
+            DetourCaptureDialog(
+                recentMotifs = state.recentDetourMotifs,
+                now = state.now,
+                initialMotif = motif,
+                onConfirm = { confirmedMotif, durationMinutes, startMinutesOfDay ->
+                    actions.completePlannedObligation(motif, confirmedMotif, durationMinutes, startMinutesOfDay)
+                    obligationToComplete = null
+                },
+                onForget = actions.forgetDetourMotif,
+                onDismiss = { obligationToComplete = null },
             )
         }
         if (showDetourList) {
@@ -1188,13 +1217,22 @@ private fun SidePanel(
 ) {
     val colors = LocalDayViewColors.current
     Column(modifier = modifier.widthIn(max = 430.dp)) {
-        Text(
-            text = when {
-                !progress.hasStarted -> stringResource(Res.string.today_hero_not_started)
-                progress.isFinished -> stringResource(Res.string.today_hero_finished)
-                progress.remainingRatio < .2f -> stringResource(Res.string.today_hero_ending)
-                else -> stringResource(Res.string.today_hero_ongoing)
+        val heroSlot = when {
+            !progress.hasStarted -> HeroQuoteSlot.NOT_STARTED
+            progress.isFinished -> HeroQuoteSlot.FINISHED
+            progress.remainingRatio < .2f -> HeroQuoteSlot.ENDING
+            else -> HeroQuoteSlot.ONGOING
+        }
+        val heroQuotes = stringArrayResource(
+            when (heroSlot) {
+                HeroQuoteSlot.NOT_STARTED -> Res.array.today_hero_not_started
+                HeroQuoteSlot.FINISHED -> Res.array.today_hero_finished
+                HeroQuoteSlot.ENDING -> Res.array.today_hero_ending
+                HeroQuoteSlot.ONGOING -> Res.array.today_hero_ongoing
             },
+        )
+        Text(
+            text = heroQuotes[heroQuoteIndex(heroQuotes.size, HeroQuoteSelection.seed(heroSlot))],
             color = colors.cloud,
             fontSize = 22.sp,
             lineHeight = 29.sp,

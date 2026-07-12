@@ -117,18 +117,23 @@ class DetoursTest {
     }
 
     @Test
-    fun bodySizeFractionClampsBetween5And60Minutes() {
+    fun bodySizeFractionScalesBySqrtUpToThreeHours() {
         val start = t(0L)
-        val end = t(36_000_000L)
+        val end = t(36_000_000L) // 10 h window
         fun sizeOf(minutes: Long): Float = detourBodies(
             start,
             end,
             listOf(DetourEpisode(t(7_200_000L), t(7_200_000L + minutes * 60_000L), "x")),
         ).single().sizeFraction
-        assertEquals(0f, sizeOf(5))
-        assertEquals(1f, sizeOf(60))
-        assertEquals(1f, sizeOf(90))
-        assertEquals(.4909f, sizeOf(32), absoluteTolerance = .01f) // (32 − 5) / 55
+        assertEquals(0f, sizeOf(5)) // floor: 5 min → 0
+        assertEquals(1f, sizeOf(180)) // ceiling: 3 h → 1
+        assertEquals(1f, sizeOf(240)) // clamped past the 3 h cap
+        // Square-root growth: steep early, gentle late. A 60 min body no longer saturates.
+        assertEquals(.5606f, sizeOf(60), absoluteTolerance = .001f) // sqrt((60-5)/175)
+        assertEquals(.6969f, sizeOf(90), absoluteTolerance = .001f) // sqrt((90-5)/175)
+        assertTrue(sizeOf(30) < sizeOf(60))
+        assertTrue(sizeOf(60) < sizeOf(90))
+        assertTrue(sizeOf(90) < sizeOf(120))
     }
 
     @Test

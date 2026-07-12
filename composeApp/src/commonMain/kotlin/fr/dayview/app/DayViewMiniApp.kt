@@ -200,27 +200,19 @@ private fun MiniFocusStart(onClick: () -> Unit) {
             .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
             .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
             .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_start_focus_label), onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                stringResource(Res.string.focus_start_button),
-                color = colors.amber,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.1.sp,
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                stringResource(Res.string.mini_focus_single_thing),
-                color = colors.muted,
-                fontSize = 12.sp,
-                maxLines = 1,
-            )
-        }
+        Text(
+            stringResource(Res.string.focus_start_button),
+            color = colors.amber,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.1.sp,
+            modifier = Modifier.weight(1f),
+        )
         Spacer(Modifier.width(12.dp))
-        Text("+", color = colors.amber, fontSize = 26.sp, fontWeight = FontWeight.Light)
+        Text("+", color = colors.amber, fontSize = 20.sp, fontWeight = FontWeight.Light)
     }
 }
 
