@@ -201,7 +201,7 @@ internal fun DetourCaptureDialog(
             Spacer(Modifier.height(14.dp))
             Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Spacer(Modifier.height(8.dp))
-            Row {
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
                 DETOUR_DURATION_CHOICES.forEachIndexed { index, minutes ->
                     if (index > 0) Spacer(Modifier.width(7.dp))
                     DetourChip(
