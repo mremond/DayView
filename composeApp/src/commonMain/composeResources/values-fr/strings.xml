@@ -110,6 +110,11 @@
     <string name="settings_section_display">AFFICHAGE</string>
     <string name="settings_show_seconds">AFFICHER LES SECONDES</string>
     <string name="settings_show_seconds_description">Désactivez-les pour un affichage plus calme et moins de rafraîchissements.</string>
+    <string name="settings_theme_label">APPARENCE</string>
+    <string name="settings_theme_description">Suivez le système, ou forcez le mode clair ou sombre.</string>
+    <string name="settings_theme_system">Système</string>
+    <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_dark">Sombre</string>
     <string name="settings_monochrome_icon">ICÔNE DE BARRE DE MENU SANS COULEUR</string>
     <string name="settings_monochrome_icon_description">Utilise une icône monochrome plus discrète dans la barre de menu.</string>
     <string name="settings_launch_at_login">OUVRIR À LA CONNEXION</string>

@@ -538,4 +538,15 @@ class DayViewControllerTest {
         assertEquals(DayViewDestination.SETTINGS, controller.state.destination)
         assertEquals(null, controller.state.settingsCategory)
     }
+
+    @Test
+    fun setThemeModeUpdatesStateAndPersists() {
+        val prefs = InMemoryDayPreferences()
+        val controller = testController(prefs, 1_000L)
+
+        controller.setThemeMode(ThemeMode.LIGHT)
+
+        assertEquals(ThemeMode.LIGHT, controller.state.themeMode)
+        assertEquals(ThemeMode.LIGHT, prefs.current.themeMode)
+    }
 }

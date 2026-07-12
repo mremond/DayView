@@ -48,6 +48,7 @@ internal data class DayViewUiState(
     val detoursDayKey: Long = -1L,
     val detours: List<DetourEpisode> = emptyList(),
     val recentDetourMotifs: List<String> = emptyList(),
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val destination: DayViewDestination = DayViewDestination.TODAY,
     val settingsCategory: SettingsCategory? = null,
 ) {
@@ -188,6 +189,11 @@ internal class DayViewController(
 
     fun setShowSeconds(enabled: Boolean) {
         state = state.copy(showSeconds = enabled)
+        persistState()
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        state = state.copy(themeMode = mode)
         persistState()
     }
 
@@ -375,6 +381,7 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     detoursDayKey = detoursDayKey,
     detours = detours,
     recentDetourMotifs = recentDetourMotifs,
+    themeMode = themeMode,
 ).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
@@ -413,6 +420,7 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         detoursDayKey = safe.detoursDayKey,
         detours = safe.detours,
         recentDetourMotifs = safe.recentDetourMotifs,
+        themeMode = safe.themeMode,
     )
 }
 
@@ -434,6 +442,7 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         detoursDayKey = safe.detoursDayKey,
         detours = safe.detours,
         recentDetourMotifs = safe.recentDetourMotifs,
+        themeMode = safe.themeMode,
         // Transient fields deliberately preserved: now, goalDeadlineText,
         // goalStartText, lastFocusClosure, destination, and calendar read results.
     )

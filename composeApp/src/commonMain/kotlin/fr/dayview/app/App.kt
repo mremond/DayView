@@ -5,6 +5,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +40,9 @@ fun DayViewApp(
     runningApps: () -> List<AppRef> = { emptyList() },
     focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
 ) {
-    DayViewTheme { colors ->
+    val initialThemeSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
+    val themeSnapshot by preferences.snapshots.collectAsState(initial = initialThemeSnapshot)
+    DayViewTheme(themeMode = themeSnapshot.themeMode) { colors ->
         Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
             val scope = rememberCoroutineScope()
             val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
@@ -184,6 +187,7 @@ fun DayViewApp(
                         },
                         requestCalendarPermission = onRequestCalendarAccess,
                         changeOnGoalApps = { controller.setOnGoalApps(it) },
+                        changeThemeMode = { controller.setThemeMode(it) },
                         openCategory = { controller.openSettingsCategory(it) },
                         closeCategory = { controller.closeSettingsCategory() },
                         back = { controller.openToday() },
