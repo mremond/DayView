@@ -158,6 +158,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
+private const val CLEAN_SESSION_PIP_CAP = 8
+
 internal data class DayViewScreenActions(
     val openSettings: () -> Unit,
     val openMiniWindow: (() -> Unit)?,
@@ -958,22 +960,43 @@ internal fun CountdownCircle(
                                 letterSpacing = .5.sp,
                             )
                         }
-                        if (cleanSessionsToday > 0) {
+                        if (cleanSessionsToday > 0 || streakDays > 0) {
                             Spacer(Modifier.height(6.dp))
-                            val label = if (streakDays > 0) {
-                                stringResource(Res.string.clean_sessions_today, cleanSessionsToday) +
-                                    " · " + stringResource(Res.string.clean_streak, streakDays)
-                            } else {
+                            val countLabel = if (cleanSessionsToday > 0) {
                                 stringResource(Res.string.clean_sessions_today, cleanSessionsToday)
+                            } else {
+                                null
                             }
-                            Text(
-                                label,
-                                color = colors.mint,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = .5.sp,
+                            val streakLabel = if (streakDays > 0) {
+                                stringResource(Res.string.clean_streak, streakDays)
+                            } else {
+                                null
+                            }
+                            val label = listOfNotNull(countLabel, streakLabel).joinToString(" · ")
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.testTag(DayViewTestTags.CleanSessions),
-                            )
+                            ) {
+                                if (cleanSessionsToday > 0) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        repeat(cleanSessionsToday.coerceAtMost(CLEAN_SESSION_PIP_CAP)) {
+                                            Box(
+                                                Modifier
+                                                    .size(6.dp)
+                                                    .background(colors.mint, CircleShape),
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                }
+                                Text(
+                                    label,
+                                    color = colors.mint,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
                         }
                     }
                 }
