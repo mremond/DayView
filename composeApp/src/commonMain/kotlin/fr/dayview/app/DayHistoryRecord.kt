@@ -30,10 +30,17 @@ internal data class DayHistoryRecord(
     val goalStart: Instant?,
 )
 
-/** The instant at the end of the record's day window, used as the frozen "now". */
-private fun DayHistoryRecord.frozenNow(timeZone: TimeZone): Instant = LocalDate.fromEpochDays(dayKey.toInt())
-    .atTime(LocalTime(endMinutes / 60, endMinutes % 60))
+/** The instant on [dayKey]'s calendar day at the given minute-of-day offset. */
+private fun instantAtMinutes(
+    dayKey: Long,
+    minutes: Int,
+    timeZone: TimeZone,
+): Instant = LocalDate.fromEpochDays(dayKey.toInt())
+    .atTime(LocalTime(minutes / 60, minutes % 60))
     .toInstant(timeZone)
+
+/** The instant at the end of the record's day window, used as the frozen "now". */
+private fun DayHistoryRecord.frozenNow(timeZone: TimeZone): Instant = instantAtMinutes(dayKey, endMinutes, timeZone)
 
 /**
  * Rebuild a [DayViewUiState] pinned to the recorded day, with `now` at the day's end so
@@ -75,12 +82,8 @@ internal fun DayViewUiState.toHistoryRecord(
     dayKey: Long,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): DayHistoryRecord {
-    val windowStart = LocalDate.fromEpochDays(dayKey.toInt())
-        .atTime(LocalTime(startMinutes / 60, startMinutes % 60))
-        .toInstant(timeZone)
-    val windowEnd = LocalDate.fromEpochDays(dayKey.toInt())
-        .atTime(LocalTime(endMinutes / 60, endMinutes % 60))
-        .toInstant(timeZone)
+    val windowStart = instantAtMinutes(dayKey, startMinutes, timeZone)
+    val windowEnd = instantAtMinutes(dayKey, endMinutes, timeZone)
     return DayHistoryRecord(
         dayKey = dayKey,
         startMinutes = startMinutes,

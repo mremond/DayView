@@ -11,7 +11,11 @@ import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 class DayHistoryRecordTest {
-    private val tz = TimeZone.UTC
+    // Must match the zone the getters under test use: dayKeyOf(dayNow) (called with no
+    // explicit timeZone by DayViewController) defaults to TimeZone.currentSystemDefault().
+    // Using a fixed UTC zone here would desync the record's dayKey from that getter's
+    // computed dayKey on any host west/east enough of UTC, making the test flaky.
+    private val tz = TimeZone.currentSystemDefault()
     private val dayKey = LocalDate(2026, 5, 4).toEpochDays().toLong()
 
     private fun instantAt(hour: Int, minute: Int): Instant = LocalDate.fromEpochDays(dayKey.toInt()).atTime(LocalTime(hour, minute)).toInstant(tz)
