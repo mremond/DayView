@@ -34,6 +34,8 @@ internal object DayPreferenceKeys {
     const val DETOURS_DAY = "detours_day"
     const val DETOURS = "detours"
     const val DETOUR_RECENT_MOTIFS = "detour_recent_motifs"
+    const val PLANNED_OBLIGATIONS_DAY = "planned_obligations_day"
+    const val PLANNED_OBLIGATIONS = "planned_obligations"
     const val THEME_MODE = "theme_mode"
     const val CLEAN_SESSIONS_DAY = "clean_sessions_day"
     const val CLEAN_SESSIONS_TODAY = "clean_sessions_today"
@@ -64,6 +66,8 @@ private val onGoalAppsKey = stringPreferencesKey(DayPreferenceKeys.ON_GOAL_APPS)
 private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY)
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
 private val detourRecentMotifsKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_MOTIFS)
+private val plannedObligationsDayPrefKey = longPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS_DAY)
+private val plannedObligationsKey = stringPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS)
 private val themeModeKey = stringPreferencesKey(DayPreferenceKeys.THEME_MODE)
 private val cleanSessionsDayKey = longPreferencesKey(DayPreferenceKeys.CLEAN_SESSIONS_DAY)
 private val cleanSessionsTodayKey = intPreferencesKey(DayPreferenceKeys.CLEAN_SESSIONS_TODAY)
@@ -99,6 +103,8 @@ class DayPreferencesStore(
             prefs[detoursDayPrefKey] = snapshot.detoursDayKey
             prefs[detoursKey] = encodeDetours(snapshot.detours)
             prefs[detourRecentMotifsKey] = encodeRecentDetourMotifs(snapshot.recentDetourMotifs)
+            prefs[plannedObligationsDayPrefKey] = snapshot.plannedObligationsDayKey
+            prefs[plannedObligationsKey] = encodePlannedObligations(snapshot.plannedObligations)
             prefs[themeModeKey] = snapshot.themeMode.name
             prefs[cleanSessionsDayKey] = snapshot.cleanSessions.dayKey
             prefs[cleanSessionsTodayKey] = snapshot.cleanSessions.cleanToday
@@ -144,6 +150,8 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         detoursDayKey = this[detoursDayPrefKey] ?: defaults.detoursDayKey,
         detours = decodeDetours(this[detoursKey].orEmpty()),
         recentDetourMotifs = decodeRecentDetourMotifs(this[detourRecentMotifsKey].orEmpty()),
+        plannedObligationsDayKey = this[plannedObligationsDayPrefKey] ?: defaults.plannedObligationsDayKey,
+        plannedObligations = decodePlannedObligations(this[plannedObligationsKey].orEmpty()),
         themeMode = this[themeModeKey]
             ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
             ?: defaults.themeMode,

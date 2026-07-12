@@ -523,6 +523,69 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun addPlannedObligationStoresItDayScopedAndCapsAtThree() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L
+        val controller = testController(preferences, now)
+
+        controller.addPlannedObligation(" Appel\nclient ")
+        controller.addPlannedObligation("Facture")
+        controller.addPlannedObligation("Courses")
+        controller.addPlannedObligation("Trop") // over the cap, ignored
+
+        val stored = preferences.current
+        assertEquals(dayKeyOf(t(now)), stored.plannedObligationsDayKey)
+        assertEquals(listOf("Appel client", "Facture", "Courses"), stored.plannedObligations)
+    }
+
+    @Test
+    fun addPlannedObligationOnANewDayReplacesTheStaleList() {
+        val now = 1_800_000_000_000L
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(
+                plannedObligationsDayKey = dayKeyOf(t(now)) - 1L,
+                plannedObligations = listOf("Vieux"),
+            ),
+        )
+        val controller = testController(preferences, now)
+
+        controller.addPlannedObligation("Neuf")
+
+        assertEquals(listOf("Neuf"), preferences.current.plannedObligations)
+    }
+
+    @Test
+    fun completePlannedObligationLogsADetourAndRemovesTheObligation() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L
+        val controller = testController(preferences, now)
+        controller.addPlannedObligation("Appel client")
+
+        controller.completePlannedObligation("Appel client", "Appel client", 30, null)
+
+        val stored = preferences.current
+        assertEquals(emptyList(), stored.plannedObligations)
+        val episode = stored.detours.single()
+        assertEquals("Appel client", episode.motif)
+        assertEquals(30, episode.duration.inWholeMinutes)
+    }
+
+    @Test
+    fun completePlannedObligationRemovesTheOriginalWhenMotifWasEdited() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L
+        val controller = testController(preferences, now)
+        controller.addPlannedObligation("Appel client")
+
+        controller.completePlannedObligation("Appel client", "Appel client re: contract", 30, null)
+
+        val stored = preferences.current
+        assertEquals(emptyList(), stored.plannedObligations)
+        val episode = stored.detours.single()
+        assertEquals("Appel client re: contract", episode.motif)
+    }
+
+    @Test
     fun openingSettingsStartsOnTheCategoryList() {
         val controller = testController(InMemoryDayPreferences(), 1_000L)
         controller.openSettingsCategory(SettingsCategory.SOUNDS)
