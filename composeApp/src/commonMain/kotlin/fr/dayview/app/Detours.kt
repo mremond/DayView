@@ -209,6 +209,15 @@ fun hitTestDetourBody(
 }
 
 /**
+ * The detour body whose angular position is closest to [angleDegrees], within the same
+ * size-scaled tolerance as [hitTestDetourBody] but with no radius constraint — for the
+ * radius-independent touch scrub. Null if none is close enough.
+ */
+fun detourBodyAtAngle(bodies: List<DetourBody>, angleDegrees: Float): DetourBody? = bodies
+    .minByOrNull { angularDistance(it.angleDegrees, angleDegrees) }
+    ?.takeIf { angularDistance(it.angleDegrees, angleDegrees) <= 7f + 5f * it.sizeFraction }
+
+/**
  * Minutes-of-day for the "ends now" default start shown in the quick-capture dialog:
  * a detour that ends at [now] and lasts [durationMinutes]. Clamped to a valid time of
  * day; the day-window clamp stays in [DayViewController.addDetour].
