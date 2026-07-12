@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -245,6 +246,8 @@ internal fun DayViewScreen(
                             windowEnd = state.dayWindow.second,
                             detourBodies = state.detourBodiesState,
                             detoursTotal = state.detoursTotalToday,
+                            busyBlockArcs = state.busyBlockArcsState,
+                            busyBlockBodies = state.busyBlockBodiesState,
                             hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                             onOpenDetourList = { showDetourList = true },
                         )
@@ -299,6 +302,8 @@ internal fun DayViewScreen(
                     windowEnd = state.dayWindow.second,
                     detourBodies = state.detourBodiesState,
                     detoursTotal = state.detoursTotalToday,
+                    busyBlockArcs = state.busyBlockArcsState,
+                    busyBlockBodies = state.busyBlockBodiesState,
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                     onOpenDetourList = { showDetourList = true },
                 )
@@ -683,6 +688,8 @@ internal fun CountdownCircle(
     windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
     detourBodies: List<DetourBody> = emptyList(),
     detoursTotal: Duration = Duration.ZERO,
+    busyBlockArcs: List<BusyBlockArc> = emptyList(),
+    busyBlockBodies: List<BusyBlockBody> = emptyList(),
     hasGoal: Boolean = false,
     onOpenDetourList: (() -> Unit)? = null,
 ) {
@@ -772,18 +779,6 @@ internal fun CountdownCircle(
                         )
                     }
 
-                    busyArcs.forEach { arc ->
-                        drawArc(
-                            color = colors.overlay.copy(alpha = .35f),
-                            startAngle = arc.startAngleDegrees,
-                            sweepAngle = arc.sweepDegrees,
-                            useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(strokeWidth, cap = StrokeCap.Butt),
-                        )
-                    }
-
                     focusArcs.forEach { arc ->
                         drawArc(
                             color = colors.mint.copy(alpha = .55f),
@@ -869,6 +864,45 @@ internal fun CountdownCircle(
                                 center = markerCenter - Offset(strokeWidth * .1f, strokeWidth * .1f),
                             )
                         }
+                    }
+
+                    // Calendar blocks are their own cool-toned layer drawn on top of the
+                    // remaining sweep, so the ring itself keeps meaning past/future while hue
+                    // means "reserved". A thin core stripe per event, like the focus arcs.
+                    busyBlockArcs.forEach { arc ->
+                        drawArc(
+                            color = colors.busy[arc.colorIndex % colors.busy.size],
+                            startAngle = arc.startAngleDegrees,
+                            sweepAngle = arc.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(strokeWidth * .5f, cap = StrokeCap.Butt),
+                        )
+                    }
+
+                    busyBlockBodies.forEach { body ->
+                        val angleRadians = Math.toRadians(body.angleDegrees.toDouble())
+                        val bodyRadius = arcSize.width / 2f
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val bodyCenter = center + Offset(
+                            x = (kotlin.math.cos(angleRadians) * bodyRadius).toFloat(),
+                            y = (kotlin.math.sin(angleRadians) * bodyRadius).toFloat(),
+                        )
+                        val color = colors.busy[body.colorIndex % colors.busy.size]
+                        val half = strokeWidth * (.42f + .32f * body.sizeFraction)
+                        drawRoundRect(
+                            color = color.copy(alpha = .28f),
+                            topLeft = bodyCenter - Offset(half * 1.5f, half * 1.5f),
+                            size = Size(half * 3f, half * 3f),
+                            cornerRadius = CornerRadius(half * .75f, half * .75f),
+                        )
+                        drawRoundRect(
+                            color = color,
+                            topLeft = bodyCenter - Offset(half, half),
+                            size = Size(half * 2f, half * 2f),
+                            cornerRadius = CornerRadius(half * .5f, half * .5f),
+                        )
                     }
 
                     detourBodies.forEach { body ->
