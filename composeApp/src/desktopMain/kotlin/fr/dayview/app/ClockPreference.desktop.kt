@@ -21,5 +21,9 @@ internal fun jvmUses24HourClock(locale: Locale = Locale.getDefault()): Boolean {
     return !(pattern.contains('h') || pattern.contains('K') || pattern.contains('a'))
 }
 
+/**
+ * Read once per composition lifetime; deliberately does not live-track OS locale
+ * changes made while the app keeps running.
+ */
 @Composable
 actual fun rememberUses24HourClock(): Boolean = remember { jvmUses24HourClock() }
