@@ -238,7 +238,6 @@ internal fun DayViewScreen(
                             progress,
                             state.showSeconds,
                             Modifier.weight(1f).fillMaxWidth(),
-                            busyArcs = state.busyArcsState,
                             netTime = state.netTime,
                             focusArcs = state.focusArcsState,
                             focusedToday = state.focusedToday,
@@ -294,7 +293,6 @@ internal fun DayViewScreen(
                     progress,
                     state.showSeconds,
                     Modifier.fillMaxWidth().height(compactCountdownHeight),
-                    busyArcs = state.busyArcsState,
                     netTime = state.netTime,
                     focusArcs = state.focusArcsState,
                     focusedToday = state.focusedToday,
@@ -680,7 +678,6 @@ internal fun CountdownCircle(
     progress: DayProgress,
     showSeconds: Boolean,
     modifier: Modifier = Modifier,
-    busyArcs: List<BusyArc> = emptyList(),
     netTime: NetTime? = null,
     focusArcs: List<FocusArc> = emptyList(),
     focusedToday: Duration = Duration.ZERO,
@@ -716,10 +713,10 @@ internal fun CountdownCircle(
             // proportion: they shrink in the mini and compact windows and grow to fill a
             // large dial on Supernote / a maximized desktop window.
             val counterScale = countdownCounterScale(circleSize)
-            val circleModifier = if (busyArcs.isEmpty() && detourBodies.isEmpty()) {
+            val circleModifier = if (busyBlockArcs.isEmpty() && detourBodies.isEmpty()) {
                 Modifier.size(circleSize)
             } else {
-                Modifier.size(circleSize).pointerInput(busyArcs, detourBodies) {
+                Modifier.size(circleSize).pointerInput(busyBlockArcs, detourBodies) {
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -736,7 +733,7 @@ internal fun CountdownCircle(
                                 hoveredBusy = if (body != null) {
                                     null
                                 } else {
-                                    hitTestBusyArc(position, size.width, size.height, busyArcs)
+                                    hitTestBusyArc(position, size.width, size.height, busyBlockArcs)
                                         ?.let { HoveredBusyArc(it, position) }
                                 }
                             } else if (event.type == PointerEventType.Press) {
@@ -1028,6 +1025,15 @@ internal fun CountdownCircle(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Column {
+                            if (arc.calendarName.isNotBlank()) {
+                                Text(
+                                    arc.calendarName,
+                                    color = colors.busy[arc.colorIndex % colors.busy.size],
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
                             val titles = arc.titles.filter { it.isNotBlank() }
                             if (titles.isEmpty()) {
                                 Text(stringResource(Res.string.busy_generic), color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -1081,7 +1087,7 @@ internal fun CountdownCircle(
     }
 }
 
-private data class HoveredBusyArc(val arc: BusyArc, val position: Offset)
+private data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 
 /** Renvoie l'arc occupé sous le pointeur, ou null si le pointeur n'est pas sur l'anneau. */
@@ -1089,8 +1095,8 @@ private fun hitTestBusyArc(
     position: Offset,
     width: Int,
     height: Int,
-    busyArcs: List<BusyArc>,
-): BusyArc? {
+    busyBlockArcs: List<BusyBlockArc>,
+): BusyBlockArc? {
     val cx = width / 2f
     val cy = height / 2f
     val dx = position.x - cx
@@ -1098,7 +1104,7 @@ private fun hitTestBusyArc(
     val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
     if (radiusFraction !in 0.70f..1.02f) return null
     val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-    return busyArcs.firstOrNull { arcContainsAngle(it, angle) }
+    return busyBlockArcs.firstOrNull { arcContainsAngle(it.startAngleDegrees, it.sweepDegrees, angle) }
 }
 
 @Composable

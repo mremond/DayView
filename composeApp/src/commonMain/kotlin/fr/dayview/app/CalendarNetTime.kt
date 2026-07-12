@@ -230,9 +230,9 @@ fun angleToInstant(angleDegrees: Float, windowStart: Instant, windowEnd: Instant
 }
 
 /** Vrai si l'angle (degrés, convention drawArc) tombe dans le balayage de l'arc, wraparound compris. */
-fun arcContainsAngle(arc: BusyArc, angleDegrees: Float): Boolean {
-    val delta = (((angleDegrees - arc.startAngleDegrees) % 360f) + 360f) % 360f
-    return delta <= arc.sweepDegrees
+fun arcContainsAngle(startAngleDegrees: Float, sweepDegrees: Float, angleDegrees: Float): Boolean {
+    val delta = (((angleDegrees - startAngleDegrees) % 360f) + 360f) % 360f
+    return delta <= sweepDegrees
 }
 
 fun busyArcs(

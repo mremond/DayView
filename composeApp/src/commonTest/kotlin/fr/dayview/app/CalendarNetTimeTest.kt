@@ -149,15 +149,13 @@ class CalendarNetTimeTest {
     @Test
     fun arcContainsAngleHandlesSweepAndWraparound() {
         // Arc bas-gauche 200°..240°.
-        val arc = BusyArc(startAngleDegrees = 200f, sweepDegrees = 40f, titles = listOf("R"))
-        assertEquals(true, arcContainsAngle(arc, 220f))
+        assertEquals(true, arcContainsAngle(200f, 40f, 220f))
         // atan2 renvoie 220° comme -140° : le wraparound doit quand même l'inclure.
-        assertEquals(true, arcContainsAngle(arc, -140f))
-        assertEquals(false, arcContainsAngle(arc, 100f))
+        assertEquals(true, arcContainsAngle(200f, 40f, -140f))
+        assertEquals(false, arcContainsAngle(200f, 40f, 100f))
         // Arc au sommet, à cheval sur la frontière -90°.
-        val topArc = BusyArc(startAngleDegrees = -110f, sweepDegrees = 40f, titles = emptyList())
-        assertEquals(true, arcContainsAngle(topArc, -90f))
-        assertEquals(false, arcContainsAngle(topArc, 0f))
+        assertEquals(true, arcContainsAngle(-110f, 40f, -90f))
+        assertEquals(false, arcContainsAngle(-110f, 40f, 0f))
     }
 
     @Test
