@@ -159,4 +159,24 @@
     <string name="volume_decrease">Diminuer le volume de 10 %</string>
     <string name="volume_increase">Augmenter le volume de 10 %</string>
     <string name="sound_preview">ÉCOUTER</string>
+
+    <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
+         macOS focus-nudge notification (used from desktopMain). -->
+    <string name="desktop_day_over">Journée terminée</string>
+    <string name="desktop_today_remaining">Aujourd’hui · %1$s h %2$s</string>
+    <string name="desktop_goal_deadline_reached">Objectif · échéance atteinte</string>
+    <string name="desktop_goal_hours">Objectif · %1$s h</string>
+    <string name="desktop_goal_title_hours">%1$s · %2$s h</string>
+    <string name="desktop_focus">Focus</string>
+    <string name="desktop_break">Pause · %1$s</string>
+    <string name="desktop_menubar_break">P %1$sm</string>
+    <string name="desktop_open_full_window">Ouvrir la fenêtre complète</string>
+    <string name="desktop_show_mini_window">Afficher la mini-fenêtre</string>
+    <string name="desktop_hide_dayview">Masquer DayView</string>
+    <string name="desktop_open_dayview">Ouvrir DayView</string>
+    <string name="desktop_quit_dayview">Quitter DayView</string>
+    <string name="desktop_hour">Heure</string>
+    <string name="desktop_minute">Minute</string>
+    <string name="desktop_choose_time">Choisir l’heure</string>
+    <string name="desktop_nudge_title">Reviens à l’essentiel</string>
 </resources>
