@@ -50,6 +50,8 @@ internal fun noopSettingsActions(
     changeShowSeconds: (Boolean) -> Unit = {},
     changeSoundSettings: (SoundSettings) -> Unit = {},
     previewSound: (SoundCue) -> Unit = {},
+    openCategory: (SettingsCategory) -> Unit = {},
+    closeCategory: () -> Unit = {},
     back: () -> Unit = {},
 ): SettingsScreenActions = SettingsScreenActions(
     changeStartTime = changeStartTime,
@@ -59,6 +61,8 @@ internal fun noopSettingsActions(
     changeLaunchAtLogin = null,
     changeSoundSettings = changeSoundSettings,
     previewSound = previewSound,
+    openCategory = openCategory,
+    closeCategory = closeCategory,
     back = back,
 )
 

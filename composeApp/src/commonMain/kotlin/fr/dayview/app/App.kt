@@ -184,6 +184,8 @@ fun DayViewApp(
                         },
                         requestCalendarPermission = onRequestCalendarAccess,
                         changeOnGoalApps = { controller.setOnGoalApps(it) },
+                        openCategory = { controller.openSettingsCategory(it) },
+                        closeCategory = { controller.closeSettingsCategory() },
                         back = { controller.openToday() },
                     ),
                 )
