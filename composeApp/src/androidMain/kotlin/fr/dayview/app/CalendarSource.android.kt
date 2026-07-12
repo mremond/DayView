@@ -7,7 +7,7 @@ import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 import kotlin.time.Instant
 
-private var appContext: Context? = null
+internal var appContext: Context? = null
 
 fun initCalendarSource(context: Context) {
     appContext = context.applicationContext
