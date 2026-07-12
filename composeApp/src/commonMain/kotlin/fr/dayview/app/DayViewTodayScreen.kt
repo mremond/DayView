@@ -735,7 +735,7 @@ internal fun CountdownCircle(
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
     val accent by animateColorAsState(
         when {
-            progress.isFinished -> colors.red
+            progress.isFinished -> colors.mint
             progress.remainingRatio < .2f -> colors.amber
             else -> colors.mint
         },
@@ -902,6 +902,30 @@ internal fun CountdownCircle(
                                 center = markerCenter - Offset(strokeWidth * .1f, strokeWidth * .1f),
                             )
                         }
+                    } else if (progress.isFinished) {
+                        // Day complete: the ring comes to rest as a full, calm mint circle
+                        // (uniform colour — no leading edge to justify a sweep gradient), with a
+                        // small resting marker parked at the top where the day began and ended.
+                        drawArc(
+                            color = accent.copy(alpha = .45f),
+                            startAngle = -90f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(strokeWidth, cap = StrokeCap.Round),
+                        )
+                        val restCenter = Offset(size.width / 2f, inset)
+                        drawCircle(
+                            color = accent.copy(alpha = .22f),
+                            radius = strokeWidth * .6f,
+                            center = restCenter,
+                        )
+                        drawCircle(
+                            color = accent,
+                            radius = strokeWidth * .34f,
+                            center = restCenter,
+                        )
                     }
 
                     // Calendar busy is its own cool-toned layer on a concentric lane just inside
