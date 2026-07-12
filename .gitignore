@@ -6,3 +6,6 @@ local.properties
 *.iml
 .DS_Store
 hs_err_pid*.log
+
+# Visual-companion brainstorming scratch
+.superpowers/
