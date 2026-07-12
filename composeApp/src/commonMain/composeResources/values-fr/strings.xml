@@ -223,6 +223,7 @@
     <string name="detour_forget_prompt">Oublier ce motif ?</string>
     <string name="detour_forget_confirm">OUBLIER</string>
     <string name="detour_duration_section">DURÉE APPROXIMATIVE</string>
+    <string name="detour_duration_more">Plus long</string>
     <string name="detour_minutes_chip">%1$s min</string>
     <string name="detour_source_total">%1$s %2$s</string>
     <string name="detour_overflow">+%1$s</string>
@@ -244,4 +245,11 @@
     <string name="detour_duration_value">Durée : %1$s minutes</string>
     <string name="detour_delete_button">SUPPRIMER</string>
     <string name="detour_save_button">ENREGISTRER</string>
+
+    <!-- Planned obligations -->
+    <string name="planned_obligations_title">Obligations du jour</string>
+    <string name="planned_obligation_motif_label">Obligation à faire aujourd'hui</string>
+    <string name="planned_obligation_motif_placeholder">ex. Appel client</string>
+    <string name="planned_obligation_add_button">AJOUTER</string>
+    <string name="planned_obligation_done_button">FAIT</string>
 </resources>

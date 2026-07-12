@@ -97,6 +97,8 @@ internal fun noopDayViewActions(
     removeDetour = {},
     addDetourEpisode = {},
     forgetDetourMotif = {},
+    addPlannedObligation = {},
+    completePlannedObligation = { _, _, _, _ -> },
 )
 
 internal fun noReminders(): FocusReminderUiState = FocusReminderUiState(
@@ -139,4 +141,6 @@ internal fun controllerDayViewActions(controller: DayViewController): DayViewScr
     removeDetour = { controller.removeDetour(it) },
     addDetourEpisode = { controller.addDetourEpisode(it) },
     forgetDetourMotif = { controller.forgetRecentDetourMotif(it) },
+    addPlannedObligation = { controller.addPlannedObligation(it) },
+    completePlannedObligation = controller::completePlannedObligation,
 )

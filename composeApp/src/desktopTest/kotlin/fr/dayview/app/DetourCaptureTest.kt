@@ -53,4 +53,27 @@ class DetourCaptureTest {
         // Default start is 13:00 − 15 min = 12:45 (765); one +5 nudge pins it at 12:50 (770).
         assertEquals(12 * 60 + 50, captured!!.third)
     }
+
+    @Test
+    fun longerRevealsAndSelectsMultiHourDurations() = runComposeUiTest {
+        var captured: Triple<String, Int, Int?>? = null
+        setContent {
+            DetourCaptureContent(
+                recentMotifs = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onForget = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("série")
+        onNodeWithTag(DayViewTestTags.DetourLongToggle).performClick()
+        onNodeWithTag(DayViewTestTags.detourDurationChip(180)).performClick()
+        onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
+
+        val (motif, duration, start) = captured!!
+        assertEquals("série", motif)
+        assertEquals(180, duration) // 3 h reached from quick capture
+        assertNull(start) // start untouched → "ends now"
+    }
 }

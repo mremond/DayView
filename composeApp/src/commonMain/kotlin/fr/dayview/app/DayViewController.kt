@@ -48,6 +48,8 @@ internal data class DayViewUiState(
     val detoursDayKey: Long = -1L,
     val detours: List<DetourEpisode> = emptyList(),
     val recentDetourMotifs: List<String> = emptyList(),
+    val plannedObligationsDayKey: Long = -1L,
+    val plannedObligations: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val cleanSessions: CleanSessionLedger = CleanSessionLedger(),
     val sessionOffGoal: Duration = Duration.ZERO,
@@ -105,6 +107,10 @@ internal data class DayViewUiState(
     /** Episodes of the current local day; stale storage from a previous day reads as empty. */
     val detoursToday: List<DetourEpisode>
         get() = if (detoursDayKey == dayKeyOf(dayNow)) detours else emptyList()
+
+    /** The day's must-do motifs; stale storage from a previous day reads as empty. */
+    val plannedObligationsToday: List<String>
+        get() = if (plannedObligationsDayKey == dayKeyOf(dayNow)) plannedObligations else emptyList()
 
     val detourBodiesState: List<DetourBody>
         get() {
@@ -386,6 +392,36 @@ internal class DayViewController(
         persistState()
     }
 
+    fun addPlannedObligation(motif: String) {
+        commitPlannedObligations(addPlannedObligation(state.plannedObligationsToday, motif))
+    }
+
+    fun removePlannedObligation(motif: String) {
+        commitPlannedObligations(removePlannedObligation(state.plannedObligationsToday, motif))
+    }
+
+    fun completePlannedObligation(
+        originalMotif: String,
+        detourMotif: String,
+        durationMinutes: Int,
+        startMinutesOfDay: Int?,
+    ) {
+        if (startMinutesOfDay == null) {
+            addDetour(detourMotif, durationMinutes)
+        } else {
+            addDetourEpisode(detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourMotif))
+        }
+        removePlannedObligation(originalMotif)
+    }
+
+    private fun commitPlannedObligations(obligations: List<String>) {
+        state = state.copy(
+            plannedObligationsDayKey = dayKeyOf(state.now),
+            plannedObligations = obligations,
+        )
+        persistState()
+    }
+
     /** Injecte le résultat d'une lecture calendrier (hors thread UI). */
     fun updateNetTimeData(
         hasPermission: Boolean,
@@ -424,6 +460,8 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     detoursDayKey = detoursDayKey,
     detours = detours,
     recentDetourMotifs = recentDetourMotifs,
+    plannedObligationsDayKey = plannedObligationsDayKey,
+    plannedObligations = plannedObligations,
     themeMode = themeMode,
     cleanSessions = cleanSessions,
     fontScale = fontScale,
@@ -441,6 +479,9 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         focusIntention = focusIntention.take(100),
         detours = detours.map { it.copy(motif = sanitizeDetourMotif(it.motif)) },
         recentDetourMotifs = recentDetourMotifs.take(MAX_RECENT_DETOUR_MOTIFS),
+        plannedObligations = plannedObligations.map(::sanitizeDetourMotif)
+            .filter { it.isNotEmpty() }
+            .take(MAX_PLANNED_OBLIGATIONS),
         cleanSessions = cleanSessions.copy(
             cleanToday = cleanSessions.cleanToday.coerceAtLeast(0),
             streakDays = cleanSessions.streakDays.coerceAtLeast(0),
@@ -470,6 +511,8 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         detoursDayKey = safe.detoursDayKey,
         detours = safe.detours,
         recentDetourMotifs = safe.recentDetourMotifs,
+        plannedObligationsDayKey = safe.plannedObligationsDayKey,
+        plannedObligations = safe.plannedObligations,
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,
@@ -494,6 +537,8 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         detoursDayKey = safe.detoursDayKey,
         detours = safe.detours,
         recentDetourMotifs = safe.recentDetourMotifs,
+        plannedObligationsDayKey = safe.plannedObligationsDayKey,
+        plannedObligations = safe.plannedObligations,
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,
