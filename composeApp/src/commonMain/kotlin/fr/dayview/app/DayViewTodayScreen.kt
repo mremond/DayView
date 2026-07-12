@@ -94,6 +94,7 @@ import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
 import fr.dayview.app.generated.resources.detour_time_range
 import fr.dayview.app.generated.resources.detours_today
+import fr.dayview.app.generated.resources.detours_today_off_window
 import fr.dayview.app.generated.resources.dialog_cancel
 import fr.dayview.app.generated.resources.dialog_ok
 import fr.dayview.app.generated.resources.focus_break_conscious
@@ -254,6 +255,7 @@ internal fun DayViewScreen(
                             windowEnd = state.dayWindow.second,
                             detourBodies = state.detourBodiesState,
                             detoursTotal = state.detoursTotalToday,
+                            detoursOffWindow = state.detoursOffWindowTotalToday,
                             busyBlockArcs = state.busyBlockArcsState,
                             cleanSessionsToday = state.cleanSessionsToday,
                             streakDays = state.cleanStreakDays,
@@ -310,6 +312,7 @@ internal fun DayViewScreen(
                     windowEnd = state.dayWindow.second,
                     detourBodies = state.detourBodiesState,
                     detoursTotal = state.detoursTotalToday,
+                    detoursOffWindow = state.detoursOffWindowTotalToday,
                     busyBlockArcs = state.busyBlockArcsState,
                     cleanSessionsToday = state.cleanSessionsToday,
                     streakDays = state.cleanStreakDays,
@@ -696,6 +699,7 @@ internal fun CountdownCircle(
     windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
     detourBodies: List<DetourBody> = emptyList(),
     detoursTotal: Duration = Duration.ZERO,
+    detoursOffWindow: Duration = Duration.ZERO,
     busyBlockArcs: List<BusyBlockArc> = emptyList(),
     cleanSessionsToday: Int = 0,
     streakDays: Int = 0,
@@ -992,7 +996,15 @@ internal fun CountdownCircle(
                             if (detoursTotal > Duration.ZERO) {
                                 Spacer(Modifier.height(6.dp))
                                 Text(
-                                    stringResource(Res.string.detours_today, formatDurationHm(detoursTotal)),
+                                    if (detoursOffWindow > Duration.ZERO) {
+                                        stringResource(
+                                            Res.string.detours_today_off_window,
+                                            formatDurationHm(detoursTotal),
+                                            formatDurationHm(detoursOffWindow),
+                                        )
+                                    } else {
+                                        stringResource(Res.string.detours_today, formatDurationHm(detoursTotal))
+                                    },
                                     color = colors.amber,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
