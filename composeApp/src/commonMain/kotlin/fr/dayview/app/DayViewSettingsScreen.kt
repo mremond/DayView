@@ -74,13 +74,16 @@ internal fun SettingsScreen(
                 .padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Fall back to the landing list if the open category is no longer
+            // supported (e.g. the last on-goal target app closed), so we never
+            // render a stranded sub-screen for an unavailable category.
+            val category = state.settingsCategory?.takeIf { it in settingsCategoriesFor(platformState) }
             SettingsTopBar(
-                onBack = if (state.settingsCategory == null) actions.back else actions.closeCategory,
+                onBack = if (category == null) actions.back else actions.closeCategory,
             )
 
             Spacer(Modifier.height(48.dp))
             Column(modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)) {
-                val category = state.settingsCategory
                 if (category == null) {
                     SettingsCategoryList(state = state, platformState = platformState, actions = actions)
                 } else {
