@@ -628,19 +628,6 @@ private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) 
         Spacer(Modifier.width(10.dp))
         Text(stringResource(Res.string.app_wordmark), color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
         Spacer(Modifier.weight(1f))
-        onOpenMiniWindow?.let {
-            Text(
-                stringResource(Res.string.mini_window_button),
-                color = colors.muted,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.4.sp,
-                modifier = Modifier.minimumInteractiveComponentSize()
-                    .clickable(role = Role.Button, onClick = it)
-                    .padding(vertical = 10.dp, horizontal = 4.dp),
-            )
-            Spacer(Modifier.width(18.dp))
-        }
         Text(
             stringResource(Res.string.settings_title),
             color = colors.muted,
@@ -651,6 +638,23 @@ private fun Header(onOpenSettings: () -> Unit, onOpenMiniWindow: (() -> Unit)?) 
                 .clickable(role = Role.Button, onClick = onOpenSettings)
                 .padding(vertical = 10.dp, horizontal = 4.dp),
         )
+        onOpenMiniWindow?.let {
+            Spacer(Modifier.width(18.dp))
+            Box(
+                modifier = Modifier
+                    .testTag(DayViewTestTags.MiniWindow)
+                    .minimumInteractiveComponentSize()
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = stringResource(Res.string.mini_window_button),
+                        onClick = it,
+                    )
+                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                MiniWindowGlyph(color = colors.muted)
+            }
+        }
     }
 }
 
