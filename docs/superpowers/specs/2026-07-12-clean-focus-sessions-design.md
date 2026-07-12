@@ -104,19 +104,32 @@ data class CleanSessionLedger(
   `0` otherwise. So a streak that is already dead (a day was missed and today has no clean
   session yet) never shows as intact; it reappears the moment today's first clean session
   restarts it at 1. The UI always reads through this function, never `streakDays` raw.
-- Persisted in `DayPreferences` via `DayPreferencesStore`, encoded as a single line
-  (`dayKey,cleanToday,streakDays,streakLastDayKey`), decoder tolerant of malformed input
-  (falls back to an empty ledger) like `decodeFocusPresence`.
+- Persisted in `DayPreferences` via `DayPreferencesStore` as four individual typed
+  preference keys (following the `SoundSettings` and `detoursDayKey` precedent), not a
+  string-encoded blob. Absent keys read back as the empty default ledger, so a fresh
+  install and a stale-day install both start clean without a parser or a malformed-input
+  class.
 
 ## Wiring
 
-- On session **start**: `SessionCleanlinessTracker` is reset with the session window.
-- On each **tick**: the existing on-goal classification feeds both `PresenceAccumulator`
-  (unchanged) and the tracker.
-- On session **close** with its `FocusClosureOutcome`: `evaluateSessionClean` runs; if
-  true, `registerCleanSession` updates and persists the ledger. The close hook already
-  exists for `FocusClosureOutcome`; this rides on it.
-- On **day rollover** (same trigger `PresenceAccumulator` uses): `cleanToday` resets.
+Off-goal drift detection is **desktop-only**: the per-tick frontmost-app classification
+lives in the desktop loop (`Main.kt`), which already feeds `PresenceAccumulator`. Android
+has no frontmost-app classification, so its `offGoalDuring` is always `Duration.ZERO` and a
+session there is clean when `COMPLETED` with no overlapping detour. The design degrades
+gracefully — the streak and counter work on both platforms; the anti-distraction criterion
+is a desktop refinement.
+
+- On the desktop loop, a `SessionCleanlinessTracker` accumulates `OFF_GOAL` time for the
+  current session (keyed by the active `pomodoroEnd`; resets when a new session starts),
+  in the same tick branch that already calls `presenceAccumulator.observe`. Its running
+  total is bridged into `DayViewApp` exactly like `focusPresenceIntervals`, and fed to the
+  controller via `setSessionOffGoal(Duration)`.
+- On session **close** with its `FocusClosureOutcome`: `evaluateSessionClean` runs in
+  `closePomodoro` using the window `[pomodoroEnd − duration, pomodoroEnd]`, the mirrored
+  `sessionOffGoal`, and today's detours; if clean, `registerCleanSession` updates and
+  persists the ledger. This rides on the existing `closePomodoro(outcome)` hook.
+- On **day rollover** (same `dayKeyOf` trigger the rest of the state uses): `cleanToday`
+  resets via `rollOver` when a session closes on a new day.
 
 ## UI (Today screen)
 
@@ -149,6 +162,7 @@ or scene-milestone rewards.
   consecutive days, restarts after a gap.
 - `displayedStreak`: shows `streakDays` on the day of / day after the last qualifying day,
   returns 0 once a day has been missed with no clean session yet today.
-- Ledger encode/decode round-trip, including malformed / empty payload → empty ledger.
+- Ledger persistence round-trip through `DayPreferencesSnapshot`; absent keys restore the
+  empty default ledger.
 - Platform test suites follow the existing split (`testDebugUnitTest` + `desktopTest`);
   pure logic only, no composables under test.
