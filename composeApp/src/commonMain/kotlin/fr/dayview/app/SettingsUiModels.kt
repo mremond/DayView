@@ -20,6 +20,7 @@ internal data class SettingsScreenActions(
     val requestCalendarPermission: () -> Unit = {},
     val changeOnGoalApps: (Set<AppRef>) -> Unit = {},
     val changeThemeMode: (ThemeMode) -> Unit = {},
+    val changeFontScale: (Float) -> Unit = {},
     val openCategory: (SettingsCategory) -> Unit = {},
     val closeCategory: () -> Unit = {},
     val back: () -> Unit,

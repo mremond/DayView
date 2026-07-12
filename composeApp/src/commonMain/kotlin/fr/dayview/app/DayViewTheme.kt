@@ -67,6 +67,8 @@ internal val LightDayViewColors = DayViewColors(
 
 internal val LocalDayViewColors = staticCompositionLocalOf { DarkDayViewColors }
 
+internal val LocalPreferenceFontScale = staticCompositionLocalOf { 1f }
+
 @Composable
 internal fun DayViewTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
