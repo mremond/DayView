@@ -27,3 +27,35 @@ fun evaluateSessionClean(
     if (offGoalDuring > tolerance) return false
     return detours.none { it.start < window.end && it.end > window.start }
 }
+
+/**
+ * Accumulates OFF_GOAL foreground time for the current focus session. The session is
+ * identified by its [sessionEnd]; when that changes (a new session starts, or the session
+ * is cleared to null), the accumulator resets. NEUTRAL and ON_GOAL ticks add nothing, and
+ * nothing accrues while there is no session. Fed once per tick from the desktop loop.
+ */
+class SessionCleanlinessTracker {
+    private var sessionEnd: Instant? = null
+    private var lastObserved: Instant? = null
+    private var accumulated: Duration = Duration.ZERO
+
+    val offGoalDuration: Duration get() = accumulated
+
+    fun observe(
+        now: Instant,
+        sessionEnd: Instant?,
+        state: OnGoalState,
+    ): Duration {
+        if (sessionEnd != this.sessionEnd) {
+            this.sessionEnd = sessionEnd
+            lastObserved = null
+            accumulated = Duration.ZERO
+        }
+        val previous = lastObserved
+        lastObserved = now
+        if (sessionEnd != null && state == OnGoalState.OFF_GOAL && previous != null && now > previous) {
+            accumulated += now - previous
+        }
+        return accumulated
+    }
+}

@@ -61,4 +61,41 @@ class CleanFocusSessionsTest {
     fun defaultToleranceIsThirtySeconds() {
         assertEquals(30.seconds, DEFAULT_OFF_GOAL_TOLERANCE)
     }
+
+    @Test
+    fun trackerAccumulatesOnlyOffGoalTime() {
+        val tracker = SessionCleanlinessTracker()
+        val end = at(2_000_000L)
+        // First observation seeds lastObserved without adding time.
+        tracker.observe(at(0L), end, OnGoalState.ON_GOAL)
+        // 10s off-goal counts.
+        tracker.observe(at(10_000L), end, OnGoalState.OFF_GOAL)
+        // 5s on-goal does not.
+        tracker.observe(at(15_000L), end, OnGoalState.ON_GOAL)
+        // 5s neutral does not.
+        tracker.observe(at(20_000L), end, OnGoalState.NEUTRAL)
+        // 3s off-goal counts.
+        val total = tracker.observe(at(23_000L), end, OnGoalState.OFF_GOAL)
+        assertEquals(13.seconds, total)
+        assertEquals(13.seconds, tracker.offGoalDuration)
+    }
+
+    @Test
+    fun trackerResetsWhenSessionChanges() {
+        val tracker = SessionCleanlinessTracker()
+        tracker.observe(at(0L), at(1L), OnGoalState.ON_GOAL)
+        tracker.observe(at(10_000L), at(1L), OnGoalState.OFF_GOAL)
+        assertEquals(10.seconds, tracker.offGoalDuration)
+        // New session end -> reset.
+        tracker.observe(at(20_000L), at(999L), OnGoalState.OFF_GOAL)
+        assertEquals(0.seconds, tracker.offGoalDuration)
+    }
+
+    @Test
+    fun trackerIgnoresOffGoalWhenNoSession() {
+        val tracker = SessionCleanlinessTracker()
+        tracker.observe(at(0L), null, OnGoalState.OFF_GOAL)
+        tracker.observe(at(10_000L), null, OnGoalState.OFF_GOAL)
+        assertEquals(0.seconds, tracker.offGoalDuration)
+    }
 }
