@@ -77,6 +77,25 @@ internal data class DayViewUiState(
             emptyList()
         }
 
+    private val calendarNamesById: Map<String, String>
+        get() = availableCalendars.associate { it.id to it.displayName }
+
+    val busyBlockArcsState: List<BusyBlockArc>
+        get() = if (netTimeSettings.enabled) {
+            val (start, end) = dayWindow
+            busyBlockArcs(start, end, busyIntervals, calendarNamesById)
+        } else {
+            emptyList()
+        }
+
+    val busyBlockBodiesState: List<BusyBlockBody>
+        get() = if (netTimeSettings.enabled) {
+            val (start, end) = dayWindow
+            busyBlockBodies(start, end, busyIntervals, calendarNamesById)
+        } else {
+            emptyList()
+        }
+
     val netTime: NetTime?
         get() = if (netTimeSettings.enabled) {
             val (start, end) = dayWindow
