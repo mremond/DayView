@@ -55,6 +55,7 @@
     <string name="focused_today">Focus %1$s</string>
     <string name="busy_generic">Busy</string>
     <string name="busy_time_range">%1$s – %2$s</string>
+    <string name="scrub_now">Now</string>
     <string name="day_available_percent">%1$s% of the day available</string>
 
     <!-- Global goal -->

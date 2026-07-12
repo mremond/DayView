@@ -7,6 +7,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -61,12 +64,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -145,6 +150,7 @@ import fr.dayview.app.generated.resources.history_title
 import fr.dayview.app.generated.resources.mini_window_button
 import fr.dayview.app.generated.resources.minutes_label
 import fr.dayview.app.generated.resources.net_remaining
+import fr.dayview.app.generated.resources.scrub_now
 import fr.dayview.app.generated.resources.seconds_remaining
 import fr.dayview.app.generated.resources.settings_title
 import fr.dayview.app.generated.resources.today_hero_ending
@@ -778,6 +784,8 @@ internal fun CountdownCircle(
     )
     var hoveredBusy by remember { mutableStateOf<HoveredBusyArc?>(null) }
     var hoveredDetour by remember { mutableStateOf<HoveredDetourBody?>(null) }
+    var scrubAngle by remember { mutableStateOf<Float?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     Box(modifier = modifier.testTag(DayViewTestTags.Countdown), contentAlignment = Alignment.Center) {
         BoxWithConstraints(
@@ -823,7 +831,30 @@ internal fun CountdownCircle(
                     }
                 }
             }
-            Box(circleModifier, contentAlignment = Alignment.Center) {
+            val scrubModifier = circleModifier.pointerInput(busyBlockArcs, detourBodies, focusArcs) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (down.type != PointerType.Touch) return@awaitEachGesture
+                    val pressed = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    fun angleOf(pos: Offset): Float {
+                        val dx = pos.x - size.width / 2f
+                        val dy = pos.y - size.height / 2f
+                        return Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                    }
+                    scrubAngle = angleOf(pressed.position)
+                    pressed.consume()
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        scrubAngle = angleOf(change.position)
+                        change.consume()
+                    }
+                    scrubAngle = null
+                }
+            }
+            Box(scrubModifier, contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     val strokeWidth = size.minDimension * .055f
                     val inset = strokeWidth / 2 + 4.dp.toPx()
@@ -989,6 +1020,18 @@ internal fun CountdownCircle(
                             radius = radius * .28f,
                             center = bodyCenter - Offset(radius * .3f, radius * .3f),
                         )
+                    }
+
+                    scrubAngle?.let { angle ->
+                        val angleRadians = Math.toRadians(angle.toDouble())
+                        val arcRadius = arcSize.width / 2f
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val markCenter = center + Offset(
+                            (kotlin.math.cos(angleRadians) * arcRadius).toFloat(),
+                            (kotlin.math.sin(angleRadians) * arcRadius).toFloat(),
+                        )
+                        drawCircle(color = colors.cloud.copy(alpha = .22f), radius = strokeWidth * 1.15f, center = markCenter)
+                        drawCircle(color = colors.cloud, radius = strokeWidth * .55f, center = markCenter)
                     }
                 }
 
@@ -1196,6 +1239,99 @@ internal fun CountdownCircle(
                         }
                     }
                 }
+
+                scrubAngle?.let { angle ->
+                    val momentAngle = if (progress.hasStarted && !progress.isFinished) {
+                        currentMomentAngleDegrees(animatedRemaining)
+                    } else {
+                        null
+                    }
+                    val readout = ringReadoutAt(
+                        angle,
+                        windowStart,
+                        windowEnd,
+                        busyBlockArcs,
+                        detourBodies,
+                        focusArcs,
+                        momentAngle,
+                    )
+                    RingScrubReadout(
+                        readout = readout,
+                        uses24Hour = uses24Hour,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Fixed readout for the touch ring scrub: the time of day under the mark, a "now" pill when
+ * the mark sits on the current moment, then any calendar-busy / detour / focus layer present
+ * at that angle, each in its layer colour. Content is computed by [ringReadoutAt].
+ */
+@Composable
+private fun RingScrubReadout(
+    readout: RingReadout,
+    uses24Hour: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalDayViewColors.current
+    Box(
+        modifier = modifier
+            .background(colors.panel, RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    formatClockHm(readout.time, use24Hour = uses24Hour),
+                    color = colors.cloud,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                if (readout.isNow) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(Res.string.scrub_now).uppercase(),
+                        color = colors.amber,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                    )
+                }
+            }
+            readout.busy?.let { arc ->
+                val titles = arc.titles.filter { it.isNotBlank() }
+                Text(
+                    if (titles.isEmpty()) stringResource(Res.string.busy_generic) else titles.joinToString(" · "),
+                    color = colors.busy[arc.colorIndex % colors.busy.size],
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            readout.detour?.let { body ->
+                Text(
+                    stringResource(
+                        Res.string.detour_time_range,
+                        formatClockHm(body.start, use24Hour = uses24Hour),
+                        formatClockHm(body.end, use24Hour = uses24Hour),
+                        formatDurationHm(body.end - body.start),
+                    ),
+                    color = colors.detours[body.colorIndex % colors.detours.size],
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            if (readout.focus) {
+                Text(
+                    stringResource(Res.string.focus_section),
+                    color = colors.mint,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                )
             }
         }
     }
