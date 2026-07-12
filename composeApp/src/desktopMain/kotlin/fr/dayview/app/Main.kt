@@ -335,6 +335,10 @@ private fun runApplication() = application {
                         preferences.persist(s.copy(pomodoroMinutes = pomodoroMinutes, pomodoroEnd = null))
                     }
                 },
+                onOpenMainWindow = {
+                    isMiniWindowVisible = false
+                    isWindowVisible = true
+                },
             )
         }
     }

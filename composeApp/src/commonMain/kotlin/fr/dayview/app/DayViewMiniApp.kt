@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,11 +28,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.desktop_open_full_window
 import fr.dayview.app.generated.resources.focus_cancel_button
 import fr.dayview.app.generated.resources.focus_intention_label
 import fr.dayview.app.generated.resources.focus_intention_placeholder
@@ -60,6 +63,7 @@ fun DayViewMiniApp(
     focusIntention: String,
     onStartFocus: (String) -> Unit,
     onStopFocus: () -> Unit,
+    onOpenMainWindow: () -> Unit,
 ) {
     DayViewTheme { colors ->
         var showIntentionModal by remember { mutableStateOf(false) }
@@ -105,6 +109,21 @@ fun DayViewMiniApp(
                             onStop = onStopFocus,
                         )
                     }
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .testTag(DayViewTestTags.OpenMainWindow)
+                        .minimumInteractiveComponentSize()
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(Res.string.desktop_open_full_window),
+                            onClick = onOpenMainWindow,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    ExpandWindowGlyph(color = colors.muted)
                 }
                 if (showIntentionModal) {
                     FocusIntentionModal(
