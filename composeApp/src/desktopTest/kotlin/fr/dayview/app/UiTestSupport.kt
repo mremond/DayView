@@ -65,6 +65,7 @@ internal fun noopSettingsActions(
 /** A full [DayViewScreenActions] of no-ops with the relevant callbacks overridable. */
 internal fun noopDayViewActions(
     openSettings: () -> Unit = {},
+    openMiniWindow: (() -> Unit)? = null,
     changeFocusIntention: (String) -> Unit = {},
     changePomodoroDuration: (Int) -> Unit = {},
     startPomodoro: () -> Unit = {},
@@ -72,7 +73,7 @@ internal fun noopDayViewActions(
     closePomodoro: (FocusClosureOutcome) -> Unit = {},
 ): DayViewScreenActions = DayViewScreenActions(
     openSettings = openSettings,
-    openMiniWindow = null,
+    openMiniWindow = openMiniWindow,
     changeGoalTitle = {},
     changeGoalDeadline = {},
     commitGoalDeadline = {},
@@ -100,7 +101,7 @@ internal fun WideDayView(
     reminders: FocusReminderUiState = noReminders(),
 ) {
     DayViewTheme {
-        Box(Modifier.requiredSize(1100.dp, 900.dp)) {
+        Box(Modifier.requiredSize(1000.dp, 720.dp)) {
             DayViewScreen(state = state, actions = actions, reminders = reminders)
         }
     }

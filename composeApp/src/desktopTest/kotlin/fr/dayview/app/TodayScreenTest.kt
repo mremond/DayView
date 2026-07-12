@@ -4,8 +4,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
 @OptIn(ExperimentalTestApi::class)
@@ -35,5 +37,20 @@ class TodayScreenTest {
         }
         onNodeWithText("Écrire le rapport").assertExists()
         onNodeWithTag(DayViewTestTags.FocusStop).assertExists()
+    }
+
+    @Test
+    fun miniWindowButtonInvokesCallback() = runComposeUiTest {
+        var miniOpened = false
+        setContent {
+            val state = remember { seededController(DayPreferencesSnapshot()).state }
+            WideDayView(
+                state = state,
+                actions = noopDayViewActions(openMiniWindow = { miniOpened = true }),
+            )
+        }
+        onNodeWithTag(DayViewTestTags.MiniWindow).assertExists()
+        onNodeWithTag(DayViewTestTags.MiniWindow).performClick()
+        assertTrue(miniOpened)
     }
 }
