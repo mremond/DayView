@@ -776,7 +776,7 @@ internal fun CountdownCircle(
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
     val accent by animateColorAsState(
         when {
-            progress.isFinished -> colors.red
+            progress.isFinished -> colors.mint
             progress.remainingRatio < .2f -> colors.amber
             else -> colors.mint
         },
@@ -975,6 +975,30 @@ internal fun CountdownCircle(
                                 center = markerCenter - Offset(strokeWidth * .1f, strokeWidth * .1f),
                             )
                         }
+                    } else if (progress.isFinished) {
+                        // Day complete: the ring comes to rest as a full, calm mint circle
+                        // (uniform colour — no leading edge to justify a sweep gradient), with a
+                        // small resting marker parked at the top where the day began and ended.
+                        drawArc(
+                            color = accent.copy(alpha = .45f),
+                            startAngle = -90f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(strokeWidth, cap = StrokeCap.Round),
+                        )
+                        val restCenter = Offset(size.width / 2f, inset)
+                        drawCircle(
+                            color = accent.copy(alpha = .22f),
+                            radius = strokeWidth * .6f,
+                            center = restCenter,
+                        )
+                        drawCircle(
+                            color = accent,
+                            radius = strokeWidth * .34f,
+                            center = restCenter,
+                        )
                     }
 
                     // Calendar busy is its own cool-toned layer on a concentric lane just inside
@@ -984,10 +1008,11 @@ internal fun CountdownCircle(
                     // events settle in as soft pills.
                     val busyInset = inset + strokeWidth * .95f
                     val busyLaneSize = Size(size.width - busyInset * 2, size.height - busyInset * 2)
+                    val residualAlpha = if (progress.isFinished) .4f else 1f
                     busyBlockArcs.forEach { arc ->
                         val col = colors.busy[arc.colorIndex % colors.busy.size]
                         drawArc(
-                            color = col.copy(alpha = .16f),
+                            color = col.copy(alpha = .16f * residualAlpha),
                             startAngle = arc.startAngleDegrees,
                             sweepAngle = arc.sweepDegrees,
                             useCenter = false,
@@ -996,7 +1021,7 @@ internal fun CountdownCircle(
                             style = Stroke(strokeWidth * .7f, cap = StrokeCap.Round),
                         )
                         drawArc(
-                            color = col.copy(alpha = .92f),
+                            color = col.copy(alpha = .92f * residualAlpha),
                             startAngle = arc.startAngleDegrees,
                             sweepAngle = arc.sweepDegrees,
                             useCenter = false,
@@ -1020,10 +1045,10 @@ internal fun CountdownCircle(
                         // Keep a visible floor size so short detours still read, especially when
                         // they land next to the moment marker right after being added.
                         val radius = strokeWidth * (.42f + .32f * body.sizeFraction)
-                        drawCircle(color = color.copy(alpha = .28f), radius = radius * 1.5f, center = bodyCenter)
-                        drawCircle(color = color, radius = radius, center = bodyCenter)
+                        drawCircle(color = color.copy(alpha = .28f * residualAlpha), radius = radius * 1.5f, center = bodyCenter)
+                        drawCircle(color = color.copy(alpha = residualAlpha), radius = radius, center = bodyCenter)
                         drawCircle(
-                            color = Color.White.copy(alpha = .5f),
+                            color = Color.White.copy(alpha = .5f * residualAlpha),
                             radius = radius * .28f,
                             center = bodyCenter - Offset(radius * .3f, radius * .3f),
                         )
@@ -1054,7 +1079,7 @@ internal fun CountdownCircle(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
-                            color = if (progress.isFinished) colors.red else colors.muted,
+                            color = if (progress.isFinished) colors.mint else colors.muted,
                             fontSize = (11 * counterScale).sp,
                             lineHeight = (15 * counterScale).sp,
                             fontWeight = FontWeight.Bold,
@@ -1120,6 +1145,17 @@ internal fun CountdownCircle(
                                     letterSpacing = .5.sp,
                                 )
                             }
+                        } else if (focusedToday > Duration.ZERO) {
+                            Spacer(Modifier.height(8.dp * counterScale))
+                            Text(
+                                stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
+                                color = colors.mint,
+                                fontSize = (13 * counterScale).sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = (.5f * counterScale).sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.testTag(DayViewTestTags.FocusRecap),
+                            )
                         }
                         if (cleanSessionsToday > 0 || streakDays > 0) {
                             Spacer(Modifier.height(6.dp))
