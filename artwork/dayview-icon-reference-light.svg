@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024" height="1024" viewBox="0 0 1024 1024"
+     role="img" aria-labelledby="title description">
+  <title id="title">Icône DayView</title>
+  <desc id="description">Un cercle lumineux partiellement consumé représentant le temps restant dans la journée.</desc>
+
+  <defs>
+    <radialGradient id="backgroundGlow" cx="38%" cy="28%" r="86%">
+      <stop offset="0" stop-color="#F4F1EA"/>
+      <stop offset="1" stop-color="#F4F1EA"/>
+    </radialGradient>
+    <linearGradient id="timeGradient" x1="18%" y1="12%" x2="83%" y2="88%">
+      <stop offset="0" stop-color="#3FBF93"/>
+      <stop offset="0.48" stop-color="#168866"/>
+      <stop offset="1" stop-color="#0F6E52"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14.83" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="appIconMask">
+      <rect width="824.00" height="824.00" rx="181.28"/>
+    </clipPath>
+  </defs>
+
+  <!-- The transparent outer canvas is the macOS app-icon safe margin. -->
+  <g transform="translate(100.00 100.00)"
+     clip-path="url(#appIconMask)">
+  <rect width="824.00" height="824.00" fill="url(#backgroundGlow)"/>
+
+  <!-- The complete day, shown as a subtle track. -->
+  <circle cx="412.00" cy="412.00" r="270.38"
+          fill="none" stroke="#16211D" stroke-opacity="0.12"
+          stroke-width="70.81"/>
+
+  <!-- Remaining time. Rotation puts the start at twelve o'clock. -->
+  <circle cx="412.00" cy="412.00" r="270.38"
+          fill="none" stroke="url(#timeGradient)"
+          stroke-width="70.81" stroke-linecap="round"
+          stroke-dasharray="1248.63 450.19"
+          transform="rotate(5.40 412.00 412.00)"
+          filter="url(#softGlow)"/>
+
+  <!-- A small warm marker identifies the start of the remaining arc: now. -->
+  <circle cx="681.18" cy="437.44" r="24.08"
+          fill="#B76218"/>
+  </g>
+</svg>

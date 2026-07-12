@@ -42,6 +42,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.ceil
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 import kotlin.time.Instant
@@ -62,6 +63,7 @@ private fun runApplication() = application {
     val scope = rememberCoroutineScope()
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
+    val dockBadge = remember { MacDockBadge() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val runningApplicationsProvider = remember { MacRunningApplicationsProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
@@ -88,6 +90,8 @@ private fun runApplication() = application {
     var focusPresenceIntervals by remember { mutableStateOf(initialFocusPresence.second) }
     var lastPresenceSave by remember { mutableStateOf(Instant.DISTANT_PAST) }
     var wasFocusActive by remember { mutableStateOf(false) }
+    val cleanlinessTracker = remember { SessionCleanlinessTracker() }
+    var sessionOffGoal by remember { mutableStateOf(Duration.ZERO) }
 
     LaunchedEffect(preferences) {
         preferences.snapshots.collect { preferenceSnapshot = it }
@@ -153,6 +157,7 @@ private fun runApplication() = application {
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .date.toEpochDays()
             val classification = classifyFrontmost(frontmostBundleId, onGoalBundleIds)
+            sessionOffGoal = cleanlinessTracker.observe(currentNow, currentPomodoroEnd, classification)
             val updatedIntervals = when {
                 focusIsActive -> presenceAccumulator.observe(currentNow, classification, dayKey)
                 wasFocusActive -> presenceAccumulator.endSession() // session just ended: close the run
@@ -229,9 +234,13 @@ private fun runApplication() = application {
             },
         )
     }
+    LaunchedEffect(focusDriftReminderId) {
+        dockBadge.update(focusDriftReminderId != null)
+    }
     DisposableEffect(Unit) {
         onDispose {
             focusStatusItem.close()
+            dockBadge.close()
             soundCuePlayer.close()
         }
     }
@@ -310,6 +319,7 @@ private fun runApplication() = application {
                 scheduleSoundAlerts = false,
                 runningApps = { runningApplicationsProvider.runningApps() },
                 focusPresenceIntervals = focusPresenceIntervals,
+                sessionOffGoal = sessionOffGoal,
             )
         }
     }

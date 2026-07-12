@@ -85,12 +85,27 @@ The master SVG, intended as the reference for the Android and macOS variants, ca
 python3 scripts/generate_icon_svg.py
 ```
 
+Two variants are available through `--theme`: `dark` (the default, a luminous mint
+ring on a near-black plate) and `light` (a flat warm off-white plate with a deeper
+mint ring, matching the light widget palette and shipped as the Android launcher
+icon):
+
+```bash
+python3 scripts/generate_icon_svg.py --theme light
+```
+
 The colors and size can be customized with `--accent`, `--marker`, `--background`, `--surface`, and `--size`. Use `--help` to display all options.
 
 The macOS `.icns` icon, used by the Dock and DMG, is generated from this SVG at all required resolutions:
 
 ```bash
 ./scripts/generate_macos_icon.sh
+```
+
+A light `.icns` can be produced from the light SVG by passing source and output paths:
+
+```bash
+./scripts/generate_macos_icon.sh artwork/dayview-icon-reference-light.svg artwork/dayview-light.icns
 ```
 
 ## Global goal

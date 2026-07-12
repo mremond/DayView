@@ -49,6 +49,8 @@ internal data class DayViewUiState(
     val detours: List<DetourEpisode> = emptyList(),
     val recentDetourMotifs: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val cleanSessions: CleanSessionLedger = CleanSessionLedger(),
+    val sessionOffGoal: Duration = Duration.ZERO,
     val fontScale: Float = 1.0f,
     val destination: DayViewDestination = DayViewDestination.TODAY,
     val settingsCategory: SettingsCategory? = null,
@@ -115,6 +117,12 @@ internal data class DayViewUiState(
 
     val detoursTotalToday: Duration
         get() = detoursTotal(detoursToday)
+
+    val cleanSessionsToday: Int
+        get() = if (cleanSessions.dayKey == dayKeyOf(dayNow)) cleanSessions.cleanToday else 0
+
+    val cleanStreakDays: Int
+        get() = displayedStreak(cleanSessions, dayKeyOf(dayNow))
 }
 
 internal class DayViewController(
@@ -278,12 +286,20 @@ internal class DayViewController(
 
     fun closePomodoro(outcome: FocusClosureOutcome) {
         val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
+        val dayKey = dayKeyOf(state.now)
+        val ledger = state.pomodoroEnd?.let { end ->
+            val window = FocusSessionWindow(end - state.pomodoroMinutes.minutes, end)
+            val clean = evaluateSessionClean(window, state.sessionOffGoal, state.detoursToday, outcome)
+            if (clean) registerCleanSession(state.cleanSessions, dayKey) else rollOver(state.cleanSessions, dayKey)
+        } ?: state.cleanSessions
         // Single atomic persist of the whole snapshot: unlike the previous
         // two-save version, there is no intermediate state to reconcile against.
         state = state.copy(
             pomodoroEnd = null,
             focusIntention = updatedIntention,
             lastFocusClosure = outcome,
+            cleanSessions = ledger,
+            sessionOffGoal = Duration.ZERO,
         )
         persistState()
     }
@@ -300,6 +316,10 @@ internal class DayViewController(
 
     fun setFocusPresenceIntervals(intervals: List<FocusPresenceInterval>) {
         state = state.copy(focusPresenceIntervals = intervals)
+    }
+
+    fun setSessionOffGoal(duration: Duration) {
+        state = state.copy(sessionOffGoal = duration)
     }
 
     /** Quick capture: the episode ends now and starts [durationMinutes] earlier. */
@@ -399,6 +419,7 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     detours = detours,
     recentDetourMotifs = recentDetourMotifs,
     themeMode = themeMode,
+    cleanSessions = cleanSessions,
     fontScale = fontScale,
 ).coerced()
 
@@ -414,6 +435,10 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         focusIntention = focusIntention.take(100),
         detours = detours.map { it.copy(motif = sanitizeDetourMotif(it.motif)) },
         recentDetourMotifs = recentDetourMotifs.take(MAX_RECENT_DETOUR_MOTIFS),
+        cleanSessions = cleanSessions.copy(
+            cleanToday = cleanSessions.cleanToday.coerceAtLeast(0),
+            streakDays = cleanSessions.streakDays.coerceAtLeast(0),
+        ),
         fontScale = fontScale.coerceIn(1.0f, 1.5f),
     )
 }
@@ -440,6 +465,7 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         detours = safe.detours,
         recentDetourMotifs = safe.recentDetourMotifs,
         themeMode = safe.themeMode,
+        cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,
     )
 }
@@ -463,8 +489,10 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         detours = safe.detours,
         recentDetourMotifs = safe.recentDetourMotifs,
         themeMode = safe.themeMode,
+        cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,
         // Transient fields deliberately preserved: now, goalDeadlineText,
-        // goalStartText, lastFocusClosure, destination, and calendar read results.
+        // goalStartText, lastFocusClosure, sessionOffGoal, destination, and
+        // calendar read results.
     )
 }

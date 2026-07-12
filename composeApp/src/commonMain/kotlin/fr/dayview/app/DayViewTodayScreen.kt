@@ -87,6 +87,8 @@ import fr.dayview.app.generated.resources.app_wordmark
 import fr.dayview.app.generated.resources.busy_generic
 import fr.dayview.app.generated.resources.busy_remaining
 import fr.dayview.app.generated.resources.busy_time_range
+import fr.dayview.app.generated.resources.clean_sessions_today
+import fr.dayview.app.generated.resources.clean_streak
 import fr.dayview.app.generated.resources.countdown_day_over
 import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
@@ -159,6 +161,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
+private const val CLEAN_SESSION_PIP_CAP = 8
+
 internal data class DayViewScreenActions(
     val openSettings: () -> Unit,
     val openMiniWindow: (() -> Unit)?,
@@ -209,7 +213,12 @@ internal fun DayViewScreen(
             .imePadding(),
     ) {
         val wide = maxWidth >= 780.dp
-        val compactCountdownHeight = (maxWidth - 48.dp).coerceIn(240.dp, 320.dp)
+        // Size the ring from the available width, but never let it take more than ~40% of
+        // the height, so on a tall single-column screen the content below stays visible
+        // instead of the circle pushing it off the bottom.
+        val compactCountdownHeight = (maxWidth - 48.dp)
+            .coerceAtMost(maxHeight * 0.40f)
+            .coerceIn(240.dp, 480.dp)
         val pageModifier = if (wide) {
             Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 28.dp)
         } else {
@@ -245,6 +254,8 @@ internal fun DayViewScreen(
                             detourBodies = state.detourBodiesState,
                             detoursTotal = state.detoursTotalToday,
                             busyBlockArcs = state.busyBlockArcsState,
+                            cleanSessionsToday = state.cleanSessionsToday,
+                            streakDays = state.cleanStreakDays,
                             hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                             onOpenDetourList = { showDetourList = true },
                         )
@@ -299,6 +310,8 @@ internal fun DayViewScreen(
                     detourBodies = state.detourBodiesState,
                     detoursTotal = state.detoursTotalToday,
                     busyBlockArcs = state.busyBlockArcsState,
+                    cleanSessionsToday = state.cleanSessionsToday,
+                    streakDays = state.cleanStreakDays,
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                     onOpenDetourList = { showDetourList = true },
                 )
@@ -683,10 +696,13 @@ internal fun CountdownCircle(
     detourBodies: List<DetourBody> = emptyList(),
     detoursTotal: Duration = Duration.ZERO,
     busyBlockArcs: List<BusyBlockArc> = emptyList(),
+    cleanSessionsToday: Int = 0,
+    streakDays: Int = 0,
     hasGoal: Boolean = false,
     onOpenDetourList: (() -> Unit)? = null,
 ) {
     val colors = LocalDayViewColors.current
+    val uses24Hour = LocalUses24HourClock.current
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
     val accent by animateColorAsState(
         when {
@@ -983,6 +999,44 @@ internal fun CountdownCircle(
                                 )
                             }
                         }
+                        if (cleanSessionsToday > 0 || streakDays > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            val countLabel = if (cleanSessionsToday > 0) {
+                                stringResource(Res.string.clean_sessions_today, cleanSessionsToday)
+                            } else {
+                                null
+                            }
+                            val streakLabel = if (streakDays > 0) {
+                                stringResource(Res.string.clean_streak, streakDays)
+                            } else {
+                                null
+                            }
+                            val label = listOfNotNull(countLabel, streakLabel).joinToString(" · ")
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.testTag(DayViewTestTags.CleanSessions),
+                            ) {
+                                if (cleanSessionsToday > 0) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        repeat(cleanSessionsToday.coerceAtMost(CLEAN_SESSION_PIP_CAP)) {
+                                            Box(
+                                                Modifier
+                                                    .size(6.dp)
+                                                    .background(colors.mint, CircleShape),
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                }
+                                Text(
+                                    label,
+                                    color = colors.mint,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -990,6 +1044,7 @@ internal fun CountdownCircle(
                     val arc = hovered.arc
                     val startLabel = formatClockHm(
                         angleToInstant(arc.startAngleDegrees, windowStart, windowEnd),
+                        use24Hour = uses24Hour,
                     )
                     val endLabel = formatClockHm(
                         angleToInstant(
@@ -997,6 +1052,7 @@ internal fun CountdownCircle(
                             windowStart,
                             windowEnd,
                         ),
+                        use24Hour = uses24Hour,
                     )
                     Box(
                         modifier = Modifier
@@ -1057,8 +1113,8 @@ internal fun CountdownCircle(
                             Text(
                                 stringResource(
                                     Res.string.detour_time_range,
-                                    formatClockHm(body.start),
-                                    formatClockHm(body.end),
+                                    formatClockHm(body.start, use24Hour = uses24Hour),
+                                    formatClockHm(body.end, use24Hour = uses24Hour),
                                     formatDurationHm(body.end - body.start),
                                 ),
                                 color = colors.muted,
@@ -1776,7 +1832,7 @@ private fun GoalDateTimeDialog(
     val timeState = rememberTimePickerState(
         initialHour = goalPickerHour(initial),
         initialMinute = goalPickerMinute(initial),
-        is24Hour = true,
+        is24Hour = LocalUses24HourClock.current,
     )
     var error by remember { mutableStateOf<String?>(null) }
     val chooseDateError = stringResource(Res.string.goal_choose_date)

@@ -89,6 +89,7 @@ internal val LocalPreferenceFontScale = staticCompositionLocalOf { 1f }
 @Composable
 internal fun DayViewTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
+    uses24Hour: Boolean = true,
     content: @Composable (DayViewColors) -> Unit,
 ) {
     val isDark = themeMode.resolveIsDark(isSystemInDarkTheme())
@@ -113,7 +114,10 @@ internal fun DayViewTheme(
         )
     }
     PlatformThemeChrome(isDark = isDark)
-    CompositionLocalProvider(LocalDayViewColors provides colors) {
+    CompositionLocalProvider(
+        LocalDayViewColors provides colors,
+        LocalUses24HourClock provides uses24Hour,
+    ) {
         MaterialTheme(colorScheme = colorScheme) {
             content(colors)
         }

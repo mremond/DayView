@@ -293,4 +293,28 @@ class CalendarNetTimeTest {
             ),
         )
     }
+
+    @Test
+    fun formatWallClock_24h_pads_both_fields() {
+        assertEquals("00:00", formatWallClock(0, 0, use24Hour = true))
+        assertEquals("07:05", formatWallClock(7, 5, use24Hour = true))
+        assertEquals("13:30", formatWallClock(13, 30, use24Hour = true))
+    }
+
+    @Test
+    fun formatWallClock_12h_uses_am_pm_without_hour_padding() {
+        assertEquals("12:00 AM", formatWallClock(0, 0, use24Hour = false))
+        assertEquals("7:05 AM", formatWallClock(7, 5, use24Hour = false))
+        assertEquals("12:00 PM", formatWallClock(12, 0, use24Hour = false))
+        assertEquals("1:05 PM", formatWallClock(13, 5, use24Hour = false))
+        assertEquals("11:59 PM", formatWallClock(23, 59, use24Hour = false))
+    }
+
+    @Test
+    fun formatClockHm_respects_12h_flag() {
+        val zone = TimeZone.UTC
+        val instant = LocalDateTime(2026, 1, 1, 13, 0).toInstant(zone)
+        assertEquals("13:00", formatClockHm(instant, zone))
+        assertEquals("1:00 PM", formatClockHm(instant, zone, use24Hour = false))
+    }
 }

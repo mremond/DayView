@@ -3,6 +3,7 @@ package fr.dayview.app
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -70,6 +71,24 @@ class GlobalGoalTest {
         assertEquals(utcMidnight, goalPickerDateMillis(instant, zone))
         assertEquals(8, goalPickerHour(instant, zone))
         assertEquals(0, goalPickerMinute(instant, zone))
+    }
+
+    @Test
+    fun goalPickerInputStays24HourForAfternoonTimes() {
+        // The goal deadline's canonical string is always 24-hour, no matter whether the
+        // picker that produced hour/minute is currently displaying a 12h or 24h clock face.
+        val utcMidnight = LocalDateTime.parse("2026-07-11T00:00").toInstant(TimeZone.UTC).toEpochMilliseconds()
+
+        val input = formatGoalPickerInput(utcMidnight, hour = 13, minute = 5)
+
+        assertEquals("11/07/2026 13:05", input)
+        assertTrue(input.endsWith(" 13:05"))
+
+        val parsed = parseGoalDeadline(input, zone)
+        assertTrue(parsed != null)
+        val roundTripped = parsed.toLocalDateTime(zone)
+        assertEquals(13, roundTripped.hour)
+        assertEquals(5, roundTripped.minute)
     }
 
     @Test

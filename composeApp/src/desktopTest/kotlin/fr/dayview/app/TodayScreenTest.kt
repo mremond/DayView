@@ -53,4 +53,37 @@ class TodayScreenTest {
         onNodeWithTag(DayViewTestTags.MiniWindow).performClick()
         assertTrue(miniOpened)
     }
+
+    @Test
+    fun rendersCleanSessionsLineWhenPresent() = runComposeUiTest {
+        val now = midWindowNow()
+        val dayKey = dayKeyOf(now)
+        val snapshot = DayPreferencesSnapshot(
+            cleanSessions = CleanSessionLedger(dayKey = dayKey, cleanToday = 3, streakDays = 5, streakLastDayKey = dayKey),
+        )
+        setContent {
+            val state = remember { seededController(snapshot, now).state }
+            WideDayView(state = state, actions = noopDayViewActions())
+        }
+        onNodeWithTag(DayViewTestTags.CleanSessions).assertExists()
+    }
+
+    @Test
+    fun rendersLiveStreakBeforeFirstSessionOfDay() = runComposeUiTest {
+        val now = midWindowNow()
+        val dayKey = dayKeyOf(now)
+        val snapshot = DayPreferencesSnapshot(
+            cleanSessions = CleanSessionLedger(
+                dayKey = dayKey,
+                cleanToday = 0,
+                streakDays = 5,
+                streakLastDayKey = dayKey - 1,
+            ),
+        )
+        setContent {
+            val state = remember { seededController(snapshot, now).state }
+            WideDayView(state = state, actions = noopDayViewActions())
+        }
+        onNodeWithTag(DayViewTestTags.CleanSessions).assertExists()
+    }
 }
