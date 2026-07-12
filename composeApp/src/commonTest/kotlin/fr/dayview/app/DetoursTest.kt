@@ -154,4 +154,23 @@ class DetoursTest {
         assertEquals(45, episode.duration.inWholeMinutes)
         assertEquals("09:30", formatClockHm(episode.start, zone))
     }
+
+    @Test
+    fun sanitizeIsIdempotentAtTheTruncationBoundary() {
+        val raw = "a".repeat(59) + " bcd" // truncates to 59 'a' + trailing space
+        val once = sanitizeDetourMotif(raw)
+        assertEquals(once, sanitizeDetourMotif(once))
+        assertEquals("a".repeat(59), once)
+    }
+
+    @Test
+    fun bodiesKeepEpisodesWithLongTruncatedMotifs() {
+        val motif = "a".repeat(59) + " bcd"
+        val body = detourBodies(
+            t(0L),
+            t(36_000_000L),
+            listOf(DetourEpisode(t(0L), t(1_800_000L), motif)),
+        ).single()
+        assertEquals("a".repeat(59), body.motif)
+    }
 }

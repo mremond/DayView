@@ -18,7 +18,7 @@ data class DetourEpisode(val start: Instant, val end: Instant, val motif: String
 const val MAX_RECENT_DETOUR_MOTIFS = 10
 
 /** Single-line, trimmed, bounded motif; every capture and edit feeds through this. */
-fun sanitizeDetourMotif(raw: String): String = raw.replace("\n", " ").replace("\r", " ").trim().take(60)
+fun sanitizeDetourMotif(raw: String): String = raw.replace("\n", " ").replace("\r", " ").trim().take(60).trim()
 
 /** Serialize episodes to one `start,end,motif` line each (epoch millis, motif last). */
 fun encodeDetours(episodes: List<DetourEpisode>): String = episodes.joinToString("\n") {
@@ -146,8 +146,8 @@ private fun angularDistance(a: Float, b: Float): Float {
 
 /**
  * The body under the pointer, or null. Bodies are centered on the ring circle; the
- * radial band matches the busy-arc hit test and the angular tolerance grows with the
- * body size so small bodies stay hoverable.
+ * radial band is slightly narrower than the busy-arc hit test's, and the angular
+ * tolerance grows with the body size so small bodies stay hoverable.
  */
 fun hitTestDetourBody(
     x: Float,
