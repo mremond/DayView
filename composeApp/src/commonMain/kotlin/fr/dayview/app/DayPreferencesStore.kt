@@ -33,6 +33,7 @@ internal object DayPreferenceKeys {
     const val DETOURS_DAY = "detours_day"
     const val DETOURS = "detours"
     const val DETOUR_RECENT_MOTIFS = "detour_recent_motifs"
+    const val THEME_MODE = "theme_mode"
     const val NO_DEADLINE = -1L
 }
 
@@ -57,6 +58,7 @@ private val onGoalAppsKey = stringPreferencesKey(DayPreferenceKeys.ON_GOAL_APPS)
 private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY)
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
 private val detourRecentMotifsKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_MOTIFS)
+private val themeModeKey = stringPreferencesKey(DayPreferenceKeys.THEME_MODE)
 
 class DayPreferencesStore(
     private val dataStore: DataStore<Preferences>,
@@ -86,6 +88,7 @@ class DayPreferencesStore(
             prefs[detoursDayPrefKey] = snapshot.detoursDayKey
             prefs[detoursKey] = encodeDetours(snapshot.detours)
             prefs[detourRecentMotifsKey] = encodeRecentDetourMotifs(snapshot.recentDetourMotifs)
+            prefs[themeModeKey] = snapshot.themeMode.name
         }
     }
 }
@@ -125,5 +128,8 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         detoursDayKey = this[detoursDayPrefKey] ?: defaults.detoursDayKey,
         detours = decodeDetours(this[detoursKey].orEmpty()),
         recentDetourMotifs = decodeRecentDetourMotifs(this[detourRecentMotifsKey].orEmpty()),
+        themeMode = this[themeModeKey]
+            ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
+            ?: defaults.themeMode,
     )
 }

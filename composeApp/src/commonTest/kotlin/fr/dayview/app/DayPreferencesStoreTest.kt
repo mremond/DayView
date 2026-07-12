@@ -99,4 +99,18 @@ class DayPreferencesStoreTest {
         store.persist(snapshot)
         assertEquals(snapshot, store.snapshots.first())
     }
+
+    @Test
+    fun themeModeRoundTrips() = runTest {
+        val store = newStore(FakeFileSystem())
+        val snapshot = DayPreferencesSnapshot(themeMode = ThemeMode.DARK)
+        store.persist(snapshot)
+        assertEquals(ThemeMode.DARK, store.snapshots.first().themeMode)
+    }
+
+    @Test
+    fun missingThemeModeFallsBackToSystem() = runTest {
+        val store = newStore(FakeFileSystem())
+        assertEquals(ThemeMode.SYSTEM, store.snapshots.first().themeMode)
+    }
 }
