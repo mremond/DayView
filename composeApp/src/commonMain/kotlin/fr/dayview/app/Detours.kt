@@ -59,7 +59,7 @@ fun pushRecentDetourMotif(recents: List<String>, motif: String): List<String> {
 fun dayKeyOf(
     now: Instant,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-): Long = now.toLocalDateTime(timeZone).date.toEpochDays().toLong()
+): Long = now.toLocalDateTime(timeZone).date.toEpochDays()
 
 /** A distraction source: episodes grouped by normalized motif. */
 data class DetourSource(val label: String, val colorIndex: Int, val total: Duration)
