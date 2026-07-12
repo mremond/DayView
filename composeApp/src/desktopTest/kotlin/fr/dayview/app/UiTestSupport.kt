@@ -105,3 +105,19 @@ internal fun WideDayView(
         }
     }
 }
+
+/** Wires a [DayViewScreenActions] bundle straight to the controller (as App.kt does). */
+internal fun controllerDayViewActions(controller: DayViewController): DayViewScreenActions = DayViewScreenActions(
+    openSettings = { controller.openSettings() },
+    openMiniWindow = null,
+    changeGoalTitle = { controller.setGoalTitle(it) },
+    changeGoalDeadline = { controller.setGoalDeadlineText(it) },
+    commitGoalDeadline = { controller.commitGoalDeadline() },
+    changeGoalStart = { controller.setGoalStartText(it) },
+    commitGoalStart = { controller.commitGoalStart() },
+    changeFocusIntention = { controller.setFocusIntention(it) },
+    changePomodoroDuration = { controller.changePomodoroDuration(it) },
+    startPomodoro = { controller.startPomodoro() },
+    stopPomodoro = { controller.stopPomodoro() },
+    closePomodoro = { controller.closePomodoro(it) },
+)
