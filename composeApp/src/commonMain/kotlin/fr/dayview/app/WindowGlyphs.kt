@@ -15,12 +15,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * Small window-mode glyphs, hand-drawn with Canvas to match the app's other
- * inline glyphs (the focus-start "+", the mini stop square) rather than pulling
- * in a Material icon dependency. Shared by the main-window header and the mini
- * window. Coordinates map the approved 20-unit design onto the drawn size.
- */
+// Small window-mode glyphs, hand-drawn with Canvas to match the app's other
+// inline glyphs (the focus-start "+", the mini stop square) rather than pulling
+// in a Material icon dependency. Shared by the main-window header and the mini
+// window. Coordinates map the approved 20-unit design onto the drawn size.
 
 /**
  * Picture-in-picture: an outer window frame with a small filled pane in the
