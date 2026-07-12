@@ -31,6 +31,31 @@ fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
     return merged
 }
 
+/**
+ * Fusionne les créneaux occupés au sein d'un même calendrier uniquement : deux calendriers
+ * qui se chevauchent dans le temps restent distincts (pour le rendu par calendrier), alors
+ * que [mergeBusyIntervals] fusionne tout (union, pour le calcul du temps net).
+ */
+fun mergeBusyIntervalsByCalendar(intervals: List<BusyInterval>): List<BusyInterval> = intervals.groupBy { it.calendarId }.values.flatMap { mergeBusyIntervals(it) }
+
+/** Un calendrier occupé : couleur stable (premier vu) et durée cumulée sur la journée. */
+data class BusyCalendar(val calendarId: String, val colorIndex: Int, val total: Duration)
+
+/**
+ * Index de couleur par calendrier, dans l'ordre de première apparition (créneaux triés par
+ * début), pour rester stables sur la journée — même convention que [detourSources].
+ */
+fun busyCalendars(intervals: List<BusyInterval>): List<BusyCalendar> {
+    val colorByCal = LinkedHashMap<String, Int>()
+    val totalByCal = LinkedHashMap<String, Duration>()
+    for (interval in intervals.filter { it.end > it.start }.sortedBy { it.start }) {
+        val key = interval.calendarId
+        colorByCal.getOrPut(key) { colorByCal.size }
+        totalByCal[key] = (totalByCal[key] ?: Duration.ZERO) + (interval.end - interval.start)
+    }
+    return colorByCal.keys.map { BusyCalendar(it, colorByCal.getValue(it), totalByCal.getValue(it)) }
+}
+
 data class NetTime(
     val netDay: Duration,
     val netRemaining: Duration,

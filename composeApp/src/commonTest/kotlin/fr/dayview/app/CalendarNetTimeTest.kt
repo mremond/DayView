@@ -214,4 +214,40 @@ class CalendarNetTimeTest {
         // Décocher depuis un sous-ensemble.
         assertEquals(setOf("a"), nextIncludedCalendars(all, setOf("a", "c"), "c", include = false))
     }
+
+    @Test
+    fun mergeByCalendarKeepsCalendarsSeparate() {
+        val merged = mergeBusyIntervalsByCalendar(
+            listOf(
+                BusyInterval(t(100), t(300), listOf("A"), calendarId = "work"),
+                BusyInterval(t(200), t(400), listOf("B"), calendarId = "home"), // overlaps in time, other calendar
+                BusyInterval(t(300), t(500), listOf("C"), calendarId = "work"), // touches A -> merges
+            ),
+        )
+        // work: 100..500 merged; home: 200..400 separate.
+        assertEquals(2, merged.size)
+        val work = merged.first { it.calendarId == "work" }
+        val home = merged.first { it.calendarId == "home" }
+        assertEquals(t(100), work.start)
+        assertEquals(t(500), work.end)
+        assertEquals(t(200), home.start)
+        assertEquals(t(400), home.end)
+    }
+
+    @Test
+    fun busyCalendarsAssignStableColorIndexByFirstSeen() {
+        val cals = busyCalendars(
+            listOf(
+                BusyInterval(t(300), t(400), calendarId = "home"),
+                BusyInterval(t(100), t(200), calendarId = "work"), // earliest start -> index 0
+                BusyInterval(t(500), t(700), calendarId = "work"),
+            ),
+        )
+        val work = cals.first { it.calendarId == "work" }
+        val home = cals.first { it.calendarId == "home" }
+        assertEquals(0, work.colorIndex) // earliest start overall
+        assertEquals(1, home.colorIndex)
+        assertEquals(300L, work.total.inWholeMilliseconds) // 100 + 200
+        assertEquals(100L, home.total.inWholeMilliseconds)
+    }
 }
