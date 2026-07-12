@@ -857,16 +857,25 @@ internal fun CountdownCircle(
 
                     detourBodies.forEach { body ->
                         val angleRadians = Math.toRadians(body.angleDegrees.toDouble())
-                        val arcRadius = arcSize.width / 2f
+                        // Offset each body off the orbit by its weight: light detours drift just
+                        // outside the ring, heavy ones sink inside, mid-size ones ride the line.
+                        val bodyRadius = arcSize.width / 2f + strokeWidth * (.45f - .9f * body.sizeFraction)
                         val center = Offset(size.width / 2f, size.height / 2f)
                         val bodyCenter = center + Offset(
-                            x = (kotlin.math.cos(angleRadians) * arcRadius).toFloat(),
-                            y = (kotlin.math.sin(angleRadians) * arcRadius).toFloat(),
+                            x = (kotlin.math.cos(angleRadians) * bodyRadius).toFloat(),
+                            y = (kotlin.math.sin(angleRadians) * bodyRadius).toFloat(),
                         )
                         val color = colors.detours[body.colorIndex % colors.detours.size]
-                        val radius = strokeWidth * (.3f + .38f * body.sizeFraction)
-                        drawCircle(color = color.copy(alpha = .25f), radius = radius * 1.45f, center = bodyCenter)
+                        // Keep a visible floor size so short detours still read, especially when
+                        // they land next to the moment marker right after being added.
+                        val radius = strokeWidth * (.42f + .32f * body.sizeFraction)
+                        drawCircle(color = color.copy(alpha = .28f), radius = radius * 1.5f, center = bodyCenter)
                         drawCircle(color = color, radius = radius, center = bodyCenter)
+                        drawCircle(
+                            color = Color.White.copy(alpha = .5f),
+                            radius = radius * .28f,
+                            center = bodyCenter - Offset(radius * .3f, radius * .3f),
+                        )
                     }
                 }
 

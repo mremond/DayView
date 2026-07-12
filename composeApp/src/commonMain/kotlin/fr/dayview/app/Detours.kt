@@ -145,9 +145,9 @@ private fun angularDistance(a: Float, b: Float): Float {
 }
 
 /**
- * The body under the pointer, or null. Bodies are centered on the ring circle; the
- * radial band is slightly narrower than the busy-arc hit test's, and the angular
- * tolerance grows with the body size so small bodies stay hoverable.
+ * The body under the pointer, or null. Bodies straddle the ring by weight (light ones
+ * just outside, heavy ones inside); the radial band spans that offset orbit, and the
+ * angular tolerance grows with the body size so small bodies stay hoverable.
  */
 fun hitTestDetourBody(
     x: Float,
@@ -159,7 +159,7 @@ fun hitTestDetourBody(
     val dx = x - width / 2f
     val dy = y - height / 2f
     val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
-    if (radiusFraction !in 0.78f..1.02f) return null
+    if (radiusFraction !in 0.70f..1.02f) return null
     val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
     return bodies
         .minByOrNull { angularDistance(it.angleDegrees, angle) }
