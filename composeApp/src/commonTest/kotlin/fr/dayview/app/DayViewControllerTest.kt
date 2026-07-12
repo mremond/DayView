@@ -8,6 +8,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
@@ -394,5 +395,90 @@ class DayViewControllerTest {
         // Full precision keeps the 30-second remainder; truncation drops it to the minute.
         assertEquals(30L, stateWith(showSeconds = true).dayProgress.remainingSeconds)
         assertEquals(0L, stateWith(showSeconds = false).dayProgress.remainingSeconds)
+    }
+
+    @Test
+    fun addDetourStoresAnEpisodeEndingNowAndPersistsIt() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L // fixed instant well inside a day
+        val controller = testController(preferences, now)
+
+        controller.addDetour(" appel\nurgent ", 30)
+
+        val stored = preferences.current
+        assertEquals(dayKeyOf(t(now)), stored.detoursDayKey)
+        val episode = stored.detours.single()
+        assertEquals("appel urgent", episode.motif)
+        assertEquals(t(now), episode.end)
+        assertEquals(30, episode.duration.inWholeMinutes)
+        assertEquals(listOf("appel urgent"), stored.recentDetourMotifs)
+    }
+
+    @Test
+    fun addDetourIgnoresBlankMotifs() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 1_800_000_000_000L)
+        controller.addDetour("   ", 15)
+        assertEquals(emptyList(), controller.state.detoursToday)
+    }
+
+    @Test
+    fun addDetourOnANewDayReplacesTheStaleList() {
+        val now = 1_800_000_000_000L
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(
+                detoursDayKey = dayKeyOf(t(now)) - 1L,
+                detours = listOf(DetourEpisode(t(1_000L), t(2_000L), "hier")),
+            ),
+        )
+        val controller = testController(preferences, now)
+
+        assertEquals(emptyList(), controller.state.detoursToday)
+        controller.addDetour("Slack", 15)
+        assertEquals(listOf("Slack"), controller.state.detoursToday.map { it.motif })
+        assertEquals(1, preferences.current.detours.size)
+    }
+
+    @Test
+    fun capturingTheSameMotifTwiceKeepsOneRecentEntry() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 1_800_000_000_000L)
+        controller.addDetour("Slack", 15)
+        controller.addDetour("slack", 15)
+        assertEquals(listOf("slack"), controller.state.recentDetourMotifs)
+        assertEquals(2, controller.state.detoursToday.size)
+    }
+
+    @Test
+    fun updateAndRemoveDetourEditTodayList() {
+        val now = 1_800_000_000_000L
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, now)
+        controller.addDetour("Slack", 15)
+        controller.addDetourEpisode(DetourEpisode(t(now - 3_600_000L), t(now - 1_800_000L), "Appels"))
+
+        // Episodes are kept sorted by start: "Appels" (1 h ago) precedes "Slack" (15 min ago).
+        assertEquals(listOf("Appels", "Slack"), controller.state.detoursToday.map { it.motif })
+
+        controller.updateDetour(0, DetourEpisode(t(now - 3_600_000L), t(now - 900_000L), "Réunion"))
+        assertEquals(listOf("Réunion", "Slack"), controller.state.detoursToday.map { it.motif })
+        assertEquals(45, controller.state.detoursToday.first().duration.inWholeMinutes)
+
+        controller.removeDetour(1)
+        assertEquals(listOf("Réunion"), preferences.current.detours.map { it.motif })
+    }
+
+    @Test
+    fun invalidDetourEditsAreRejected() {
+        val now = 1_800_000_000_000L
+        val controller = testController(InMemoryDayPreferences(), now)
+        controller.addDetour("Slack", 15)
+
+        controller.updateDetour(5, DetourEpisode(t(1L), t(2L), "hors limites"))
+        controller.updateDetour(0, DetourEpisode(t(2_000L), t(1_000L), "inversé"))
+        controller.updateDetour(0, DetourEpisode(t(1_000L), t(2_000L), "  "))
+
+        assertEquals(listOf("Slack"), controller.state.detoursToday.map { it.motif })
+        assertTrue(controller.state.detoursTotalToday.inWholeMinutes == 15L)
     }
 }
