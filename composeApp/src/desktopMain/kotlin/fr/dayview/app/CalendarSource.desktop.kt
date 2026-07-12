@@ -47,6 +47,7 @@ private class MacEventKitCalendarSource : CalendarSource {
             Instant.fromEpochMilliseconds(start),
             Instant.fromEpochMilliseconds(end),
             if (title.isBlank()) emptyList() else listOf(title),
+            calendarId = calId,
         )
     }
 

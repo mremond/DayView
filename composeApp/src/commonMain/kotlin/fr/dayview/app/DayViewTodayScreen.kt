@@ -246,7 +246,6 @@ internal fun DayViewScreen(
                             progress,
                             state.showSeconds,
                             Modifier.weight(1f).fillMaxWidth(),
-                            busyArcs = state.busyArcsState,
                             netTime = state.netTime,
                             focusArcs = state.focusArcsState,
                             focusedToday = state.focusedToday,
@@ -254,6 +253,7 @@ internal fun DayViewScreen(
                             windowEnd = state.dayWindow.second,
                             detourBodies = state.detourBodiesState,
                             detoursTotal = state.detoursTotalToday,
+                            busyBlockArcs = state.busyBlockArcsState,
                             cleanSessionsToday = state.cleanSessionsToday,
                             streakDays = state.cleanStreakDays,
                             hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
@@ -302,7 +302,6 @@ internal fun DayViewScreen(
                     progress,
                     state.showSeconds,
                     Modifier.fillMaxWidth().height(compactCountdownHeight),
-                    busyArcs = state.busyArcsState,
                     netTime = state.netTime,
                     focusArcs = state.focusArcsState,
                     focusedToday = state.focusedToday,
@@ -310,6 +309,7 @@ internal fun DayViewScreen(
                     windowEnd = state.dayWindow.second,
                     detourBodies = state.detourBodiesState,
                     detoursTotal = state.detoursTotalToday,
+                    busyBlockArcs = state.busyBlockArcsState,
                     cleanSessionsToday = state.cleanSessionsToday,
                     streakDays = state.cleanStreakDays,
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
@@ -688,7 +688,6 @@ internal fun CountdownCircle(
     progress: DayProgress,
     showSeconds: Boolean,
     modifier: Modifier = Modifier,
-    busyArcs: List<BusyArc> = emptyList(),
     netTime: NetTime? = null,
     focusArcs: List<FocusArc> = emptyList(),
     focusedToday: Duration = Duration.ZERO,
@@ -696,6 +695,7 @@ internal fun CountdownCircle(
     windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
     detourBodies: List<DetourBody> = emptyList(),
     detoursTotal: Duration = Duration.ZERO,
+    busyBlockArcs: List<BusyBlockArc> = emptyList(),
     cleanSessionsToday: Int = 0,
     streakDays: Int = 0,
     hasGoal: Boolean = false,
@@ -725,10 +725,10 @@ internal fun CountdownCircle(
             // proportion: they shrink in the mini and compact windows and grow to fill a
             // large dial on Supernote / a maximized desktop window.
             val counterScale = countdownCounterScale(circleSize)
-            val circleModifier = if (busyArcs.isEmpty() && detourBodies.isEmpty()) {
+            val circleModifier = if (busyBlockArcs.isEmpty() && detourBodies.isEmpty()) {
                 Modifier.size(circleSize)
             } else {
-                Modifier.size(circleSize).pointerInput(busyArcs, detourBodies) {
+                Modifier.size(circleSize).pointerInput(busyBlockArcs, detourBodies) {
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -745,7 +745,7 @@ internal fun CountdownCircle(
                                 hoveredBusy = if (body != null) {
                                     null
                                 } else {
-                                    hitTestBusyArc(position, size.width, size.height, busyArcs)
+                                    hitTestBusyArc(position, size.width, size.height, busyBlockArcs)
                                         ?.let { HoveredBusyArc(it, position) }
                                 }
                             } else if (event.type == PointerEventType.Press) {
@@ -785,18 +785,6 @@ internal fun CountdownCircle(
                             ),
                             radius = size.minDimension * .30f,
                             center = center,
-                        )
-                    }
-
-                    busyArcs.forEach { arc ->
-                        drawArc(
-                            color = colors.overlay.copy(alpha = .35f),
-                            startAngle = arc.startAngleDegrees,
-                            sweepAngle = arc.sweepDegrees,
-                            useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(strokeWidth, cap = StrokeCap.Butt),
                         )
                     }
 
@@ -885,6 +873,35 @@ internal fun CountdownCircle(
                                 center = markerCenter - Offset(strokeWidth * .1f, strokeWidth * .1f),
                             )
                         }
+                    }
+
+                    // Calendar busy is its own cool-toned layer on a concentric lane just inside
+                    // the ring, over the dark interior — so cool colours read at full contrast and
+                    // never fight the green sweep, while hue means "reserved". A wide low-alpha
+                    // pass gives the glow, a narrower bright pass the core; round caps let short
+                    // events settle in as soft pills.
+                    val busyInset = inset + strokeWidth * .95f
+                    val busyLaneSize = Size(size.width - busyInset * 2, size.height - busyInset * 2)
+                    busyBlockArcs.forEach { arc ->
+                        val col = colors.busy[arc.colorIndex % colors.busy.size]
+                        drawArc(
+                            color = col.copy(alpha = .16f),
+                            startAngle = arc.startAngleDegrees,
+                            sweepAngle = arc.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(busyInset, busyInset),
+                            size = busyLaneSize,
+                            style = Stroke(strokeWidth * .7f, cap = StrokeCap.Round),
+                        )
+                        drawArc(
+                            color = col.copy(alpha = .92f),
+                            startAngle = arc.startAngleDegrees,
+                            sweepAngle = arc.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(busyInset, busyInset),
+                            size = busyLaneSize,
+                            style = Stroke(strokeWidth * .42f, cap = StrokeCap.Round),
+                        )
                     }
 
                     detourBodies.forEach { body ->
@@ -1050,6 +1067,15 @@ internal fun CountdownCircle(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Column {
+                            if (arc.calendarName.isNotBlank()) {
+                                Text(
+                                    arc.calendarName,
+                                    color = colors.busy[arc.colorIndex % colors.busy.size],
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
                             val titles = arc.titles.filter { it.isNotBlank() }
                             if (titles.isEmpty()) {
                                 Text(stringResource(Res.string.busy_generic), color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -1103,7 +1129,7 @@ internal fun CountdownCircle(
     }
 }
 
-private data class HoveredBusyArc(val arc: BusyArc, val position: Offset)
+private data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 
 /** Renvoie l'arc occupé sous le pointeur, ou null si le pointeur n'est pas sur l'anneau. */
@@ -1111,16 +1137,21 @@ private fun hitTestBusyArc(
     position: Offset,
     width: Int,
     height: Int,
-    busyArcs: List<BusyArc>,
-): BusyArc? {
+    busyBlockArcs: List<BusyBlockArc>,
+): BusyBlockArc? {
     val cx = width / 2f
     val cy = height / 2f
     val dx = position.x - cx
     val dy = position.y - cy
+    // The busy band rides an inner lane, so the radius window reaches further in than the
+    // detour band; the nearest arc within a small angular tolerance wins, which gives very
+    // short events (a thin arc) a hoverable margin instead of a pixel-wide target.
     val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
-    if (radiusFraction !in 0.70f..1.02f) return null
+    if (radiusFraction !in 0.60f..1.02f) return null
     val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-    return busyArcs.firstOrNull { arcContainsAngle(it, angle) }
+    return busyBlockArcs
+        .minByOrNull { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angle) }
+        ?.takeIf { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angle) <= 5f }
 }
 
 @Composable

@@ -23,6 +23,7 @@ internal data class DayViewColors(
     val glow: Color,
     val overlay: Color,
     val detours: List<Color>,
+    val busy: List<Color>,
 )
 
 internal val DarkDayViewColors = DayViewColors(
@@ -43,6 +44,14 @@ internal val DarkDayViewColors = DayViewColors(
         Color(0xFFB48EE0), // plum
         Color(0xFFD9B08C), // sand
     ),
+    busy = listOf(
+        Color(0xFF6EC6FF), // sky
+        Color(0xFF6FD8C9), // teal
+        Color(0xFF8AA6FF), // periwinkle
+        Color(0xFFB39DFF), // violet
+        Color(0xFF7FB4CC), // slate cyan
+        Color(0xFF9FC0E8), // steel
+    ),
 )
 
 internal val LightDayViewColors = DayViewColors(
@@ -62,6 +71,14 @@ internal val LightDayViewColors = DayViewColors(
         Color(0xFFA34D74), // rose
         Color(0xFF6E4AA3), // plum
         Color(0xFF8A6844), // sand
+    ),
+    busy = listOf(
+        Color(0xFF2C6FA6), // sky
+        Color(0xFF2E8B84), // teal
+        Color(0xFF3F52A8), // periwinkle
+        Color(0xFF6A4FA8), // violet
+        Color(0xFF34738A), // slate cyan
+        Color(0xFF4E6E96), // steel
     ),
 )
 

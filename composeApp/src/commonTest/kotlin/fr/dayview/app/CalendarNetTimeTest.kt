@@ -125,39 +125,27 @@ class CalendarNetTimeTest {
     }
 
     @Test
-    fun busyArcsProjectAtElapsedFraction() {
-        // Fenêtre 0..1000. Plage 250..500 -> quart..moitié.
-        val arcs = busyArcs(t(0), t(1000), listOf(interval(250, 500, "X")))
-        assertEquals(1, arcs.size)
-        assertEquals(-90f + 0.25f * 360f, arcs[0].startAngleDegrees)
-        assertEquals(0.25f * 360f, arcs[0].sweepDegrees)
-        assertEquals(listOf("X"), arcs[0].titles)
-    }
-
-    @Test
-    fun busyArcsClipToWindow() {
-        val arcs = busyArcs(t(0), t(1000), listOf(interval(-200, 200, "Y")))
-        assertEquals(-90f, arcs[0].startAngleDegrees)
-        assertEquals(0.2f * 360f, arcs[0].sweepDegrees)
-    }
-
-    @Test
-    fun busyArcsHandleDegenerateWindow() {
-        assertEquals(emptyList(), busyArcs(t(500), t(500), listOf(interval(400, 600, "Z"))))
-    }
-
-    @Test
     fun arcContainsAngleHandlesSweepAndWraparound() {
         // Arc bas-gauche 200°..240°.
-        val arc = BusyArc(startAngleDegrees = 200f, sweepDegrees = 40f, titles = listOf("R"))
-        assertEquals(true, arcContainsAngle(arc, 220f))
+        assertEquals(true, arcContainsAngle(200f, 40f, 220f))
         // atan2 renvoie 220° comme -140° : le wraparound doit quand même l'inclure.
-        assertEquals(true, arcContainsAngle(arc, -140f))
-        assertEquals(false, arcContainsAngle(arc, 100f))
+        assertEquals(true, arcContainsAngle(200f, 40f, -140f))
+        assertEquals(false, arcContainsAngle(200f, 40f, 100f))
         // Arc au sommet, à cheval sur la frontière -90°.
-        val topArc = BusyArc(startAngleDegrees = -110f, sweepDegrees = 40f, titles = emptyList())
-        assertEquals(true, arcContainsAngle(topArc, -90f))
-        assertEquals(false, arcContainsAngle(topArc, 0f))
+        assertEquals(true, arcContainsAngle(-110f, 40f, -90f))
+        assertEquals(false, arcContainsAngle(-110f, 40f, 0f))
+    }
+
+    @Test
+    fun angularDistanceToArcIsZeroInsideAndGrowsOutside() {
+        // Arc bas-gauche 200°..240°.
+        assertEquals(0f, angularDistanceToArc(200f, 40f, 220f)) // à l'intérieur
+        assertEquals(5f, angularDistanceToArc(200f, 40f, 195f)) // 5° avant le début
+        assertEquals(10f, angularDistanceToArc(200f, 40f, 250f)) // 10° après la fin (240°)
+        // Wraparound : -140° ≡ 220°, donc à l'intérieur.
+        assertEquals(0f, angularDistanceToArc(200f, 40f, -140f))
+        // Arc au sommet à cheval sur -90° : -90° est dedans, 0° est à 70° de la fin.
+        assertEquals(0f, angularDistanceToArc(-100f, 20f, -90f))
     }
 
     @Test
@@ -190,6 +178,21 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun netTimeCountsCrossCalendarOverlapOnce() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone)
+        val (start, end) = dayWindow(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        // Two calendars, same 14:00-15:00 slot -> counted once, not twice.
+        val busy = listOf(
+            BusyInterval(noon + 2.hours, noon + 3.hours, listOf("Pro"), calendarId = "work"),
+            BusyInterval(noon + 2.hours, noon + 3.hours, listOf("Perso"), calendarId = "home"),
+        )
+        val net = calculateNetTime(progress, noon, start, end, busy)
+        assertEquals(1.hours, net.busyRemaining)
+    }
+
+    @Test
     fun nextIncludedCalendarsHandlesAllSemantics() {
         val all = listOf("a", "b", "c")
         // Depuis « tous » (vide), décocher b -> {a, c}.
@@ -198,6 +201,97 @@ class CalendarNetTimeTest {
         assertEquals(emptySet(), nextIncludedCalendars(all, setOf("a", "c"), "b", include = true))
         // Décocher depuis un sous-ensemble.
         assertEquals(setOf("a"), nextIncludedCalendars(all, setOf("a", "c"), "c", include = false))
+    }
+
+    @Test
+    fun mergeByCalendarKeepsCalendarsSeparate() {
+        val merged = mergeBusyIntervalsByCalendar(
+            listOf(
+                BusyInterval(t(100), t(300), listOf("A"), calendarId = "work"),
+                BusyInterval(t(200), t(400), listOf("B"), calendarId = "home"), // overlaps in time, other calendar
+                BusyInterval(t(300), t(500), listOf("C"), calendarId = "work"), // touches A -> merges
+            ),
+        )
+        // work: 100..500 merged; home: 200..400 separate.
+        assertEquals(2, merged.size)
+        val work = merged.first { it.calendarId == "work" }
+        val home = merged.first { it.calendarId == "home" }
+        assertEquals(t(100), work.start)
+        assertEquals(t(500), work.end)
+        assertEquals(t(200), home.start)
+        assertEquals(t(400), home.end)
+    }
+
+    @Test
+    fun busyCalendarsAssignStableColorIndexByFirstSeen() {
+        val cals = busyCalendars(
+            listOf(
+                BusyInterval(t(300), t(400), calendarId = "home"),
+                BusyInterval(t(100), t(200), calendarId = "work"), // earliest start -> index 0
+                BusyInterval(t(500), t(700), calendarId = "work"),
+            ),
+        )
+        val work = cals.first { it.calendarId == "work" }
+        val home = cals.first { it.calendarId == "home" }
+        assertEquals(0, work.colorIndex) // earliest start overall
+        assertEquals(1, home.colorIndex)
+        assertEquals(300L, work.total.inWholeMilliseconds) // 100 + 200
+        assertEquals(100L, home.total.inWholeMilliseconds)
+    }
+
+    @Test
+    fun busyBlockArcsProjectWithColorAndName() {
+        // Fenêtre 0..1000. work 250..500 -> quart..moitié, couleur 0, nom mappé.
+        val arcs = busyBlockArcs(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(250), t(500), listOf("Atelier"), calendarId = "work")),
+            mapOf("work" to "Travail"),
+        )
+        assertEquals(1, arcs.size)
+        assertEquals(-90f + 0.25f * 360f, arcs[0].startAngleDegrees)
+        assertEquals(0.25f * 360f, arcs[0].sweepDegrees)
+        assertEquals(0, arcs[0].colorIndex)
+        assertEquals(listOf("Atelier"), arcs[0].titles)
+        assertEquals("Travail", arcs[0].calendarName)
+    }
+
+    @Test
+    fun busyBlockArcsFallBackToBlankNameForUnknownCalendar() {
+        val arcs = busyBlockArcs(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(100), t(200), calendarId = "ghost")),
+            emptyMap(),
+        )
+        assertEquals("", arcs[0].calendarName)
+    }
+
+    @Test
+    fun busyBlockArcsClipToWindow() {
+        // Créneau -200..200 sur fenêtre 0..1000 : rogné à 0..200 -> début au sommet.
+        val arcs = busyBlockArcs(
+            t(0),
+            t(1000),
+            listOf(BusyInterval(t(-200), t(200), listOf("Y"), calendarId = "work")),
+            mapOf("work" to "Travail"),
+        )
+        assertEquals(1, arcs.size)
+        assertEquals(-90f, arcs[0].startAngleDegrees)
+        assertEquals(0.2f * 360f, arcs[0].sweepDegrees)
+    }
+
+    @Test
+    fun busyBlockArcsHandleDegenerateWindow() {
+        assertEquals(
+            emptyList(),
+            busyBlockArcs(
+                t(500),
+                t(500),
+                listOf(BusyInterval(t(400), t(600), calendarId = "work")),
+                mapOf("work" to "Travail"),
+            ),
+        )
     }
 
     @Test

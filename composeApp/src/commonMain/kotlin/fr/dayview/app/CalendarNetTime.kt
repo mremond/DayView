@@ -11,6 +11,7 @@ data class BusyInterval(
     val start: Instant,
     val end: Instant,
     val titles: List<String> = emptyList(),
+    val calendarId: String = "",
 )
 
 fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
@@ -28,6 +29,76 @@ fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
         }
     }
     return merged
+}
+
+/**
+ * Fusionne les créneaux occupés au sein d'un même calendrier uniquement : deux calendriers
+ * qui se chevauchent dans le temps restent distincts (pour le rendu par calendrier), alors
+ * que [mergeBusyIntervals] fusionne tout (union, pour le calcul du temps net).
+ */
+fun mergeBusyIntervalsByCalendar(intervals: List<BusyInterval>): List<BusyInterval> = intervals.groupBy { it.calendarId }.values.flatMap { mergeBusyIntervals(it) }
+
+/** Un calendrier occupé : couleur stable (premier vu) et durée cumulée sur la journée. */
+data class BusyCalendar(val calendarId: String, val colorIndex: Int, val total: Duration)
+
+/**
+ * Index de couleur par calendrier, dans l'ordre de première apparition (créneaux triés par
+ * début), pour rester stables sur la journée — même convention que [detourSources].
+ */
+fun busyCalendars(intervals: List<BusyInterval>): List<BusyCalendar> {
+    val colorByCal = LinkedHashMap<String, Int>()
+    val totalByCal = LinkedHashMap<String, Duration>()
+    for (interval in intervals.filter { it.end > it.start }.sortedBy { it.start }) {
+        val key = interval.calendarId
+        colorByCal.getOrPut(key) { colorByCal.size }
+        totalByCal[key] = (totalByCal[key] ?: Duration.ZERO) + (interval.end - interval.start)
+    }
+    return colorByCal.keys.map { BusyCalendar(it, colorByCal.getValue(it), totalByCal.getValue(it)) }
+}
+
+/** Un créneau agenda projeté en arc coloré fin sur l'anneau. */
+data class BusyBlockArc(
+    val startAngleDegrees: Float,
+    val sweepDegrees: Float,
+    val colorIndex: Int,
+    val titles: List<String>,
+    val calendarName: String,
+)
+
+/**
+ * Arcs colorés par calendrier : fusion intra-calendrier, clip à la fenêtre, couleur stable
+ * de [busyCalendars], nom depuis [calendarNames] (vide si inconnu). Même convention d'angle
+ * que [busyBlockArcs].
+ */
+fun busyBlockArcs(
+    windowStart: Instant,
+    windowEnd: Instant,
+    intervals: List<BusyInterval>,
+    calendarNames: Map<String, String>,
+): List<BusyBlockArc> {
+    val total = windowEnd - windowStart
+    if (total <= Duration.ZERO) return emptyList()
+    val colorByCal = busyCalendars(intervals).associate { it.calendarId to it.colorIndex }
+    val clipped = mergeBusyIntervalsByCalendar(
+        intervals.map {
+            it.copy(
+                start = it.start.coerceIn(windowStart, windowEnd),
+                end = it.end.coerceIn(windowStart, windowEnd),
+            )
+        },
+    )
+    return clipped.mapNotNull {
+        if (it.end <= it.start) return@mapNotNull null
+        val fStart = ((it.start - windowStart) / total).toFloat()
+        val fEnd = ((it.end - windowStart) / total).toFloat()
+        BusyBlockArc(
+            startAngleDegrees = -90f + fStart * 360f,
+            sweepDegrees = (fEnd - fStart) * 360f,
+            colorIndex = colorByCal[it.calendarId] ?: 0,
+            titles = it.titles,
+            calendarName = calendarNames[it.calendarId] ?: "",
+        )
+    }
 }
 
 data class NetTime(
@@ -83,12 +154,6 @@ fun calculateNetTime(
     )
 }
 
-data class BusyArc(
-    val startAngleDegrees: Float,
-    val sweepDegrees: Float,
-    val titles: List<String>,
-)
-
 /** Durée « H h MM » (ou « MM min » sous une heure) pour l'affichage du temps net. */
 fun formatDurationHm(duration: Duration): String {
     val totalMinutes = duration.inWholeMinutes.coerceAtLeast(0)
@@ -126,35 +191,23 @@ fun angleToInstant(angleDegrees: Float, windowStart: Instant, windowEnd: Instant
 }
 
 /** Vrai si l'angle (degrés, convention drawArc) tombe dans le balayage de l'arc, wraparound compris. */
-fun arcContainsAngle(arc: BusyArc, angleDegrees: Float): Boolean {
-    val delta = (((angleDegrees - arc.startAngleDegrees) % 360f) + 360f) % 360f
-    return delta <= arc.sweepDegrees
+fun arcContainsAngle(startAngleDegrees: Float, sweepDegrees: Float, angleDegrees: Float): Boolean {
+    val delta = (((angleDegrees - startAngleDegrees) % 360f) + 360f) % 360f
+    return delta <= sweepDegrees
 }
 
-fun busyArcs(
-    windowStart: Instant,
-    windowEnd: Instant,
-    busy: List<BusyInterval>,
-): List<BusyArc> {
-    val total = windowEnd - windowStart
-    if (total <= Duration.ZERO) return emptyList()
-    val clipped = mergeBusyIntervals(
-        busy.map {
-            it.copy(
-                start = it.start.coerceIn(windowStart, windowEnd),
-                end = it.end.coerceIn(windowStart, windowEnd),
-            )
-        },
-    )
-    return clipped.map {
-        val fStart = ((it.start - windowStart) / total).toFloat()
-        val fEnd = ((it.end - windowStart) / total).toFloat()
-        BusyArc(
-            startAngleDegrees = -90f + fStart * 360f,
-            sweepDegrees = (fEnd - fStart) * 360f,
-            titles = it.titles,
-        )
+/**
+ * Écart angulaire (degrés) entre [angleDegrees] et le balayage de l'arc : 0 à l'intérieur,
+ * sinon la distance à l'extrémité la plus proche (wraparound compris). Sert à donner une marge
+ * de survol aux créneaux très courts, dont l'arc est trop mince pour être visé directement.
+ */
+fun angularDistanceToArc(startAngleDegrees: Float, sweepDegrees: Float, angleDegrees: Float): Float {
+    if (arcContainsAngle(startAngleDegrees, sweepDegrees, angleDegrees)) return 0f
+    fun gap(a: Float, b: Float): Float {
+        val d = (((a - b) % 360f) + 360f) % 360f
+        return minOf(d, 360f - d)
     }
+    return minOf(gap(angleDegrees, startAngleDegrees), gap(angleDegrees, startAngleDegrees + sweepDegrees))
 }
 
 data class FocusArc(
@@ -173,7 +226,7 @@ private fun clipToWindow(
     )
 }.filter { it.end > it.start }
 
-/** Project intense-focus intervals to ring arcs (same convention as [busyArcs]). */
+/** Project intense-focus intervals to ring arcs (same convention as [busyBlockArcs]). */
 fun focusArcs(
     windowStart: Instant,
     windowEnd: Instant,

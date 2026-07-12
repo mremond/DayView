@@ -116,7 +116,7 @@ private val MAX_BODY_DURATION = 60.minutes
 
 /**
  * Project episodes to bodies threaded on the ring: angle at the episode midpoint
- * (same `-90° = window start` convention as [busyArcs]), size fraction 0..1 from the
+ * (same `-90° = window start` convention as [busyBlockArcs]), size fraction 0..1 from the
  * duration clamped to [5 min, 60 min]. Episodes whose midpoint falls outside the
  * window are dropped.
  */
