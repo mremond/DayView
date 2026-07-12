@@ -355,6 +355,8 @@ internal fun DayViewScreen(
             DetourListDialog(
                 episodes = state.detoursToday,
                 now = state.now,
+                windowStart = state.dayWindow.first,
+                windowEnd = state.dayWindow.second,
                 onUpdate = actions.updateDetour,
                 onRemove = actions.removeDetour,
                 onAdd = actions.addDetourEpisode,
