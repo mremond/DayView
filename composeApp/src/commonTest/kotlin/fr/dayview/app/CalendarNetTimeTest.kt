@@ -190,6 +190,21 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun netTimeCountsCrossCalendarOverlapOnce() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone)
+        val (start, end) = dayWindow(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        // Two calendars, same 14:00-15:00 slot -> counted once, not twice.
+        val busy = listOf(
+            BusyInterval(noon + 2.hours, noon + 3.hours, listOf("Pro"), calendarId = "work"),
+            BusyInterval(noon + 2.hours, noon + 3.hours, listOf("Perso"), calendarId = "home"),
+        )
+        val net = calculateNetTime(progress, noon, start, end, busy)
+        assertEquals(1.hours, net.busyRemaining)
+    }
+
+    @Test
     fun nextIncludedCalendarsHandlesAllSemantics() {
         val all = listOf("a", "b", "c")
         // Depuis « tous » (vide), décocher b -> {a, c}.

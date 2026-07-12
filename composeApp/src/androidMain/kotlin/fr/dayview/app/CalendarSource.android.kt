@@ -73,6 +73,7 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
                     Instant.fromEpochMilliseconds(c.getLong(0)),
                     Instant.fromEpochMilliseconds(c.getLong(1)),
                     listOfNotNull(c.getString(2)),
+                    calendarId = calId,
                 )
             }
         }

@@ -11,6 +11,7 @@ data class BusyInterval(
     val start: Instant,
     val end: Instant,
     val titles: List<String> = emptyList(),
+    val calendarId: String = "",
 )
 
 fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
