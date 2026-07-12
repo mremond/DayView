@@ -61,3 +61,13 @@ val syncXCFramework by tasks.registering(Sync::class) {
     from(layout.buildDirectory.dir("XCFrameworks/release/DayViewKit.xcframework"))
     into(rootProject.layout.projectDirectory.dir("macos/Packages/DayViewKit/DayViewKit.xcframework"))
 }
+
+// One-command build+run for the native SwiftUI macOS app: assemble and sync the
+// XCFramework, generate the Xcode project (XcodeGen), build it, and launch the app.
+val runMacNative by tasks.registering(Exec::class) {
+    group = "application"
+    description = "Build and launch the native SwiftUI macOS app (macOS only; needs Xcode + xcodegen)."
+    dependsOn(syncXCFramework)
+    onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
+    commandLine(rootProject.file("scripts/run_macos_native.sh").absolutePath)
+}

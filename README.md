@@ -89,24 +89,16 @@ application; this native app is not yet feature-complete.
 Prerequisites: Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`), in addition to the JDK used by Gradle.
 
+Build and launch it with a single command:
+
 ```bash
-# 1. Assemble the Kotlin/Native XCFramework and copy it into the Swift package
-./gradlew :core:syncXCFramework
-
-# 2. Generate the Xcode project from macos/project.yml
-cd macos && xcodegen generate && cd -
-
-# 3. Build the app
-xcodebuild -project macos/DayView.xcodeproj -scheme DayView \
-  -configuration Debug -derivedDataPath macos/build build
-
-# 4. Launch it
-open macos/build/Build/Products/Debug/DayView.app
+./gradlew :core:runMacNative
 ```
 
-The generated `macos/DayView.xcodeproj` and the synced `.xcframework` are not checked in;
-they are reproduced from `macos/project.yml` and `macos/Packages/DayViewKit/Package.swift`.
-Rerun step 1 whenever the Kotlin `:core` module changes.
+This assembles the Kotlin/Native XCFramework, generates the Xcode project from
+`macos/project.yml`, builds `DayView.app`, and launches it. The generated
+`macos/DayView.xcodeproj` and the synced `.xcframework` are not checked in — they are
+reproduced from `macos/project.yml` and `macos/Packages/DayViewKit/Package.swift` on each run.
 
 ## Icon
 
