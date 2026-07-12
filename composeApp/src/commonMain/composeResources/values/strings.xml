@@ -197,4 +197,19 @@
     <string name="detour_overflow">+%1$s</string>
     <string name="detour_cancel_button">ANNULER</string>
     <string name="detour_confirm_button">AJOUTER</string>
+    <string name="detour_list_title">DÉTOURS DU JOUR</string>
+    <string name="detour_list_empty">Aucun détour déclaré aujourd’hui.</string>
+    <string name="detour_edit_row_label">Modifier le détour</string>
+    <string name="detour_close_button">FERMER</string>
+    <string name="detour_list_add_button">AJOUTER UN DÉTOUR</string>
+    <string name="detour_start_section">DÉBUT</string>
+    <string name="detour_duration_label">DURÉE</string>
+    <string name="detour_start_decrease">Avancer le début de 5 minutes</string>
+    <string name="detour_start_increase">Retarder le début de 5 minutes</string>
+    <string name="detour_start_value">Début : %1$s</string>
+    <string name="detour_duration_decrease">Diminuer la durée de 5 minutes</string>
+    <string name="detour_duration_increase">Augmenter la durée de 5 minutes</string>
+    <string name="detour_duration_value">Durée : %1$s minutes</string>
+    <string name="detour_delete_button">SUPPRIMER</string>
+    <string name="detour_save_button">ENREGISTRER</string>
 </resources>

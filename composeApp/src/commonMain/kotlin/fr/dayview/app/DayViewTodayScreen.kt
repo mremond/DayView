@@ -319,6 +319,16 @@ internal fun DayViewScreen(
                 onDismiss = { showDetourCapture = false },
             )
         }
+        if (showDetourList) {
+            DetourListDialog(
+                episodes = state.detoursToday,
+                now = state.now,
+                onUpdate = actions.updateDetour,
+                onRemove = actions.removeDetour,
+                onAdd = actions.addDetourEpisode,
+                onDismiss = { showDetourList = false },
+            )
+        }
     }
 }
 
