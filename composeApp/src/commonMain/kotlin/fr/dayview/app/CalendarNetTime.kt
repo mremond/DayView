@@ -20,15 +20,27 @@ data class BusyInterval(
 
 private const val TITLE_SEPARATOR = "|"
 
-/**
- * Each title is Base64-encoded individually, then joined with [TITLE_SEPARATOR] — a
- * character Base64 never produces — so titles containing commas, pipes or newlines
- * survive round-tripping.
- */
-private fun encodeTitles(titles: List<String>): String = titles.joinToString(TITLE_SEPARATOR) { Base64.encode(it.encodeToByteArray()) }
+/** Fixed non-empty marker prefixed to each Base64 token so an empty title still yields a non-empty token. */
+private const val TITLE_TOKEN_MARKER = "t"
 
-/** Inverse of [encodeTitles]; blank tokens (including the whole-string empty case) are dropped. */
-private fun decodeTitles(encoded: String): List<String> = encoded.split(TITLE_SEPARATOR).filter { it.isNotEmpty() }.map { Base64.decode(it).decodeToString() }
+/**
+ * Each title is Base64-encoded individually and prefixed with [TITLE_TOKEN_MARKER], then
+ * joined with [TITLE_SEPARATOR] — a character Base64 never produces — so titles containing
+ * commas, pipes or newlines survive round-tripping. The marker keeps a token for an
+ * empty-string title non-empty, so [decodeTitles] can tell `listOf("")` apart from
+ * `emptyList()` (whose encoding is the empty string with no tokens at all).
+ */
+private fun encodeTitles(titles: List<String>): String = titles.joinToString(TITLE_SEPARATOR) { TITLE_TOKEN_MARKER + Base64.encode(it.encodeToByteArray()) }
+
+/**
+ * Inverse of [encodeTitles]. An empty [encoded] string means `emptyList()`; otherwise every
+ * `|`-separated token (even one decoding to an empty title) is kept.
+ */
+private fun decodeTitles(encoded: String): List<String> = if (encoded.isEmpty()) {
+    emptyList()
+} else {
+    encoded.split(TITLE_SEPARATOR).map { Base64.decode(it.removePrefix(TITLE_TOKEN_MARKER)).decodeToString() }
+}
 
 /** One busy interval per line: `startMillis,endMillis,base64(calendarId),<encoded titles>`. */
 fun encodeBusyIntervals(intervals: List<BusyInterval>): String = intervals.joinToString("\n") {

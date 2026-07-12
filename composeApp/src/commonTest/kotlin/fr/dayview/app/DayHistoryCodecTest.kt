@@ -18,6 +18,12 @@ class DayHistoryCodecTest {
                 listOf("Standup, daily", "1:1 with Alex"),
                 "cal-a",
             ),
+            BusyInterval(
+                Instant.fromEpochMilliseconds(9_000L),
+                Instant.fromEpochMilliseconds(9_500L),
+                listOf("", "Retro|1:1|pipe"),
+                "cal-b",
+            ),
         ),
         calendarNames = mapOf("cal-a" to "Work = life"),
         netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("cal-a", "cal-b")),
@@ -57,5 +63,38 @@ class DayHistoryCodecTest {
     fun missingRequiredKeyDecodesToNull() {
         // Header present but no dayKey line.
         assertNull(DayHistoryCodec.decode("dayhistory v1\nstart=480"))
+    }
+
+    private fun busyInterval(titles: List<String>) = BusyInterval(
+        Instant.fromEpochMilliseconds(1_000L),
+        Instant.fromEpochMilliseconds(2_000L),
+        titles,
+        "cal-a",
+    )
+
+    @Test
+    fun emptyTitleListRoundTrips() {
+        val interval = busyInterval(emptyList())
+        val decoded = decodeBusyIntervals(encodeBusyIntervals(listOf(interval)))
+        assertEquals(listOf(interval), decoded)
+    }
+
+    @Test
+    fun singleEmptyStringTitleRoundTripsDistinctlyFromEmptyList() {
+        val interval = busyInterval(listOf(""))
+        val decoded = decodeBusyIntervals(encodeBusyIntervals(listOf(interval)))
+        assertEquals(listOf(interval), decoded)
+        assertEquals(listOf(""), decoded.single().titles)
+    }
+
+    @Test
+    fun titlesWithDelimitersAndEmptyEntriesRoundTrip() {
+        val interval = busyInterval(listOf("", "B"))
+        val decoded = decodeBusyIntervals(encodeBusyIntervals(listOf(interval)))
+        assertEquals(listOf(interval), decoded)
+
+        val delimiterHeavy = busyInterval(listOf("Standup, daily", "1:1|pipe"))
+        val decodedDelimiterHeavy = decodeBusyIntervals(encodeBusyIntervals(listOf(delimiterHeavy)))
+        assertEquals(listOf(delimiterHeavy), decodedDelimiterHeavy)
     }
 }
