@@ -859,7 +859,7 @@ internal fun CountdownCircle(
                         val angleRadians = Math.toRadians(body.angleDegrees.toDouble())
                         // Offset each body off the orbit by its weight: light detours drift just
                         // outside the ring, heavy ones sink inside, mid-size ones ride the line.
-                        val bodyRadius = arcSize.width / 2f + strokeWidth * (.45f - .9f * body.sizeFraction)
+                        val bodyRadius = arcSize.width / 2f + strokeWidth * (.6f - 1.2f * body.sizeFraction)
                         val center = Offset(size.width / 2f, size.height / 2f)
                         val bodyCenter = center + Offset(
                             x = (kotlin.math.cos(angleRadians) * bodyRadius).toFloat(),
