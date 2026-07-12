@@ -1,9 +1,13 @@
+@file:OptIn(ExperimentalEncodingApi::class)
+
 package fr.dayview.app
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -13,6 +17,40 @@ data class BusyInterval(
     val titles: List<String> = emptyList(),
     val calendarId: String = "",
 )
+
+private const val TITLE_SEPARATOR = "|"
+
+/**
+ * Each title is Base64-encoded individually, then joined with [TITLE_SEPARATOR] — a
+ * character Base64 never produces — so titles containing commas, pipes or newlines
+ * survive round-tripping.
+ */
+private fun encodeTitles(titles: List<String>): String = titles.joinToString(TITLE_SEPARATOR) { Base64.encode(it.encodeToByteArray()) }
+
+/** Inverse of [encodeTitles]; blank tokens (including the whole-string empty case) are dropped. */
+private fun decodeTitles(encoded: String): List<String> = encoded.split(TITLE_SEPARATOR).filter { it.isNotEmpty() }.map { Base64.decode(it).decodeToString() }
+
+/** One busy interval per line: `startMillis,endMillis,base64(calendarId),<encoded titles>`. */
+fun encodeBusyIntervals(intervals: List<BusyInterval>): String = intervals.joinToString("\n") {
+    val calendarId = Base64.encode(it.calendarId.encodeToByteArray())
+    val titles = encodeTitles(it.titles)
+    "${it.start.toEpochMilliseconds()},${it.end.toEpochMilliseconds()},$calendarId,$titles"
+}
+
+/**
+ * Inverse of [encodeBusyIntervals]. The titles field is Base64-token-joined so it never
+ * contains a comma; blank, malformed or size-mismatched lines are skipped.
+ */
+fun decodeBusyIntervals(encoded: String): List<BusyInterval> = encoded.split("\n").mapNotNull { line ->
+    if (line.isEmpty()) return@mapNotNull null
+    val parts = line.split(",", limit = 4)
+    val start = parts.getOrNull(0)?.toLongOrNull()
+    val end = parts.getOrNull(1)?.toLongOrNull()
+    if (parts.size != 4 || start == null || end == null) return@mapNotNull null
+    val calendarId = Base64.decode(parts[2]).decodeToString()
+    val titles = decodeTitles(parts[3])
+    BusyInterval(Instant.fromEpochMilliseconds(start), Instant.fromEpochMilliseconds(end), titles, calendarId)
+}
 
 fun mergeBusyIntervals(intervals: List<BusyInterval>): List<BusyInterval> {
     val sorted = intervals.filter { it.end > it.start }.sortedBy { it.start }
