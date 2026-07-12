@@ -24,12 +24,22 @@ kotlin {
             dependencies {
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.androidx.datastore.preferences.core)
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+        // okio-fakefilesystem is JVM-only here: adding it to the native test binary
+        // triggers a Kotlin/Native IR linker crash (duplicate kotlinx.datetime.Clock
+        // typealias binding). The DataStore round-trip test runs on JVM; the store's
+        // native support is proven by compileKotlinMacosArm64.
+        val jvmTest by getting {
+            dependencies {
+                implementation(libs.okio.fakefilesystem)
             }
         }
     }
