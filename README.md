@@ -77,6 +77,37 @@ copy in `/Applications`:
 ./gradlew :composeApp:installMac
 ```
 
+### Native macOS app (SwiftUI, experimental)
+
+A native SwiftUI version of DayView is in progress. It keeps the business logic in Kotlin —
+exposed to Swift as a Kotlin/Native `DayViewKit` XCFramework — and reimplements only the UI
+natively. It currently draws the live countdown ring and supports editing the Focus
+intention and duration and the global goal, with preferences persisted under
+`~/Library/Application Support/DayView/`. The Compose/JVM `.dmg` above remains the complete
+application; this native app is not yet feature-complete.
+
+Prerequisites: Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`), in addition to the JDK used by Gradle.
+
+```bash
+# 1. Assemble the Kotlin/Native XCFramework and copy it into the Swift package
+./gradlew :core:syncXCFramework
+
+# 2. Generate the Xcode project from macos/project.yml
+cd macos && xcodegen generate && cd -
+
+# 3. Build the app
+xcodebuild -project macos/DayView.xcodeproj -scheme DayView \
+  -configuration Debug -derivedDataPath macos/build build
+
+# 4. Launch it
+open macos/build/Build/Products/Debug/DayView.app
+```
+
+The generated `macos/DayView.xcodeproj` and the synced `.xcframework` are not checked in;
+they are reproduced from `macos/project.yml` and `macos/Packages/DayViewKit/Package.swift`.
+Rerun step 1 whenever the Kotlin `:core` module changes.
+
 ## Icon
 
 The master SVG, intended as the reference for the Android and macOS variants, can be regenerated without external dependencies:
