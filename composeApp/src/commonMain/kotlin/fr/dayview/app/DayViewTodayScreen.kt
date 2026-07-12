@@ -1732,7 +1732,7 @@ private fun GoalDateTimeDialog(
     val timeState = rememberTimePickerState(
         initialHour = goalPickerHour(initial),
         initialMinute = goalPickerMinute(initial),
-        is24Hour = true,
+        is24Hour = LocalUses24HourClock.current,
     )
     var error by remember { mutableStateOf<String?>(null) }
     val chooseDateError = stringResource(Res.string.goal_choose_date)
