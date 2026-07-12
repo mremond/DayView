@@ -46,7 +46,7 @@ fun DayViewApp(
 ) {
     val initialThemeSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
     val themeSnapshot by preferences.snapshots.collectAsState(initial = initialThemeSnapshot)
-    DayViewTheme(themeMode = themeSnapshot.themeMode) { colors ->
+    DayViewTheme(themeMode = themeSnapshot.themeMode, uses24Hour = rememberUses24HourClock()) { colors ->
         val baseDensity = LocalDensity.current
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             // Automatic whole-UI zoom derived from the available space, so a large or

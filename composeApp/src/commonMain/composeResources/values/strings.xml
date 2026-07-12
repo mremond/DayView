@@ -194,8 +194,6 @@
     <string name="desktop_hide_dayview">Hide DayView</string>
     <string name="desktop_open_dayview">Open DayView</string>
     <string name="desktop_quit_dayview">Quit DayView</string>
-    <string name="desktop_hour">Hour</string>
-    <string name="desktop_minute">Minute</string>
     <string name="desktop_choose_time">Choose the time</string>
     <string name="desktop_nudge_title">Back to the essential</string>
 

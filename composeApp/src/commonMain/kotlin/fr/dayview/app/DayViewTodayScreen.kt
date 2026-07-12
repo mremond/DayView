@@ -690,6 +690,7 @@ internal fun CountdownCircle(
     onOpenDetourList: (() -> Unit)? = null,
 ) {
     val colors = LocalDayViewColors.current
+    val uses24Hour = LocalUses24HourClock.current
     val animatedRemaining by animateFloatAsState(progress.remainingRatio, tween(650), label = "remaining")
     val accent by animateColorAsState(
         when {
@@ -976,6 +977,7 @@ internal fun CountdownCircle(
                     val arc = hovered.arc
                     val startLabel = formatClockHm(
                         angleToInstant(arc.startAngleDegrees, windowStart, windowEnd),
+                        use24Hour = uses24Hour,
                     )
                     val endLabel = formatClockHm(
                         angleToInstant(
@@ -983,6 +985,7 @@ internal fun CountdownCircle(
                             windowStart,
                             windowEnd,
                         ),
+                        use24Hour = uses24Hour,
                     )
                     Box(
                         modifier = Modifier
@@ -1034,8 +1037,8 @@ internal fun CountdownCircle(
                             Text(
                                 stringResource(
                                     Res.string.detour_time_range,
-                                    formatClockHm(body.start),
-                                    formatClockHm(body.end),
+                                    formatClockHm(body.start, use24Hour = uses24Hour),
+                                    formatClockHm(body.end, use24Hour = uses24Hour),
                                     formatDurationHm(body.end - body.start),
                                 ),
                                 color = colors.muted,
@@ -1748,7 +1751,7 @@ private fun GoalDateTimeDialog(
     val timeState = rememberTimePickerState(
         initialHour = goalPickerHour(initial),
         initialMinute = goalPickerMinute(initial),
-        is24Hour = true,
+        is24Hour = LocalUses24HourClock.current,
     )
     var error by remember { mutableStateOf<String?>(null) }
     val chooseDateError = stringResource(Res.string.goal_choose_date)

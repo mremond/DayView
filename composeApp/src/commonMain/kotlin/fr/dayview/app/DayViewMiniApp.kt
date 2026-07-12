@@ -65,7 +65,7 @@ fun DayViewMiniApp(
     onStopFocus: () -> Unit,
     onOpenMainWindow: () -> Unit,
 ) {
-    DayViewTheme { colors ->
+    DayViewTheme(uses24Hour = rememberUses24HourClock()) { colors ->
         var showIntentionModal by remember { mutableStateOf(false) }
         var draftIntention by remember(focusIntention) { mutableStateOf(focusIntention) }
 

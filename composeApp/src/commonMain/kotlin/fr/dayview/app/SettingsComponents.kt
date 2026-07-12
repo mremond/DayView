@@ -154,6 +154,7 @@ internal fun TimePreferenceRow(
     onClick: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
+    val uses24Hour = LocalUses24HourClock.current
     Row(
         modifier = Modifier.fillMaxWidth()
             .clickable(
@@ -168,7 +169,7 @@ internal fun TimePreferenceRow(
             Text(label, color = colors.muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
             Spacer(Modifier.height(3.dp))
             Text(
-                "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}",
+                formatWallClock(hour, minute, uses24Hour),
                 color = colors.cloud,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Medium,
