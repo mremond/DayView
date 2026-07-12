@@ -54,6 +54,13 @@ class SyncMergeTest {
     }
 
     @Test
+    fun mergeIsCommutativeForMultipleItems() {
+        val a = sampleDocument().copy(detours = DayScoped(19000, listOf(SyncItem("k1", DetourDto(10, 20, "coffee"), false, Stamp(100, "a")))))
+        val b = sampleDocument().copy(detours = DayScoped(19000, listOf(SyncItem("k2", DetourDto(30, 40, "call"), false, Stamp(150, "b")))))
+        assertEquals(a.merge(b), b.merge(a))
+    }
+
+    @Test
     fun mergeIsIdempotent() {
         val a = sampleDocument(deviceId = "a", at = 100)
         val b = sampleDocument(deviceId = "b", at = 200)

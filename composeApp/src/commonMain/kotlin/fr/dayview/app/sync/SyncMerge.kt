@@ -29,16 +29,22 @@ private fun <T> mergeDayScoped(a: DayScoped<T>, b: DayScoped<T>): DayScoped<T> =
 
 private fun <T> mergeItems(a: List<SyncItem<T>>, b: List<SyncItem<T>>): List<SyncItem<T>> = (a + b).groupBy { it.id }
     .map { (_, group) -> group.reduce { x, y -> if (y.stamp.wins(x.stamp)) y else x } }
+    .sortedBy { it.id }
 
 private fun mergeClean(a: Versioned<CleanDto>, b: Versioned<CleanDto>): Versioned<CleanDto> {
-    val streakFrom = if (a.value.streakLastDayKey >= b.value.streakLastDayKey) a.value else b.value
+    val streakDays = when {
+        a.value.streakLastDayKey > b.value.streakLastDayKey -> a.value.streakDays
+        b.value.streakLastDayKey > a.value.streakLastDayKey -> b.value.streakDays
+        else -> maxOf(a.value.streakDays, b.value.streakDays)
+    }
+    val streakLastDayKey = maxOf(a.value.streakLastDayKey, b.value.streakLastDayKey)
     val cleanToday = when {
         a.value.dayKey > b.value.dayKey -> a.value.cleanToday
         b.value.dayKey > a.value.dayKey -> b.value.cleanToday
         else -> maxOf(a.value.cleanToday, b.value.cleanToday)
     }
     val dayKey = maxOf(a.value.dayKey, b.value.dayKey)
-    val merged = CleanDto(dayKey, cleanToday, streakFrom.streakDays, streakFrom.streakLastDayKey)
+    val merged = CleanDto(dayKey, cleanToday, streakDays, streakLastDayKey)
     val stamp = if (b.stamp.wins(a.stamp)) b.stamp else a.stamp
     return Versioned(merged, stamp)
 }
