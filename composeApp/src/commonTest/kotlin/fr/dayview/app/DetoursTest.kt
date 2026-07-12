@@ -62,4 +62,96 @@ class DetoursTest {
         assertEquals(dayKeyOf(morning, zone), dayKeyOf(evening, zone))
         assertTrue(dayKeyOf(nextDay, zone) > dayKeyOf(evening, zone))
     }
+
+    @Test
+    fun sourcesAggregateByNormalizedMotifHeaviestFirst() {
+        val episodes = listOf(
+            DetourEpisode(t(0L), t(1_200_000L), "Slack"), // 20 min
+            DetourEpisode(t(2_000_000L), t(3_200_000L), "Appels"), // 20 min
+            DetourEpisode(t(4_000_000L), t(4_900_000L), "slack"), // 15 min
+        )
+        val sources = detourSources(episodes)
+        assertEquals(listOf("Slack", "Appels"), sources.map { it.label })
+        assertEquals(listOf(0, 1), sources.map { it.colorIndex })
+        assertEquals(35, sources.first().total.inWholeMinutes)
+    }
+
+    @Test
+    fun sourceColorFollowsEarliestEpisodeAfterRetroactiveInsert() {
+        val base = listOf(DetourEpisode(t(5_000_000L), t(6_000_000L), "Slack"))
+        val withEarlier = base + DetourEpisode(t(0L), t(1_000_000L), "Appels")
+        // "Appels" now starts the day, so it takes color 0 even though captured later.
+        val sources = detourSources(withEarlier)
+        assertEquals(0, sources.first { it.label == "Appels" }.colorIndex)
+        assertEquals(1, sources.first { it.label == "Slack" }.colorIndex)
+    }
+
+    @Test
+    fun detoursTotalSumsDurations() {
+        val episodes = listOf(
+            DetourEpisode(t(0L), t(600_000L), "a"), // 10 min
+            DetourEpisode(t(0L), t(1_200_000L), "b"), // 20 min
+        )
+        assertEquals(30, detoursTotal(episodes).inWholeMinutes)
+    }
+
+    @Test
+    fun bodiesSitAtTheEpisodeMidpointAngle() {
+        val start = t(0L)
+        val end = t(36_000_000L) // 10 h window
+        // 0 → 1 h episode: midpoint 30 min = 5 % of the window → -90° + 18°.
+        val body = detourBodies(start, end, listOf(DetourEpisode(t(0L), t(3_600_000L), "Slack"))).single()
+        assertEquals(-72f, body.angleDegrees, absoluteTolerance = .01f)
+    }
+
+    @Test
+    fun bodySizeFractionClampsBetween5And60Minutes() {
+        val start = t(0L)
+        val end = t(36_000_000L)
+        fun sizeOf(minutes: Long): Float = detourBodies(
+            start,
+            end,
+            listOf(DetourEpisode(t(7_200_000L), t(7_200_000L + minutes * 60_000L), "x")),
+        ).single().sizeFraction
+        assertEquals(0f, sizeOf(5))
+        assertEquals(1f, sizeOf(60))
+        assertEquals(1f, sizeOf(90))
+        assertEquals(.4909f, sizeOf(32), absoluteTolerance = .01f) // (32 − 5) / 55
+    }
+
+    @Test
+    fun bodiesOutsideTheWindowAreDropped() {
+        val start = t(10_000_000L)
+        val end = t(20_000_000L)
+        val before = DetourEpisode(t(0L), t(1_000_000L), "early")
+        assertEquals(emptyList(), detourBodies(start, end, listOf(before)))
+    }
+
+    @Test
+    fun hitTestFindsTheBodyUnderThePointer() {
+        val body = DetourBody(
+            angleDegrees = -90f,
+            sizeFraction = 1f,
+            colorIndex = 0,
+            motif = "Slack",
+            start = t(0L),
+            end = t(1L),
+        )
+        // Top of a 400×400 dial, on the ring radius.
+        assertEquals(body, hitTestDetourBody(200f, 25f, 400, 400, listOf(body)))
+        // Center of the dial: not on the ring.
+        assertEquals(null, hitTestDetourBody(200f, 200f, 400, 400, listOf(body)))
+        // Bottom of the dial: on the ring but 180° away.
+        assertEquals(null, hitTestDetourBody(200f, 378f, 400, 400, listOf(body)))
+    }
+
+    @Test
+    fun detourEpisodeAtBuildsOnTheSameLocalDay() {
+        val zone = TimeZone.of("Europe/Paris")
+        val reference = Instant.parse("2026-07-12T10:00:00Z")
+        val episode = detourEpisodeAt(reference, 9 * 60 + 30, 45, " appel ", zone)
+        assertEquals("appel", episode.motif)
+        assertEquals(45, episode.duration.inWholeMinutes)
+        assertEquals("09:30", formatClockHm(episode.start, zone))
+    }
 }
