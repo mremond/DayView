@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,6 +25,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.settings_font_size
+import fr.dayview.app.generated.resources.settings_font_size_description
+import fr.dayview.app.generated.resources.settings_font_size_value
 import fr.dayview.app.generated.resources.settings_launch_at_login
 import fr.dayview.app.generated.resources.settings_launch_at_login_description
 import fr.dayview.app.generated.resources.settings_monochrome_icon
@@ -36,6 +40,7 @@ import fr.dayview.app.generated.resources.settings_theme_label
 import fr.dayview.app.generated.resources.settings_theme_light
 import fr.dayview.app.generated.resources.settings_theme_system
 import org.jetbrains.compose.resources.stringResource
+import kotlin.math.roundToInt
 
 @Composable
 internal fun DisplaySettingsScreen(
@@ -47,6 +52,11 @@ internal fun DisplaySettingsScreen(
         ThemeModeSelector(
             selected = state.themeMode,
             onSelect = actions.changeThemeMode,
+        )
+        Spacer(Modifier.height(12.dp))
+        FontSizeSelector(
+            fontScale = state.fontScale,
+            onFontScaleChange = actions.changeFontScale,
         )
         Spacer(Modifier.height(12.dp))
         SettingsToggleRow(
@@ -161,6 +171,47 @@ private fun ThemeModeSegment(
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = .6.sp,
+        )
+    }
+}
+
+@Composable
+private fun FontSizeSelector(
+    fontScale: Float,
+    onFontScaleChange: (Float) -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    SettingsPanelCard(contentPadding = PaddingValues(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(Res.string.settings_font_size),
+                color = colors.cloud,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.1.sp,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                stringResource(Res.string.settings_font_size_value, (fontScale * 100).roundToInt()),
+                color = colors.mint,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(Res.string.settings_font_size_description),
+            color = colors.muted,
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+        Slider(
+            value = fontScale,
+            onValueChange = onFontScaleChange,
+            valueRange = 1.0f..1.5f,
+            steps = 9,
+            modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SettingsFontScale),
         )
     }
 }

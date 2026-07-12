@@ -115,6 +115,9 @@
     <string name="settings_theme_system">Système</string>
     <string name="settings_theme_light">Clair</string>
     <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_font_size">TAILLE DU TEXTE</string>
+    <string name="settings_font_size_description">Agrandissez tout le texte pour une lecture plus confortable.</string>
+    <string name="settings_font_size_value">%1$d%</string>
     <string name="settings_monochrome_icon">ICÔNE DE BARRE DE MENU SANS COULEUR</string>
     <string name="settings_monochrome_icon_description">Utilise une icône monochrome plus discrète dans la barre de menu.</string>
     <string name="settings_launch_at_login">OUVRIR À LA CONNEXION</string>

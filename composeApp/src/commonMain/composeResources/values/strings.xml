@@ -116,6 +116,9 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_font_size">TEXT SIZE</string>
+    <string name="settings_font_size_description">Make all text larger for easier reading.</string>
+    <string name="settings_font_size_value">%1$d%</string>
     <string name="settings_monochrome_icon">MONOCHROME MENU BAR ICON</string>
     <string name="settings_monochrome_icon_description">Uses a more discreet monochrome icon in the menu bar.</string>
     <string name="settings_launch_at_login">OPEN AT LOGIN</string>

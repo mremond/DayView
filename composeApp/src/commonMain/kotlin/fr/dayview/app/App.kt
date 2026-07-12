@@ -198,6 +198,7 @@ fun DayViewApp(
                             requestCalendarPermission = onRequestCalendarAccess,
                             changeOnGoalApps = { controller.setOnGoalApps(it) },
                             changeThemeMode = { controller.setThemeMode(it) },
+                            changeFontScale = { controller.setFontScale(it) },
                             openCategory = { controller.openSettingsCategory(it) },
                             closeCategory = { controller.closeSettingsCategory() },
                             back = { controller.openToday() },
