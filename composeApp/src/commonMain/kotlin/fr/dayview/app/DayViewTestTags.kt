@@ -11,6 +11,7 @@ package fr.dayview.app
 internal object DayViewTestTags {
     const val Countdown = "dayViewCountdown"
     const val CleanSessions = "cleanSessions"
+    const val FocusRecap = "focusRecap"
     const val MiniWindow = "miniWindowButton"
     const val OpenMainWindow = "openMainWindowButton"
     const val FocusStart = "focusStart"

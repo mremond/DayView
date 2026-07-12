@@ -969,7 +969,7 @@ internal fun CountdownCircle(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
-                            color = if (progress.isFinished) colors.red else colors.muted,
+                            color = if (progress.isFinished) colors.mint else colors.muted,
                             fontSize = (11 * counterScale).sp,
                             lineHeight = (15 * counterScale).sp,
                             fontWeight = FontWeight.Bold,
@@ -1027,6 +1027,17 @@ internal fun CountdownCircle(
                                     letterSpacing = .5.sp,
                                 )
                             }
+                        } else if (focusedToday > Duration.ZERO) {
+                            Spacer(Modifier.height(8.dp * counterScale))
+                            Text(
+                                stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
+                                color = colors.mint,
+                                fontSize = (13 * counterScale).sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = (.5f * counterScale).sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.testTag(DayViewTestTags.FocusRecap),
+                            )
                         }
                         if (cleanSessionsToday > 0 || streakDays > 0) {
                             Spacer(Modifier.height(6.dp))

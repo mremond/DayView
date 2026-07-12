@@ -32,6 +32,22 @@ internal fun midWindowNow(): Instant {
     ).toInstant(tz)
 }
 
+/**
+ * A "now" past the default 08:00–18:00 day window (19:00 local), so
+ * [calculateDayProgress] reports the day as finished regardless of timezone.
+ */
+internal fun afterWindowNow(): Instant {
+    val tz = TimeZone.currentSystemDefault()
+    val localNow = Clock.System.now().toLocalDateTime(tz)
+    return LocalDateTime(
+        year = localNow.year,
+        month = localNow.month,
+        day = localNow.day,
+        hour = 19,
+        minute = 0,
+    ).toInstant(tz)
+}
+
 /** Builds a controller from a seeded snapshot + fixed clock — the production path. */
 internal fun seededController(
     snapshot: DayPreferencesSnapshot,
