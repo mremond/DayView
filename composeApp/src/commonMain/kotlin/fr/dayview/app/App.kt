@@ -255,6 +255,7 @@ fun DayViewApp(
                                 addDetourEpisode = { controller.addDetourEpisode(it) },
                                 forgetDetourMotif = { controller.forgetRecentDetourMotif(it) },
                                 addPlannedObligation = { controller.addPlannedObligation(it) },
+                                removePlannedObligation = { controller.removePlannedObligation(it) },
                                 completePlannedObligation = controller::completePlannedObligation,
                             ),
                             reminders = FocusReminderUiState(

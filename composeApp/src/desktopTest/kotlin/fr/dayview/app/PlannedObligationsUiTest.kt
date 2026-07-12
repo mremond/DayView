@@ -12,11 +12,15 @@ class PlannedObligationsUiTest {
     @Test
     fun addFieldHiddenAtTheCap() = runComposeUiTest {
         setContent {
-            PlannedObligationsSection(
-                obligations = listOf("a", "b", "c"),
-                onAdd = {},
-                onComplete = {},
-            )
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("a", "b", "c"),
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = {},
+                    onDismiss = {},
+                )
+            }
         }
         onNodeWithTag(DayViewTestTags.PlannedObligationInput).assertDoesNotExist()
     }
@@ -25,13 +29,47 @@ class PlannedObligationsUiTest {
     fun doneReportsTheRowMotif() = runComposeUiTest {
         var completed: String? = null
         setContent {
-            PlannedObligationsSection(
-                obligations = listOf("Appel client"),
-                onAdd = {},
-                onComplete = { completed = it },
-            )
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("Appel client"),
+                    onAdd = {},
+                    onComplete = { completed = it },
+                    onRemove = {},
+                    onDismiss = {},
+                )
+            }
         }
         onNodeWithTag(DayViewTestTags.PlannedObligationDone).performClick()
         assertEquals("Appel client", completed)
+    }
+
+    @Test
+    fun removeReportsTheRowMotif() = runComposeUiTest {
+        var removed: String? = null
+        setContent {
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("Appel client"),
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = { removed = it },
+                    onDismiss = {},
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationRemove).performClick()
+        assertEquals("Appel client", removed)
+    }
+
+    @Test
+    fun chipOpenFires() = runComposeUiTest {
+        var opened = false
+        setContent {
+            DayViewTheme {
+                PlannedObligationsChip(count = 2, cap = 3, onOpen = { opened = true })
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationsChip).performClick()
+        assertEquals(true, opened)
     }
 }
