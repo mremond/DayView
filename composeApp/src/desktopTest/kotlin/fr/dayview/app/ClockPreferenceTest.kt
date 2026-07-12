@@ -14,4 +14,9 @@ class ClockPreferenceTest {
     fun france_locale_is_24_hour() {
         assertEquals(true, jvmUses24HourClock(Locale.FRANCE))
     }
+
+    @Test
+    fun canada_french_locale_with_quoted_literal_is_24_hour() {
+        assertEquals(true, jvmUses24HourClock(Locale.CANADA_FRENCH))
+    }
 }
