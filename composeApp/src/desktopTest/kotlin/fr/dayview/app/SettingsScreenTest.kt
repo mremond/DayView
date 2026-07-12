@@ -71,6 +71,44 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun displayShowsAppearanceSelector() = runComposeUiTest {
+        setContent {
+            val controller = remember { seededController(DayPreferencesSnapshot(themeMode = ThemeMode.DARK)) }
+            DayViewTheme {
+                SettingsScreen(
+                    state = controller.state,
+                    platformState = platform,
+                    actions = noopSettingsActions(openCategory = { controller.openSettingsCategory(it) }),
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.settingsCategoryRow(SettingsCategory.DISPLAY)).performClick()
+        onNodeWithTag(DayViewTestTags.SettingsThemeMode).assertExists()
+        onNodeWithTag(DayViewTestTags.SettingsThemeDark).assertExists()
+    }
+
+    @Test
+    fun tappingLightSegmentInvokesCallback() = runComposeUiTest {
+        var recorded: ThemeMode? = null
+        setContent {
+            val controller = remember { seededController(DayPreferencesSnapshot(themeMode = ThemeMode.SYSTEM)) }
+            DayViewTheme {
+                SettingsScreen(
+                    state = controller.state,
+                    platformState = platform,
+                    actions = noopSettingsActions(
+                        changeThemeMode = { recorded = it },
+                        openCategory = { controller.openSettingsCategory(it) },
+                    ),
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.settingsCategoryRow(SettingsCategory.DISPLAY)).performClick()
+        onNodeWithTag(DayViewTestTags.SettingsThemeLight).performClick()
+        assertEquals(ThemeMode.LIGHT, recorded)
+    }
+
+    @Test
     fun backLinkFromListInvokesCallback() = runComposeUiTest {
         var backCalled = false
         setContent {

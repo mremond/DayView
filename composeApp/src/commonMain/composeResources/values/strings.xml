@@ -111,6 +111,11 @@
     <string name="settings_section_display">DISPLAY</string>
     <string name="settings_show_seconds">SHOW SECONDS</string>
     <string name="settings_show_seconds_description">Turn them off for a calmer display and fewer refreshes.</string>
+    <string name="settings_theme_label">APPEARANCE</string>
+    <string name="settings_theme_description">Match your system, or lock the app to light or dark.</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
     <string name="settings_monochrome_icon">MONOCHROME MENU BAR ICON</string>
     <string name="settings_monochrome_icon_description">Uses a more discreet monochrome icon in the menu bar.</string>
     <string name="settings_launch_at_login">OPEN AT LOGIN</string>
