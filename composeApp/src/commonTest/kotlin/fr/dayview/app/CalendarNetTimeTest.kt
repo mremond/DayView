@@ -215,4 +215,12 @@ class CalendarNetTimeTest {
         assertEquals("1:05 PM", formatWallClock(13, 5, use24Hour = false))
         assertEquals("11:59 PM", formatWallClock(23, 59, use24Hour = false))
     }
+
+    @Test
+    fun formatClockHm_respects_12h_flag() {
+        val zone = TimeZone.UTC
+        val instant = LocalDateTime(2026, 1, 1, 13, 0).toInstant(zone)
+        assertEquals("13:00", formatClockHm(instant, zone))
+        assertEquals("1:00 PM", formatClockHm(instant, zone, use24Hour = false))
+    }
 }

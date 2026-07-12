@@ -226,8 +226,9 @@ private fun categorySummary(
 ): String = when (category) {
     SettingsCategory.DAY -> {
         val p = state.dayProgress
-        val start = "${p.startHour.toString().padStart(2, '0')}:${p.startMinute.toString().padStart(2, '0')}"
-        val end = "${p.endHour.toString().padStart(2, '0')}:${p.endMinute.toString().padStart(2, '0')}"
+        val uses24Hour = LocalUses24HourClock.current
+        val start = formatWallClock(p.startHour, p.startMinute, uses24Hour)
+        val end = formatWallClock(p.endHour, p.endMinute, uses24Hour)
         stringResource(Res.string.settings_summary_day, start, end)
     }
     SettingsCategory.DISPLAY ->

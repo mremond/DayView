@@ -110,9 +110,13 @@ fun formatWallClock(hour: Int, minute: Int, use24Hour: Boolean): String {
 }
 
 /** Heure locale « HH:mm » d'un instant, pour l'overlay de survol. */
-fun formatClockHm(instant: Instant, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
+fun formatClockHm(
+    instant: Instant,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    use24Hour: Boolean = true,
+): String {
     val value = instant.toLocalDateTime(timeZone)
-    return "${value.hour.toString().padStart(2, '0')}:${value.minute.toString().padStart(2, '0')}"
+    return formatWallClock(value.hour, value.minute, use24Hour)
 }
 
 /** Instant correspondant à un angle d'arc dans la fenêtre [start, end]. */

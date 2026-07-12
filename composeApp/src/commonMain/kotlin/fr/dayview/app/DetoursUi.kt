@@ -189,6 +189,7 @@ internal fun DetourCaptureContent(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
+    val uses24Hour = LocalUses24HourClock.current
     val timeZone = TimeZone.currentSystemDefault()
     var motif by remember { mutableStateOf("") }
     var durationMinutes by remember { mutableIntStateOf(15) }
@@ -265,19 +266,19 @@ internal fun DetourCaptureContent(
                     label = "−",
                     enabled = startMinutes >= 5,
                     onClickLabel = stringResource(Res.string.detour_start_decrease),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
                 ) {
                     pinnedStartMinutes = (startMinutes - 5).coerceAtLeast(0)
                     startPinned = true
                 }
                 Spacer(Modifier.width(10.dp))
-                Text(formatMinutesOfDay(startMinutes), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
+                Text(formatMinutesOfDay(startMinutes, uses24Hour), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
                 Spacer(Modifier.width(10.dp))
                 TimeButton(
                     label = "+",
                     enabled = startMinutes <= 23 * 60 + 54,
                     onClickLabel = stringResource(Res.string.detour_start_increase),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
                     modifier = Modifier.testTag(DayViewTestTags.DetourStartIncrease),
                 ) {
                     pinnedStartMinutes = (startMinutes + 5).coerceAtMost(23 * 60 + 59)
@@ -318,6 +319,7 @@ internal fun DetourListDialog(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
+    val uses24Hour = LocalUses24HourClock.current
     var edit by remember { mutableStateOf<DetourEdit?>(null) }
     val sources = detourSources(episodes)
     val colorOf: (DetourEpisode) -> androidx.compose.ui.graphics.Color = { episode ->
@@ -359,8 +361,8 @@ internal fun DetourListDialog(
                                         Text(
                                             stringResource(
                                                 Res.string.detour_time_range,
-                                                formatClockHm(episode.start),
-                                                formatClockHm(episode.end),
+                                                formatClockHm(episode.start, use24Hour = uses24Hour),
+                                                formatClockHm(episode.end, use24Hour = uses24Hour),
                                                 formatDurationHm(episode.duration),
                                             ),
                                             color = colors.muted,
@@ -416,6 +418,7 @@ private fun DetourEditForm(
     onSave: (DetourEpisode) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
+    val uses24Hour = LocalUses24HourClock.current
     val timeZone = TimeZone.currentSystemDefault()
     val initialStart = (initial?.start ?: now).toLocalDateTime(timeZone)
     var motif by remember { mutableStateOf(initial?.motif.orEmpty()) }
@@ -443,16 +446,16 @@ private fun DetourEditForm(
                     label = "−",
                     enabled = startMinutes >= 5,
                     onClickLabel = stringResource(Res.string.detour_start_decrease),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
                 ) { startMinutes = (startMinutes - 5).coerceAtLeast(0) }
                 Spacer(Modifier.width(10.dp))
-                Text(formatMinutesOfDay(startMinutes), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
+                Text(formatMinutesOfDay(startMinutes, uses24Hour), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
                 Spacer(Modifier.width(10.dp))
                 TimeButton(
                     label = "+",
                     enabled = startMinutes <= 23 * 60 + 54,
                     onClickLabel = stringResource(Res.string.detour_start_increase),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes)),
+                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
                 ) { startMinutes = (startMinutes + 5).coerceAtMost(23 * 60 + 59) }
             }
         }
@@ -500,7 +503,7 @@ private fun DetourEditForm(
     }
 }
 
-private fun formatMinutesOfDay(minutes: Int): String {
+private fun formatMinutesOfDay(minutes: Int, use24Hour: Boolean): String {
     val safe = minutes.coerceIn(0, 23 * 60 + 59)
-    return "${(safe / 60).toString().padStart(2, '0')}:${(safe % 60).toString().padStart(2, '0')}"
+    return formatWallClock(safe / 60, safe % 60, use24Hour)
 }
