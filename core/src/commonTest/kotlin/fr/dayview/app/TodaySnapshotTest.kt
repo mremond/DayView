@@ -55,4 +55,27 @@ class TodaySnapshotTest {
         assertEquals("Ship it", snap.focusIntention)
         assertEquals(formatPomodoroClock(state.pomodoroProgress), snap.pomodoroClock)
     }
+
+    @Test
+    fun mapsGoalAndPomodoroMinutes() {
+        val now = 1_700_000_000_000L
+        val deadline = Instant.fromEpochMilliseconds(now) + 5.minutes
+        val state = controllerWith(
+            DayPreferencesSnapshot(
+                startMinutes = 540,
+                endMinutes = 1080,
+                pomodoroMinutes = 30,
+                goalTitle = "Ship it",
+                goalDeadline = deadline,
+            ),
+            now,
+        ).stateFlow.value
+
+        val snap = state.toTodaySnapshot()
+
+        assertEquals("Ship it", snap.goalTitle)
+        assertEquals(true, snap.goalHasDeadline)
+        assertEquals(deadline.toEpochMilliseconds(), snap.goalDeadlineEpochMillis)
+        assertEquals(30L, snap.pomodoroMinutes)
+    }
 }

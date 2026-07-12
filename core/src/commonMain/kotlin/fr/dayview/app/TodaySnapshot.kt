@@ -15,6 +15,11 @@ data class TodaySnapshot(
     val pomodoroClock: String, // formatted clock, "" when idle
     val focusIntention: String,
     val dayStatus: String, // remaining-time headline or "Day over"
+    val goalTitle: String,
+    val goalHasDeadline: Boolean,
+    val goalDeadlineEpochMillis: Long,
+    val goalHoursRemaining: Long,
+    val pomodoroMinutes: Long,
 )
 
 internal fun DayViewUiState.toTodaySnapshot(): TodaySnapshot {
@@ -39,5 +44,13 @@ internal fun DayViewUiState.toTodaySnapshot(): TodaySnapshot {
         } else {
             "${progress.remainingHours}h ${progress.remainingMinutes.toString().padStart(2, '0')}m"
         },
+        goalTitle = goalTitle,
+        goalHasDeadline = goalDeadline != null,
+        goalDeadlineEpochMillis = goalDeadline?.toEpochMilliseconds() ?: 0L,
+        goalHoursRemaining = goalDeadline?.let { deadline ->
+            val working = calculateGoalWorkingTime(now, deadline, startMinutes, endMinutes)
+            kotlin.math.ceil(working.toDouble(kotlin.time.DurationUnit.HOURS)).toLong()
+        } ?: 0L,
+        pomodoroMinutes = pomodoroMinutes.toLong(),
     )
 }

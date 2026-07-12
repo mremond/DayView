@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /** Handle returned by [DayViewSession.subscribe]; named to avoid Combine's `Cancellable`. */
 interface DayViewSubscription {
@@ -43,6 +44,16 @@ class DayViewSession internal constructor(
     fun stopFocus() = controller.stopPomodoro()
 
     fun changePomodoroDuration(deltaMinutes: Int) = controller.changePomodoroDuration(deltaMinutes)
+
+    fun setGoalTitle(title: String) = controller.setGoalTitle(title)
+
+    fun setGoalDeadline(epochMillis: Long) {
+        controller.setGoalDeadlineInstant(
+            epochMillis.takeIf { it > 0L }?.let(Instant::fromEpochMilliseconds),
+        )
+    }
+
+    fun setFocusIntention(intention: String) = controller.setFocusIntention(intention)
 
     fun close() = scope.cancel()
 }
