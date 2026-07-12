@@ -117,7 +117,7 @@ class DayPreferencesStoreTest {
     @Test
     fun persistsAndRestoresCleanSessionLedger() = runTest {
         val store = newStore(FakeFileSystem())
-        val ledger = CleanSessionLedger(dayKey = 42L, cleanToday = 3, streakDays = 5, streakLastDayKey = 42L)
+        val ledger = CleanSessionLedger(dayKey = 42L, cleanToday = 3, streakDays = 5, streakLastDayKey = 41L)
         store.persist(DayPreferencesSnapshot(cleanSessions = ledger))
         assertEquals(ledger, store.snapshots.first().cleanSessions)
     }
