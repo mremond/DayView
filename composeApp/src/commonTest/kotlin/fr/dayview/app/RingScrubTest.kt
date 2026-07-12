@@ -39,6 +39,8 @@ class RingScrubTest {
             colorIndex = 0,
             titles = listOf("Standup"),
             calendarName = "Work",
+            start = windowStart,
+            end = windowEnd,
         )
         val r = ringReadoutAt(
             0f,
@@ -110,7 +112,7 @@ class RingScrubTest {
 
     @Test
     fun overlappingLayersAreAllReported() {
-        val arc = BusyBlockArc(-5f, 10f, 0, listOf("Standup"), "Work")
+        val arc = BusyBlockArc(-5f, 10f, 0, listOf("Standup"), "Work", windowStart, windowEnd)
         val focus = FocusArc(-10f, 20f)
         val episodes = listOf(DetourEpisode(ms(5L * 3_600_000), ms(7L * 3_600_000), "Slack"))
         val bodies = detourBodies(windowStart, windowEnd, episodes) // midpoint angle ~0°

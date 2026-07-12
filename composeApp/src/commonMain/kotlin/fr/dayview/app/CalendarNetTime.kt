@@ -131,6 +131,10 @@ data class BusyBlockArc(
     val colorIndex: Int,
     val titles: List<String>,
     val calendarName: String,
+    // Bornes exactes du créneau : l'overlay de survol les affiche directement, sans
+    // repasser par l'angle (round-trip flottant qui rabotait une minute).
+    val start: Instant,
+    val end: Instant,
 )
 
 /**
@@ -165,6 +169,8 @@ fun busyBlockArcs(
             colorIndex = colorByCal[it.calendarId] ?: 0,
             titles = it.titles,
             calendarName = calendarNames[it.calendarId] ?: "",
+            start = it.start,
+            end = it.end,
         )
     }
 }

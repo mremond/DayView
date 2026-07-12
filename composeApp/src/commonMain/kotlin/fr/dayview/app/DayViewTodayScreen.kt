@@ -1164,18 +1164,8 @@ internal fun CountdownCircle(
 
                 hoveredBusy?.let { hovered ->
                     val arc = hovered.arc
-                    val startLabel = formatClockHm(
-                        angleToInstant(arc.startAngleDegrees, windowStart, windowEnd),
-                        use24Hour = uses24Hour,
-                    )
-                    val endLabel = formatClockHm(
-                        angleToInstant(
-                            arc.startAngleDegrees + arc.sweepDegrees,
-                            windowStart,
-                            windowEnd,
-                        ),
-                        use24Hour = uses24Hour,
-                    )
+                    val startLabel = formatClockHm(arc.start, use24Hour = uses24Hour)
+                    val endLabel = formatClockHm(arc.end, use24Hour = uses24Hour)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)

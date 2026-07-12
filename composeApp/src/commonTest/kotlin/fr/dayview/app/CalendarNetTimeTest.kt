@@ -257,6 +257,30 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun busyBlockArcsCarryExactClockTimesForHoverOverlay() {
+        // Hover labels must read the source instants, not a lossy angle round-trip:
+        // an event at 08:01 used to display 08:00 after float truncation.
+        val zone = TimeZone.of("Europe/Paris")
+        val (start, end) = dayWindow(
+            LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone),
+            8 * 60,
+            18 * 60,
+            zone,
+        )
+        val eventStart = LocalDateTime(2026, 7, 11, 8, 1).toInstant(zone)
+        val eventEnd = LocalDateTime(2026, 7, 11, 8, 31).toInstant(zone)
+        val arcs = busyBlockArcs(
+            start,
+            end,
+            listOf(BusyInterval(eventStart, eventEnd, listOf("Atelier"), calendarId = "work")),
+            mapOf("work" to "Travail"),
+        )
+        assertEquals(1, arcs.size)
+        assertEquals("08:01", formatClockHm(arcs[0].start, zone))
+        assertEquals("08:31", formatClockHm(arcs[0].end, zone))
+    }
+
+    @Test
     fun busyBlockArcsFallBackToBlankNameForUnknownCalendar() {
         val arcs = busyBlockArcs(
             t(0),
