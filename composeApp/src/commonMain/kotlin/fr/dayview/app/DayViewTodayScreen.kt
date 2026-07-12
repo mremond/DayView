@@ -859,11 +859,13 @@ internal fun CountdownCircle(
                         }
                     }
 
-                    // Calendar blocks are their own cool-toned layer drawn on top of the
-                    // remaining sweep: a soft luminous band per event in its calendar colour,
-                    // so the ring itself keeps meaning past/future while hue means "reserved".
-                    // A wide low-alpha pass gives the glow, a narrower bright pass the core;
-                    // round caps let short events settle in as soft pills.
+                    // Calendar busy is its own cool-toned layer on a concentric lane just inside
+                    // the ring, over the dark interior — so cool colours read at full contrast and
+                    // never fight the green sweep, while hue means "reserved". A wide low-alpha
+                    // pass gives the glow, a narrower bright pass the core; round caps let short
+                    // events settle in as soft pills.
+                    val busyInset = inset + strokeWidth * .95f
+                    val busyLaneSize = Size(size.width - busyInset * 2, size.height - busyInset * 2)
                     busyBlockArcs.forEach { arc ->
                         val col = colors.busy[arc.colorIndex % colors.busy.size]
                         drawArc(
@@ -871,18 +873,18 @@ internal fun CountdownCircle(
                             startAngle = arc.startAngleDegrees,
                             sweepAngle = arc.sweepDegrees,
                             useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(strokeWidth, cap = StrokeCap.Round),
+                            topLeft = Offset(busyInset, busyInset),
+                            size = busyLaneSize,
+                            style = Stroke(strokeWidth * .7f, cap = StrokeCap.Round),
                         )
                         drawArc(
-                            color = col.copy(alpha = .95f),
+                            color = col.copy(alpha = .92f),
                             startAngle = arc.startAngleDegrees,
                             sweepAngle = arc.sweepDegrees,
                             useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(strokeWidth * .5f, cap = StrokeCap.Round),
+                            topLeft = Offset(busyInset, busyInset),
+                            size = busyLaneSize,
+                            style = Stroke(strokeWidth * .42f, cap = StrokeCap.Round),
                         )
                     }
 
