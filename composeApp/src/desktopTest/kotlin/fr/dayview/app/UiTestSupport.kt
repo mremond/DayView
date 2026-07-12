@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +106,19 @@ internal fun WideDayView(
         Box(Modifier.requiredSize(1100.dp, 900.dp)) {
             DayViewScreen(state = state, actions = actions, reminders = reminders)
         }
+    }
+}
+
+/**
+ * Asserts [text] appears, waiting until it does. Compose `stringResource(...)`
+ * resolves asynchronously, so a plain `onNodeWithText(text).assertExists()` can
+ * race the resource load and find empty text on slower machines / CI. Polling
+ * with `waitUntil` awaits the load deterministically.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.assertTextEventuallyExists(text: String, timeoutMillis: Long = 10_000L) {
+    waitUntil(timeoutMillis = timeoutMillis) {
+        onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
     }
 }
 

@@ -18,7 +18,7 @@ class TodayScreenTest {
             WideDayView(state = state, actions = noopDayViewActions())
         }
         onNodeWithTag(DayViewTestTags.Countdown).assertExists()
-        onNodeWithText("IL RESTE").assertExists()
+        assertTextEventuallyExists("IL RESTE")
         onNodeWithText("Livrer la v2").assertExists()
         onNodeWithTag(DayViewTestTags.FocusStart).assertExists()
     }

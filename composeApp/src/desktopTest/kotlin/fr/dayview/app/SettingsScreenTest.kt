@@ -72,6 +72,6 @@ class SettingsScreenTest {
                 SettingsScreen(state = state, platformState = platform, actions = noopSettingsActions())
             }
         }
-        onNodeWithText("SONS").assertExists()
+        assertTextEventuallyExists("SONS")
     }
 }

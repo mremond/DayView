@@ -4,7 +4,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
@@ -54,6 +53,6 @@ class FocusFlowTest {
             WideDayView(state = state, actions = noopDayViewActions())
         }
         onNodeWithTag(DayViewTestTags.FocusStart).assertIsNotEnabled()
-        onNodeWithText("Écrivez une intention pour démarrer.").assertExists()
+        assertTextEventuallyExists("Écrivez une intention pour démarrer.")
     }
 }
