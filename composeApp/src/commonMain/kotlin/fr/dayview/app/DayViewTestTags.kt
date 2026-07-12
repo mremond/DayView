@@ -24,6 +24,7 @@ internal object DayViewTestTags {
     const val SettingsThemeSystem = "settingsThemeSystem"
     const val SettingsThemeLight = "settingsThemeLight"
     const val SettingsThemeDark = "settingsThemeDark"
+    const val SettingsFontScale = "settingsFontScale"
     const val SettingsBack = "settingsBack"
     const val SettingsDayScreen = "settingsDayScreen"
     const val SettingsDisplayScreen = "settingsDisplayScreen"

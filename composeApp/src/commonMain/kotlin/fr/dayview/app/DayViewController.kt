@@ -51,6 +51,7 @@ internal data class DayViewUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val cleanSessions: CleanSessionLedger = CleanSessionLedger(),
     val sessionOffGoal: Duration = Duration.ZERO,
+    val fontScale: Float = 1.0f,
     val destination: DayViewDestination = DayViewDestination.TODAY,
     val settingsCategory: SettingsCategory? = null,
 ) {
@@ -205,6 +206,11 @@ internal class DayViewController(
         persistState()
     }
 
+    fun setFontScale(scale: Float) {
+        state = state.copy(fontScale = scale.coerceIn(1.0f, 1.5f))
+        persistState()
+    }
+
     fun setSoundSettings(settings: SoundSettings) {
         val normalized = settings.normalized()
         state = state.copy(soundSettings = normalized)
@@ -349,6 +355,14 @@ internal class DayViewController(
         commitDetours(today.toMutableList().also { it.removeAt(index) })
     }
 
+    /** Drop a motif from the recent-suggestions list; the day's episodes are untouched. */
+    fun forgetRecentDetourMotif(motif: String) {
+        val pruned = removeRecentDetourMotif(state.recentDetourMotifs, motif)
+        if (pruned == state.recentDetourMotifs) return
+        state = state.copy(recentDetourMotifs = pruned)
+        persistState()
+    }
+
     private fun commitDetours(
         episodes: List<DetourEpisode>,
         pushMotif: String? = null,
@@ -403,6 +417,7 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     recentDetourMotifs = recentDetourMotifs,
     themeMode = themeMode,
     cleanSessions = cleanSessions,
+    fontScale = fontScale,
 ).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
@@ -421,6 +436,7 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
             cleanToday = cleanSessions.cleanToday.coerceAtLeast(0),
             streakDays = cleanSessions.streakDays.coerceAtLeast(0),
         ),
+        fontScale = fontScale.coerceIn(1.0f, 1.5f),
     )
 }
 
@@ -447,6 +463,7 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         recentDetourMotifs = safe.recentDetourMotifs,
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
+        fontScale = safe.fontScale,
     )
 }
 
@@ -470,6 +487,7 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         recentDetourMotifs = safe.recentDetourMotifs,
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
+        fontScale = safe.fontScale,
         // Transient fields deliberately preserved: now, goalDeadlineText,
         // goalStartText, lastFocusClosure, sessionOffGoal, destination, and
         // calendar read results.

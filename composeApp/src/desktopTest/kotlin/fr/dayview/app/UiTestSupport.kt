@@ -51,6 +51,7 @@ internal fun noopSettingsActions(
     changeSoundSettings: (SoundSettings) -> Unit = {},
     previewSound: (SoundCue) -> Unit = {},
     changeThemeMode: (ThemeMode) -> Unit = {},
+    changeFontScale: (Float) -> Unit = {},
     openCategory: (SettingsCategory) -> Unit = {},
     closeCategory: () -> Unit = {},
     back: () -> Unit = {},
@@ -63,6 +64,7 @@ internal fun noopSettingsActions(
     changeSoundSettings = changeSoundSettings,
     previewSound = previewSound,
     changeThemeMode = changeThemeMode,
+    changeFontScale = changeFontScale,
     openCategory = openCategory,
     closeCategory = closeCategory,
     back = back,
@@ -94,6 +96,7 @@ internal fun noopDayViewActions(
     updateDetour = { _, _ -> },
     removeDetour = {},
     addDetourEpisode = {},
+    forgetDetourMotif = {},
 )
 
 internal fun noReminders(): FocusReminderUiState = FocusReminderUiState(
@@ -135,4 +138,5 @@ internal fun controllerDayViewActions(controller: DayViewController): DayViewScr
     updateDetour = { index, episode -> controller.updateDetour(index, episode) },
     removeDetour = { controller.removeDetour(it) },
     addDetourEpisode = { controller.addDetourEpisode(it) },
+    forgetDetourMotif = { controller.forgetRecentDetourMotif(it) },
 )

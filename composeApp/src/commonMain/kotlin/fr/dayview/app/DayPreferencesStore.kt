@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -38,6 +39,7 @@ internal object DayPreferenceKeys {
     const val CLEAN_SESSIONS_TODAY = "clean_sessions_today"
     const val CLEAN_STREAK_DAYS = "clean_streak_days"
     const val CLEAN_STREAK_LAST_DAY = "clean_streak_last_day"
+    const val FONT_SCALE = "font_scale"
     const val NO_DEADLINE = -1L
 }
 
@@ -67,6 +69,7 @@ private val cleanSessionsDayKey = longPreferencesKey(DayPreferenceKeys.CLEAN_SES
 private val cleanSessionsTodayKey = intPreferencesKey(DayPreferenceKeys.CLEAN_SESSIONS_TODAY)
 private val cleanStreakDaysKey = intPreferencesKey(DayPreferenceKeys.CLEAN_STREAK_DAYS)
 private val cleanStreakLastDayKey = longPreferencesKey(DayPreferenceKeys.CLEAN_STREAK_LAST_DAY)
+private val fontScaleKey = floatPreferencesKey(DayPreferenceKeys.FONT_SCALE)
 
 class DayPreferencesStore(
     private val dataStore: DataStore<Preferences>,
@@ -101,6 +104,7 @@ class DayPreferencesStore(
             prefs[cleanSessionsTodayKey] = snapshot.cleanSessions.cleanToday
             prefs[cleanStreakDaysKey] = snapshot.cleanSessions.streakDays
             prefs[cleanStreakLastDayKey] = snapshot.cleanSessions.streakLastDayKey
+            prefs[fontScaleKey] = snapshot.fontScale
         }
     }
 }
@@ -149,5 +153,6 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
             streakDays = this[cleanStreakDaysKey] ?: defaults.cleanSessions.streakDays,
             streakLastDayKey = this[cleanStreakLastDayKey] ?: defaults.cleanSessions.streakLastDayKey,
         ),
+        fontScale = (this[fontScaleKey] ?: defaults.fontScale).coerceIn(1.0f, 1.5f),
     )
 }

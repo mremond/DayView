@@ -43,6 +43,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -76,6 +78,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -177,6 +180,7 @@ internal data class DayViewScreenActions(
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
+    val forgetDetourMotif: (String) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -209,7 +213,10 @@ internal fun DayViewScreen(
             .imePadding(),
     ) {
         val wide = maxWidth >= 780.dp
-        val compactCountdownHeight = (maxWidth - 48.dp).coerceIn(240.dp, 320.dp)
+        // Let the ring track the available width up to a generous ceiling so it fills a
+        // large single-column screen instead of plateauing early; the inner
+        // countdownCircleSize() still caps the absolute diameter.
+        val compactCountdownHeight = (maxWidth - 48.dp).coerceIn(240.dp, 480.dp)
         val pageModifier = if (wide) {
             Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 28.dp)
         } else {
@@ -334,6 +341,7 @@ internal fun DayViewScreen(
                     }
                     showDetourCapture = false
                 },
+                onForget = actions.forgetDetourMotif,
                 onDismiss = { showDetourCapture = false },
             )
         }
@@ -709,10 +717,11 @@ internal fun CountdownCircle(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            val circleSize = minOf(maxWidth, maxHeight, 510.dp)
-            // Shrink the counter type in step with the ring so the numerals keep their
-            // proportion instead of dwarfing the dial in the mini and compact windows.
-            val counterScale = (circleSize / 380.dp).coerceIn(.72f, 1f)
+            val circleSize = countdownCircleSize(minOf(maxWidth, maxHeight))
+            // Scale the counter type in step with the ring so the numerals keep their
+            // proportion: they shrink in the mini and compact windows and grow to fill a
+            // large dial on Supernote / a maximized desktop window.
+            val counterScale = countdownCounterScale(circleSize)
             val circleModifier = if (busyArcs.isEmpty() && detourBodies.isEmpty()) {
                 Modifier.size(circleSize)
             } else {
@@ -899,66 +908,76 @@ internal fun CountdownCircle(
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
-                        color = if (progress.isFinished) colors.red else colors.muted,
-                        fontSize = (11 * counterScale).sp,
-                        lineHeight = (15 * counterScale).sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (1.8f * counterScale).sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    if (!progress.isFinished) {
-                        Spacer(Modifier.height(8.dp * counterScale))
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(progress.remainingHours.toString().padStart(2, '0'), color = colors.cloud, fontSize = (52 * counterScale).sp, fontWeight = FontWeight.Light)
-                            Text("h", color = colors.muted, fontSize = (19 * counterScale).sp, modifier = Modifier.padding(bottom = 9.dp * counterScale, start = 3.dp * counterScale, end = 7.dp * counterScale))
-                            Text(progress.remainingMinutes.toString().padStart(2, '0'), color = colors.cloud, fontSize = (52 * counterScale).sp, fontWeight = FontWeight.Light)
-                        }
-                        if (showSeconds) {
-                            Text(
-                                stringResource(Res.string.seconds_remaining, progress.remainingSeconds.toString().padStart(2, '0')),
-                                color = colors.muted,
-                                fontSize = (12 * counterScale).sp,
-                                letterSpacing = (.8f * counterScale).sp,
-                            )
-                        }
-                        if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining)),
-                                color = colors.mint,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = .5.sp,
-                            )
-                            Text(
-                                stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
-                                color = colors.muted,
-                                fontSize = 11.sp,
-                                letterSpacing = .5.sp,
-                            )
-                        }
-                        if (focusedToday > Duration.ZERO) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
-                                color = colors.mint,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = .5.sp,
-                            )
-                        }
-                        if (detoursTotal > Duration.ZERO) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                stringResource(Res.string.detours_today, formatDurationHm(detoursTotal)),
-                                color = colors.amber,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = .5.sp,
-                            )
+                val prefFontScale = LocalPreferenceFontScale.current
+                val counterDensity = LocalDensity.current
+                CompositionLocalProvider(
+                    // The ring grows to fill space and the numerals track it via counterScale;
+                    // keep them ring-proportional rather than following the accessibility text
+                    // slider, so they never overflow the dial. Dividing the preference
+                    // multiplier back out preserves the OS font setting while dropping the slider.
+                    LocalDensity provides Density(counterDensity.density, counterDensity.fontScale / prefFontScale),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
+                            color = if (progress.isFinished) colors.red else colors.muted,
+                            fontSize = (11 * counterScale).sp,
+                            lineHeight = (15 * counterScale).sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (1.8f * counterScale).sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        if (!progress.isFinished) {
+                            Spacer(Modifier.height(8.dp * counterScale))
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(progress.remainingHours.toString().padStart(2, '0'), color = colors.cloud, fontSize = (52 * counterScale).sp, fontWeight = FontWeight.Light)
+                                Text("h", color = colors.muted, fontSize = (19 * counterScale).sp, modifier = Modifier.padding(bottom = 9.dp * counterScale, start = 3.dp * counterScale, end = 7.dp * counterScale))
+                                Text(progress.remainingMinutes.toString().padStart(2, '0'), color = colors.cloud, fontSize = (52 * counterScale).sp, fontWeight = FontWeight.Light)
+                            }
+                            if (showSeconds) {
+                                Text(
+                                    stringResource(Res.string.seconds_remaining, progress.remainingSeconds.toString().padStart(2, '0')),
+                                    color = colors.muted,
+                                    fontSize = (12 * counterScale).sp,
+                                    letterSpacing = (.8f * counterScale).sp,
+                                )
+                            }
+                            if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining)),
+                                    color = colors.mint,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                                Text(
+                                    stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
+                                    color = colors.muted,
+                                    fontSize = 11.sp,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
+                            if (focusedToday > Duration.ZERO) {
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
+                                    color = colors.mint,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
+                            if (detoursTotal > Duration.ZERO) {
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    stringResource(Res.string.detours_today, formatDurationHm(detoursTotal)),
+                                    color = colors.amber,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = .5.sp,
+                                )
+                            }
                         }
                         if (cleanSessionsToday > 0 || streakDays > 0) {
                             Spacer(Modifier.height(6.dp))

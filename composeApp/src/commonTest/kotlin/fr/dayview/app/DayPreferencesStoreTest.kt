@@ -127,4 +127,21 @@ class DayPreferencesStoreTest {
         val store = newStore(FakeFileSystem())
         assertEquals(CleanSessionLedger(), store.snapshots.first().cleanSessions)
     }
+
+    @Test
+    fun fontScaleRoundTripsAndDefaultsToOne() = runTest {
+        val store = newStore(FakeFileSystem())
+        // Absent value falls back to the 1.0 default.
+        assertEquals(1.0f, store.snapshots.first().fontScale)
+
+        store.persist(DayPreferencesSnapshot(fontScale = 1.25f))
+        assertEquals(1.25f, store.snapshots.first().fontScale)
+    }
+
+    @Test
+    fun fontScaleIsCoercedIntoRangeOnRead() = runTest {
+        val store = newStore(FakeFileSystem())
+        store.persist(DayPreferencesSnapshot(fontScale = 9.0f))
+        assertEquals(1.5f, store.snapshots.first().fontScale)
+    }
 }

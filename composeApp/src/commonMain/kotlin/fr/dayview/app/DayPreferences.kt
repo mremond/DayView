@@ -23,6 +23,7 @@ data class DayPreferencesSnapshot(
     val recentDetourMotifs: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val cleanSessions: CleanSessionLedger = CleanSessionLedger(),
+    val fontScale: Float = 1.0f,
 )
 
 interface DayPreferences {

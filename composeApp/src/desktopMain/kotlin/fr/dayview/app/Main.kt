@@ -63,6 +63,7 @@ private fun runApplication() = application {
     val scope = rememberCoroutineScope()
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
+    val dockBadge = remember { MacDockBadge() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val runningApplicationsProvider = remember { MacRunningApplicationsProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
@@ -233,9 +234,13 @@ private fun runApplication() = application {
             },
         )
     }
+    LaunchedEffect(focusDriftReminderId) {
+        dockBadge.update(focusDriftReminderId != null)
+    }
     DisposableEffect(Unit) {
         onDispose {
             focusStatusItem.close()
+            dockBadge.close()
             soundCuePlayer.close()
         }
     }

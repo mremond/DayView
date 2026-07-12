@@ -116,6 +116,9 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_font_size">TEXT SIZE</string>
+    <string name="settings_font_size_description">Make all text larger for easier reading.</string>
+    <string name="settings_font_size_value">%1$d%</string>
     <string name="settings_monochrome_icon">MONOCHROME MENU BAR ICON</string>
     <string name="settings_monochrome_icon_description">Uses a more discreet monochrome icon in the menu bar.</string>
     <string name="settings_launch_at_login">OPEN AT LOGIN</string>
@@ -208,6 +211,9 @@
     <string name="detour_capture_prompt">What pulled you off the path?</string>
     <string name="detour_motif_label">Detour reason</string>
     <string name="detour_motif_placeholder">E.g. unexpected call</string>
+    <string name="detour_forget_row_label">Forget this reason</string>
+    <string name="detour_forget_prompt">Forget this reason?</string>
+    <string name="detour_forget_confirm">FORGET</string>
     <string name="detour_duration_section">APPROXIMATE DURATION</string>
     <string name="detour_minutes_chip">%1$s min</string>
     <string name="detour_source_total">%1$s %2$s</string>
