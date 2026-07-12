@@ -73,6 +73,7 @@ internal fun noopSettingsActions(
 /** A full [DayViewScreenActions] of no-ops with the relevant callbacks overridable. */
 internal fun noopDayViewActions(
     openSettings: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
     openMiniWindow: (() -> Unit)? = null,
     changeFocusIntention: (String) -> Unit = {},
     changePomodoroDuration: (Int) -> Unit = {},
@@ -81,6 +82,7 @@ internal fun noopDayViewActions(
     closePomodoro: (FocusClosureOutcome) -> Unit = {},
 ): DayViewScreenActions = DayViewScreenActions(
     openSettings = openSettings,
+    onOpenHistory = onOpenHistory,
     openMiniWindow = openMiniWindow,
     changeGoalTitle = {},
     changeGoalDeadline = {},
@@ -123,6 +125,7 @@ internal fun WideDayView(
 /** Wires a [DayViewScreenActions] bundle straight to the controller (as App.kt does). */
 internal fun controllerDayViewActions(controller: DayViewController): DayViewScreenActions = DayViewScreenActions(
     openSettings = { controller.openSettings() },
+    onOpenHistory = { controller.openHistory() },
     openMiniWindow = null,
     changeGoalTitle = { controller.setGoalTitle(it) },
     changeGoalDeadline = { controller.setGoalDeadlineText(it) },

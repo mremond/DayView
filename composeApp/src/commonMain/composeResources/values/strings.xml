@@ -11,9 +11,19 @@
     <!-- Shared / chrome -->
     <string name="app_wordmark">DAYVIEW</string>
     <string name="settings_title">SETTINGS</string>
+    <string name="history_title">HISTORY</string>
     <string name="mini_window_button">MINI</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
+
+    <!-- History — short weekday labels for the week overview grid -->
+    <string name="weekday_mon">Mon</string>
+    <string name="weekday_tue">Tue</string>
+    <string name="weekday_wed">Wed</string>
+    <string name="weekday_thu">Thu</string>
+    <string name="weekday_fri">Fri</string>
+    <string name="weekday_sat">Sat</string>
+    <string name="weekday_sun">Sun</string>
 
     <!-- Today screen — compact status line -->
     <string name="today_status_not_started">The day hasn’t started yet.</string>

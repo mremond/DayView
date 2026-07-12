@@ -3,8 +3,18 @@ package fr.dayview.app
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.weekday_fri
+import fr.dayview.app.generated.resources.weekday_mon
+import fr.dayview.app.generated.resources.weekday_sat
+import fr.dayview.app.generated.resources.weekday_sun
+import fr.dayview.app.generated.resources.weekday_thu
+import fr.dayview.app.generated.resources.weekday_tue
+import fr.dayview.app.generated.resources.weekday_wed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -14,7 +24,19 @@ import kotlin.time.Instant
 internal enum class DayViewDestination {
     TODAY,
     SETTINGS,
+    HISTORY,
 }
+
+/** Monday→Sunday short weekday labels, in the same order as [weekDaysEndingAt]. */
+private val weekdayLabelResources: List<StringResource> = listOf(
+    Res.string.weekday_mon,
+    Res.string.weekday_tue,
+    Res.string.weekday_wed,
+    Res.string.weekday_thu,
+    Res.string.weekday_fri,
+    Res.string.weekday_sat,
+    Res.string.weekday_sun,
+)
 
 internal enum class SettingsCategory {
     DAY,
@@ -54,6 +76,8 @@ internal data class DayViewUiState(
     val fontScale: Float = 1.0f,
     val destination: DayViewDestination = DayViewDestination.TODAY,
     val settingsCategory: SettingsCategory? = null,
+    val selectedHistoryDay: Long? = null,
+    val historyWeek: List<HistoryWeekDay> = emptyList(),
 ) {
     private val dayNow: Instant
         get() = if (showSeconds) now else now - (now.toEpochMilliseconds() % 60_000L).milliseconds
@@ -204,6 +228,35 @@ internal class DayViewController(
 
     fun openToday() {
         state = state.copy(destination = DayViewDestination.TODAY)
+    }
+
+    /** Switches to the history week overview and (asynchronously) loads its records. */
+    fun openHistory() {
+        val todayKey = dayKeyOf(state.now)
+        val keys = weekDaysEndingAt(todayKey)
+        state = state.copy(destination = DayViewDestination.HISTORY, selectedHistoryDay = null)
+        scope.launch {
+            val present = history.listDays(keys.first()..keys.last()).toSet()
+            val labels = weekdayLabelResources.map { getString(it) }
+            val days = keys.mapIndexed { i, key ->
+                val record = if (key in present) history.read(key) else null
+                HistoryWeekDay(key, labels[i], record)
+            }
+            state = state.copy(historyWeek = days)
+        }
+    }
+
+    fun openHistoryDay(dayKey: Long) {
+        state = state.copy(selectedHistoryDay = dayKey)
+    }
+
+    /** Day → week → today: closes the open day first, then leaves the week overview. */
+    fun closeHistory() {
+        state = if (state.selectedHistoryDay != null) {
+            state.copy(selectedHistoryDay = null)
+        } else {
+            state.copy(destination = DayViewDestination.TODAY)
+        }
     }
 
     fun setStartMinutes(minutes: Int) {

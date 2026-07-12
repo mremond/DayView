@@ -10,9 +10,19 @@
     <!-- Shared / chrome -->
     <string name="app_wordmark">DAYVIEW</string>
     <string name="settings_title">RÉGLAGES</string>
+    <string name="history_title">HISTORIQUE</string>
     <string name="mini_window_button">MINI</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Annuler</string>
+
+    <!-- Historique — libellés courts des jours pour la grille de la semaine -->
+    <string name="weekday_mon">Lun</string>
+    <string name="weekday_tue">Mar</string>
+    <string name="weekday_wed">Mer</string>
+    <string name="weekday_thu">Jeu</string>
+    <string name="weekday_fri">Ven</string>
+    <string name="weekday_sat">Sam</string>
+    <string name="weekday_sun">Dim</string>
 
     <!-- Today screen — compact status line -->
     <string name="today_status_not_started">La journée n’a pas commencé.</string>
