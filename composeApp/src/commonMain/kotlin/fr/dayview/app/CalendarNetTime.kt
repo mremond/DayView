@@ -97,6 +97,18 @@ fun formatDurationHm(duration: Duration): String {
     return if (hours > 0) "$hours h ${minutes.toString().padStart(2, '0')}" else "$minutes min"
 }
 
+/**
+ * Wall-clock label. 24h → "07:05"; 12h → "7:05 AM", noon "12:00 PM",
+ * midnight "12:00 AM". No zero-padding on the 12h hour; minute always padded.
+ */
+fun formatWallClock(hour: Int, minute: Int, use24Hour: Boolean): String {
+    val mm = minute.toString().padStart(2, '0')
+    if (use24Hour) return "${hour.toString().padStart(2, '0')}:$mm"
+    val period = if (hour < 12) "AM" else "PM"
+    val h12 = (hour % 12).let { if (it == 0) 12 else it }
+    return "$h12:$mm $period"
+}
+
 /** Heure locale « HH:mm » d'un instant, pour l'overlay de survol. */
 fun formatClockHm(instant: Instant, timeZone: TimeZone = TimeZone.currentSystemDefault()): String {
     val value = instant.toLocalDateTime(timeZone)
