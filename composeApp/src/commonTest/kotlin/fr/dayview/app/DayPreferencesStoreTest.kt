@@ -81,4 +81,22 @@ class DayPreferencesStoreTest {
         store.persist(snapshot)
         assertEquals(snapshot.onGoalApps, store.snapshots.first().onGoalApps)
     }
+
+    @Test
+    fun detoursRoundTrip() = runTest {
+        val store = newStore(FakeFileSystem())
+        val snapshot = DayPreferencesSnapshot(
+            detoursDayKey = 20_646L,
+            detours = listOf(
+                DetourEpisode(
+                    Instant.fromEpochMilliseconds(1_000L),
+                    Instant.fromEpochMilliseconds(2_000L),
+                    "Appel, urgent",
+                ),
+            ),
+            recentDetourMotifs = listOf("Appel, urgent", "Slack"),
+        )
+        store.persist(snapshot)
+        assertEquals(snapshot, store.snapshots.first())
+    }
 }
