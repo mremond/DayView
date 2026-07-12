@@ -37,6 +37,9 @@ internal data class DayViewUiState(
     val onGoalApps: Set<AppRef> = emptySet(),
     val focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     val lastFocusClosure: FocusClosureOutcome? = null,
+    val detoursDayKey: Long = -1L,
+    val detours: List<DetourEpisode> = emptyList(),
+    val recentDetourMotifs: List<String> = emptyList(),
     val destination: DayViewDestination = DayViewDestination.TODAY,
 ) {
     private val dayNow: Instant
@@ -82,6 +85,22 @@ internal data class DayViewUiState(
             val (start, end) = dayWindow
             return focusedTime(start, end, focusPresenceIntervals)
         }
+
+    /** Episodes of the current local day; stale storage from a previous day reads as empty. */
+    val detoursToday: List<DetourEpisode>
+        get() = if (detoursDayKey == dayKeyOf(dayNow)) detours else emptyList()
+
+    val detourBodiesState: List<DetourBody>
+        get() {
+            val (start, end) = dayWindow
+            return detourBodies(start, end, detoursToday)
+        }
+
+    val detourSourcesState: List<DetourSource>
+        get() = detourSources(detoursToday)
+
+    val detoursTotalToday: Duration
+        get() = detoursTotal(detoursToday)
 }
 
 internal class DayViewController(
@@ -251,6 +270,56 @@ internal class DayViewController(
         state = state.copy(focusPresenceIntervals = intervals)
     }
 
+    /** Quick capture: the episode ends now and starts [durationMinutes] earlier. */
+    fun addDetour(motif: String, durationMinutes: Int) {
+        val clean = sanitizeDetourMotif(motif)
+        if (clean.isEmpty()) return
+        val end = state.now
+        val windowStart = state.dayWindow.first
+        var start = end - durationMinutes.coerceIn(1, 12 * 60).minutes
+        if (start < windowStart && end > windowStart) start = windowStart
+        commitDetours(state.detoursToday + DetourEpisode(start, end, clean), pushMotif = clean)
+    }
+
+    /** Retroactive add from the list editor; also feeds the suggestions. */
+    fun addDetourEpisode(episode: DetourEpisode) {
+        val clean = episode.copy(motif = sanitizeDetourMotif(episode.motif))
+        if (clean.motif.isEmpty() || clean.end <= clean.start) return
+        commitDetours(state.detoursToday + clean, pushMotif = clean.motif)
+    }
+
+    /** Replace the episode at [index] of [DayViewUiState.detoursToday]. */
+    fun updateDetour(
+        index: Int,
+        episode: DetourEpisode,
+    ) {
+        val today = state.detoursToday
+        if (index !in today.indices) return
+        val clean = episode.copy(motif = sanitizeDetourMotif(episode.motif))
+        if (clean.motif.isEmpty() || clean.end <= clean.start) return
+        commitDetours(today.toMutableList().also { it[index] = clean })
+    }
+
+    fun removeDetour(index: Int) {
+        val today = state.detoursToday
+        if (index !in today.indices) return
+        commitDetours(today.toMutableList().also { it.removeAt(index) })
+    }
+
+    private fun commitDetours(
+        episodes: List<DetourEpisode>,
+        pushMotif: String? = null,
+    ) {
+        state = state.copy(
+            detoursDayKey = dayKeyOf(state.now),
+            detours = episodes.sortedBy { it.start },
+            recentDetourMotifs = pushMotif
+                ?.let { pushRecentDetourMotif(state.recentDetourMotifs, it) }
+                ?: state.recentDetourMotifs,
+        )
+        persistState()
+    }
+
     /** Injecte le résultat d'une lecture calendrier (hors thread UI). */
     fun updateNetTimeData(
         hasPermission: Boolean,
@@ -286,6 +355,9 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     focusIntention = focusIntention,
     netTimeSettings = netTimeSettings,
     onGoalApps = onGoalApps,
+    detoursDayKey = detoursDayKey,
+    detours = detours,
+    recentDetourMotifs = recentDetourMotifs,
 ).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
@@ -298,6 +370,8 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         goalTitle = goalTitle.take(80),
         pomodoroMinutes = pomodoroMinutes.coerceIn(5, 180),
         focusIntention = focusIntention.take(100),
+        detours = detours.map { it.copy(motif = sanitizeDetourMotif(it.motif)) },
+        recentDetourMotifs = recentDetourMotifs.take(MAX_RECENT_DETOUR_MOTIFS),
     )
 }
 
@@ -319,6 +393,9 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
         onGoalApps = safe.onGoalApps,
+        detoursDayKey = safe.detoursDayKey,
+        detours = safe.detours,
+        recentDetourMotifs = safe.recentDetourMotifs,
     )
 }
 
@@ -337,6 +414,9 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         focusIntention = safe.focusIntention,
         netTimeSettings = safe.netTimeSettings,
         onGoalApps = safe.onGoalApps,
+        detoursDayKey = safe.detoursDayKey,
+        detours = safe.detours,
+        recentDetourMotifs = safe.recentDetourMotifs,
         // Transient fields deliberately preserved: now, goalDeadlineText,
         // goalStartText, lastFocusClosure, destination, and calendar read results.
     )

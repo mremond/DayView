@@ -180,4 +180,36 @@
     <string name="desktop_minute">Minute</string>
     <string name="desktop_choose_time">Choose the time</string>
     <string name="desktop_nudge_title">Back to the essential</string>
+
+    <!-- Detours -->
+    <string name="detours_today">Detours %1$s</string>
+    <string name="detour_time_range">%1$s – %2$s · %3$s</string>
+    <string name="detour_add_button">+ DETOUR</string>
+    <string name="detour_capture_open_label">Declare a detour</string>
+    <string name="detour_list_open_label">Today’s detours</string>
+    <string name="detour_section">DETOUR</string>
+    <string name="detour_capture_prompt">What pulled you off the path?</string>
+    <string name="detour_motif_label">Detour reason</string>
+    <string name="detour_motif_placeholder">E.g. unexpected call</string>
+    <string name="detour_duration_section">APPROXIMATE DURATION</string>
+    <string name="detour_minutes_chip">%1$s min</string>
+    <string name="detour_source_total">%1$s %2$s</string>
+    <string name="detour_overflow">+%1$s</string>
+    <string name="detour_cancel_button">CANCEL</string>
+    <string name="detour_confirm_button">ADD</string>
+    <string name="detour_list_title">TODAY’S DETOURS</string>
+    <string name="detour_list_empty">No detours declared today.</string>
+    <string name="detour_edit_row_label">Edit the detour</string>
+    <string name="detour_close_button">CLOSE</string>
+    <string name="detour_list_add_button">ADD A DETOUR</string>
+    <string name="detour_start_section">START</string>
+    <string name="detour_duration_label">DURATION</string>
+    <string name="detour_start_decrease">Move the start 5 minutes earlier</string>
+    <string name="detour_start_increase">Move the start 5 minutes later</string>
+    <string name="detour_start_value">Start: %1$s</string>
+    <string name="detour_duration_decrease">Decrease the duration by 5 minutes</string>
+    <string name="detour_duration_increase">Increase the duration by 5 minutes</string>
+    <string name="detour_duration_value">Duration: %1$s minutes</string>
+    <string name="detour_delete_button">DELETE</string>
+    <string name="detour_save_button">SAVE</string>
 </resources>

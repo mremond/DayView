@@ -18,6 +18,9 @@ data class DayPreferencesSnapshot(
     val focusIntention: String = "",
     val netTimeSettings: NetTimeSettings = NetTimeSettings(),
     val onGoalApps: Set<AppRef> = emptySet(),
+    val detoursDayKey: Long = -1L,
+    val detours: List<DetourEpisode> = emptyList(),
+    val recentDetourMotifs: List<String> = emptyList(),
 )
 
 interface DayPreferences {
