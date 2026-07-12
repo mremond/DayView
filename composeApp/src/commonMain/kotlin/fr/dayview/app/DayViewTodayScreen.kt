@@ -809,8 +809,11 @@ internal fun CountdownCircle(
                                 hoveredBusy = null
                                 hoveredDetour = null
                             } else if (
-                                event.type == PointerEventType.Move ||
-                                event.type == PointerEventType.Enter
+                                (
+                                    event.type == PointerEventType.Move ||
+                                        event.type == PointerEventType.Enter
+                                    ) &&
+                                event.changes.firstOrNull()?.type == PointerType.Mouse
                             ) {
                                 val body = hitTestDetourBody(position.x, position.y, size.width, size.height, detourBodies)
                                 hoveredDetour = body?.let { HoveredDetourBody(it, position) }
