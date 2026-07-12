@@ -549,4 +549,55 @@ class DayViewControllerTest {
         assertEquals(ThemeMode.LIGHT, controller.state.themeMode)
         assertEquals(ThemeMode.LIGHT, prefs.current.themeMode)
     }
+
+    @Test
+    fun completedSessionWithoutDriftRegistersACleanSession() {
+        val now = 60L * 60_000L // 1h after epoch, still day 0
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(
+                focusIntention = "Réviser le chapitre 3",
+                pomodoroMinutes = 25,
+                pomodoroEnd = t(now),
+            ),
+        )
+        val controller = testController(preferences, now)
+
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        assertEquals(1, controller.state.cleanSessionsToday)
+        assertEquals(1, controller.state.cleanStreakDays)
+        assertEquals(1, preferences.current.cleanSessions.cleanToday)
+    }
+
+    @Test
+    fun progressedSessionDoesNotRegister() {
+        val now = 60L * 60_000L
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(pomodoroMinutes = 25, pomodoroEnd = t(now)),
+        )
+        val controller = testController(preferences, now)
+
+        controller.closePomodoro(FocusClosureOutcome.PROGRESSED)
+
+        assertEquals(0, controller.state.cleanSessionsToday)
+    }
+
+    @Test
+    fun overlappingDetourBlocksTheCleanSession() {
+        val now = 60L * 60_000L
+        // A 4-minute detour (24..20 min before now) sits fully inside the 25-minute window.
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(
+                pomodoroMinutes = 25,
+                pomodoroEnd = t(now),
+                detoursDayKey = dayKeyOf(t(now)),
+                detours = listOf(DetourEpisode(t(now - 24 * 60_000L), t(now - 20 * 60_000L), "call")),
+            ),
+        )
+        val controller = testController(preferences, now)
+
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        assertEquals(0, controller.state.cleanSessionsToday)
+    }
 }
