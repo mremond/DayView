@@ -234,4 +234,11 @@
     <string name="detour_duration_value">Duration: %1$s minutes</string>
     <string name="detour_delete_button">DELETE</string>
     <string name="detour_save_button">SAVE</string>
+
+    <!-- Planned obligations -->
+    <string name="planned_obligations_title">Today's obligations</string>
+    <string name="planned_obligation_motif_label">Obligation to do today</string>
+    <string name="planned_obligation_motif_placeholder">e.g. Client call</string>
+    <string name="planned_obligation_add_button">ADD</string>
+    <string name="planned_obligation_done_button">DONE</string>
 </resources>

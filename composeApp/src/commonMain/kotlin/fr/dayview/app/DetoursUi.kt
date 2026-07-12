@@ -193,9 +193,10 @@ internal fun DetourCaptureDialog(
     onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
     onForget: (String) -> Unit,
     onDismiss: () -> Unit,
+    initialMotif: String = "",
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        DetourCaptureContent(recentMotifs, now, onConfirm, onForget, onDismiss)
+        DetourCaptureContent(recentMotifs, now, onConfirm, onForget, onDismiss, initialMotif)
     }
 }
 
@@ -210,12 +211,13 @@ internal fun DetourCaptureContent(
     onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
     onForget: (String) -> Unit,
     onDismiss: () -> Unit,
+    initialMotif: String = "",
 ) {
     val colors = LocalDayViewColors.current
     val uses24Hour = LocalUses24HourClock.current
     val timeZone = TimeZone.currentSystemDefault()
     val forgetRowLabel = stringResource(Res.string.detour_forget_row_label)
-    var motif by remember { mutableStateOf("") }
+    var motif by remember { mutableStateOf(initialMotif) }
     var durationMinutes by remember { mutableIntStateOf(15) }
     var showStart by remember { mutableStateOf(false) }
     var startPinned by remember { mutableStateOf(false) }
