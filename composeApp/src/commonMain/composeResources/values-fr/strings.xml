@@ -205,6 +205,9 @@
     <string name="detour_capture_prompt">Qu’est-ce qui vous a détourné du chemin ?</string>
     <string name="detour_motif_label">Motif du détour</string>
     <string name="detour_motif_placeholder">Ex. appel imprévu</string>
+    <string name="detour_forget_row_label">Oublier ce motif</string>
+    <string name="detour_forget_prompt">Oublier ce motif ?</string>
+    <string name="detour_forget_confirm">OUBLIER</string>
     <string name="detour_duration_section">DURÉE APPROXIMATIVE</string>
     <string name="detour_minutes_chip">%1$s min</string>
     <string name="detour_source_total">%1$s %2$s</string>

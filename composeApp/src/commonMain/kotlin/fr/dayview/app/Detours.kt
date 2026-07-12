@@ -55,6 +55,13 @@ fun pushRecentDetourMotif(recents: List<String>, motif: String): List<String> {
         .take(MAX_RECENT_DETOUR_MOTIFS)
 }
 
+/** Drop a suggestion from the recent list, case-insensitively; blank motifs are a no-op. */
+fun removeRecentDetourMotif(recents: List<String>, motif: String): List<String> {
+    val clean = sanitizeDetourMotif(motif)
+    if (clean.isEmpty()) return recents
+    return recents.filter { it.lowercase() != clean.lowercase() }
+}
+
 /** Same day-key convention as the desktop presence loop: local epoch days. */
 fun dayKeyOf(
     now: Instant,
