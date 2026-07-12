@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -138,6 +139,8 @@ internal fun DetourRow(
 internal fun DetourChip(
     label: String,
     selected: Boolean,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign? = null,
     onClick: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
@@ -146,7 +149,9 @@ internal fun DetourChip(
         color = if (selected) colors.ink else colors.cloud,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
-        modifier = Modifier
+        maxLines = 1,
+        textAlign = textAlign,
+        modifier = modifier
             .clip(RoundedCornerShape(9.dp))
             .background(
                 if (selected) colors.amber else colors.overlay.copy(alpha = .07f),
@@ -226,12 +231,16 @@ internal fun DetourCaptureContent(
         Spacer(Modifier.height(14.dp))
         Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
-            DETOUR_DURATION_CHOICES.forEachIndexed { index, minutes ->
-                if (index > 0) Spacer(Modifier.width(7.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            DETOUR_DURATION_CHOICES.forEach { minutes ->
                 DetourChip(
                     stringResource(Res.string.detour_minutes_chip, minutes.toString()),
                     selected = minutes == durationMinutes,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
                 ) { durationMinutes = minutes }
             }
         }
