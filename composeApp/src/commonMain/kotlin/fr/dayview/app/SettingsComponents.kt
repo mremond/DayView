@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Switch
@@ -21,6 +22,7 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,10 +30,43 @@ import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.modify
 import fr.dayview.app.generated.resources.modify_label
+import fr.dayview.app.generated.resources.settings_back
 import fr.dayview.app.generated.resources.sound_preview
 import org.jetbrains.compose.resources.stringResource
 
 private val PanelShape = RoundedCornerShape(18.dp)
+
+/**
+ * Shared top bar for the full-screen destinations reached from Today: a "‹ TODAY" back
+ * control on the left and a right-aligned screen [title]. Settings and History use this so
+ * their headers stay identical in colour, type, and spacing.
+ */
+@Composable
+internal fun ScreenTopBar(
+    title: String,
+    backTestTag: String,
+    onBack: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(Res.string.settings_back),
+            color = colors.muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.2.sp,
+            modifier = Modifier.minimumInteractiveComponentSize()
+                .testTag(backTestTag)
+                .clickable(role = Role.Button, onClick = onBack)
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+        )
+        Spacer(Modifier.weight(1f))
+        Text(title, color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
+    }
+}
 
 @Composable
 internal fun SettingsPanelCard(

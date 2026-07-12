@@ -1,15 +1,20 @@
 package fr.dayview.app
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.history_title
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Read-only replay of one archived day: the live ring, fed from the record's frozen
@@ -22,8 +27,19 @@ internal fun HistoryDayScreen(
     modifier: Modifier = Modifier,
 ) {
     val state = remember(record) { record.toFrozenUiState() }
-    Column(modifier = modifier.fillMaxWidth().padding(16.dp)) {
-        Text("‹", modifier = Modifier.testTag(DayViewTestTags.HistoryBack).clickable { onBack() })
+    val colors = LocalDayViewColors.current
+    Column(
+        modifier = modifier.fillMaxSize()
+            .background(Brush.radialGradient(colors = listOf(colors.glow, colors.ink), radius = 950f))
+            .safeDrawingPadding()
+            .padding(horizontal = 24.dp, vertical = 28.dp),
+    ) {
+        ScreenTopBar(
+            title = stringResource(Res.string.history_title),
+            backTestTag = DayViewTestTags.HistoryBack,
+            onBack = onBack,
+        )
+        Spacer(Modifier.height(24.dp))
         CountdownCircle(
             state.dayProgress,
             state.showSeconds,

@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -15,11 +19,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.history_title
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.isoDayNumber
+import org.jetbrains.compose.resources.stringResource
 
 /** One cell in the week grid: a day key, its short label, and its captured record (if any). */
 internal data class HistoryWeekDay(val dayKey: Long, val label: String, val record: DayHistoryRecord?)
@@ -45,10 +53,20 @@ internal fun HistoryWeekScreen(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
-    Column(modifier = modifier.fillMaxWidth().padding(16.dp)) {
-        Text("‹", modifier = Modifier.testTag(DayViewTestTags.HistoryBack).clickable { onBack() })
+    Column(
+        modifier = modifier.fillMaxSize()
+            .background(Brush.radialGradient(colors = listOf(colors.glow, colors.ink), radius = 950f))
+            .safeDrawingPadding()
+            .padding(horizontal = 24.dp, vertical = 28.dp),
+    ) {
+        ScreenTopBar(
+            title = stringResource(Res.string.history_title),
+            backTestTag = DayViewTestTags.HistoryBack,
+            onBack = onBack,
+        )
+        Spacer(Modifier.height(24.dp))
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             for (day in days) {

@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.settings_autosave_note
-import fr.dayview.app.generated.resources.settings_back
 import fr.dayview.app.generated.resources.settings_day_description
 import fr.dayview.app.generated.resources.settings_net_time_description
 import fr.dayview.app.generated.resources.settings_on_goal_description
@@ -96,25 +94,11 @@ internal fun SettingsScreen(
 
 @Composable
 private fun SettingsTopBar(onBack: () -> Unit) {
-    val colors = LocalDayViewColors.current
-    Row(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(Res.string.settings_back),
-            color = colors.muted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-            modifier = Modifier.minimumInteractiveComponentSize()
-                .testTag(DayViewTestTags.SettingsBack)
-                .clickable(role = Role.Button, onClick = onBack)
-                .padding(vertical = 10.dp, horizontal = 4.dp),
-        )
-        Spacer(Modifier.weight(1f))
-        Text(stringResource(Res.string.settings_title), color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
-    }
+    ScreenTopBar(
+        title = stringResource(Res.string.settings_title),
+        backTestTag = DayViewTestTags.SettingsBack,
+        onBack = onBack,
+    )
 }
 
 @Composable
