@@ -19,6 +19,7 @@ internal data class SettingsScreenActions(
     val changeNetTimeSettings: (NetTimeSettings) -> Unit = {},
     val requestCalendarPermission: () -> Unit = {},
     val changeOnGoalApps: (Set<AppRef>) -> Unit = {},
+    val changeThemeMode: (ThemeMode) -> Unit = {},
     val openCategory: (SettingsCategory) -> Unit = {},
     val closeCategory: () -> Unit = {},
     val back: () -> Unit,
