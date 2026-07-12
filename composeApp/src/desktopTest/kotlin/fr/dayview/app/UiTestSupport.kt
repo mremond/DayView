@@ -83,6 +83,10 @@ internal fun noopDayViewActions(
     startPomodoro = startPomodoro,
     stopPomodoro = stopPomodoro,
     closePomodoro = closePomodoro,
+    addDetour = { _, _ -> },
+    updateDetour = { _, _ -> },
+    removeDetour = {},
+    addDetourEpisode = {},
 )
 
 internal fun noReminders(): FocusReminderUiState = FocusReminderUiState(
@@ -120,4 +124,8 @@ internal fun controllerDayViewActions(controller: DayViewController): DayViewScr
     startPomodoro = { controller.startPomodoro() },
     stopPomodoro = { controller.stopPomodoro() },
     closePomodoro = { controller.closePomodoro(it) },
+    addDetour = { motif, durationMinutes -> controller.addDetour(motif, durationMinutes) },
+    updateDetour = { index, episode -> controller.updateDetour(index, episode) },
+    removeDetour = { controller.removeDetour(it) },
+    addDetourEpisode = { controller.addDetourEpisode(it) },
 )
