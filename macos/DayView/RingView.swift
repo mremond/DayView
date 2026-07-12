@@ -2,12 +2,7 @@ import SwiftUI
 import DayViewKit
 
 struct RingView: View {
-    // Hardcoded working window for the walking skeleton: 09:00–18:00.
-    private static let startMinutes: Int32 = 540
-    private static let endMinutes: Int32 = 1080
-
-    @State private var snapshot = RingView.currentSnapshot()
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @StateObject private var model = TodayModel()
 
     var body: some View {
         VStack(spacing: 24) {
@@ -30,7 +25,7 @@ struct RingView: View {
                 sweep.addArc(
                     center: center, radius: radius,
                     startAngle: .degrees(-90),
-                    endAngle: .degrees(snapshot.momentAngleDegrees),
+                    endAngle: .degrees(model.snapshot.momentAngleDegrees),
                     clockwise: false
                 )
                 context.stroke(
@@ -41,30 +36,27 @@ struct RingView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Text(timeText)
+            Text(model.snapshot.dayStatus)
                 .font(.system(size: 44, weight: .semibold, design: .rounded))
                 .monospacedDigit()
+
+            Text(focusText)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 16) {
+                Button("Start focus") { model.startFocus() }
+                Button("Stop focus") { model.stopFocus() }
+            }
         }
         .padding(32)
-        .onReceive(timer) { _ in
-            snapshot = RingView.currentSnapshot()
+    }
+
+    private var focusText: String {
+        let s = model.snapshot
+        switch s.pomodoroStatus {
+        case "ACTIVE": return "Focus · \(s.focusIntention) · \(s.pomodoroClock)"
+        case "BREAK": return "Break · \(s.pomodoroClock)"
+        default: return "Idle"
         }
-    }
-
-    private var timeText: String {
-        if snapshot.isFinished { return "Day over" }
-        return String(
-            format: "%dh %02dm",
-            Int(snapshot.remainingHours),
-            Int(snapshot.remainingMinutes)
-        )
-    }
-
-    private static func currentSnapshot() -> DayProgressSnapshot {
-        DayViewCore.shared.dayProgress(
-            nowEpochMillis: Int64(Date().timeIntervalSince1970 * 1000),
-            startMinutes: startMinutes,
-            endMinutes: endMinutes
-        )
     }
 }
