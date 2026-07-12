@@ -98,6 +98,7 @@ internal fun noopDayViewActions(
     addDetourEpisode = {},
     forgetDetourMotif = {},
     addPlannedObligation = {},
+    removePlannedObligation = {},
     completePlannedObligation = { _, _, _, _ -> },
 )
 
@@ -142,5 +143,6 @@ internal fun controllerDayViewActions(controller: DayViewController): DayViewScr
     addDetourEpisode = { controller.addDetourEpisode(it) },
     forgetDetourMotif = { controller.forgetRecentDetourMotif(it) },
     addPlannedObligation = { controller.addPlannedObligation(it) },
+    removePlannedObligation = { controller.removePlannedObligation(it) },
     completePlannedObligation = controller::completePlannedObligation,
 )

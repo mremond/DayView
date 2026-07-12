@@ -183,6 +183,7 @@ internal data class DayViewScreenActions(
     val addDetourEpisode: (DetourEpisode) -> Unit,
     val forgetDetourMotif: (String) -> Unit,
     val addPlannedObligation: (String) -> Unit,
+    val removePlannedObligation: (String) -> Unit,
     val completePlannedObligation: (String, String, Int, Int?) -> Unit,
 )
 
@@ -205,6 +206,7 @@ internal fun DayViewScreen(
     var showDetourCapture by remember { mutableStateOf(false) }
     var showDetourList by remember { mutableStateOf(false) }
     var obligationToComplete by remember { mutableStateOf<String?>(null) }
+    var showObligations by remember { mutableStateOf(false) }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
             .background(
@@ -270,10 +272,10 @@ internal fun DayViewScreen(
                             onCapture = { showDetourCapture = true },
                         )
                         Spacer(Modifier.height(12.dp))
-                        PlannedObligationsSection(
-                            obligations = state.plannedObligationsToday,
-                            onAdd = actions.addPlannedObligation,
-                            onComplete = { obligationToComplete = it },
+                        PlannedObligationsChip(
+                            count = state.plannedObligationsToday.size,
+                            cap = MAX_PLANNED_OBLIGATIONS,
+                            onOpen = { showObligations = true },
                         )
                         Spacer(Modifier.height(12.dp))
                         GlobalGoalPanel(
@@ -332,10 +334,10 @@ internal fun DayViewScreen(
                     onCapture = { showDetourCapture = true },
                 )
                 Spacer(Modifier.height(12.dp))
-                PlannedObligationsSection(
-                    obligations = state.plannedObligationsToday,
-                    onAdd = actions.addPlannedObligation,
-                    onComplete = { obligationToComplete = it },
+                PlannedObligationsChip(
+                    count = state.plannedObligationsToday.size,
+                    cap = MAX_PLANNED_OBLIGATIONS,
+                    onOpen = { showObligations = true },
                 )
                 Spacer(Modifier.height(12.dp))
                 CompactTodayContent(
@@ -384,6 +386,18 @@ internal fun DayViewScreen(
                 onRemove = actions.removeDetour,
                 onAdd = actions.addDetourEpisode,
                 onDismiss = { showDetourList = false },
+            )
+        }
+        if (showObligations) {
+            PlannedObligationsDialog(
+                obligations = state.plannedObligationsToday,
+                onAdd = actions.addPlannedObligation,
+                onComplete = {
+                    obligationToComplete = it
+                    showObligations = false
+                },
+                onRemove = actions.removePlannedObligation,
+                onDismiss = { showObligations = false },
             )
         }
     }
