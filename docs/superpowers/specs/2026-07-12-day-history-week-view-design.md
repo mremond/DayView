@@ -129,7 +129,8 @@ interface DayHistoryStore {
 - `DayViewDestination` gains `HISTORY`; the controller gains `selectedHistoryDay: Long?`.
 - `null` → `HistoryWeekScreen`; non-null → `HistoryDayScreen`. Back
   (`PlatformBackHandler`): day → week → Today.
-- An entry point from the Today screen (e.g. a "history" icon).
+- Entry point from the Today screen: a **history icon** button. Week starts Monday.
+  History is retained indefinitely (one small file per day).
 
 ## Error handling
 
