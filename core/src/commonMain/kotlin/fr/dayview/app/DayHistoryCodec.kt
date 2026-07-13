@@ -12,7 +12,7 @@ import kotlin.time.Instant
  * which callers treat as an empty day.
  */
 @OptIn(ExperimentalEncodingApi::class)
-internal object DayHistoryCodec {
+object DayHistoryCodec {
     const val VERSION_HEADER = "dayhistory v1"
     private const val NONE = -1L
 

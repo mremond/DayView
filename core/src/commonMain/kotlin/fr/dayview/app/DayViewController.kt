@@ -1,44 +1,23 @@
 package fr.dayview.app
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import fr.dayview.app.generated.resources.Res
-import fr.dayview.app.generated.resources.weekday_fri
-import fr.dayview.app.generated.resources.weekday_mon
-import fr.dayview.app.generated.resources.weekday_sat
-import fr.dayview.app.generated.resources.weekday_sun
-import fr.dayview.app.generated.resources.weekday_thu
-import fr.dayview.app.generated.resources.weekday_tue
-import fr.dayview.app.generated.resources.weekday_wed
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
-internal enum class DayViewDestination {
+enum class DayViewDestination {
     TODAY,
     SETTINGS,
     HISTORY,
 }
 
-/** Monday→Sunday short weekday labels, in the same order as [weekDaysEndingAt]. */
-private val weekdayLabelResources: List<StringResource> = listOf(
-    Res.string.weekday_mon,
-    Res.string.weekday_tue,
-    Res.string.weekday_wed,
-    Res.string.weekday_thu,
-    Res.string.weekday_fri,
-    Res.string.weekday_sat,
-    Res.string.weekday_sun,
-)
-
-internal enum class SettingsCategory {
+enum class SettingsCategory {
     DAY,
     DISPLAY,
     SOUNDS,
@@ -47,7 +26,7 @@ internal enum class SettingsCategory {
     SYNC,
 }
 
-internal data class DayViewUiState(
+data class DayViewUiState(
     val now: Instant,
     val startMinutes: Int,
     val endMinutes: Int,
@@ -171,7 +150,7 @@ internal data class DayViewUiState(
         get() = displayedStreak(cleanSessions, dayKeyOf(dayNow))
 }
 
-internal class DayViewController(
+class DayViewController(
     private val preferences: DayPreferences,
     private val scope: CoroutineScope,
     initialSnapshot: DayPreferencesSnapshot,
@@ -184,10 +163,15 @@ internal class DayViewController(
     // (DesktopPreferences.loadFocusPresence). Seed it into the initial state so the
     // synchronous init archival below captures the previous day's presence too; the live
     // ticker overwrites it via setFocusPresenceIntervals once composition starts.
-    var state: DayViewUiState by mutableStateOf(
+    private val _stateFlow = MutableStateFlow(
         initialSnapshot.toUiState(initialNow).copy(focusPresenceIntervals = initialFocusPresenceIntervals),
     )
-        private set
+    val stateFlow: StateFlow<DayViewUiState> = _stateFlow.asStateFlow()
+    var state: DayViewUiState
+        get() = _stateFlow.value
+        private set(value) {
+            _stateFlow.value = value
+        }
 
     // Count of our own persists still running. While any is in flight, every
     // notification is necessarily an echo of one of them (the bridged persist()
@@ -268,18 +252,17 @@ internal class DayViewController(
         state = state.copy(destination = DayViewDestination.HISTORY, selectedHistoryDay = null)
         scope.launch {
             val present = history.listDays(keys.first()..keys.last()).toSet()
-            val labels = weekdayLabelResources.map { getString(it) }
             // Today is never archived (maybeArchivePreviousDay skips the current day), so its
             // stored cell is always null. Build it from the live state so today renders a real,
             // clickable ring instead of a greyed placeholder.
             val todayRecord = state.toHistoryRecord(todayKey)
-            val days = keys.mapIndexed { i, key ->
+            val days = keys.map { key ->
                 val record = when {
                     key == todayKey -> todayRecord
                     key in present -> history.read(key)
                     else -> null
                 }
-                HistoryWeekDay(key, labels[i], record)
+                HistoryWeekDay(key, record)
             }
             state = state.copy(historyWeek = days)
         }
@@ -341,21 +324,30 @@ internal class DayViewController(
         state = state.copy(goalDeadlineText = value.take(16))
     }
 
-    fun commitGoalDeadline() {
-        val parsed = parseGoalDeadline(state.goalDeadlineText)
-        if (parsed == null && state.goalDeadlineText.isNotBlank()) return
+    private fun applyGoalDeadline(deadline: Instant?, deadlineText: String) {
         val existingStart = state.goalStart
         val start = when {
-            parsed == null -> null
-            existingStart == null || existingStart >= parsed -> state.now
+            deadline == null -> null
+            existingStart == null || existingStart >= deadline -> state.now
             else -> existingStart
         }
         state = state.copy(
-            goalDeadline = parsed,
+            goalDeadline = deadline,
+            goalDeadlineText = deadlineText,
             goalStart = start,
             goalStartText = start?.let(::formatGoalDeadline).orEmpty(),
         )
         persistState()
+    }
+
+    fun commitGoalDeadline() {
+        val parsed = parseGoalDeadline(state.goalDeadlineText)
+        if (parsed == null && state.goalDeadlineText.isNotBlank()) return
+        applyGoalDeadline(parsed, state.goalDeadlineText)
+    }
+
+    fun setGoalDeadlineInstant(deadline: Instant?) {
+        applyGoalDeadline(deadline, deadline?.let(::formatGoalDeadline).orEmpty())
     }
 
     fun setGoalStartText(value: String) {

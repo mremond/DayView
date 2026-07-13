@@ -1,5 +1,7 @@
 package fr.dayview.app
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
@@ -15,9 +17,10 @@ class SettingsDrillInTest {
     fun drillingIntoSoundsShowsTheSubScreenThenBackReturnsToList() = runComposeUiTest {
         setContent {
             val controller = remember { seededController(DayPreferencesSnapshot()) }
+            val state by controller.stateFlow.collectAsState()
             DayViewTheme {
                 SettingsScreen(
-                    state = controller.state,
+                    state = state,
                     platformState = platform,
                     actions = noopSettingsActions(
                         openCategory = { controller.openSettingsCategory(it) },

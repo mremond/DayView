@@ -22,8 +22,8 @@ class HistoryWeekScreenTest {
     fun daysWithDataAreClickableAndGapsAreNot() = runComposeUiTest {
         var clicked: Long? = null
         val days = listOf(
-            HistoryWeekDay(10L, "Mon", record(10L)),
-            HistoryWeekDay(11L, "Tue", null), // gap
+            HistoryWeekDay(10L, record(10L)),
+            HistoryWeekDay(11L, null), // gap
         )
         setContent {
             DayViewTheme {

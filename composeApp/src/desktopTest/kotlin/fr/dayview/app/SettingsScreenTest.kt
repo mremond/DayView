@@ -1,5 +1,7 @@
 package fr.dayview.app
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
@@ -18,9 +20,10 @@ class SettingsScreenTest {
     fun landingListShowsSupportedCategories() = runComposeUiTest {
         setContent {
             val controller = remember { seededController(DayPreferencesSnapshot()) }
+            val state by controller.stateFlow.collectAsState()
             DayViewTheme {
                 SettingsScreen(
-                    state = controller.state,
+                    state = state,
                     platformState = platform,
                     actions = noopSettingsActions(),
                 )
@@ -36,9 +39,10 @@ class SettingsScreenTest {
         val snapshot = DayPreferencesSnapshot(startMinutes = 8 * 60, endMinutes = 18 * 60, showSeconds = true)
         setContent {
             val controller = remember { seededController(snapshot) }
+            val state by controller.stateFlow.collectAsState()
             DayViewTheme {
                 SettingsScreen(
-                    state = controller.state,
+                    state = state,
                     platformState = platform,
                     actions = noopSettingsActions(openCategory = { controller.openSettingsCategory(it) }),
                 )
@@ -54,9 +58,10 @@ class SettingsScreenTest {
         var recorded: Boolean? = null
         setContent {
             val controller = remember { seededController(DayPreferencesSnapshot(showSeconds = true)) }
+            val state by controller.stateFlow.collectAsState()
             DayViewTheme {
                 SettingsScreen(
-                    state = controller.state,
+                    state = state,
                     platformState = platform,
                     actions = noopSettingsActions(
                         changeShowSeconds = { recorded = it },
@@ -74,9 +79,10 @@ class SettingsScreenTest {
     fun displayShowsAppearanceSelector() = runComposeUiTest {
         setContent {
             val controller = remember { seededController(DayPreferencesSnapshot(themeMode = ThemeMode.DARK)) }
+            val state by controller.stateFlow.collectAsState()
             DayViewTheme {
                 SettingsScreen(
-                    state = controller.state,
+                    state = state,
                     platformState = platform,
                     actions = noopSettingsActions(openCategory = { controller.openSettingsCategory(it) }),
                 )
@@ -92,9 +98,10 @@ class SettingsScreenTest {
         var recorded: ThemeMode? = null
         setContent {
             val controller = remember { seededController(DayPreferencesSnapshot(themeMode = ThemeMode.SYSTEM)) }
+            val state by controller.stateFlow.collectAsState()
             DayViewTheme {
                 SettingsScreen(
-                    state = controller.state,
+                    state = state,
                     platformState = platform,
                     actions = noopSettingsActions(
                         changeThemeMode = { recorded = it },
@@ -113,9 +120,10 @@ class SettingsScreenTest {
         var backCalled = false
         setContent {
             val controller = remember { seededController(DayPreferencesSnapshot()) }
+            val state by controller.stateFlow.collectAsState()
             DayViewTheme {
                 SettingsScreen(
-                    state = controller.state,
+                    state = state,
                     platformState = platform,
                     actions = noopSettingsActions(back = { backCalled = true }),
                 )

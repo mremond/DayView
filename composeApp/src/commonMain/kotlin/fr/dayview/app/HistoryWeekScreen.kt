@@ -24,19 +24,34 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.history_title
-import kotlinx.datetime.DayOfWeek
+import fr.dayview.app.generated.resources.weekday_fri
+import fr.dayview.app.generated.resources.weekday_mon
+import fr.dayview.app.generated.resources.weekday_sat
+import fr.dayview.app.generated.resources.weekday_sun
+import fr.dayview.app.generated.resources.weekday_thu
+import fr.dayview.app.generated.resources.weekday_tue
+import fr.dayview.app.generated.resources.weekday_wed
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.isoDayNumber
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-/** One cell in the week grid: a day key, its short label, and its captured record (if any). */
-internal data class HistoryWeekDay(val dayKey: Long, val label: String, val record: DayHistoryRecord?)
+/** Monday→Sunday short weekday labels, in the same order as [weekDaysEndingAt]. */
+private val weekdayLabelResources: List<StringResource> = listOf(
+    Res.string.weekday_mon,
+    Res.string.weekday_tue,
+    Res.string.weekday_wed,
+    Res.string.weekday_thu,
+    Res.string.weekday_fri,
+    Res.string.weekday_sat,
+    Res.string.weekday_sun,
+)
 
-/** The 7 Monday→Sunday day keys of the calendar week containing [todayKey]. */
-internal fun weekDaysEndingAt(todayKey: Long): List<Long> {
-    val today = LocalDate.fromEpochDays(todayKey.toInt())
-    val monday = today.toEpochDays() - (today.dayOfWeek.isoDayNumber - DayOfWeek.MONDAY.isoDayNumber)
-    return (0..6).map { monday + it }
+/** The localized short label for the weekday of [dayKey] (an epoch-day count). */
+@Composable
+internal fun weekdayLabel(dayKey: Long): String {
+    val isoDay = LocalDate.fromEpochDays(dayKey.toInt()).dayOfWeek.isoDayNumber
+    return stringResource(weekdayLabelResources[isoDay - 1])
 }
 
 /**
@@ -71,7 +86,7 @@ internal fun HistoryWeekScreen(
         ) {
             for (day in days) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(day.label)
+                    Text(weekdayLabel(day.dayKey))
                     val record = day.record
                     if (record != null) {
                         val state = remember(record) { record.toFrozenUiState() }

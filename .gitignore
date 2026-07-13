@@ -8,6 +8,12 @@ local.properties
 .superpowers/
 hs_err_pid*.log
 
+# macOS native (generated / synced artifacts)
+macos/Packages/DayViewKit/DayViewKit.xcframework/
+macos/DayView.xcodeproj/
+macos/.build/
+macos/Packages/DayViewKit/.build/
+
 # Visual-companion brainstorming scratch
 .superpowers/
 
