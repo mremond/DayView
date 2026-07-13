@@ -976,11 +976,11 @@ internal fun CountdownCircle(
                             )
                         }
                     } else if (progress.isFinished) {
-                        // Day complete: the ring comes to rest as a full, calm mint circle
+                        // Day complete: the ring comes to rest as a full, vivid mint circle
                         // (uniform colour — no leading edge to justify a sweep gradient), with a
                         // small resting marker parked at the top where the day began and ended.
                         drawArc(
-                            color = accent.copy(alpha = .45f),
+                            color = accent,
                             startAngle = -90f,
                             sweepAngle = 360f,
                             useCenter = false,
