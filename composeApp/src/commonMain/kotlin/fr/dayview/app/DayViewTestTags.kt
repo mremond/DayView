@@ -44,6 +44,8 @@ internal object DayViewTestTags {
     const val HistoryIcon = "historyIcon"
     const val HistoryBack = "historyBack"
 
+    fun focusOutcome(outcome: FocusClosureOutcome): String = "focusOutcome_${outcome.name}"
+
     fun settingsCategoryRow(category: SettingsCategory): String = "settingsCategoryRow_${category.name}"
 
     fun historyDayCell(dayKey: Long): String = "historyDayCell_$dayKey"

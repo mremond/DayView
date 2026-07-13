@@ -26,6 +26,7 @@ class MiniWindowTest {
                 focusIntention = "",
                 onStartFocus = {},
                 onStopFocus = {},
+                onCloseFocus = {},
                 onOpenMainWindow = { mainOpened = true },
             )
         }
@@ -49,6 +50,7 @@ class MiniWindowTest {
                 focusIntention = "Couper 5k secs",
                 onStartFocus = { startedIntention = it },
                 onStopFocus = {},
+                onCloseFocus = {},
                 onOpenMainWindow = {},
             )
         }
@@ -71,9 +73,35 @@ class MiniWindowTest {
                 focusIntention = "Couper 5k secs",
                 onStartFocus = {},
                 onStopFocus = {},
+                onCloseFocus = {},
                 onOpenMainWindow = {},
             )
         }
         onNodeWithTag(DayViewTestTags.MiniFocusRelaunch).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.COMPLETED)).assertDoesNotExist()
+    }
+
+    @Test
+    fun closureButtonsDuringBreakReportTheOutcome() = runComposeUiTest {
+        var closedWith: FocusClosureOutcome? = null
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, now - 1.minutes),
+                focusIntention = "Couper 5k secs",
+                onStartFocus = {},
+                onStopFocus = {},
+                onCloseFocus = { closedWith = it },
+                onOpenMainWindow = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.TO_RESUME)).assertExists()
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.COMPLETED)).performClick()
+        assertEquals(FocusClosureOutcome.COMPLETED, closedWith)
     }
 }

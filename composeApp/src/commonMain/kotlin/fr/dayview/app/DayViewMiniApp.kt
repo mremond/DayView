@@ -60,6 +60,7 @@ fun DayViewMiniApp(
     focusIntention: String,
     onStartFocus: (String) -> Unit,
     onStopFocus: () -> Unit,
+    onCloseFocus: (FocusClosureOutcome) -> Unit,
     onOpenMainWindow: () -> Unit,
 ) {
     DayViewTheme(uses24Hour = rememberUses24HourClock()) { colors ->
@@ -105,6 +106,7 @@ fun DayViewMiniApp(
                             intention = focusIntention,
                             onRelaunch = { onStartFocus(focusIntention) },
                             onStop = onStopFocus,
+                            onClose = onCloseFocus,
                         )
                     }
                 }
@@ -220,45 +222,54 @@ private fun MiniFocus(
     intention: String,
     onRelaunch: () -> Unit,
     onStop: () -> Unit,
+    onClose: (FocusClosureOutcome) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val isBreak = progress.status == PomodoroStatus.BREAK
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth()
             .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
             .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
             .padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
+                    color = if (isBreak) colors.mint else colors.amber,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.1.sp,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    intention.ifBlank { stringResource(Res.string.mini_focus_single_thing) },
+                    color = colors.cloud,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
             Text(
-                if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
-                color = if (isBreak) colors.mint else colors.amber,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.1.sp,
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                intention.ifBlank { stringResource(Res.string.mini_focus_single_thing) },
+                if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
                 color = colors.cloud,
-                fontSize = 12.sp,
-                maxLines = 1,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Light,
             )
+            Spacer(Modifier.width(12.dp))
+            if (isBreak) {
+                FocusRelaunchRoundButton(onRelaunch, Modifier.testTag(DayViewTestTags.MiniFocusRelaunch))
+                Spacer(Modifier.width(8.dp))
+            }
+            FocusStopRoundButton(onStop)
         }
-        Spacer(Modifier.width(12.dp))
-        Text(
-            if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
-            color = colors.cloud,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Light,
-        )
-        Spacer(Modifier.width(12.dp))
         if (isBreak) {
-            FocusRelaunchRoundButton(onRelaunch, Modifier.testTag(DayViewTestTags.MiniFocusRelaunch))
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.height(11.dp))
+            FocusClosureSection(onClose)
         }
-        FocusStopRoundButton(onStop)
     }
 }
 

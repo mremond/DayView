@@ -105,7 +105,6 @@ import fr.dayview.app.generated.resources.dialog_ok
 import fr.dayview.app.generated.resources.focus_break_conscious
 import fr.dayview.app.generated.resources.focus_break_disconnect
 import fr.dayview.app.generated.resources.focus_break_since
-import fr.dayview.app.generated.resources.focus_close_section
 import fr.dayview.app.generated.resources.focus_closed
 import fr.dayview.app.generated.resources.focus_drift_dismiss
 import fr.dayview.app.generated.resources.focus_drift_title
@@ -1654,37 +1653,7 @@ private fun FocusPanel(
                 letterSpacing = .9.sp,
             )
             Spacer(Modifier.height(14.dp))
-            Text(
-                stringResource(Res.string.focus_close_section),
-                color = colors.muted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FocusActionButton(
-                    stringResource(Res.string.focus_outcome_completed),
-                    colors.mint,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onClose(FocusClosureOutcome.COMPLETED) },
-                )
-                FocusActionButton(
-                    stringResource(Res.string.focus_outcome_progressed),
-                    colors.amber,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onClose(FocusClosureOutcome.PROGRESSED) },
-                )
-                FocusActionButton(
-                    stringResource(Res.string.focus_outcome_to_resume),
-                    colors.muted,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onClose(FocusClosureOutcome.TO_RESUME) },
-                )
-            }
+            FocusClosureSection(onClose)
         } else {
             FocusCreationContent(
                 progress = progress,
