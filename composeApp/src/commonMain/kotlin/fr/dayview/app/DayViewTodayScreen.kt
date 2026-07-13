@@ -13,8 +13,10 @@ import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -55,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -1225,77 +1228,51 @@ internal fun CountdownCircle(
                     val arc = hovered.arc
                     val startLabel = formatClockHm(arc.start, use24Hour = uses24Hour)
                     val endLabel = formatClockHm(arc.end, use24Hour = uses24Hour)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset {
-                                IntOffset(
-                                    hovered.position.x.roundToInt() + 14,
-                                    hovered.position.y.roundToInt() + 14,
-                                )
-                            }
-                            .background(colors.panel, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    ) {
-                        Column {
-                            if (arc.calendarName.isNotBlank()) {
-                                Text(
-                                    arc.calendarName,
-                                    color = colors.busy[arc.colorIndex % colors.busy.size],
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    letterSpacing = .5.sp,
-                                )
-                            }
-                            val titles = arc.titles.filter { it.isNotBlank() }
-                            if (titles.isEmpty()) {
-                                Text(stringResource(Res.string.busy_generic), color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            } else {
-                                titles.forEach { title ->
-                                    Text(title, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                                }
-                            }
+                    HoverTooltip(position = hovered.position, colors = colors) {
+                        if (arc.calendarName.isNotBlank()) {
                             Text(
-                                stringResource(Res.string.busy_time_range, startLabel, endLabel),
-                                color = colors.muted,
+                                arc.calendarName,
+                                color = colors.busy[arc.colorIndex % colors.busy.size],
                                 fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
                                 letterSpacing = .5.sp,
                             )
                         }
+                        val titles = arc.titles.filter { it.isNotBlank() }
+                        if (titles.isEmpty()) {
+                            Text(stringResource(Res.string.busy_generic), color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        } else {
+                            titles.forEach { title ->
+                                Text(title, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                        Text(
+                            stringResource(Res.string.busy_time_range, startLabel, endLabel),
+                            color = colors.muted,
+                            fontSize = 11.sp,
+                            letterSpacing = .5.sp,
+                        )
                     }
                 }
 
                 hoveredDetour?.let { hovered ->
                     val body = hovered.body
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset {
-                                IntOffset(
-                                    hovered.position.x.roundToInt() + 14,
-                                    hovered.position.y.roundToInt() + 14,
-                                )
-                            }
-                            .background(colors.panel, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    ) {
-                        Column {
-                            Text(body.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            if (body.description.isNotEmpty()) {
-                                Text(body.description, color = colors.muted, fontSize = 11.sp)
-                            }
-                            Text(
-                                stringResource(
-                                    Res.string.detour_time_range,
-                                    formatClockHm(body.start, use24Hour = uses24Hour),
-                                    formatClockHm(body.end, use24Hour = uses24Hour),
-                                    formatDurationHm(body.end - body.start),
-                                ),
-                                color = colors.muted,
-                                fontSize = 11.sp,
-                                letterSpacing = .5.sp,
-                            )
+                    HoverTooltip(position = hovered.position, colors = colors) {
+                        Text(body.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        if (body.description.isNotEmpty()) {
+                            Text(body.description, color = colors.muted, fontSize = 11.sp)
                         }
+                        Text(
+                            stringResource(
+                                Res.string.detour_time_range,
+                                formatClockHm(body.start, use24Hour = uses24Hour),
+                                formatClockHm(body.end, use24Hour = uses24Hour),
+                                formatDurationHm(body.end - body.start),
+                            ),
+                            color = colors.muted,
+                            fontSize = 11.sp,
+                            letterSpacing = .5.sp,
+                        )
                     }
                 }
 
@@ -1398,6 +1375,36 @@ private fun RingScrubReadout(
 
 private data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
+
+/**
+ * A hover tooltip anchored just past the pointer. It rides on the opaque [DayViewColors.panel]
+ * surface, but a drop shadow plus a hairline border lift it off the ring so it never reads as a
+ * faint, washed-out patch against the dark background.
+ */
+@Composable
+private fun BoxScope.HoverTooltip(
+    position: Offset,
+    colors: DayViewColors,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .offset {
+                IntOffset(
+                    position.x.roundToInt() + 14,
+                    position.y.roundToInt() + 14,
+                )
+            }
+            .shadow(12.dp, shape)
+            .background(colors.panel, shape)
+            .border(1.dp, colors.overlay.copy(alpha = .1f), shape)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Column(content = content)
+    }
+}
 
 /** Renvoie l'arc occupé sous le pointeur, ou null si le pointeur n'est pas sur l'anneau. */
 private fun hitTestBusyArc(
