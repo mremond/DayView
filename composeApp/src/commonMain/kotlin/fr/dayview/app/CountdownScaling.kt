@@ -22,3 +22,81 @@ internal fun countdownCounterScale(circleSize: Dp): Float {
     val floor = minOf(0.72f, circleSize / 200.dp)
     return (circleSize / 380.dp).coerceIn(floor, 1.4f)
 }
+
+/**
+ * Which secondary rows survive inside the ring and whether Net renders in its compact,
+ * label-less form. Decided purely from the ring diameter and counter scale so the interior
+ * degrades the same way across phone, mini/compact desktop, and Supernote — no per-device
+ * breakpoints. Rows are culled bottom-up by priority (pips → busy → Focus → Détours), the
+ * countdown numerals themselves are never part of this budget.
+ *
+ * The height constants are empirical (they approximate each scaled row's rendered height in
+ * dp); tune them by eye with `./gradlew :composeApp:run`, not by changing the algorithm.
+ */
+internal data class CountdownInterior(
+    val showNet: Boolean,
+    val netCompact: Boolean,
+    val showBusy: Boolean,
+    val showFocus: Boolean,
+    val showDetours: Boolean,
+    val showAccolades: Boolean,
+)
+
+// Fraction of the ring diameter usable as vertical room for the centered content column: a
+// centered text column ~0.7·d wide leaves ~0.64·d of vertical chord inside the circle.
+private const val INTERIOR_CONTENT_HEIGHT_FRACTION = 0.64f
+
+// At or below this counter scale the "Net" label is dropped so the value stays on one line.
+private const val NET_COMPACT_SCALE_THRESHOLD = 0.8f
+
+// Unscaled row-height estimates (dp). Numerals block reserved first, then secondary rows.
+private const val RESERVE_HEADER = 16f
+private const val RESERVE_HEADER_SPACER = 8f
+private const val RESERVE_NUMERALS = 92f
+private const val RESERVE_SECONDS = 18f
+private const val ROW_NET = 13f
+private const val ROW_DETOURS = 13f
+private const val ROW_FOCUS = 19f
+private const val ROW_BUSY = 17f
+private const val ROW_ACCOLADES = 34f
+
+internal fun countdownInterior(
+    circleSize: Dp,
+    counterScale: Float,
+    showSeconds: Boolean,
+    hasNet: Boolean,
+    hasBusy: Boolean,
+    hasFocus: Boolean,
+    hasDetours: Boolean,
+    hasAccolades: Boolean,
+): CountdownInterior {
+    val interiorHeight = circleSize.value * INTERIOR_CONTENT_HEIGHT_FRACTION
+    val reserve =
+        (RESERVE_HEADER + RESERVE_HEADER_SPACER + RESERVE_NUMERALS + if (showSeconds) RESERVE_SECONDS else 0f) *
+            counterScale
+    var remaining = interiorHeight - reserve
+
+    fun take(present: Boolean, base: Float): Boolean {
+        if (!present) return false
+        val height = base * counterScale
+        if (height > remaining) return false
+        remaining -= height
+        return true
+    }
+
+    // Priority high → low. The busy sub-line only survives where Net does.
+    val showNet = take(hasNet, ROW_NET)
+    val showDetours = take(hasDetours, ROW_DETOURS)
+    val showFocus = take(hasFocus, ROW_FOCUS)
+    val showBusy = take(showNet && hasBusy, ROW_BUSY)
+    val showAccolades = take(hasAccolades, ROW_ACCOLADES)
+
+    return CountdownInterior(
+        showNet = showNet,
+        netCompact = showNet && counterScale <= NET_COMPACT_SCALE_THRESHOLD,
+        showBusy = showBusy,
+        showFocus = showFocus,
+        showDetours = showDetours,
+        showAccolades = showAccolades,
+    )
+}
