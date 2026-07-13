@@ -29,17 +29,6 @@ private class FakeTransport(
     }
 }
 
-/** Identity codec: keeps the loop logic under test independent of real crypto. */
-private object PlainCodec : PayloadCodec {
-    override suspend fun encrypt(plaintext: String) = plaintext
-    override suspend fun decrypt(ciphertext: String) = ciphertext
-}
-
-private object FailKeyCodec : PayloadCodec {
-    override suspend fun encrypt(plaintext: String) = plaintext
-    override suspend fun decrypt(ciphertext: String): String = throw SyncKeyMismatchException(null)
-}
-
 class SyncEngineTest {
     private val local = DayPreferencesSnapshot(startMinutes = 500)
 
