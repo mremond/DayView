@@ -209,6 +209,23 @@ compose.desktop {
                         <string>DayView reads your calendar in read-only mode to subtract busy slots from the time you have left today.</string>
                     """.trimIndent()
                 }
+                // Developer ID signing keeps the app bundle's code identity stable across
+                // rebuilds, so macOS (which attributes the calendar request to this bundle)
+                // keeps the permission granted. Identity comes from local.properties; when
+                // unset the bundle is ad-hoc signed and the permission resets on each build.
+                signing {
+                    sign.set(macosSigningIdentity != null)
+                    macosSigningIdentity?.let { identity.set(it) }
+                }
+                // Developer ID signing turns on the hardened runtime, which otherwise blocks
+                // the JVM from JIT and from loading JNA/Skia native libraries. These
+                // entitlements restore what a JVM app needs. App is not sandboxed.
+                entitlementsFile.set(
+                    rootProject.layout.projectDirectory.file("composeApp/entitlements.plist"),
+                )
+                runtimeEntitlementsFile.set(
+                    rootProject.layout.projectDirectory.file("composeApp/runtime-entitlements.plist"),
+                )
             }
         }
     }
