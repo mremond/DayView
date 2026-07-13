@@ -63,6 +63,18 @@ class SyncMergeTest {
     }
 
     @Test
+    fun mergeUnionsCompletedObligationsAcrossDevices() {
+        val a = sampleDocument("dev-a", at = 100).copy(
+            plannedObligationsCompleted = DayScoped(19000, listOf(SyncItem("x", "x", false, Stamp(100, "dev-a")))),
+        )
+        val b = sampleDocument("dev-b", at = 200).copy(
+            plannedObligationsCompleted = DayScoped(19000, listOf(SyncItem("y", "y", false, Stamp(200, "dev-b")))),
+        )
+        val merged = a.merge(b)
+        assertEquals(setOf("x", "y"), merged.plannedObligationsCompleted.items.filterNot { it.deleted }.map { it.value }.toSet())
+    }
+
+    @Test
     fun mergeIsIdempotent() {
         val a = sampleDocument(deviceId = "a", at = 100)
         val b = sampleDocument(deviceId = "b", at = 200)
