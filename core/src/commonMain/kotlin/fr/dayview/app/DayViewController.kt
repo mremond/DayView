@@ -1,20 +1,10 @@
 package fr.dayview.app
 
-import fr.dayview.app.generated.resources.Res
-import fr.dayview.app.generated.resources.weekday_fri
-import fr.dayview.app.generated.resources.weekday_mon
-import fr.dayview.app.generated.resources.weekday_sat
-import fr.dayview.app.generated.resources.weekday_sun
-import fr.dayview.app.generated.resources.weekday_thu
-import fr.dayview.app.generated.resources.weekday_tue
-import fr.dayview.app.generated.resources.weekday_wed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -26,17 +16,6 @@ enum class DayViewDestination {
     SETTINGS,
     HISTORY,
 }
-
-/** Monday→Sunday short weekday labels, in the same order as [weekDaysEndingAt]. */
-private val weekdayLabelResources: List<StringResource> = listOf(
-    Res.string.weekday_mon,
-    Res.string.weekday_tue,
-    Res.string.weekday_wed,
-    Res.string.weekday_thu,
-    Res.string.weekday_fri,
-    Res.string.weekday_sat,
-    Res.string.weekday_sun,
-)
 
 enum class SettingsCategory {
     DAY,
@@ -273,18 +252,17 @@ class DayViewController(
         state = state.copy(destination = DayViewDestination.HISTORY, selectedHistoryDay = null)
         scope.launch {
             val present = history.listDays(keys.first()..keys.last()).toSet()
-            val labels = weekdayLabelResources.map { getString(it) }
             // Today is never archived (maybeArchivePreviousDay skips the current day), so its
             // stored cell is always null. Build it from the live state so today renders a real,
             // clickable ring instead of a greyed placeholder.
             val todayRecord = state.toHistoryRecord(todayKey)
-            val days = keys.mapIndexed { i, key ->
+            val days = keys.map { key ->
                 val record = when {
                     key == todayKey -> todayRecord
                     key in present -> history.read(key)
                     else -> null
                 }
-                HistoryWeekDay(key, labels[i], record)
+                HistoryWeekDay(key, record)
             }
             state = state.copy(historyWeek = days)
         }
