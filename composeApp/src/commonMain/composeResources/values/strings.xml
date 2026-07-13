@@ -35,15 +35,28 @@
     <string-array name="today_hero_not_started">
         <item>Your day hasn’t started yet.\nThe circle is still whole.</item>
     </string-array>
+    <string-array name="today_hero_not_started_sources">
+        <item></item>
+    </string-array>
     <string-array name="today_hero_finished">
         <item>Your planned time is up.\nYou can let the day go.</item>
+    </string-array>
+    <string-array name="today_hero_finished_sources">
+        <item></item>
     </string-array>
     <string-array name="today_hero_ending">
         <item>The day is drawing to a close.\nChoose one essential thing.</item>
     </string-array>
+    <string-array name="today_hero_ending_sources">
+        <item></item>
+    </string-array>
     <string-array name="today_hero_ongoing">
         <item>See the time.\nStay the course, no pressure.</item>
-        <item>Rules for Writers\nRule One: You Must Write\n…\n― Robert A. Heinlein</item>
+        <item>You must write.</item>
+    </string-array>
+    <string-array name="today_hero_ongoing_sources">
+        <item></item>
+        <item>Rules for Writers ― Robert A. Heinlein</item>
     </string-array>
 
     <!-- Countdown circle -->
