@@ -41,6 +41,7 @@ internal object DayPreferenceKeys {
     const val DETOUR_RECENT_CATEGORIES = "detour_recent_motifs"
     const val PLANNED_OBLIGATIONS_DAY = "planned_obligations_day"
     const val PLANNED_OBLIGATIONS = "planned_obligations"
+    const val PLANNED_OBLIGATIONS_COMPLETED = "planned_obligations_completed"
     const val THEME_MODE = "theme_mode"
     const val CLEAN_SESSIONS_DAY = "clean_sessions_day"
     const val CLEAN_SESSIONS_TODAY = "clean_sessions_today"
@@ -76,6 +77,7 @@ private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
 private val detourRecentCategoriesKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_CATEGORIES)
 private val plannedObligationsDayPrefKey = longPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS_DAY)
 private val plannedObligationsKey = stringPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS)
+private val plannedObligationsCompletedKey = stringPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS_COMPLETED)
 private val themeModeKey = stringPreferencesKey(DayPreferenceKeys.THEME_MODE)
 private val cleanSessionsDayKey = longPreferencesKey(DayPreferenceKeys.CLEAN_SESSIONS_DAY)
 private val cleanSessionsTodayKey = intPreferencesKey(DayPreferenceKeys.CLEAN_SESSIONS_TODAY)
@@ -116,6 +118,7 @@ class DayPreferencesStore(
             prefs[detourRecentCategoriesKey] = encodeRecentDetourCategories(snapshot.recentDetourCategories)
             prefs[plannedObligationsDayPrefKey] = snapshot.plannedObligationsDayKey
             prefs[plannedObligationsKey] = encodePlannedObligations(snapshot.plannedObligations)
+            prefs[plannedObligationsCompletedKey] = encodePlannedObligations(snapshot.plannedObligationsCompleted)
             prefs[themeModeKey] = snapshot.themeMode.name
             prefs[cleanSessionsDayKey] = snapshot.cleanSessions.dayKey
             prefs[cleanSessionsTodayKey] = snapshot.cleanSessions.cleanToday
@@ -167,6 +170,7 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         recentDetourCategories = decodeRecentDetourCategories(this[detourRecentCategoriesKey].orEmpty()),
         plannedObligationsDayKey = this[plannedObligationsDayPrefKey] ?: defaults.plannedObligationsDayKey,
         plannedObligations = decodePlannedObligations(this[plannedObligationsKey].orEmpty()),
+        plannedObligationsCompleted = decodePlannedObligations(this[plannedObligationsCompletedKey].orEmpty()),
         themeMode = this[themeModeKey]
             ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
             ?: defaults.themeMode,

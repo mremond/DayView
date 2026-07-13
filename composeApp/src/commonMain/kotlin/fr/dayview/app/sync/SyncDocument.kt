@@ -45,6 +45,7 @@ data class SyncDocument(
     val netTimeEnabled: Versioned<Boolean>,
     val detours: DayScoped<DetourDto>,
     val plannedObligations: DayScoped<String>,
+    val plannedObligationsCompleted: DayScoped<String> = DayScoped(-1L, emptyList()),
     val recentDetourMotifs: List<SyncItem<String>>,
     val cleanSessions: Versioned<CleanDto>,
 )

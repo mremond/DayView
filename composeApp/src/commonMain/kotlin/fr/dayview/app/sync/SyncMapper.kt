@@ -54,6 +54,13 @@ fun buildDocument(
             base = base?.plannedObligations,
             fresh = fresh,
         ),
+        plannedObligationsCompleted = buildDayScoped(
+            dayKey = snapshot.plannedObligationsDayKey,
+            values = snapshot.plannedObligationsCompleted,
+            keyOf = { it },
+            base = base?.plannedObligationsCompleted,
+            fresh = fresh,
+        ),
         recentDetourMotifs = boundRecentMotifItems(buildItems(snapshot.recentDetourCategories, { it }, base?.recentDetourMotifs, fresh)),
         cleanSessions = restamp(snapshot.cleanSessions.toDto(), base?.cleanSessions, now, deviceId),
     )
@@ -148,6 +155,7 @@ fun applyDocument(document: SyncDocument, local: DayPreferencesSnapshot): DayPre
         .map { DetourEpisode(Instant.fromEpochMilliseconds(it.value.start), Instant.fromEpochMilliseconds(it.value.end), it.value.motif, it.value.description) },
     plannedObligationsDayKey = document.plannedObligations.dayKey,
     plannedObligations = document.plannedObligations.items.filterNot { it.deleted }.map { it.value },
+    plannedObligationsCompleted = document.plannedObligationsCompleted.items.filterNot { it.deleted }.map { it.value },
     recentDetourCategories = document.recentDetourMotifs
         .filterNot { it.deleted }
         .sortedByDescending { it.stamp.at }

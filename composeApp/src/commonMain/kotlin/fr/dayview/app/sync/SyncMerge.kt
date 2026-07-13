@@ -14,6 +14,7 @@ fun SyncDocument.merge(remote: SyncDocument?): SyncDocument {
         netTimeEnabled = pick(netTimeEnabled, remote.netTimeEnabled),
         detours = mergeDayScoped(detours, remote.detours),
         plannedObligations = mergeDayScoped(plannedObligations, remote.plannedObligations),
+        plannedObligationsCompleted = mergeDayScoped(plannedObligationsCompleted, remote.plannedObligationsCompleted),
         recentDetourMotifs = boundRecentMotifItems(mergeItems(recentDetourMotifs, remote.recentDetourMotifs)),
         cleanSessions = mergeClean(cleanSessions, remote.cleanSessions),
     )
