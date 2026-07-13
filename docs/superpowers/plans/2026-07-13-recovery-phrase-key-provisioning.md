@@ -36,7 +36,7 @@
 - Test: `composeApp/src/commonTest/kotlin/fr/dayview/app/sync/Bip39WordlistTest.kt`
 
 **Interfaces:**
-- Produces: `internal val Bip39Wordlist: List<String>` — exactly 2048 words, all lowercase, unique, index 0 = `"abandon"`, index 2047 = `"zoo"`, index 99 = `"art"`.
+- Produces: `internal val Bip39Wordlist: List<String>` — exactly 2048 words, all lowercase, unique, index 0 = `"abandon"`, index 2047 = `"zoo"`, index 99 = `"arrest"`, index 102 = `"art"` (spot-check anchors from the canonical list).
 
 - [ ] **Step 1: Write the failing integrity test**
 
@@ -54,7 +54,8 @@ class Bip39WordlistTest {
         assertEquals(Bip39Wordlist, Bip39Wordlist.map { it.lowercase() }) // all lowercase
         assertEquals("abandon", Bip39Wordlist.first())
         assertEquals("zoo", Bip39Wordlist.last())
-        assertEquals("art", Bip39Wordlist[99]) // fixed BIP39 index, used by the all-zero test vector
+        assertEquals("arrest", Bip39Wordlist[99]) // spot-check fixed BIP39 indices
+        assertEquals("art", Bip39Wordlist[102])
     }
 }
 ```
@@ -217,8 +218,11 @@ object RecoveryPhrase {
         return RawSyncKey(entropy)
     }
 
+    // Strip a leading ordinal (`\d+.`) from each token so the numbered display form
+    // ("1. abandon  2. ability …") the user copies decodes too. BIP39 words never start
+    // with a digit, so this can't corrupt a real word.
     fun decodePhrase(text: String): RawSyncKey? =
-        decode(text.trim().split(Regex("\\s+")).filter { it.isNotBlank() })
+        decode(text.split(Regex("\\s+")).map { it.replace(Regex("^\\d+\\."), "").trim() }.filter { it.isNotBlank() })
 
     private val sha256Hasher = CryptographyProvider.Default.get(SHA256).hasher()
 

@@ -300,9 +300,11 @@
     <string name="sync_settings_key_present">Une clé est enregistrée sur cet appareil.</string>
     <string name="sync_settings_key_missing">Aucune clé enregistrée pour l’instant.</string>
     <string name="sync_settings_generate_key">GÉNÉRER UNE CLÉ</string>
-    <string name="sync_settings_generated_key_prompt">Copiez cette clé sur votre autre appareil, puis collez-la là-bas :</string>
-    <string name="sync_settings_paste_key_label">COLLER LA CLÉ</string>
-    <string name="sync_settings_paste_key_placeholder">Collez une clé provenant d’un autre appareil</string>
+    <string name="sync_settings_generated_phrase_prompt">Notez cette phrase de récupération, puis saisissez-la sur votre autre appareil :</string>
+    <string name="sync_settings_phrase_label">PHRASE DE RÉCUPÉRATION</string>
+    <string name="sync_settings_phrase_placeholder">Saisissez votre phrase de récupération de 24 mots</string>
+    <string name="sync_settings_use_phrase">UTILISER LA PHRASE</string>
+    <string name="sync_settings_phrase_invalid">Phrase de récupération invalide.</string>
     <string name="sync_settings_sync_now">SYNCHRONISER</string>
     <string name="sync_settings_clear">EFFACER</string>
     <string name="sync_status_idle">Inactif.</string>

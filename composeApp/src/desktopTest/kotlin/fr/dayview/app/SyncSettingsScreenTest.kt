@@ -23,7 +23,7 @@ class SyncSettingsScreenTest {
         hasKey: Boolean = false,
         onConfigChange: (SyncConfig) -> Unit = {},
         onGenerateKey: () -> String = { "" },
-        onPasteKey: (String) -> Unit = {},
+        onPasteKey: (String) -> Boolean = { true },
         onSyncNow: () -> Unit = {},
         onClear: () -> Unit = {},
     ) {
@@ -84,24 +84,60 @@ class SyncSettingsScreenTest {
             setSyncSettingsScreen(
                 onGenerateKey = {
                     generateCalled = true
-                    "BASE64GENERATEDKEY=="
+                    "abandon abandon ability"
                 },
             )
         }
 
-        onNodeWithTag(DayViewTestTags.SyncSettingsGeneratedKey).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.SyncSettingsGeneratedPhrase).assertDoesNotExist()
         onNodeWithTag(DayViewTestTags.SyncSettingsGenerateKey).performClick()
         assertTrue(generateCalled)
-        onNodeWithTag(DayViewTestTags.SyncSettingsGeneratedKey).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncSettingsGeneratedPhrase).assertExists()
     }
 
     @Test
-    fun typingInPasteKeyFieldInvokesCallback() = runComposeUiTest {
-        var recorded: String? = null
-        setContent { setSyncSettingsScreen(onPasteKey = { recorded = it }) }
+    fun validPhraseInvokesPasteCallback() = runComposeUiTest {
+        var pasted: String? = null
+        setContent {
+            SyncSettingsScreen(
+                config = null,
+                status = SyncStatus.Idle,
+                hasKey = false,
+                onConfigChange = {},
+                onGenerateKey = { "abandon" },
+                onPasteKey = {
+                    pasted = it
+                    true
+                },
+                onSyncNow = {},
+                onClear = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).performTextInput("some phrase")
+        assertEquals(null, pasted)
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseError).assertDoesNotExist()
 
-        onNodeWithTag(DayViewTestTags.SyncSettingsPasteKey).performTextInput("pasted-key")
-        assertEquals("pasted-key", recorded)
+        onNodeWithTag(DayViewTestTags.SyncSettingsUsePhrase).performClick()
+        assertEquals("some phrase", pasted)
+    }
+
+    @Test
+    fun invalidPhraseShowsErrorTag() = runComposeUiTest {
+        setContent {
+            SyncSettingsScreen(
+                config = null,
+                status = SyncStatus.Idle,
+                hasKey = false,
+                onConfigChange = {},
+                onGenerateKey = { "" },
+                onPasteKey = { false },
+                onSyncNow = {},
+                onClear = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).performTextInput("bad")
+        onNodeWithTag(DayViewTestTags.SyncSettingsUsePhrase).performClick()
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseError).assertExists()
     }
 
     @Test
