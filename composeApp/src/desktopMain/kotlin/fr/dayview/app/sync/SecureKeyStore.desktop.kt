@@ -17,7 +17,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 // home directory) can read the key. Migrating to the macOS Keychain is deferred.
 
 @Serializable
-private data class StoredSecret(val keyB64: String? = null, val config: SyncConfig? = null)
+private data class StoredSecret(val keyB64: String? = null, val config: SyncConfig? = null, val deviceId: String? = null)
 
 fun desktopSecureKeyStore(
     file: File = File(System.getProperty("user.home"), ".dayview/sync.secret"),
@@ -37,6 +37,12 @@ private class DesktopSecureKeyStore(private val file: File) : SecureKeyStore {
 
     override fun storeConfig(config: SyncConfig) {
         write(read().copy(config = config))
+    }
+
+    override fun loadDeviceId(): String? = read().deviceId
+
+    override fun storeDeviceId(id: String) {
+        write(read().copy(deviceId = id))
     }
 
     override fun clear() {

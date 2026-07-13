@@ -10,6 +10,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 private const val PREFS_FILE_NAME = "dayview_sync_secret"
 private const val KEY_SYNC_KEY = "sync_key"
 private const val KEY_SYNC_CONFIG = "sync_config"
+private const val KEY_DEVICE_ID = "device_id"
 
 /**
  * Android [SecureKeyStore] backed by [EncryptedSharedPreferences], whose values
@@ -50,7 +51,13 @@ private class AndroidSecureKeyStore(private val prefs: SharedPreferences) : Secu
         prefs.edit().putString(KEY_SYNC_CONFIG, SyncJson.encodeToString(config)).apply()
     }
 
+    override fun loadDeviceId(): String? = prefs.getString(KEY_DEVICE_ID, null)
+
+    override fun storeDeviceId(id: String) {
+        prefs.edit().putString(KEY_DEVICE_ID, id).apply()
+    }
+
     override fun clear() {
-        prefs.edit().remove(KEY_SYNC_KEY).remove(KEY_SYNC_CONFIG).apply()
+        prefs.edit().remove(KEY_SYNC_KEY).remove(KEY_SYNC_CONFIG).remove(KEY_DEVICE_ID).apply()
     }
 }

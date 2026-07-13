@@ -24,4 +24,30 @@ class SecureKeyStoreContractTest {
         assertNull(store.loadKey())
         assertNull(store.loadConfig())
     }
+
+    @Test
+    fun deviceIdOrCreateGeneratesOnceAndReusesTheStoredId() {
+        val store = InMemorySecureKeyStore()
+        var generateCalls = 0
+        fun generate(): String {
+            generateCalls++
+            return "generated-id"
+        }
+
+        val first = store.deviceIdOrCreate(::generate)
+        val second = store.deviceIdOrCreate(::generate)
+
+        assertEquals("generated-id", first)
+        assertEquals("generated-id", second)
+        assertEquals(1, generateCalls)
+        assertEquals("generated-id", store.loadDeviceId())
+    }
+
+    @Test
+    fun clearRemovesTheDeviceId() {
+        val store = InMemorySecureKeyStore()
+        store.storeDeviceId("some-id")
+        store.clear()
+        assertNull(store.loadDeviceId())
+    }
 }

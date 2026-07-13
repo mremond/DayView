@@ -40,11 +40,24 @@ class SecureKeyStoreDesktopTest {
         val store = desktopSecureKeyStore(file)
         store.storeKey(RawSyncKey.generate())
         store.storeConfig(SyncConfig("https://s", "u", "t"))
+        store.storeDeviceId("device-1")
 
         store.clear()
 
         assertNull(store.loadKey())
         assertNull(store.loadConfig())
+        assertNull(store.loadDeviceId())
+    }
+
+    @Test
+    fun roundTripsDeviceIdThroughTempFile() {
+        val store = desktopSecureKeyStore(file)
+        assertNull(store.loadDeviceId())
+
+        store.storeDeviceId("device-1")
+
+        val reloaded = desktopSecureKeyStore(file)
+        assertEquals("device-1", reloaded.loadDeviceId())
     }
 
     @Test

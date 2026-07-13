@@ -16,11 +16,13 @@ private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
 private fun testController(
     preferences: InMemoryDayPreferences,
     nowMillis: Long,
+    onLocalWrite: () -> Unit = {},
 ) = DayViewController(
     preferences,
     CoroutineScope(Dispatchers.Unconfined),
     initialSnapshot = preferences.current,
     initialNow = t(nowMillis),
+    onLocalWrite = onLocalWrite,
 )
 
 class DayViewControllerTest {
@@ -738,6 +740,30 @@ class DayViewControllerTest {
         val episode = controller.state.detoursToday.single()
         assertEquals(startOfLocalDay(t(now)), episode.start) // floored to today's 00:00
         assertEquals(t(now), episode.end)
+    }
+
+    @Test
+    fun localMutationFiresTheLocalWriteHook() {
+        val preferences = InMemoryDayPreferences()
+        var localWrites = 0
+        val controller = testController(preferences, 10_000L, onLocalWrite = { localWrites++ })
+
+        controller.setStartMinutes(7 * 60 + 30)
+
+        assertEquals(1, localWrites)
+    }
+
+    @Test
+    fun externalPreferencesChangeDoesNotFireTheLocalWriteHook() {
+        val preferences = InMemoryDayPreferences()
+        var localWrites = 0
+        val controller = testController(preferences, 10_000L, onLocalWrite = { localWrites++ })
+
+        controller.onPreferencesChanged(
+            DayPreferencesSnapshot(startMinutes = 9 * 60, endMinutes = 17 * 60),
+        )
+
+        assertEquals(0, localWrites)
     }
 
     @Test
