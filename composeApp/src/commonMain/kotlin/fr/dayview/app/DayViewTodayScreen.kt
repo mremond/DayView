@@ -378,7 +378,7 @@ internal fun DayViewScreen(
             DetourCaptureDialog(
                 recentCategories = state.recentDetourCategories,
                 now = state.now,
-                initialCategory = obligation,
+                initialDescription = obligation,
                 onConfirm = { confirmedCategory, description, durationMinutes, startMinutesOfDay ->
                     actions.completePlannedObligation(obligation, confirmedCategory, description, durationMinutes, startMinutesOfDay)
                     obligationToComplete = null
