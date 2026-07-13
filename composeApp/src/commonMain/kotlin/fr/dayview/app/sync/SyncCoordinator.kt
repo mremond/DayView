@@ -14,8 +14,12 @@ enum class SyncStatus { Idle, Syncing, Ok, KeyError, Failed, NotConfigured }
 /**
  * Drives the sync loop: loads the encryption key and endpoint config, runs [SyncEngine]
  * against the current preferences snapshot, and applies the result. Concurrent triggers
- * are coalesced — a call arriving while a sync is already running just requests one more
- * pass after the in-flight run finishes, rather than queuing up a call per trigger.
+ * are serialized through [mutex] rather than coalesced with a flag: a trigger arriving
+ * while a sync is in flight simply waits for the mutex and then runs with a fresh
+ * snapshot, so a local change made mid-sync is never lost. Any resulting redundant run
+ * is cheap because [SyncEngine] short-circuits to [SyncResult.UpToDate] once the remote
+ * already holds the merged document, and triggers are naturally rate-limited (debounced
+ * preference writes plus app-resume), so this doesn't create unbounded pile-up.
  */
 class SyncCoordinator(
     private val deviceId: String,
@@ -24,6 +28,7 @@ class SyncCoordinator(
     private val preferences: DayPreferences,
     private val transportFactory: (SyncConfig) -> SyncTransport,
     private val codecFactory: (RawSyncKey) -> PayloadCodec,
+    // Reserved for wiring app-level sync triggers (debounced writes, resume) in a later task.
     private val scope: CoroutineScope,
     private val now: () -> Long,
 ) {
@@ -31,19 +36,9 @@ class SyncCoordinator(
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
 
     private val mutex = Mutex()
-    private var rerunRequested = false
 
     suspend fun syncNow() {
-        if (mutex.isLocked) {
-            rerunRequested = true
-            return
-        }
-        mutex.withLock {
-            do {
-                rerunRequested = false
-                runOnce()
-            } while (rerunRequested)
-        }
+        mutex.withLock { runOnce() }
     }
 
     private suspend fun runOnce() {
