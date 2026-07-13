@@ -65,6 +65,7 @@ internal object DayViewTestTags {
     const val SyncSettingsGenerateKey = "syncSettingsGenerateKey"
     const val SyncSettingsGeneratedPhrase = "syncSettingsGeneratedPhrase"
     const val SyncSettingsPhraseInput = "syncSettingsPhraseInput"
+    const val SyncSettingsUsePhrase = "syncSettingsUsePhrase"
     const val SyncSettingsPhraseError = "syncSettingsPhraseError"
     const val SyncSettingsSyncNow = "syncSettingsSyncNow"
     const val SyncSettingsStatus = "syncSettingsStatus"

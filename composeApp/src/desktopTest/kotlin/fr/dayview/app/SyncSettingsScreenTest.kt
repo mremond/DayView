@@ -114,6 +114,10 @@ class SyncSettingsScreenTest {
             )
         }
         onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).performTextInput("some phrase")
+        assertEquals(null, pasted)
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseError).assertDoesNotExist()
+
+        onNodeWithTag(DayViewTestTags.SyncSettingsUsePhrase).performClick()
         assertEquals("some phrase", pasted)
     }
 
@@ -132,6 +136,7 @@ class SyncSettingsScreenTest {
             )
         }
         onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).performTextInput("bad")
+        onNodeWithTag(DayViewTestTags.SyncSettingsUsePhrase).performClick()
         onNodeWithTag(DayViewTestTags.SyncSettingsPhraseError).assertExists()
     }
 

@@ -166,7 +166,7 @@ internal fun SyncSettingsScreen(
                 isError = phraseError,
                 onValueChange = { draft ->
                     pasteKeyDraft = draft
-                    phraseError = !onPasteKey(draft)
+                    phraseError = false
                 },
                 modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseInput),
             )
@@ -174,6 +174,7 @@ internal fun SyncSettingsScreen(
             SettingsAccentButton(
                 text = stringResource(Res.string.sync_settings_use_phrase),
                 onClick = { phraseError = !onPasteKey(pasteKeyDraft) },
+                modifier = Modifier.testTag(DayViewTestTags.SyncSettingsUsePhrase),
             )
             if (phraseError) {
                 Spacer(Modifier.height(8.dp))
