@@ -252,8 +252,13 @@ Ktor, `commonMain`). Un seul document par utilisateur.
 - **Auth** = token d'appareil (Bearer) provisionné à la config. Indépendant de la
   `SyncKey` E2EE : le token protège l'accès au blob, la clé protège son contenu.
 - **Serveur** : minimal — stocke `{userId → (revision, payload)}` avec compare-and-set
-  sur la révision. Peut être un petit service HTTP dédié ou greffé sur l'infra existante.
-  Ne déchiffre rien, ne fusionne rien.
+  sur la révision. Ne déchiffre rien, ne fusionne rien. **Décision de déploiement :**
+  l'endpoint tourne sur le **serveur 24/7 existant du mainteneur**, joint en HTTPS +
+  token Bearer. Pas de découverte LAN/mDNS ni de Tailscale : le serveur est déjà
+  joignable, on garde simple. Ces variantes (chemin rapide LAN, MagicDNS) restent
+  possibles plus tard comme transports optionnels puisque l'app ne connaît qu'une
+  `baseUrl` — mais elles ne sont pas dans le périmètre. Stockage libre côté serveur
+  (fichier / SQLite / Redis).
 - **Erreurs** : réseau/5xx → exceptions remontées au `SyncEngine`, qui abandonne le
   cycle et réessaiera au prochain déclencheur. Seul `412` est un résultat de contrôle,
   pas une erreur.
