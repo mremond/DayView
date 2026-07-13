@@ -251,6 +251,8 @@
     <string name="detour_start_decrease">Avancer le début de 5 minutes</string>
     <string name="detour_start_increase">Retarder le début de 5 minutes</string>
     <string name="detour_start_value">Début : %1$s</string>
+    <string name="detour_start_edit_label">Saisir l\'heure de début</string>
+    <string name="detour_duration_edit_label">Saisir la durée en minutes</string>
     <string name="detour_duration_decrease">Diminuer la durée de 5 minutes</string>
     <string name="detour_duration_increase">Augmenter la durée de 5 minutes</string>
     <string name="detour_duration_value">Durée : %1$s minutes</string>
