@@ -33,6 +33,17 @@ internal fun midWindowNow(): Instant {
 }
 
 /**
+ * A "now" on a fixed mid-week day (Wednesday 2026-01-14, 13:00 local). Unlike
+ * [midWindowNow] it does not track the system date, so tests that reason about
+ * "yesterday" relative to the Monday→Sunday history week stay deterministic:
+ * the previous day is always inside the same week, whatever day CI runs on.
+ */
+internal fun midWeekNow(): Instant {
+    val tz = TimeZone.currentSystemDefault()
+    return LocalDateTime(year = 2026, month = 1, day = 14, hour = 13, minute = 0).toInstant(tz)
+}
+
+/**
  * A "now" past the default 08:00–18:00 day window (19:00 local), so
  * [calculateDayProgress] reports the day as finished regardless of timezone.
  */

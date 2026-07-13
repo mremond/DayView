@@ -37,7 +37,9 @@ class HistoryNavigationTest {
 
     @Test
     fun openHistoryLoadsTheCurrentWeekRecords() {
-        val now = midWindowNow()
+        // Pinned to a fixed mid-week day so "yesterday" always lands inside the current
+        // Monday→Sunday history week — otherwise this fails whenever CI runs on a Monday.
+        val now = midWeekNow()
         val todayKey = dayKeyOf(now)
         val history = InMemoryDayHistoryStore()
         val yesterdayKey = todayKey - 1
