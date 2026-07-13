@@ -47,6 +47,7 @@ import fr.dayview.app.generated.resources.goal_section_title
 import fr.dayview.app.generated.resources.mini_focus_active
 import fr.dayview.app.generated.resources.mini_focus_single_thing
 import fr.dayview.app.generated.resources.mini_no_goal
+import fr.dayview.app.generated.resources.mini_relaunch_focus_label
 import fr.dayview.app.generated.resources.mini_start_focus_label
 import fr.dayview.app.generated.resources.mini_stop_focus_label
 import org.jetbrains.compose.resources.stringResource
@@ -106,6 +107,7 @@ fun DayViewMiniApp(
                         MiniFocus(
                             progress = pomodoro,
                             intention = focusIntention,
+                            onRelaunch = { onStartFocus(focusIntention) },
                             onStop = onStopFocus,
                         )
                     }
@@ -220,6 +222,7 @@ private fun MiniFocusStart(onClick: () -> Unit) {
 private fun MiniFocus(
     progress: PomodoroProgress,
     intention: String,
+    onRelaunch: () -> Unit,
     onStop: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
@@ -255,6 +258,10 @@ private fun MiniFocus(
             fontWeight = FontWeight.Light,
         )
         Spacer(Modifier.width(12.dp))
+        if (isBreak) {
+            MiniRelaunchButton(onRelaunch)
+            Spacer(Modifier.width(8.dp))
+        }
         MiniStopButton(onStop)
     }
 }
@@ -271,6 +278,25 @@ private fun MiniStopButton(onStop: () -> Unit) {
         Box(
             modifier = Modifier.size(12.dp)
                 .background(colors.red.copy(alpha = .85f), RoundedCornerShape(2.dp)),
+        )
+    }
+}
+
+@Composable
+private fun MiniRelaunchButton(onRelaunch: () -> Unit) {
+    val colors = LocalDayViewColors.current
+    Box(
+        modifier = Modifier.size(40.dp)
+            .background(colors.overlay.copy(alpha = .08f), CircleShape)
+            .testTag(DayViewTestTags.MiniFocusRelaunch)
+            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_relaunch_focus_label), onClick = onRelaunch),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "»",
+            color = colors.mint,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Medium,
         )
     }
 }

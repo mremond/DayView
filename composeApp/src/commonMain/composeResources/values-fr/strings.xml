@@ -113,6 +113,7 @@
     <!-- Mini window -->
     <string name="mini_no_goal">Aucun objectif défini</string>
     <string name="mini_start_focus_label">Démarrer un focus</string>
+    <string name="mini_relaunch_focus_label">Relancer un focus</string>
     <string name="mini_stop_focus_label">Arrêter le focus</string>
     <string name="mini_focus_active">FOCUS EN COURS</string>
     <string name="mini_focus_single_thing">Une seule chose à la fois</string>

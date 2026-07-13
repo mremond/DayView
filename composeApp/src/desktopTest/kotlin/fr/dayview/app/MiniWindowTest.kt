@@ -5,7 +5,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 
 @OptIn(ExperimentalTestApi::class)
 class MiniWindowTest {
@@ -30,5 +32,48 @@ class MiniWindowTest {
         onNodeWithTag(DayViewTestTags.OpenMainWindow).assertExists()
         onNodeWithTag(DayViewTestTags.OpenMainWindow).performClick()
         assertTrue(mainOpened)
+    }
+
+    @Test
+    fun relaunchButtonDuringBreakStartsNextFocusWithSameIntention() = runComposeUiTest {
+        var startedIntention: String? = null
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, now - 1.minutes),
+                focusIntention = "Couper 5k secs",
+                onStartFocus = { startedIntention = it },
+                onStopFocus = {},
+                onOpenMainWindow = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.MiniFocusRelaunch).assertExists()
+        onNodeWithTag(DayViewTestTags.MiniFocusRelaunch).performClick()
+        assertEquals("Couper 5k secs", startedIntention)
+    }
+
+    @Test
+    fun relaunchButtonHiddenWhileFocusIsActive() = runComposeUiTest {
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, now + 10.minutes),
+                focusIntention = "Couper 5k secs",
+                onStartFocus = {},
+                onStopFocus = {},
+                onOpenMainWindow = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.MiniFocusRelaunch).assertDoesNotExist()
     }
 }

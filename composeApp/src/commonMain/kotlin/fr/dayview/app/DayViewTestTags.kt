@@ -13,6 +13,7 @@ internal object DayViewTestTags {
     const val CleanSessions = "cleanSessions"
     const val FocusRecap = "focusRecap"
     const val MiniWindow = "miniWindowButton"
+    const val MiniFocusRelaunch = "miniFocusRelaunchButton"
     const val OpenMainWindow = "openMainWindowButton"
     const val FocusStart = "focusStart"
     const val FocusStop = "focusStop"
