@@ -57,7 +57,12 @@ internal fun DayViewApp(
             // ring and layout comfortably large instead of at phone size. Scaling `density`
             // grows the dp-based UI (ring, spacing) as well as text; the font slider then
             // stacks on top via `fontScale`. Desktop opts out.
-            val autoScale = autoDisplayScale(minOf(maxWidth, maxHeight).value, platformAutoScaleEnabled())
+            // Measure the scale against a keyboard-independent screen dimension: with
+            // `adjustResize`, the live constraints shrink when the IME opens, which would
+            // otherwise re-scale the UI and dismiss the focused field's keyboard (seen on
+            // large Supernote canvases).
+            val scaleMinDp = stableScaleMinDimensionDp(minOf(maxWidth, maxHeight).value)
+            val autoScale = autoDisplayScale(scaleMinDp, platformAutoScaleEnabled())
             val scaledDensity = Density(
                 baseDensity.density * autoScale,
                 baseDensity.fontScale * themeSnapshot.fontScale,

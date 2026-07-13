@@ -1,5 +1,7 @@
 package fr.dayview.app
 
+import androidx.compose.runtime.Composable
+
 /**
  * The smallest-dimension width (in dp) the layout is designed to look right at — a typical
  * phone. Canvases whose smaller side is larger than this render the whole UI proportionally
@@ -28,3 +30,14 @@ internal fun autoDisplayScale(minDimensionDp: Float, enabled: Boolean): Float {
  * correct and its windows are freely resizable.
  */
 internal expect fun platformAutoScaleEnabled(): Boolean
+
+/**
+ * The smaller screen side (in dp) that [autoDisplayScale] should be measured against, chosen
+ * so it stays stable while the soft keyboard is open. The live [liveMinDimensionDp] from the
+ * layout constraints shrinks when an IME resize (`adjustResize`) squeezes the window, which
+ * would otherwise re-scale the whole UI — and drop the focused field's keyboard — the instant
+ * a text field is tapped on a large canvas. Platforms that can report a keyboard-independent
+ * screen size override it; others fall back to the live value.
+ */
+@Composable
+internal expect fun stableScaleMinDimensionDp(liveMinDimensionDp: Float): Float
