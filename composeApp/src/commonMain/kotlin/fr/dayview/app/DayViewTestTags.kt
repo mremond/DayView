@@ -13,9 +13,11 @@ internal object DayViewTestTags {
     const val CleanSessions = "cleanSessions"
     const val FocusRecap = "focusRecap"
     const val MiniWindow = "miniWindowButton"
+    const val MiniFocusRelaunch = "miniFocusRelaunchButton"
     const val OpenMainWindow = "openMainWindowButton"
     const val FocusStart = "focusStart"
     const val FocusStop = "focusStop"
+    const val FocusRelaunch = "focusRelaunch"
     const val DetourMotifField = "detourMotifField"
     const val DetourStartAdjust = "detourStartAdjust"
     const val DetourStartIncrease = "detourStartIncrease"
@@ -41,6 +43,8 @@ internal object DayViewTestTags {
     const val MiniRing = "historyMiniRing"
     const val HistoryIcon = "historyIcon"
     const val HistoryBack = "historyBack"
+
+    fun focusOutcome(outcome: FocusClosureOutcome): String = "focusOutcome_${outcome.name}"
 
     fun settingsCategoryRow(category: SettingsCategory): String = "settingsCategoryRow_${category.name}"
 

@@ -1,6 +1,7 @@
 package fr.dayview.app
 
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -95,3 +96,50 @@ fun registerCleanSession(ledger: CleanSessionLedger, dayKey: Long): CleanSession
 
 /** Streak to show today: the stored value only while still alive, else 0 (never stale). */
 fun displayedStreak(ledger: CleanSessionLedger, dayKey: Long): Int = if (ledger.streakLastDayKey >= dayKey - 1) ledger.streakDays else 0
+
+/**
+ * Ledger after closing the running session: registers it when it was serious, otherwise
+ * just rolls the day over. No-op when no session was running.
+ */
+fun closedFocusLedger(
+    cleanSessions: CleanSessionLedger,
+    dayKey: Long,
+    pomodoroEnd: Instant?,
+    pomodoroMinutes: Int,
+    sessionOffGoal: Duration,
+    detoursToday: List<DetourEpisode>,
+    outcome: FocusClosureOutcome,
+): CleanSessionLedger = pomodoroEnd?.let { end ->
+    val window = FocusSessionWindow(end - pomodoroMinutes.minutes, end)
+    val clean = evaluateSessionClean(window, sessionOffGoal, detoursToday, outcome)
+    if (clean) registerCleanSession(cleanSessions, dayKey) else rollOver(cleanSessions, dayKey)
+} ?: cleanSessions
+
+/**
+ * Applies a closure outcome directly to the persisted snapshot: ends the session, keeps
+ * or clears the intention per outcome, and updates the clean-session ledger. Same
+ * semantics as DayViewController.closePomodoro, for windows that bypass the controller
+ * (the desktop mini window).
+ */
+fun closeFocusSnapshot(
+    snapshot: DayPreferencesSnapshot,
+    now: Instant,
+    sessionOffGoal: Duration,
+    outcome: FocusClosureOutcome,
+): DayPreferencesSnapshot {
+    val dayKey = dayKeyOf(now)
+    val detoursToday = if (snapshot.detoursDayKey == dayKey) snapshot.detours else emptyList()
+    return snapshot.copy(
+        pomodoroEnd = null,
+        focusIntention = focusIntentionAfterClosure(snapshot.focusIntention, outcome),
+        cleanSessions = closedFocusLedger(
+            cleanSessions = snapshot.cleanSessions,
+            dayKey = dayKey,
+            pomodoroEnd = snapshot.pomodoroEnd,
+            pomodoroMinutes = snapshot.pomodoroMinutes,
+            sessionOffGoal = sessionOffGoal,
+            detoursToday = detoursToday,
+            outcome = outcome,
+        ),
+    )
+}

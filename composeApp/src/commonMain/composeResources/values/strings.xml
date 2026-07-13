@@ -83,7 +83,6 @@
     <string name="focus_cancel_button">CANCEL</string>
     <string name="focus_stop">STOP</string>
     <string name="focus_resume">RESUME</string>
-    <string name="focus_resume_button">RESUME A FOCUS</string>
     <string name="focus_outcome_completed">DONE</string>
     <string name="focus_outcome_progressed">PROGRESSED</string>
     <string name="focus_outcome_to_resume">TO RESUME</string>
@@ -114,7 +113,8 @@
     <!-- Mini window -->
     <string name="mini_no_goal">No goal set</string>
     <string name="mini_start_focus_label">Start a focus</string>
-    <string name="mini_stop_focus_label">Stop the focus</string>
+    <string name="focus_relaunch_label">Start the next focus</string>
+    <string name="focus_stop_label">Stop the focus</string>
     <string name="mini_focus_active">FOCUS IN PROGRESS</string>
     <string name="mini_focus_single_thing">One thing at a time</string>
 
