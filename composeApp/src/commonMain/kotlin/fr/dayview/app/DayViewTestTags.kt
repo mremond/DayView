@@ -28,12 +28,16 @@ internal object DayViewTestTags {
     const val DetourEditStartValue = "detourEditStartValue"
     const val DetourEditStartField = "detourEditStartField"
     const val DetourEditStartIncrease = "detourEditStartIncrease"
+    const val DetourDurationDecrease = "detourDurationDecrease"
+    const val DetourDurationValue = "detourDurationValue"
+    const val DetourDurationField = "detourDurationField"
+    const val DetourDurationIncrease = "detourDurationIncrease"
+    const val DetourEditDurationDecrease = "detourEditDurationDecrease"
     const val DetourEditDurationValue = "detourEditDurationValue"
     const val DetourEditDurationField = "detourEditDurationField"
     const val DetourEditDurationIncrease = "detourEditDurationIncrease"
     const val DetourEditSave = "detourEditSave"
     const val DetourConfirm = "detourConfirm"
-    const val DetourLongToggle = "detourLongToggle"
     const val DetourDescriptionText = "detourDescriptionText"
     const val PlannedObligationInput = "plannedObligationInput"
     const val PlannedObligationAdd = "plannedObligationAdd"
@@ -61,6 +65,4 @@ internal object DayViewTestTags {
     fun settingsCategoryRow(category: SettingsCategory): String = "settingsCategoryRow_${category.name}"
 
     fun historyDayCell(dayKey: Long): String = "historyDayCell_$dayKey"
-
-    fun detourDurationChip(minutes: Int): String = "detourDuration$minutes"
 }

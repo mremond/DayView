@@ -74,7 +74,7 @@ class DetourCaptureTest {
     }
 
     @Test
-    fun longerRevealsAndSelectsMultiHourDurations() = runComposeUiTest {
+    fun durationFieldAcceptsAnyMinuteCount() = runComposeUiTest {
         var category: String? = null
         var description: String? = null
         var duration: Int? = null
@@ -94,13 +94,15 @@ class DetourCaptureTest {
             )
         }
         onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("série")
-        onNodeWithTag(DayViewTestTags.DetourLongToggle).performClick()
-        onNodeWithTag(DayViewTestTags.detourDurationChip(180)).performClick()
+        onNodeWithTag(DayViewTestTags.DetourDurationValue).performClick()
+        onNodeWithTag(DayViewTestTags.DetourDurationField).performTextClearance()
+        onNodeWithTag(DayViewTestTags.DetourDurationField).performTextInput("180")
+        onNodeWithTag(DayViewTestTags.DetourDurationField).performImeAction()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
         assertEquals("série", category)
         assertEquals("", description)
-        assertEquals(180, duration) // 3 h reached from quick capture
+        assertEquals(180, duration) // 3 h typed from quick capture
         assertNull(start) // start untouched → "ends now"
     }
 

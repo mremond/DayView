@@ -72,7 +72,6 @@ import fr.dayview.app.generated.resources.detour_duration_decrease
 import fr.dayview.app.generated.resources.detour_duration_edit_label
 import fr.dayview.app.generated.resources.detour_duration_increase
 import fr.dayview.app.generated.resources.detour_duration_label
-import fr.dayview.app.generated.resources.detour_duration_more
 import fr.dayview.app.generated.resources.detour_duration_section
 import fr.dayview.app.generated.resources.detour_duration_value
 import fr.dayview.app.generated.resources.detour_edit_row_label
@@ -99,7 +98,6 @@ import fr.dayview.app.generated.resources.detour_time_range
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /** Per-source tally under the dial plus the capture affordance. */
@@ -212,7 +210,6 @@ internal fun DetourChip(
 }
 
 private val DETOUR_DURATION_CHOICES = listOf(5, 15, 30, 45, 60)
-private val DETOUR_LONG_DURATION_CHOICES = listOf(90, 120, 180)
 
 /** Quick capture: required category, recent-category suggestions, quick duration picks. */
 @Composable
@@ -255,7 +252,6 @@ internal fun DetourCaptureContent(
     var startPinned by remember { mutableStateOf(false) }
     var pinnedStartMinutes by remember { mutableIntStateOf(0) }
     var categoryPendingForget by remember { mutableStateOf<String?>(null) }
-    var showLongDurations by remember { mutableStateOf(false) }
     // "Ends now" default: the start tracks the duration until the user pins it by nudging.
     val startMinutes = if (startPinned) pinnedStartMinutes else detourDefaultStartMinutes(now, durationMinutes, timeZone)
     Column(
@@ -318,34 +314,15 @@ internal fun DetourCaptureContent(
                 ) { durationMinutes = minutes }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        if (!showLongDurations) {
-            Text(
-                stringResource(Res.string.detour_duration_more),
-                color = colors.amber,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.minimumInteractiveComponentSize()
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button) { showLongDurations = true }
-                    .testTag(DayViewTestTags.DetourLongToggle)
-                    .padding(vertical = 6.dp, horizontal = 6.dp),
-            )
-        } else {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                DETOUR_LONG_DURATION_CHOICES.forEach { minutes ->
-                    DetourChip(
-                        formatDurationHm(minutes.minutes),
-                        selected = minutes == durationMinutes,
-                        modifier = Modifier.weight(1f).testTag(DayViewTestTags.detourDurationChip(minutes)),
-                        textAlign = TextAlign.Center,
-                    ) { durationMinutes = minutes }
-                }
-            }
-        }
+        Spacer(Modifier.height(10.dp))
+        DetourDurationStepper(
+            durationMinutes = durationMinutes,
+            onDurationChange = { durationMinutes = it },
+            decreaseTag = DayViewTestTags.DetourDurationDecrease,
+            valueTag = DayViewTestTags.DetourDurationValue,
+            fieldTag = DayViewTestTags.DetourDurationField,
+            increaseTag = DayViewTestTags.DetourDurationIncrease,
+        )
         Spacer(Modifier.height(14.dp))
         if (!showStart) {
             Text(
@@ -682,32 +659,14 @@ internal fun DetourEditForm(
             Column(Modifier.weight(1f)) {
                 Text(stringResource(Res.string.detour_duration_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TimeButton(
-                        label = "−",
-                        enabled = durationMinutes > 5,
-                        onClickLabel = stringResource(Res.string.detour_duration_decrease),
-                        valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
-                    ) { durationMinutes = snapToFive(durationMinutes, -1).coerceIn(5, 12 * 60) }
-                    Spacer(Modifier.width(10.dp))
-                    EditableTimeValue(
-                        displayText = stringResource(Res.string.detour_minutes_chip, durationMinutes.toString()),
-                        editText = durationMinutes.toString(),
-                        parse = ::parseDurationMinutes,
-                        editLabel = stringResource(Res.string.detour_duration_edit_label),
-                        valueTag = DayViewTestTags.DetourEditDurationValue,
-                        fieldTag = DayViewTestTags.DetourEditDurationField,
-                        onCommit = { durationMinutes = it },
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    TimeButton(
-                        label = "+",
-                        enabled = durationMinutes < 12 * 60,
-                        onClickLabel = stringResource(Res.string.detour_duration_increase),
-                        valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
-                        modifier = Modifier.testTag(DayViewTestTags.DetourEditDurationIncrease),
-                    ) { durationMinutes = snapToFive(durationMinutes, +1).coerceIn(5, 12 * 60) }
-                }
+                DetourDurationStepper(
+                    durationMinutes = durationMinutes,
+                    onDurationChange = { durationMinutes = it },
+                    decreaseTag = DayViewTestTags.DetourEditDurationDecrease,
+                    valueTag = DayViewTestTags.DetourEditDurationValue,
+                    fieldTag = DayViewTestTags.DetourEditDurationField,
+                    increaseTag = DayViewTestTags.DetourEditDurationIncrease,
+                )
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -725,6 +684,49 @@ internal fun DetourEditForm(
                 onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, category, description)) },
             )
         }
+    }
+}
+
+/**
+ * A duration picker: −/+ nudge in 5-minute steps and the value itself is a
+ * text field you can tap to type any minute count (5 min – 12 h). Shared by the
+ * quick-capture dialog and the edit form.
+ */
+@Composable
+private fun DetourDurationStepper(
+    durationMinutes: Int,
+    onDurationChange: (Int) -> Unit,
+    decreaseTag: String,
+    valueTag: String,
+    fieldTag: String,
+    increaseTag: String,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TimeButton(
+            label = "−",
+            enabled = durationMinutes > 5,
+            onClickLabel = stringResource(Res.string.detour_duration_decrease),
+            valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
+            modifier = Modifier.testTag(decreaseTag),
+        ) { onDurationChange(snapToFive(durationMinutes, -1).coerceIn(5, 12 * 60)) }
+        Spacer(Modifier.width(10.dp))
+        EditableTimeValue(
+            displayText = stringResource(Res.string.detour_minutes_chip, durationMinutes.toString()),
+            editText = durationMinutes.toString(),
+            parse = ::parseDurationMinutes,
+            editLabel = stringResource(Res.string.detour_duration_edit_label),
+            valueTag = valueTag,
+            fieldTag = fieldTag,
+            onCommit = onDurationChange,
+        )
+        Spacer(Modifier.width(10.dp))
+        TimeButton(
+            label = "+",
+            enabled = durationMinutes < 12 * 60,
+            onClickLabel = stringResource(Res.string.detour_duration_increase),
+            valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
+            modifier = Modifier.testTag(increaseTag),
+        ) { onDurationChange(snapToFive(durationMinutes, +1).coerceIn(5, 12 * 60)) }
     }
 }
 

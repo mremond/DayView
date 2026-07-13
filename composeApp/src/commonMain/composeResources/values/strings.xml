@@ -237,7 +237,6 @@
     <string name="detour_forget_prompt">Forget this category?</string>
     <string name="detour_forget_confirm">FORGET</string>
     <string name="detour_duration_section">APPROXIMATE DURATION</string>
-    <string name="detour_duration_more">Longer</string>
     <string name="detour_minutes_chip">%1$s min</string>
     <string name="detour_source_total">%1$s %2$s</string>
     <string name="detour_overflow">+%1$s</string>
