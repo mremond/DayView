@@ -218,8 +218,11 @@ object RecoveryPhrase {
         return RawSyncKey(entropy)
     }
 
+    // Strip a leading ordinal (`\d+.`) from each token so the numbered display form
+    // ("1. abandon  2. ability …") the user copies decodes too. BIP39 words never start
+    // with a digit, so this can't corrupt a real word.
     fun decodePhrase(text: String): RawSyncKey? =
-        decode(text.trim().split(Regex("\\s+")).filter { it.isNotBlank() })
+        decode(text.split(Regex("\\s+")).map { it.replace(Regex("^\\d+\\."), "").trim() }.filter { it.isNotBlank() })
 
     private val sha256Hasher = CryptographyProvider.Default.get(SHA256).hasher()
 
