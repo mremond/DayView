@@ -120,7 +120,7 @@ internal data class DayViewUiState(
     val netTime: NetTime?
         get() = if (netTimeSettings.enabled) {
             val (start, end) = dayWindow
-            calculateNetTime(dayProgress, dayNow, start, end, busyIntervalsToday)
+            calculateNetTime(dayProgress, dayNow, start, end, busyIntervalsToday.filterNot { it.isFocusBlock() })
         } else {
             null
         }

@@ -9,6 +9,8 @@ import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
@@ -769,5 +771,36 @@ class DayViewControllerTest {
 
         assertEquals(45, controller.state.detoursOffWindowTotalToday.inWholeMinutes)
         assertEquals(controller.state.detoursTotalToday, controller.state.detoursOffWindowTotalToday)
+    }
+
+    @Test
+    fun netTimeExcludesFocusBlocksButRingKeepsThem() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone)
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(
+                startMinutes = 8 * 60,
+                endMinutes = 18 * 60,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+        )
+        val controller = testController(preferences, noon.toEpochMilliseconds())
+
+        // A real meeting 14:00-15:00 and a focus block 15:30-16:30, both this afternoon.
+        controller.updateNetTimeData(
+            hasPermission = true,
+            busyIntervals = listOf(
+                BusyInterval(noon + 2.hours, noon + 3.hours, listOf("Atelier"), "work"),
+                BusyInterval(noon + 3.hours + 30.minutes, noon + 4.hours + 30.minutes, listOf("Deep Focus"), "work"),
+            ),
+            availableCalendars = listOf(CalendarInfo("work", "Work")),
+        )
+
+        val net = controller.state.netTime!!
+        // Only the meeting counts: focus block is excluded from both the day total and remaining.
+        assertEquals(1.hours, net.busyRemaining)
+        assertEquals((10.hours) - 1.hours, net.netDay)
+        // Both intervals still draw on the ring.
+        assertEquals(2, controller.state.busyBlockArcsState.size)
     }
 }
