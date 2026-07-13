@@ -1188,6 +1188,9 @@ class SyncEngine(
                     }
                 }
                 val merged = localDoc.merge(remoteDoc)
+                // Converged steady state: don't re-encrypt/re-push an unchanged document
+                // (fresh nonce would bump the server revision forever once triggers are wired).
+                if (remoteDoc != null && merged == remoteDoc) return SyncResult.UpToDate
                 val payload = codec.encrypt(merged.encodeToString())
                 when (val outcome = transport.push(payload, remote?.revision ?: expected)) {
                     is PushOutcome.Applied ->
@@ -1235,3 +1238,9 @@ git commit -m "Add sync engine pull-merge-push retry loop"
 ## Plan 2 preview (not part of this plan)
 
 After Plan 1 lands: `SecureKeyStore` (`expect`/`actual` for Android Keystore + desktop encrypted file), `SyncConfig`/`SyncState` local persistence (outside the synced DataStore), recovery-phrase + QR key provisioning UI, `SyncEngine` wiring into `DayViewController` with foreground/resume and debounced-write triggers plus a coalescing mutex, an error surface for `KeyError`, and the self-hosted endpoint. Open decision to settle first: key-provisioning UX (QR + backup phrase vs. one of the two).
+
+**Must be resolved before any live wiring (from the Plan 1 final review):**
+- **`recentDetourMotifs` ordering + truncation.** The spec says "union then keep the N most recent by `Stamp`", but Plan 1 does not truncate, and `applyDocument` returns the union in `sortedBy { it.id }` (alphabetical) order — destroying the app's most-recent-first, cap-10 semantics (`Detours.kt`, `DetoursUi.kt`). Once wired, the union can exceed the local cap; the local store's `.take(MAX_RECENT_DETOUR_MOTIFS)` would then tombstone genuinely-recent motifs and propagate those deletions. Implement stamp-based top-N truncation in the engine and preserve recency order on apply — do this before wiring. (This is also why its tombstones grow unbounded: fixing truncation bounds them.)
+- **AAD/schema forward-migration.** The codec binds ciphertext to the schema version via AAD (`"dayview-sync-v$SYNC_SCHEMA_VERSION"`). A future `SYNC_SCHEMA_VERSION` bump makes existing server blobs undecryptable (tag mismatch → `KeyError`) rather than migratable. Design a migration path before the schema is ever bumped.
+
+**Safe to defer as-is:** no golden wire-format test for AES-GCM (properties are covered; a byte-layout test only matters when a second implementation must interop); `HttpSyncTransport` not special-casing unexpected HTTP status (unexpected statuses throw on body-parse → `SyncEngine` maps to `Failed`, which is the intended behavior).
