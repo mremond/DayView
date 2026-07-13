@@ -3,6 +3,7 @@ package fr.dayview.app.sync
 import fr.dayview.app.CleanSessionLedger
 import fr.dayview.app.DayPreferencesSnapshot
 import fr.dayview.app.DetourEpisode
+import fr.dayview.app.MAX_RECENT_DETOUR_MOTIFS
 import fr.dayview.app.SoundSettings
 import fr.dayview.app.ThemeMode
 import kotlin.time.Instant
@@ -53,9 +54,23 @@ fun buildDocument(
             base = base?.plannedObligations,
             fresh = fresh,
         ),
-        recentDetourMotifs = buildItems(snapshot.recentDetourMotifs, { it }, base?.recentDetourMotifs, fresh),
+        recentDetourMotifs = boundRecentMotifs(buildItems(snapshot.recentDetourMotifs, { it }, base?.recentDetourMotifs, fresh)),
         cleanSessions = restamp(snapshot.cleanSessions.toDto(), base?.cleanSessions, now, deviceId),
     )
+}
+
+/**
+ * Bounds the recent-motif item set so it doesn't grow without limit: keeps at most the newest
+ * [MAX_RECENT_DETOUR_MOTIFS] live items by [Stamp.at], and keeps only the tombstones that are no
+ * older than the oldest retained live item — older tombstones have already served their purpose
+ * (losing to a live re-add would have restamped them) and can be dropped.
+ */
+private fun boundRecentMotifs(items: List<SyncItem<String>>): List<SyncItem<String>> {
+    val liveByRecency = items.filterNot { it.deleted }.sortedByDescending { it.stamp.at }
+    val keptLive = liveByRecency.take(MAX_RECENT_DETOUR_MOTIFS)
+    val cutoff = keptLive.lastOrNull()?.stamp?.at ?: Long.MAX_VALUE
+    val keptTombstones = items.filter { it.deleted && it.stamp.at >= cutoff }
+    return keptLive + keptTombstones
 }
 
 private fun <T> buildDayScoped(
@@ -112,7 +127,11 @@ fun applyDocument(document: SyncDocument, local: DayPreferencesSnapshot): DayPre
         .map { DetourEpisode(Instant.fromEpochMilliseconds(it.value.start), Instant.fromEpochMilliseconds(it.value.end), it.value.motif) },
     plannedObligationsDayKey = document.plannedObligations.dayKey,
     plannedObligations = document.plannedObligations.items.filterNot { it.deleted }.map { it.value },
-    recentDetourMotifs = document.recentDetourMotifs.filterNot { it.deleted }.map { it.value },
+    recentDetourMotifs = document.recentDetourMotifs
+        .filterNot { it.deleted }
+        .sortedByDescending { it.stamp.at }
+        .take(MAX_RECENT_DETOUR_MOTIFS)
+        .map { it.value },
     cleanSessions = document.cleanSessions.value.toLedger(),
     // onGoalApps and fontScale are left untouched by copy() → preserved
 )
