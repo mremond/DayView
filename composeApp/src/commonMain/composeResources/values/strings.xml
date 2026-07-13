@@ -253,6 +253,7 @@
     <string name="detour_start_increase">Move the start 5 minutes later</string>
     <string name="detour_start_value">Start: %1$s</string>
     <string name="detour_start_edit_label">Type the start time</string>
+    <string name="detour_duration_edit_label">Type the duration in minutes</string>
     <string name="detour_duration_decrease">Decrease the duration by 5 minutes</string>
     <string name="detour_duration_increase">Increase the duration by 5 minutes</string>
     <string name="detour_duration_value">Duration: %1$s minutes</string>

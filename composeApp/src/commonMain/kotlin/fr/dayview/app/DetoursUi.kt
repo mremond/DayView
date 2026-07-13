@@ -64,6 +64,7 @@ import fr.dayview.app.generated.resources.detour_close_button
 import fr.dayview.app.generated.resources.detour_confirm_button
 import fr.dayview.app.generated.resources.detour_delete_button
 import fr.dayview.app.generated.resources.detour_duration_decrease
+import fr.dayview.app.generated.resources.detour_duration_edit_label
 import fr.dayview.app.generated.resources.detour_duration_increase
 import fr.dayview.app.generated.resources.detour_duration_label
 import fr.dayview.app.generated.resources.detour_duration_more
@@ -562,7 +563,7 @@ internal fun DetourListDialog(
 
 /** Motif + start time + duration form shared by edit and retroactive add. */
 @Composable
-private fun DetourEditForm(
+internal fun DetourEditForm(
     initial: DetourEpisode?,
     now: Instant,
     onDelete: (() -> Unit)?,
@@ -582,76 +583,91 @@ private fun DetourEditForm(
     var durationMinutes by remember {
         mutableIntStateOf(initial?.duration?.inWholeMinutes?.toInt() ?: 15)
     }
-    GoalTextField(
-        value = motif,
-        semanticLabel = stringResource(Res.string.detour_motif_label),
-        placeholder = stringResource(Res.string.detour_motif_placeholder),
-        onValueChange = { motif = it },
-    )
-    Spacer(Modifier.height(12.dp))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(Res.string.detour_start_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TimeButton(
-                    label = "−",
-                    enabled = startMinutes >= 5,
-                    onClickLabel = stringResource(Res.string.detour_start_decrease),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
-                ) { startMinutes = (startMinutes - 5).coerceAtLeast(0) }
-                Spacer(Modifier.width(10.dp))
-                Text(formatMinutesOfDay(startMinutes, uses24Hour), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
-                Spacer(Modifier.width(10.dp))
-                TimeButton(
-                    label = "+",
-                    enabled = startMinutes <= 23 * 60 + 54,
-                    onClickLabel = stringResource(Res.string.detour_start_increase),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
-                ) { startMinutes = (startMinutes + 5).coerceAtMost(23 * 60 + 59) }
-            }
-        }
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(Res.string.detour_duration_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TimeButton(
-                    label = "−",
-                    enabled = durationMinutes > 5,
-                    onClickLabel = stringResource(Res.string.detour_duration_decrease),
-                    valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
-                ) { durationMinutes = (durationMinutes - 5).coerceAtLeast(5) }
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(Res.string.detour_minutes_chip, durationMinutes.toString()),
-                    color = colors.cloud,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Light,
-                )
-                Spacer(Modifier.width(10.dp))
-                TimeButton(
-                    label = "+",
-                    enabled = durationMinutes < 12 * 60,
-                    onClickLabel = stringResource(Res.string.detour_duration_increase),
-                    valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
-                ) { durationMinutes = (durationMinutes + 5).coerceAtMost(12 * 60) }
-            }
-        }
-    }
-    Spacer(Modifier.height(16.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-        if (onDelete != null) {
-            FocusActionButton(stringResource(Res.string.detour_delete_button), colors.red, modifier = Modifier.weight(1f), onClick = onDelete)
-        }
-        FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onCancel)
-        FocusActionButton(
-            stringResource(Res.string.detour_save_button),
-            colors.amber,
-            modifier = Modifier.weight(1f),
-            enabled = motif.isNotBlank(),
-            filled = true,
-            onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, motif)) },
+    Column {
+        GoalTextField(
+            value = motif,
+            semanticLabel = stringResource(Res.string.detour_motif_label),
+            placeholder = stringResource(Res.string.detour_motif_placeholder),
+            onValueChange = { motif = it },
         )
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(Res.string.detour_start_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TimeButton(
+                        label = "−",
+                        enabled = startMinutes > 0,
+                        onClickLabel = stringResource(Res.string.detour_start_decrease),
+                        valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
+                    ) { startMinutes = snapToFive(startMinutes, -1).coerceIn(0, 23 * 60 + 55) }
+                    Spacer(Modifier.width(10.dp))
+                    EditableTimeValue(
+                        displayText = formatMinutesOfDay(startMinutes, uses24Hour),
+                        editText = formatMinutesOfDay(startMinutes, uses24Hour),
+                        parse = { parseMinutesOfDay(it, uses24Hour) },
+                        editLabel = stringResource(Res.string.detour_start_edit_label),
+                        valueTag = DayViewTestTags.DetourEditStartValue,
+                        fieldTag = DayViewTestTags.DetourEditStartField,
+                        onCommit = { startMinutes = it },
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    TimeButton(
+                        label = "+",
+                        enabled = startMinutes < 23 * 60 + 55,
+                        onClickLabel = stringResource(Res.string.detour_start_increase),
+                        valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
+                        modifier = Modifier.testTag(DayViewTestTags.DetourEditStartIncrease),
+                    ) { startMinutes = snapToFive(startMinutes, +1).coerceIn(0, 23 * 60 + 55) }
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(Res.string.detour_duration_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TimeButton(
+                        label = "−",
+                        enabled = durationMinutes > 5,
+                        onClickLabel = stringResource(Res.string.detour_duration_decrease),
+                        valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
+                    ) { durationMinutes = snapToFive(durationMinutes, -1).coerceIn(5, 12 * 60) }
+                    Spacer(Modifier.width(10.dp))
+                    EditableTimeValue(
+                        displayText = stringResource(Res.string.detour_minutes_chip, durationMinutes.toString()),
+                        editText = durationMinutes.toString(),
+                        parse = ::parseDurationMinutes,
+                        editLabel = stringResource(Res.string.detour_duration_edit_label),
+                        valueTag = DayViewTestTags.DetourEditDurationValue,
+                        fieldTag = DayViewTestTags.DetourEditDurationField,
+                        onCommit = { durationMinutes = it },
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    TimeButton(
+                        label = "+",
+                        enabled = durationMinutes < 12 * 60,
+                        onClickLabel = stringResource(Res.string.detour_duration_increase),
+                        valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
+                        modifier = Modifier.testTag(DayViewTestTags.DetourEditDurationIncrease),
+                    ) { durationMinutes = snapToFive(durationMinutes, +1).coerceIn(5, 12 * 60) }
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            if (onDelete != null) {
+                FocusActionButton(stringResource(Res.string.detour_delete_button), colors.red, modifier = Modifier.weight(1f), onClick = onDelete)
+            }
+            FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onCancel)
+            FocusActionButton(
+                stringResource(Res.string.detour_save_button),
+                colors.amber,
+                modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourEditSave),
+                enabled = motif.isNotBlank(),
+                filled = true,
+                onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, motif)) },
+            )
+        }
     }
 }
 
