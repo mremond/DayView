@@ -53,6 +53,7 @@ data class DayViewUiState(
     val recentDetourCategories: List<String> = emptyList(),
     val plannedObligationsDayKey: Long = -1L,
     val plannedObligations: List<String> = emptyList(),
+    val plannedObligationsCompleted: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val cleanSessions: CleanSessionLedger = CleanSessionLedger(),
     val sessionOffGoal: Duration = Duration.ZERO,
@@ -124,6 +125,14 @@ data class DayViewUiState(
     /** The day's must-do motifs; stale storage from a previous day reads as empty. */
     val plannedObligationsToday: List<String>
         get() = if (plannedObligationsDayKey == dayKeyOf(dayNow)) plannedObligations else emptyList()
+
+    /** Motifs completed today; stale storage from a previous day reads as empty. */
+    val plannedObligationsCompletedToday: List<String>
+        get() = if (plannedObligationsDayKey == dayKeyOf(dayNow)) plannedObligationsCompleted else emptyList()
+
+    /** Slots consumed today = still-active plus already-completed obligations. */
+    val plannedObligationSlotsUsed: Int
+        get() = plannedObligationsToday.size + plannedObligationsCompletedToday.size
 
     val detourBodiesState: List<DetourBody>
         get() {
@@ -500,11 +509,17 @@ class DayViewController(
     }
 
     fun addPlannedObligation(motif: String) {
-        commitPlannedObligations(addPlannedObligation(state.plannedObligationsToday, motif))
+        commitPlannedObligations(
+            addPlannedObligation(state.plannedObligationsToday, motif, state.plannedObligationsCompletedToday.size),
+            state.plannedObligationsCompletedToday,
+        )
     }
 
     fun removePlannedObligation(motif: String) {
-        commitPlannedObligations(removePlannedObligation(state.plannedObligationsToday, motif))
+        commitPlannedObligations(
+            removePlannedObligation(state.plannedObligationsToday, motif),
+            state.plannedObligationsCompletedToday,
+        )
     }
 
     fun completePlannedObligation(
@@ -521,13 +536,19 @@ class DayViewController(
                 detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourCategory, description),
             )
         }
-        removePlannedObligation(originalObligation)
+        val (active, completed) = markObligationCompleted(
+            state.plannedObligationsToday,
+            state.plannedObligationsCompletedToday,
+            originalObligation,
+        )
+        commitPlannedObligations(active, completed)
     }
 
-    private fun commitPlannedObligations(obligations: List<String>) {
+    private fun commitPlannedObligations(active: List<String>, completed: List<String>) {
         state = state.copy(
             plannedObligationsDayKey = dayKeyOf(state.now),
-            plannedObligations = obligations,
+            plannedObligations = active,
+            plannedObligationsCompleted = completed,
         )
         persistState()
     }
@@ -590,6 +611,7 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     recentDetourCategories = recentDetourCategories,
     plannedObligationsDayKey = plannedObligationsDayKey,
     plannedObligations = plannedObligations,
+    plannedObligationsCompleted = plannedObligationsCompleted,
     themeMode = themeMode,
     cleanSessions = cleanSessions,
     fontScale = fontScale,
@@ -608,6 +630,9 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         detours = detours.map { it.copy(category = sanitizeDetourCategory(it.category)) },
         recentDetourCategories = recentDetourCategories.take(MAX_RECENT_DETOUR_CATEGORIES),
         plannedObligations = plannedObligations.map { sanitizeLabel(it, 60) }
+            .filter { it.isNotEmpty() }
+            .take(MAX_PLANNED_OBLIGATIONS),
+        plannedObligationsCompleted = plannedObligationsCompleted.map { sanitizeLabel(it, 60) }
             .filter { it.isNotEmpty() }
             .take(MAX_PLANNED_OBLIGATIONS),
         cleanSessions = cleanSessions.copy(
@@ -644,6 +669,7 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         recentDetourCategories = safe.recentDetourCategories,
         plannedObligationsDayKey = safe.plannedObligationsDayKey,
         plannedObligations = safe.plannedObligations,
+        plannedObligationsCompleted = safe.plannedObligationsCompleted,
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,
@@ -670,6 +696,7 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         recentDetourCategories = safe.recentDetourCategories,
         plannedObligationsDayKey = safe.plannedObligationsDayKey,
         plannedObligations = safe.plannedObligations,
+        plannedObligationsCompleted = safe.plannedObligationsCompleted,
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,

@@ -606,6 +606,34 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun completingAnObligationKeepsTheSlotUsedSoNoFourthCanBeAdded() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 10_000L)
+        controller.addPlannedObligation("a")
+        controller.addPlannedObligation("b")
+        controller.addPlannedObligation("c")
+        controller.completePlannedObligation("a", "cat", "a", 5, null)
+        assertEquals(listOf("b", "c"), controller.state.plannedObligationsToday)
+        assertEquals(3, controller.state.plannedObligationSlotsUsed)
+
+        controller.addPlannedObligation("d")
+        assertEquals(listOf("b", "c"), controller.state.plannedObligationsToday) // add refused: 2 active + 1 done = 3
+    }
+
+    @Test
+    fun deletingAnObligationFreesASlotButCompletingDoesNot() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 10_000L)
+        controller.addPlannedObligation("a")
+        controller.addPlannedObligation("b")
+        controller.completePlannedObligation("a", "cat", "a", 5, null) // active {b}, completed {a} → 2 used
+        controller.removePlannedObligation("b") // active {} , completed {a} → 1 used
+        assertEquals(1, controller.state.plannedObligationSlotsUsed)
+        controller.addPlannedObligation("c")
+        assertEquals(listOf("c"), controller.state.plannedObligationsToday)
+    }
+
+    @Test
     fun openingSettingsStartsOnTheCategoryList() {
         val controller = testController(InMemoryDayPreferences(), 1_000L)
         controller.openSettingsCategory(SettingsCategory.SOUNDS)

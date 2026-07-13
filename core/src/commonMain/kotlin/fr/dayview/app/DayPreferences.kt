@@ -26,6 +26,7 @@ data class DayPreferencesSnapshot(
     val recentDetourCategories: List<String> = emptyList(),
     val plannedObligationsDayKey: Long = -1L,
     val plannedObligations: List<String> = emptyList(),
+    val plannedObligationsCompleted: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val cleanSessions: CleanSessionLedger = CleanSessionLedger(),
     val fontScale: Float = 1.0f,
