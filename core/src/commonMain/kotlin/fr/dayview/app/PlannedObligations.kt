@@ -19,8 +19,9 @@ fun removePlannedObligation(current: List<String>, motif: String): List<String> 
 
 /**
  * Move [motif] from [active] to [completed]: drops case-insensitive matches from [active] and
- * appends the sanitized motif to [completed]. A blank motif, or one absent from [active], is a
- * no-op so the completed tally is never inflated by a phantom completion.
+ * appends the matching active entry (original casing preserved) to [completed]. A blank motif, or
+ * one absent from [active], is a no-op so the completed tally is never inflated by a phantom
+ * completion.
  */
 fun markObligationCompleted(
     active: List<String>,
