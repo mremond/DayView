@@ -1,0 +1,19 @@
+# Install to /etc/systemd/system/dayview-sync.service, edit SYNC_TOKEN, then:
+#   systemctl daemon-reload && systemctl enable --now dayview-sync
+[Unit]
+Description=DayView sync endpoint
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/sync-endpoint
+Environment=SYNC_TOKEN=change-me
+Environment=SYNC_PORT=8787
+Environment=SYNC_STORE=/var/lib/dayview-sync/store.json
+Restart=on-failure
+DynamicUser=yes
+StateDirectory=dayview-sync
+# Bind to localhost only; front it with your existing TLS reverse proxy.
+
+[Install]
+WantedBy=multi-user.target

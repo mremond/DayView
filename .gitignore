@@ -20,3 +20,4 @@ macos/Packages/DayViewKit/.build/
 # DayView sync endpoint runtime state
 server/sync-store.json
 server/sync-store.json.tmp
+server/sync-endpoint
