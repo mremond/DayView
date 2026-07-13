@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -152,9 +153,13 @@ import fr.dayview.app.generated.resources.scrub_now
 import fr.dayview.app.generated.resources.seconds_remaining
 import fr.dayview.app.generated.resources.settings_title
 import fr.dayview.app.generated.resources.today_hero_ending
+import fr.dayview.app.generated.resources.today_hero_ending_sources
 import fr.dayview.app.generated.resources.today_hero_finished
+import fr.dayview.app.generated.resources.today_hero_finished_sources
 import fr.dayview.app.generated.resources.today_hero_not_started
+import fr.dayview.app.generated.resources.today_hero_not_started_sources
 import fr.dayview.app.generated.resources.today_hero_ongoing
+import fr.dayview.app.generated.resources.today_hero_ongoing_sources
 import fr.dayview.app.generated.resources.today_status_ending
 import fr.dayview.app.generated.resources.today_status_finished
 import fr.dayview.app.generated.resources.today_status_not_started
@@ -1415,6 +1420,70 @@ private fun hitTestBusyArc(
         ?.takeIf { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angle) <= 5f }
 }
 
+/**
+ * Renders a hero quote. When [source] is blank the quote is a plain line. When a source
+ * is present, hovering with a mouse (desktop) or tapping (Android) reveals a dim source
+ * line beneath the quote; moving the mouse away hides it again.
+ */
+@Composable
+private fun HeroQuote(
+    quote: String,
+    source: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    if (source.isBlank()) {
+        Text(
+            text = quote,
+            color = color,
+            fontSize = 22.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = modifier,
+        )
+        return
+    }
+    val colors = LocalDayViewColors.current
+    var revealed by remember(quote, source) { mutableStateOf(false) }
+    Column(
+        modifier = modifier
+            .pointerInput(source) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val isMouse = event.changes.firstOrNull()?.type == PointerType.Mouse
+                        when (event.type) {
+                            PointerEventType.Enter, PointerEventType.Move ->
+                                if (isMouse) revealed = true
+                            PointerEventType.Exit ->
+                                if (isMouse) revealed = false
+                        }
+                    }
+                }
+            }
+            .pointerInput(source) {
+                detectTapGestures { revealed = !revealed }
+            },
+    ) {
+        Text(
+            text = quote,
+            color = color,
+            fontSize = 22.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        if (revealed) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = source,
+                color = colors.muted,
+                fontSize = 13.sp,
+                letterSpacing = .5.sp,
+            )
+        }
+    }
+}
+
 @Composable
 private fun SidePanel(
     progress: DayProgress,
@@ -1448,12 +1517,19 @@ private fun SidePanel(
                 HeroQuoteSlot.ONGOING -> Res.array.today_hero_ongoing
             },
         )
-        Text(
-            text = heroQuotes[heroQuoteIndex(heroQuotes.size, HeroQuoteSelection.seed(heroSlot))],
+        val heroSources = stringArrayResource(
+            when (heroSlot) {
+                HeroQuoteSlot.NOT_STARTED -> Res.array.today_hero_not_started_sources
+                HeroQuoteSlot.FINISHED -> Res.array.today_hero_finished_sources
+                HeroQuoteSlot.ENDING -> Res.array.today_hero_ending_sources
+                HeroQuoteSlot.ONGOING -> Res.array.today_hero_ongoing_sources
+            },
+        )
+        val heroIndex = heroQuoteIndex(heroQuotes.size, HeroQuoteSelection.seed(heroSlot))
+        HeroQuote(
+            quote = heroQuotes[heroIndex],
+            source = heroSources.getOrElse(heroIndex) { "" },
             color = colors.cloud,
-            fontSize = 22.sp,
-            lineHeight = 29.sp,
-            fontWeight = FontWeight.Medium,
         )
         Spacer(Modifier.height(22.dp))
 
