@@ -33,7 +33,28 @@ off, `net/http` is pure Go, so the binary is fully static (`file` reports
 "statically linked") and runs on any Linux of that architecture regardless of
 glibc version. Cross-compiles cleanly from macOS.
 
-## Deploy
+## Deploy on Synology (Container Manager)
+
+DSM restricts user-managed systemd, so the container route is the natural fit.
+A `Dockerfile` (multi-stage: build → `scratch`) and `docker-compose.yml` are
+included, so no Go toolchain is needed on your Mac — Container Manager builds the
+static binary itself, natively for the NAS's amd64 architecture.
+
+1. Put this `server/` folder on the NAS (Git, or copy via File Station), and
+   create the store's host folder (e.g. `/volume1/docker/dayview-sync`).
+2. Edit `docker-compose.yml`: set a strong `SYNC_TOKEN`, and adjust the volume's
+   host path if you didn't use `/volume1/docker/dayview-sync`.
+3. Container Manager → **Project** → **Create** → point it at this folder → Build
+   & Run. It listens on `http://<nas-host>:8787` and restarts automatically.
+
+Over a trusted/VPN-only network the plain-HTTP endpoint is fine: the transport is
+already private and the payload is end-to-end encrypted, so TLS is largely
+redundant. The app's Sync settings then use `baseUrl = http://<nas-host>:8787`,
+the same `SYNC_TOKEN`, and any `userId`. (Note: Android blocks cleartext HTTP by
+default, so an `http://` endpoint needs a scoped `network_security_config` entry
+for that host in the app.)
+
+## Deploy (generic Linux, systemd)
 
 ```bash
 scp sync-endpoint your-server:/usr/local/bin/

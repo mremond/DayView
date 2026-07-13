@@ -1,0 +1,6 @@
+sync-endpoint
+sync-store.json
+sync-store.json.tmp
+README.md
+Makefile
+dayview-sync.service
