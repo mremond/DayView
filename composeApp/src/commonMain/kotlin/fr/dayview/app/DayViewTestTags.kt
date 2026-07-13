@@ -17,6 +17,7 @@ internal object DayViewTestTags {
     const val OpenMainWindow = "openMainWindowButton"
     const val FocusStart = "focusStart"
     const val FocusStop = "focusStop"
+    const val FocusRelaunch = "focusRelaunch"
     const val DetourMotifField = "detourMotifField"
     const val DetourStartAdjust = "detourStartAdjust"
     const val DetourStartIncrease = "detourStartIncrease"

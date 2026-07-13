@@ -13,9 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,9 +45,7 @@ import fr.dayview.app.generated.resources.goal_section_title
 import fr.dayview.app.generated.resources.mini_focus_active
 import fr.dayview.app.generated.resources.mini_focus_single_thing
 import fr.dayview.app.generated.resources.mini_no_goal
-import fr.dayview.app.generated.resources.mini_relaunch_focus_label
 import fr.dayview.app.generated.resources.mini_start_focus_label
-import fr.dayview.app.generated.resources.mini_stop_focus_label
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
 
@@ -259,45 +255,10 @@ private fun MiniFocus(
         )
         Spacer(Modifier.width(12.dp))
         if (isBreak) {
-            MiniRelaunchButton(onRelaunch)
+            FocusRelaunchRoundButton(onRelaunch, Modifier.testTag(DayViewTestTags.MiniFocusRelaunch))
             Spacer(Modifier.width(8.dp))
         }
-        MiniStopButton(onStop)
-    }
-}
-
-@Composable
-private fun MiniStopButton(onStop: () -> Unit) {
-    val colors = LocalDayViewColors.current
-    Box(
-        modifier = Modifier.size(40.dp)
-            .background(colors.overlay.copy(alpha = .08f), CircleShape)
-            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_stop_focus_label), onClick = onStop),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier.size(12.dp)
-                .background(colors.red.copy(alpha = .85f), RoundedCornerShape(2.dp)),
-        )
-    }
-}
-
-@Composable
-private fun MiniRelaunchButton(onRelaunch: () -> Unit) {
-    val colors = LocalDayViewColors.current
-    Box(
-        modifier = Modifier.size(40.dp)
-            .background(colors.overlay.copy(alpha = .08f), CircleShape)
-            .testTag(DayViewTestTags.MiniFocusRelaunch)
-            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_relaunch_focus_label), onClick = onRelaunch),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            "»",
-            color = colors.mint,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Medium,
-        )
+        FocusStopRoundButton(onStop)
     }
 }
 
