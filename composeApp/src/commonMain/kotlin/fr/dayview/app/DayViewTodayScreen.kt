@@ -1258,6 +1258,9 @@ internal fun CountdownCircle(
                     ) {
                         Column {
                             Text(body.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            if (body.description.isNotEmpty()) {
+                                Text(body.description, color = colors.muted, fontSize = 11.sp)
+                            }
                             Text(
                                 stringResource(
                                     Res.string.detour_time_range,

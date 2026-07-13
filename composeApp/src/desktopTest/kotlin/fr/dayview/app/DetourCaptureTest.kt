@@ -8,6 +8,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.minutes
 
 @OptIn(ExperimentalTestApi::class)
 class DetourCaptureTest {
@@ -129,5 +130,24 @@ class DetourCaptureTest {
         assertEquals("pause clope", description)
         assertEquals(15, duration)
         assertNull(start)
+    }
+
+    @Test
+    fun listRowShowsDescriptionWhenPresent() = runComposeUiTest {
+        val now = midWindowNow()
+        val dayStart = startOfLocalDay(now)
+        setContent {
+            DetourListContent(
+                episodes = listOf(detourEpisodeAt(now, 12 * 60, 15, "Slack", "reading threads")),
+                now = now,
+                windowStart = dayStart,
+                windowEnd = dayStart + (23 * 60 + 59).minutes,
+                onUpdate = { _, _ -> },
+                onRemove = {},
+                onAdd = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourDescriptionText, useUnmergedTree = true).assertExists()
     }
 }

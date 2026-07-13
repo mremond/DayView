@@ -447,6 +447,26 @@ internal fun DetourListDialog(
     onAdd: (DetourEpisode) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    Dialog(onDismissRequest = onDismiss) {
+        DetourListContent(episodes, now, windowStart, windowEnd, onUpdate, onRemove, onAdd, onDismiss)
+    }
+}
+
+/**
+ * The list dialog's body, split out of [DetourListDialog] so Compose UI tests can
+ * drive it without a desktop Dialog window (which `runComposeUiTest` cannot reach).
+ */
+@Composable
+internal fun DetourListContent(
+    episodes: List<DetourEpisode>,
+    now: Instant,
+    windowStart: Instant,
+    windowEnd: Instant,
+    onUpdate: (Int, DetourEpisode) -> Unit,
+    onRemove: (Int) -> Unit,
+    onAdd: (DetourEpisode) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val colors = LocalDayViewColors.current
     val uses24Hour = LocalUses24HourClock.current
     var edit by remember { mutableStateOf<DetourEdit?>(null) }
@@ -456,92 +476,100 @@ internal fun DetourListDialog(
         val index = sources.firstOrNull { it.label.lowercase() == label }?.colorIndex ?: 0
         colors.detours[index % colors.detours.size]
     }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
-                .background(colors.panel, RoundedCornerShape(18.dp))
-                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                .padding(20.dp),
-        ) {
-            Text(stringResource(Res.string.detour_list_title), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
-            Spacer(Modifier.height(12.dp))
-            when (val current = edit) {
-                null -> {
-                    if (episodes.isEmpty()) {
-                        Text(stringResource(Res.string.detour_list_empty), color = colors.muted, fontSize = 13.sp)
-                    } else {
-                        Column(
-                            Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
-                        ) {
-                            episodes.forEachIndexed { index, episode ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_edit_row_label)) {
-                                            edit = DetourEdit.Existing(index, episode)
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 9.dp),
-                                ) {
-                                    Box(Modifier.size(8.dp).background(colorOf(episode), CircleShape))
-                                    Spacer(Modifier.width(10.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(episode.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    Column(
+        modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .padding(20.dp),
+    ) {
+        Text(stringResource(Res.string.detour_list_title), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+        Spacer(Modifier.height(12.dp))
+        when (val current = edit) {
+            null -> {
+                if (episodes.isEmpty()) {
+                    Text(stringResource(Res.string.detour_list_empty), color = colors.muted, fontSize = 13.sp)
+                } else {
+                    Column(
+                        Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                    ) {
+                        episodes.forEachIndexed { index, episode ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_edit_row_label)) {
+                                        edit = DetourEdit.Existing(index, episode)
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 9.dp),
+                            ) {
+                                Box(Modifier.size(8.dp).background(colorOf(episode), CircleShape))
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(episode.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        stringResource(
+                                            Res.string.detour_time_range,
+                                            formatClockHm(episode.start, use24Hour = uses24Hour),
+                                            formatClockHm(episode.end, use24Hour = uses24Hour),
+                                            formatDurationHm(episode.duration),
+                                        ),
+                                        color = colors.muted,
+                                        fontSize = 11.sp,
+                                    )
+                                    if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) {
                                         Text(
-                                            stringResource(
-                                                Res.string.detour_time_range,
-                                                formatClockHm(episode.start, use24Hour = uses24Hour),
-                                                formatClockHm(episode.end, use24Hour = uses24Hour),
-                                                formatDurationHm(episode.duration),
-                                            ),
+                                            stringResource(Res.string.detour_off_window_tag),
+                                            color = colors.muted,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            letterSpacing = .5.sp,
+                                        )
+                                    }
+                                    if (episode.description.isNotEmpty()) {
+                                        Text(
+                                            episode.description,
                                             color = colors.muted,
                                             fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionText),
                                         )
-                                        if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) {
-                                            Text(
-                                                stringResource(Res.string.detour_off_window_tag),
-                                                color = colors.muted,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                letterSpacing = .5.sp,
-                                            )
-                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        FocusActionButton(stringResource(Res.string.detour_close_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
-                        FocusActionButton(
-                            stringResource(Res.string.detour_list_add_button),
-                            colors.amber,
-                            modifier = Modifier.weight(1f),
-                            filled = true,
-                            onClick = { edit = DetourEdit.New },
-                        )
-                    }
                 }
-                else -> DetourEditForm(
-                    initial = (current as? DetourEdit.Existing)?.episode,
-                    now = now,
-                    onDelete = (current as? DetourEdit.Existing)?.let { existing ->
-                        {
-                            onRemove(existing.index)
-                            edit = null
-                        }
-                    },
-                    onCancel = { edit = null },
-                    onSave = { episode ->
-                        when (current) {
-                            is DetourEdit.Existing -> onUpdate(current.index, episode)
-                            DetourEdit.New -> onAdd(episode)
-                        }
-                        edit = null
-                    },
-                )
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    FocusActionButton(stringResource(Res.string.detour_close_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+                    FocusActionButton(
+                        stringResource(Res.string.detour_list_add_button),
+                        colors.amber,
+                        modifier = Modifier.weight(1f),
+                        filled = true,
+                        onClick = { edit = DetourEdit.New },
+                    )
+                }
             }
+            else -> DetourEditForm(
+                initial = (current as? DetourEdit.Existing)?.episode,
+                now = now,
+                onDelete = (current as? DetourEdit.Existing)?.let { existing ->
+                    {
+                        onRemove(existing.index)
+                        edit = null
+                    }
+                },
+                onCancel = { edit = null },
+                onSave = { episode ->
+                    when (current) {
+                        is DetourEdit.Existing -> onUpdate(current.index, episode)
+                        DetourEdit.New -> onAdd(episode)
+                    }
+                    edit = null
+                },
+            )
         }
     }
 }
