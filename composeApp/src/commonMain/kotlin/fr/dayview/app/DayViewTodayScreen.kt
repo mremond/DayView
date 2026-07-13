@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -153,9 +154,13 @@ import fr.dayview.app.generated.resources.scrub_now
 import fr.dayview.app.generated.resources.seconds_remaining
 import fr.dayview.app.generated.resources.settings_title
 import fr.dayview.app.generated.resources.today_hero_ending
+import fr.dayview.app.generated.resources.today_hero_ending_sources
 import fr.dayview.app.generated.resources.today_hero_finished
+import fr.dayview.app.generated.resources.today_hero_finished_sources
 import fr.dayview.app.generated.resources.today_hero_not_started
+import fr.dayview.app.generated.resources.today_hero_not_started_sources
 import fr.dayview.app.generated.resources.today_hero_ongoing
+import fr.dayview.app.generated.resources.today_hero_ongoing_sources
 import fr.dayview.app.generated.resources.today_status_ending
 import fr.dayview.app.generated.resources.today_status_finished
 import fr.dayview.app.generated.resources.today_status_not_started
@@ -185,14 +190,14 @@ internal data class DayViewScreenActions(
     val startPomodoro: () -> Unit,
     val stopPomodoro: () -> Unit,
     val closePomodoro: (FocusClosureOutcome) -> Unit,
-    val addDetour: (String, Int) -> Unit,
+    val addDetour: (String, Int, String) -> Unit,
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
-    val forgetDetourMotif: (String) -> Unit,
+    val forgetDetourCategory: (String) -> Unit,
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
-    val completePlannedObligation: (String, String, Int, Int?) -> Unit,
+    val completePlannedObligation: (String, String, String, Int, Int?) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -359,32 +364,32 @@ internal fun DayViewScreen(
         }
         if (showDetourCapture) {
             DetourCaptureDialog(
-                recentMotifs = state.recentDetourMotifs,
+                recentCategories = state.recentDetourCategories,
                 now = state.now,
-                onConfirm = { motif, durationMinutes, startMinutesOfDay ->
+                onConfirm = { category, description, durationMinutes, startMinutesOfDay ->
                     if (startMinutesOfDay == null) {
-                        actions.addDetour(motif, durationMinutes)
+                        actions.addDetour(category, durationMinutes, description)
                     } else {
                         actions.addDetourEpisode(
-                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, motif),
+                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, category, description),
                         )
                     }
                     showDetourCapture = false
                 },
-                onForget = actions.forgetDetourMotif,
+                onForget = actions.forgetDetourCategory,
                 onDismiss = { showDetourCapture = false },
             )
         }
-        obligationToComplete?.let { motif ->
+        obligationToComplete?.let { obligation ->
             DetourCaptureDialog(
-                recentMotifs = state.recentDetourMotifs,
+                recentCategories = state.recentDetourCategories,
                 now = state.now,
-                initialMotif = motif,
-                onConfirm = { confirmedMotif, durationMinutes, startMinutesOfDay ->
-                    actions.completePlannedObligation(motif, confirmedMotif, durationMinutes, startMinutesOfDay)
+                initialDescription = obligation,
+                onConfirm = { confirmedCategory, description, durationMinutes, startMinutesOfDay ->
+                    actions.completePlannedObligation(obligation, confirmedCategory, description, durationMinutes, startMinutesOfDay)
                     obligationToComplete = null
                 },
-                onForget = actions.forgetDetourMotif,
+                onForget = actions.forgetDetourCategory,
                 onDismiss = { obligationToComplete = null },
             )
         }
@@ -1075,6 +1080,17 @@ internal fun CountdownCircle(
                     // multiplier back out preserves the OS font setting while dropping the slider.
                     LocalDensity provides Density(counterDensity.density, counterDensity.fontScale / prefFontScale),
                 ) {
+                    val hasNetRow = netTime != null && netTime.busyRemaining > Duration.ZERO
+                    val interior = countdownInterior(
+                        circleSize = circleSize,
+                        counterScale = counterScale,
+                        showSeconds = showSeconds,
+                        hasNet = hasNetRow,
+                        hasBusy = hasNetRow,
+                        hasFocus = focusedToday > Duration.ZERO,
+                        hasDetours = detoursTotal > Duration.ZERO,
+                        hasAccolades = cleanSessionsToday > 0 || streakDays > 0,
+                    )
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
@@ -1100,34 +1116,41 @@ internal fun CountdownCircle(
                                     letterSpacing = (.8f * counterScale).sp,
                                 )
                             }
-                            if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
-                                Spacer(Modifier.height(6.dp))
+                            if (interior.showNet && netTime != null) {
+                                Spacer(Modifier.height(6.dp * counterScale))
                                 Text(
-                                    stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining)),
+                                    if (interior.netCompact) {
+                                        formatDurationHm(netTime.netRemaining)
+                                    } else {
+                                        stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining))
+                                    },
                                     color = colors.mint,
-                                    fontSize = 14.sp,
+                                    fontSize = (14 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
-                                    letterSpacing = .5.sp,
+                                    letterSpacing = (.5f * counterScale).sp,
+                                    modifier = Modifier.testTag(DayViewTestTags.NetRemaining),
                                 )
-                                Text(
-                                    stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
-                                    color = colors.muted,
-                                    fontSize = 11.sp,
-                                    letterSpacing = .5.sp,
-                                )
+                                if (interior.showBusy) {
+                                    Text(
+                                        stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
+                                        color = colors.muted,
+                                        fontSize = (11 * counterScale).sp,
+                                        letterSpacing = (.5f * counterScale).sp,
+                                    )
+                                }
                             }
-                            if (focusedToday > Duration.ZERO) {
-                                Spacer(Modifier.height(6.dp))
+                            if (interior.showFocus) {
+                                Spacer(Modifier.height(6.dp * counterScale))
                                 Text(
                                     stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
                                     color = colors.mint,
-                                    fontSize = 13.sp,
+                                    fontSize = (13 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
-                                    letterSpacing = .5.sp,
+                                    letterSpacing = (.5f * counterScale).sp,
                                 )
                             }
-                            if (detoursTotal > Duration.ZERO) {
-                                Spacer(Modifier.height(6.dp))
+                            if (interior.showDetours) {
+                                Spacer(Modifier.height(6.dp * counterScale))
                                 Text(
                                     if (detoursOffWindow > Duration.ZERO) {
                                         stringResource(
@@ -1139,9 +1162,10 @@ internal fun CountdownCircle(
                                         stringResource(Res.string.detours_today, formatDurationHm(detoursTotal))
                                     },
                                     color = colors.amber,
-                                    fontSize = 13.sp,
+                                    fontSize = (13 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
-                                    letterSpacing = .5.sp,
+                                    letterSpacing = (.5f * counterScale).sp,
+                                    modifier = Modifier.testTag(DayViewTestTags.Detours),
                                 )
                             }
                         } else if (focusedToday > Duration.ZERO) {
@@ -1156,7 +1180,7 @@ internal fun CountdownCircle(
                                 modifier = Modifier.testTag(DayViewTestTags.FocusRecap),
                             )
                         }
-                        if (cleanSessionsToday > 0 || streakDays > 0) {
+                        if (interior.showAccolades && (cleanSessionsToday > 0 || streakDays > 0)) {
                             Spacer(Modifier.height(6.dp))
                             val countLabel = if (cleanSessionsToday > 0) {
                                 stringResource(Res.string.clean_sessions_today, cleanSessionsToday)
@@ -1256,7 +1280,10 @@ internal fun CountdownCircle(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Column {
-                            Text(body.motif, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(body.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            if (body.description.isNotEmpty()) {
+                                Text(body.description, color = colors.muted, fontSize = 11.sp)
+                            }
                             Text(
                                 stringResource(
                                     Res.string.detour_time_range,
@@ -1290,7 +1317,7 @@ internal fun CountdownCircle(
                     RingScrubReadout(
                         readout = readout,
                         uses24Hour = uses24Hour,
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
                     )
                 }
             }
@@ -1394,6 +1421,70 @@ private fun hitTestBusyArc(
         ?.takeIf { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angle) <= 5f }
 }
 
+/**
+ * Renders a hero quote. When [source] is blank the quote is a plain line. When a source
+ * is present, hovering with a mouse (desktop) or tapping (Android) reveals a dim source
+ * line beneath the quote; moving the mouse away hides it again.
+ */
+@Composable
+private fun HeroQuote(
+    quote: String,
+    source: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    if (source.isBlank()) {
+        Text(
+            text = quote,
+            color = color,
+            fontSize = 22.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = modifier,
+        )
+        return
+    }
+    val colors = LocalDayViewColors.current
+    var revealed by remember(quote, source) { mutableStateOf(false) }
+    Column(
+        modifier = modifier
+            .pointerInput(source) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val isMouse = event.changes.firstOrNull()?.type == PointerType.Mouse
+                        when (event.type) {
+                            PointerEventType.Enter, PointerEventType.Move ->
+                                if (isMouse) revealed = true
+                            PointerEventType.Exit ->
+                                if (isMouse) revealed = false
+                        }
+                    }
+                }
+            }
+            .pointerInput(source) {
+                detectTapGestures { revealed = !revealed }
+            },
+    ) {
+        Text(
+            text = quote,
+            color = color,
+            fontSize = 22.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        if (revealed) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = source,
+                color = colors.muted,
+                fontSize = 13.sp,
+                letterSpacing = .5.sp,
+            )
+        }
+    }
+}
+
 @Composable
 private fun SidePanel(
     progress: DayProgress,
@@ -1427,12 +1518,19 @@ private fun SidePanel(
                 HeroQuoteSlot.ONGOING -> Res.array.today_hero_ongoing
             },
         )
-        Text(
-            text = heroQuotes[heroQuoteIndex(heroQuotes.size, HeroQuoteSelection.seed(heroSlot))],
+        val heroSources = stringArrayResource(
+            when (heroSlot) {
+                HeroQuoteSlot.NOT_STARTED -> Res.array.today_hero_not_started_sources
+                HeroQuoteSlot.FINISHED -> Res.array.today_hero_finished_sources
+                HeroQuoteSlot.ENDING -> Res.array.today_hero_ending_sources
+                HeroQuoteSlot.ONGOING -> Res.array.today_hero_ongoing_sources
+            },
+        )
+        val heroIndex = heroQuoteIndex(heroQuotes.size, HeroQuoteSelection.seed(heroSlot))
+        HeroQuote(
+            quote = heroQuotes[heroIndex],
+            source = heroSources.getOrElse(heroIndex) { "" },
             color = colors.cloud,
-            fontSize = 22.sp,
-            lineHeight = 29.sp,
-            fontWeight = FontWeight.Medium,
         )
         Spacer(Modifier.height(22.dp))
 
@@ -1744,21 +1842,21 @@ internal fun FocusActionButton(
     filled: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val colors = LocalDayViewColors.current
     val backgroundColor = when {
         !enabled -> color.copy(alpha = .05f)
-        filled -> color.copy(alpha = .92f)
+        filled -> color.copy(alpha = .2f)
         else -> color.copy(alpha = .14f)
     }
-    val contentColor = when {
-        !enabled -> color.copy(alpha = .4f)
-        filled -> colors.ink
-        else -> color
+    val contentColor = if (enabled) color else color.copy(alpha = .4f)
+    val borderColor = when {
+        !enabled -> color.copy(alpha = .1f)
+        filled -> color.copy(alpha = .6f)
+        else -> color.copy(alpha = .38f)
     }
     Box(
         modifier = modifier.minimumInteractiveComponentSize()
             .background(backgroundColor, RoundedCornerShape(12.dp))
-            .border(1.dp, color.copy(alpha = if (enabled) .38f else .1f), RoundedCornerShape(12.dp))
+            .border(if (filled) 1.5.dp else 1.dp, borderColor, RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center,

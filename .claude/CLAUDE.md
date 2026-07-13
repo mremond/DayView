@@ -28,6 +28,14 @@ business logic are shared through Compose Multiplatform. See [README.md](../READ
 Prerequisites: JDK 21 (the build uses `jvmToolchain(21)`; Robolectric needs 21 for
 compileSdk 36) and the Android SDK.
 
+On macOS, calendar access is granted by the system to a stable code identity. To keep
+the permission across rebuilds, set a signing identity in `local.properties`:
+
+    dayview.macos.signingIdentity=Developer ID Application: Your Name (TEAMID)
+
+Find installed identities with `security find-identity -v -p codesigning`. When the key
+is unset the EventKit helper is left unsigned and macOS re-prompts on each rebuild.
+
 ## Commit Messages and Pull Requests
 
 - Write all commit messages and pull requests in English.

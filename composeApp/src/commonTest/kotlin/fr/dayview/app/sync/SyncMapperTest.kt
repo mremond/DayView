@@ -56,6 +56,18 @@ class SyncMapperTest {
     }
 
     @Test
+    fun detourCategoryAndDescriptionRoundTripThroughSync() {
+        val withDetour = base.copy(
+            detoursDayKey = 19000,
+            detours = listOf(DetourEpisode(Instant.fromEpochMilliseconds(10), Instant.fromEpochMilliseconds(20), "Slack", "reading threads")),
+        )
+        val doc = buildDocument(withDetour, base = null, deviceId = "a", now = 100)
+        val restored = applyDocument(doc, base).detours.single()
+        assertEquals("Slack", restored.category)
+        assertEquals("reading threads", restored.description) // description must not be dropped on sync
+    }
+
+    @Test
     fun applyPreservesDeviceLocalFields() {
         val doc = buildDocument(base.copy(startMinutes = 500), base = null, deviceId = "a", now = 100)
         val local = base.copy(startMinutes = 999) // remote should overwrite this…

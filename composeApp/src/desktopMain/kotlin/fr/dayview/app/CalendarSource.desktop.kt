@@ -5,8 +5,6 @@ import java.io.BufferedWriter
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.nio.file.Files
-import java.nio.file.StandardCopyOption
-import java.nio.file.attribute.PosixFilePermission
 import kotlin.time.Instant
 
 /** Passerelle EventKit macOS pilotée par un petit processus accessoire. */
@@ -100,21 +98,7 @@ private class MacEventKitCalendarSource : CalendarSource {
 
     private fun extractHelper(): java.nio.file.Path {
         helperPath?.let { if (Files.exists(it)) return it }
-        val target = Files.createTempFile("dayview-eventkit-", "")
-        val resource = checkNotNull(javaClass.getResourceAsStream("/macos-eventkit-helper")) {
-            "macOS EventKit helper is missing from application resources"
-        }
-        resource.use { Files.copy(it, target, StandardCopyOption.REPLACE_EXISTING) }
-        Files.setPosixFilePermissions(
-            target,
-            setOf(
-                PosixFilePermission.OWNER_READ,
-                PosixFilePermission.OWNER_WRITE,
-                PosixFilePermission.OWNER_EXECUTE,
-            ),
-        )
-        helperPath = target
-        return target
+        return MacHelpers.extract("/macos-eventkit-helper").also { helperPath = it }
     }
 
     private companion object {

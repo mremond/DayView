@@ -3,7 +3,7 @@ package fr.dayview.app.sync
 import fr.dayview.app.CleanSessionLedger
 import fr.dayview.app.DayPreferencesSnapshot
 import fr.dayview.app.DetourEpisode
-import fr.dayview.app.MAX_RECENT_DETOUR_MOTIFS
+import fr.dayview.app.MAX_RECENT_DETOUR_CATEGORIES
 import fr.dayview.app.SoundSettings
 import fr.dayview.app.ThemeMode
 import kotlin.time.Instant
@@ -42,7 +42,7 @@ fun buildDocument(
         netTimeEnabled = restamp(snapshot.netTimeSettings.enabled, base?.netTimeEnabled, now, deviceId),
         detours = buildDayScoped(
             dayKey = snapshot.detoursDayKey,
-            values = snapshot.detours.map { DetourDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.motif) },
+            values = snapshot.detours.map { DetourDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.category, it.description) },
             keyOf = ::detourKey,
             base = base?.detours,
             fresh = fresh,
@@ -54,16 +54,16 @@ fun buildDocument(
             base = base?.plannedObligations,
             fresh = fresh,
         ),
-        recentDetourMotifs = boundRecentMotifItems(buildItems(snapshot.recentDetourMotifs, { it }, base?.recentDetourMotifs, fresh)),
+        recentDetourMotifs = boundRecentMotifItems(buildItems(snapshot.recentDetourCategories, { it }, base?.recentDetourMotifs, fresh)),
         cleanSessions = restamp(snapshot.cleanSessions.toDto(), base?.cleanSessions, now, deviceId),
     )
 }
 
 /**
  * Bounds the recent-motif item set so it doesn't grow without limit: keeps at most the newest
- * [MAX_RECENT_DETOUR_MOTIFS] live items and, separately, at most the newest
- * [MAX_RECENT_DETOUR_MOTIFS] tombstones, ranked by [Stamp.at] with a deterministic tie-break on
- * [SyncItem.id]. The result size is therefore always <= 2 * [MAX_RECENT_DETOUR_MOTIFS] regardless
+ * [MAX_RECENT_DETOUR_CATEGORIES] live items and, separately, at most the newest
+ * [MAX_RECENT_DETOUR_CATEGORIES] tombstones, ranked by [Stamp.at] with a deterministic tie-break on
+ * [SyncItem.id]. The result size is therefore always <= 2 * [MAX_RECENT_DETOUR_CATEGORIES] regardless
  * of what any individual item's stamp is.
  *
  * This must be count-based rather than cutoff-based: a recurring motif (e.g. "email", reused
@@ -89,8 +89,8 @@ fun buildDocument(
  */
 internal fun boundRecentMotifItems(items: List<SyncItem<String>>): List<SyncItem<String>> {
     val order = compareByDescending<SyncItem<String>> { it.stamp.at }.thenBy { it.id }
-    val live = items.filter { !it.deleted }.sortedWith(order).take(MAX_RECENT_DETOUR_MOTIFS)
-    val tombs = items.filter { it.deleted }.sortedWith(order).take(MAX_RECENT_DETOUR_MOTIFS)
+    val live = items.filter { !it.deleted }.sortedWith(order).take(MAX_RECENT_DETOUR_CATEGORIES)
+    val tombs = items.filter { it.deleted }.sortedWith(order).take(MAX_RECENT_DETOUR_CATEGORIES)
     return (live + tombs).sortedBy { it.id }
 }
 
@@ -145,13 +145,13 @@ fun applyDocument(document: SyncDocument, local: DayPreferencesSnapshot): DayPre
     netTimeSettings = local.netTimeSettings.copy(enabled = document.netTimeEnabled.value),
     detoursDayKey = document.detours.dayKey,
     detours = document.detours.items.filterNot { it.deleted }
-        .map { DetourEpisode(Instant.fromEpochMilliseconds(it.value.start), Instant.fromEpochMilliseconds(it.value.end), it.value.motif) },
+        .map { DetourEpisode(Instant.fromEpochMilliseconds(it.value.start), Instant.fromEpochMilliseconds(it.value.end), it.value.motif, it.value.description) },
     plannedObligationsDayKey = document.plannedObligations.dayKey,
     plannedObligations = document.plannedObligations.items.filterNot { it.deleted }.map { it.value },
-    recentDetourMotifs = document.recentDetourMotifs
+    recentDetourCategories = document.recentDetourMotifs
         .filterNot { it.deleted }
         .sortedByDescending { it.stamp.at }
-        .take(MAX_RECENT_DETOUR_MOTIFS)
+        .take(MAX_RECENT_DETOUR_CATEGORIES)
         .map { it.value },
     cleanSessions = document.cleanSessions.value.toLedger(),
     // onGoalApps and fontScale are left untouched by copy() → preserved

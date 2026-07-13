@@ -18,6 +18,9 @@ data class BusyInterval(
     val calendarId: String = "",
 )
 
+/** A busy event reserved for goal work: any title contains "focus" (case-insensitive). */
+fun BusyInterval.isFocusBlock(): Boolean = titles.any { it.contains("focus", ignoreCase = true) }
+
 private const val TITLE_SEPARATOR = "|"
 
 /** Fixed non-empty marker prefixed to each Base64 token so an empty title still yields a non-empty token. */

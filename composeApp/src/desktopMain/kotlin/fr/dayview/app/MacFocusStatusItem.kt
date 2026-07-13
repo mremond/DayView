@@ -3,7 +3,6 @@ package fr.dayview.app
 import java.io.BufferedWriter
 import java.io.OutputStreamWriter
 import java.nio.file.Files
-import java.nio.file.attribute.PosixFilePermission
 import java.util.concurrent.TimeUnit
 
 /** Controls the native AppKit status item hosted by a tiny accessory process. */
@@ -61,21 +60,7 @@ class MacFocusStatusItem : AutoCloseable {
 
     private fun extractHelper(): java.nio.file.Path {
         helperPath?.let { if (Files.exists(it)) return it }
-        val target = Files.createTempFile("dayview-focus-status-", "")
-        val resource = checkNotNull(javaClass.getResourceAsStream("/macos-focus-status-helper")) {
-            "macOS focus status helper is missing from application resources"
-        }
-        resource.use { Files.copy(it, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING) }
-        Files.setPosixFilePermissions(
-            target,
-            setOf(
-                PosixFilePermission.OWNER_READ,
-                PosixFilePermission.OWNER_WRITE,
-                PosixFilePermission.OWNER_EXECUTE,
-            ),
-        )
-        helperPath = target
-        return target
+        return MacHelpers.extract("/macos-focus-status-helper").also { helperPath = it }
     }
 
     private companion object {

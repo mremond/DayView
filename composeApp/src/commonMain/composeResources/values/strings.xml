@@ -35,15 +35,28 @@
     <string-array name="today_hero_not_started">
         <item>Your day hasn’t started yet.\nThe circle is still whole.</item>
     </string-array>
+    <string-array name="today_hero_not_started_sources">
+        <item></item>
+    </string-array>
     <string-array name="today_hero_finished">
         <item>Your planned time is up.\nYou can let the day go.</item>
+    </string-array>
+    <string-array name="today_hero_finished_sources">
+        <item></item>
     </string-array>
     <string-array name="today_hero_ending">
         <item>The day is drawing to a close.\nChoose one essential thing.</item>
     </string-array>
+    <string-array name="today_hero_ending_sources">
+        <item></item>
+    </string-array>
     <string-array name="today_hero_ongoing">
         <item>See the time.\nStay the course, no pressure.</item>
-        <item>Rules for Writers\nRule One: You Must Write\n…\n― Robert A. Heinlein</item>
+        <item>You must write.</item>
+    </string-array>
+    <string-array name="today_hero_ongoing_sources">
+        <item></item>
+        <item>Rules for Writers ― Robert A. Heinlein</item>
     </string-array>
 
     <!-- Countdown circle -->
@@ -233,13 +246,14 @@
     <string name="detour_list_open_label">Today’s detours</string>
     <string name="detour_section">DETOUR</string>
     <string name="detour_capture_prompt">What pulled you off the path?</string>
-    <string name="detour_motif_label">Detour reason</string>
-    <string name="detour_motif_placeholder">E.g. unexpected call</string>
-    <string name="detour_forget_row_label">Forget this reason</string>
-    <string name="detour_forget_prompt">Forget this reason?</string>
+    <string name="detour_category_label">Category</string>
+    <string name="detour_category_placeholder">E.g. unexpected call</string>
+    <string name="detour_description_label">Description</string>
+    <string name="detour_description_placeholder">Optional detail</string>
+    <string name="detour_forget_row_label">Forget this category</string>
+    <string name="detour_forget_prompt">Forget this category?</string>
     <string name="detour_forget_confirm">FORGET</string>
     <string name="detour_duration_section">APPROXIMATE DURATION</string>
-    <string name="detour_duration_more">Longer</string>
     <string name="detour_minutes_chip">%1$s min</string>
     <string name="detour_source_total">%1$s %2$s</string>
     <string name="detour_overflow">+%1$s</string>

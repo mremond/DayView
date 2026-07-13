@@ -36,7 +36,9 @@ internal object DayPreferenceKeys {
     const val ON_GOAL_APPS = "on_goal_apps"
     const val DETOURS_DAY = "detours_day"
     const val DETOURS = "detours"
-    const val DETOUR_RECENT_MOTIFS = "detour_recent_motifs"
+
+    // Keep the VALUE "detour_recent_motifs" for back-compat with stored data.
+    const val DETOUR_RECENT_CATEGORIES = "detour_recent_motifs"
     const val PLANNED_OBLIGATIONS_DAY = "planned_obligations_day"
     const val PLANNED_OBLIGATIONS = "planned_obligations"
     const val THEME_MODE = "theme_mode"
@@ -71,7 +73,7 @@ private val availableCalendarsKey = stringPreferencesKey(DayPreferenceKeys.AVAIL
 private val onGoalAppsKey = stringPreferencesKey(DayPreferenceKeys.ON_GOAL_APPS)
 private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY)
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
-private val detourRecentMotifsKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_MOTIFS)
+private val detourRecentCategoriesKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_CATEGORIES)
 private val plannedObligationsDayPrefKey = longPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS_DAY)
 private val plannedObligationsKey = stringPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS)
 private val themeModeKey = stringPreferencesKey(DayPreferenceKeys.THEME_MODE)
@@ -111,7 +113,7 @@ class DayPreferencesStore(
             prefs[onGoalAppsKey] = encodeAppRefs(snapshot.onGoalApps)
             prefs[detoursDayPrefKey] = snapshot.detoursDayKey
             prefs[detoursKey] = encodeDetours(snapshot.detours)
-            prefs[detourRecentMotifsKey] = encodeRecentDetourMotifs(snapshot.recentDetourMotifs)
+            prefs[detourRecentCategoriesKey] = encodeRecentDetourCategories(snapshot.recentDetourCategories)
             prefs[plannedObligationsDayPrefKey] = snapshot.plannedObligationsDayKey
             prefs[plannedObligationsKey] = encodePlannedObligations(snapshot.plannedObligations)
             prefs[themeModeKey] = snapshot.themeMode.name
@@ -162,7 +164,7 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         onGoalApps = decodeAppRefs(this[onGoalAppsKey].orEmpty()),
         detoursDayKey = this[detoursDayPrefKey] ?: defaults.detoursDayKey,
         detours = decodeDetours(this[detoursKey].orEmpty()),
-        recentDetourMotifs = decodeRecentDetourMotifs(this[detourRecentMotifsKey].orEmpty()),
+        recentDetourCategories = decodeRecentDetourCategories(this[detourRecentCategoriesKey].orEmpty()),
         plannedObligationsDayKey = this[plannedObligationsDayPrefKey] ?: defaults.plannedObligationsDayKey,
         plannedObligations = decodePlannedObligations(this[plannedObligationsKey].orEmpty()),
         themeMode = this[themeModeKey]

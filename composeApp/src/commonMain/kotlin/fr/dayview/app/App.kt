@@ -116,6 +116,8 @@ internal fun DayViewApp(
                     val calendarSource = remember { createCalendarSource() }
                     val calendarScope = rememberCoroutineScope()
                     var calendarPermissionProbe by remember { mutableIntStateOf(0) }
+                    var calendarChangeProbe by remember { mutableIntStateOf(0) }
+
                     // Synchronous key/config store: not a Flow, so the UI state is a
                     // Compose snapshot state re-derived only by the callbacks below.
                     var syncConfig by remember { mutableStateOf(secureKeyStore?.loadConfig()) }
@@ -162,6 +164,7 @@ internal fun DayViewApp(
                         state.startMinutes,
                         state.endMinutes,
                         calendarPermissionProbe,
+                        calendarChangeProbe,
                     ) {
                         val (permission, busy, calendars) = withContext(Dispatchers.Default) {
                             if (!state.netTimeSettings.enabled) {
@@ -182,6 +185,19 @@ internal fun DayViewApp(
                             }
                         }
                         controller.updateNetTimeData(permission, busy, calendars)
+                    }
+
+                    // Watch the calendar provider so external edits (a new event, a moved
+                    // meeting) refresh the busy layer promptly while the app is foregrounded,
+                    // instead of waiting for the next minute tick or a resume. No-op on
+                    // platforms whose source cannot push changes (desktop, Noop).
+                    DisposableEffect(calendarSource, state.netTimeSettings.enabled) {
+                        val handle = if (state.netTimeSettings.enabled) {
+                            runCatching { calendarSource.observeChanges { calendarChangeProbe++ } }.getOrNull()
+                        } else {
+                            null
+                        }
+                        onDispose { handle?.let { runCatching { it.close() } } }
                     }
 
                     val onRequestCalendarAccess: () -> Unit = {
@@ -371,11 +387,11 @@ internal fun DayViewApp(
                                     controller.closePomodoro(outcome)
                                     onFocusAlarmChange(null, intention)
                                 },
-                                addDetour = { motif, durationMinutes -> controller.addDetour(motif, durationMinutes) },
+                                addDetour = { category, durationMinutes, description -> controller.addDetour(category, durationMinutes, description) },
                                 updateDetour = { index, episode -> controller.updateDetour(index, episode) },
                                 removeDetour = { controller.removeDetour(it) },
                                 addDetourEpisode = { controller.addDetourEpisode(it) },
-                                forgetDetourMotif = { controller.forgetRecentDetourMotif(it) },
+                                forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
                                 addPlannedObligation = { controller.addPlannedObligation(it) },
                                 removePlannedObligation = { controller.removePlannedObligation(it) },
                                 completePlannedObligation = controller::completePlannedObligation,

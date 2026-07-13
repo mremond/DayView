@@ -21,7 +21,8 @@ data class SoundDto(
 
 @Serializable data class PomodoroDto(val minutes: Int, val end: Long)
 
-@Serializable data class DetourDto(val start: Long, val end: Long, val motif: String)
+// `motif` carries the detour category (renamed upstream); `description` is the free-text note.
+@Serializable data class DetourDto(val start: Long, val end: Long, val motif: String, val description: String = "")
 
 @Serializable
 data class CleanDto(

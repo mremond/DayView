@@ -3,6 +3,9 @@ package fr.dayview.app
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 import kotlin.time.Instant
@@ -78,6 +81,19 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
             }
         }
         return out
+    }
+
+    override fun observeChanges(onChange: () -> Unit): AutoCloseable {
+        // Le ContentObserver notifie sur le thread principal (Handler du Looper principal) pour
+        // que la relecture déclenchée reste synchrone avec la recomposition Compose.
+        val callback = onChange
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) = callback()
+        }
+        context.contentResolver.registerContentObserver(CalendarContract.CONTENT_URI, true, observer)
+        return object : AutoCloseable {
+            override fun close() = context.contentResolver.unregisterContentObserver(observer)
+        }
     }
 }
 

@@ -64,7 +64,7 @@ class DayHistoryRecordTest {
             calendarNames = emptyMap(),
             netTimeSettings = NetTimeSettings(),
             focusPresenceIntervals = listOf(FocusPresenceInterval(instantAt(9, 0), instantAt(9, 30))),
-            detours = listOf(DetourEpisode(instantAt(11, 0), instantAt(11, 15), "slack")),
+            detours = listOf(DetourEpisode(instantAt(11, 0), instantAt(11, 15), "slack", "reading threads")),
             cleanSessions = CleanSessionLedger(dayKey = dayKey, cleanToday = 1),
             pomodoroMinutes = 30,
             pomodoroEnd = null,

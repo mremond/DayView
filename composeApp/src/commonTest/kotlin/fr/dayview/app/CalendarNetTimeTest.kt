@@ -341,4 +341,39 @@ class CalendarNetTimeTest {
         assertEquals("13:00", formatClockHm(instant, zone))
         assertEquals("1:00 PM", formatClockHm(instant, zone, use24Hour = false))
     }
+
+    @Test
+    fun isFocusBlockMatchesFocusSubstringCaseInsensitively() {
+        assertEquals(true, interval(0, 100, "Focus").isFocusBlock())
+        assertEquals(true, interval(0, 100, "FOCUS").isFocusBlock())
+        assertEquals(true, interval(0, 100, "deep focus block").isFocusBlock())
+    }
+
+    @Test
+    fun isFocusBlockIsFalseWithoutFocusSubstring() {
+        assertEquals(false, interval(0, 100, "Standup").isFocusBlock())
+        assertEquals(false, interval(0, 100).isFocusBlock()) // no titles at all
+    }
+
+    @Test
+    fun isFocusBlockMatchesIfAnyTitleContainsFocus() {
+        assertEquals(true, interval(0, 100, "Standup", "Focus time").isFocusBlock())
+    }
+
+    @Test
+    fun filteringFocusBlocksLeavesOverlappingMeetingIntact() {
+        val zone = TimeZone.of("Europe/Paris")
+        val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone)
+        val (start, end) = dayWindow(noon, 8 * 60, 18 * 60, zone)
+        val progress = calculateDayProgress(noon, 8 * 60, 18 * 60, zone)
+        // Focus block 14:00-16:00 overlaps a real meeting 15:00-16:00 (same window as the controller feeds).
+        val busy = listOf(
+            busyAt(noon + 2.hours, noon + 4.hours, "Deep Focus"),
+            busyAt(noon + 3.hours, noon + 4.hours, "Atelier"),
+        )
+        val net = calculateNetTime(progress, noon, start, end, busy.filterNot { it.isFocusBlock() })
+        // Only the meeting's own hour is subtracted; the overlapping focus span is gone.
+        assertEquals(1.hours, net.busyRemaining)
+        assertEquals((end - start) - 1.hours, net.netDay)
+    }
 }
