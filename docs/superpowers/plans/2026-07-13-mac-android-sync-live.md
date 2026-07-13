@@ -489,16 +489,14 @@ class SyncCoordinator(
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
 
     private val mutex = Mutex()
-    private var rerunRequested = false
 
+    // Serialize every run: a trigger arriving mid-sync waits, then runs with a fresh
+    // snapshot (so a mid-sync local change is never lost). Redundant queued runs are
+    // cheap because the engine short-circuits to UpToDate when nothing changed. (An
+    // earlier flag-based "rerun once" coalescing had a data race that could drop a
+    // trigger; serialization is race-free and triggers are naturally rate-limited.)
     suspend fun syncNow() {
-        if (mutex.isLocked) { rerunRequested = true; return }
-        mutex.withLock {
-            do {
-                rerunRequested = false
-                runOnce()
-            } while (rerunRequested)
-        }
+        mutex.withLock { runOnce() }
     }
 
     private suspend fun runOnce() {
