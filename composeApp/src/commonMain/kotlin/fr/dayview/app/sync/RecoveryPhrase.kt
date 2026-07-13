@@ -45,7 +45,11 @@ object RecoveryPhrase {
         return RawSyncKey(entropy)
     }
 
-    fun decodePhrase(text: String): RawSyncKey? = decode(text.trim().split(Regex("\\s+")).filter { it.isNotBlank() })
+    fun decodePhrase(text: String): RawSyncKey? = decode(
+        text.split(Regex("\\s+"))
+            .map { it.replace(Regex("^\\d+\\."), "").trim() }
+            .filter { it.isNotBlank() },
+    )
 
     private val sha256Hasher = CryptographyProvider.Default.get(SHA256).hasher()
 

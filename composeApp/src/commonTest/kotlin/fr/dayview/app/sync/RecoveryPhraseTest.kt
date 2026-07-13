@@ -49,4 +49,13 @@ class RecoveryPhraseTest {
         val restored = RecoveryPhrase.decodePhrase("  \n$phrase\n ")
         assertTrue(restored != null && restored.bytes.toList() == key.bytes.toList())
     }
+
+    @Test
+    fun decodePhraseAcceptsNumberedDisplayForm() {
+        val key = RawSyncKey.generate()
+        val words = RecoveryPhrase.encode(key)
+        val numbered = words.mapIndexed { i, w -> "${i + 1}. $w" }.joinToString("   ")
+        val restored = RecoveryPhrase.decodePhrase(numbered)
+        assertTrue(restored != null && restored.bytes.toList() == key.bytes.toList())
+    }
 }
