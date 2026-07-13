@@ -1746,21 +1746,21 @@ internal fun FocusActionButton(
     filled: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val colors = LocalDayViewColors.current
     val backgroundColor = when {
         !enabled -> color.copy(alpha = .05f)
-        filled -> color.copy(alpha = .92f)
+        filled -> color.copy(alpha = .2f)
         else -> color.copy(alpha = .14f)
     }
-    val contentColor = when {
-        !enabled -> color.copy(alpha = .4f)
-        filled -> colors.ink
-        else -> color
+    val contentColor = if (enabled) color else color.copy(alpha = .4f)
+    val borderColor = when {
+        !enabled -> color.copy(alpha = .1f)
+        filled -> color.copy(alpha = .6f)
+        else -> color.copy(alpha = .38f)
     }
     Box(
         modifier = modifier.minimumInteractiveComponentSize()
             .background(backgroundColor, RoundedCornerShape(12.dp))
-            .border(1.dp, color.copy(alpha = if (enabled) .38f else .1f), RoundedCornerShape(12.dp))
+            .border(if (filled) 1.5.dp else 1.dp, borderColor, RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center,

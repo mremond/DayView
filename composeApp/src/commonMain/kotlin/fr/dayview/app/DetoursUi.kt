@@ -41,6 +41,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -186,18 +187,24 @@ internal fun DetourChip(
     } else {
         Modifier.clickable(role = Role.Button, onClick = onClick)
     }
+    val shape = RoundedCornerShape(9.dp)
     Text(
         label,
-        color = if (selected) colors.ink else colors.cloud,
+        color = if (selected) colors.amber else colors.cloud,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
         maxLines = 1,
         textAlign = textAlign,
         modifier = modifier
-            .clip(RoundedCornerShape(9.dp))
+            .clip(shape)
             .background(
-                if (selected) colors.amber else colors.overlay.copy(alpha = .07f),
-                RoundedCornerShape(9.dp),
+                if (selected) colors.amber.copy(alpha = .18f) else colors.overlay.copy(alpha = .07f),
+                shape,
+            )
+            .border(
+                1.dp,
+                if (selected) colors.amber.copy(alpha = .55f) else Color.Transparent,
+                shape,
             )
             .then(clickModifier)
             .padding(horizontal = 12.dp, vertical = 7.dp),
