@@ -91,4 +91,23 @@ class SyncEngineTest {
         val result = SyncEngine(throwing, PlainCodec, deviceId = "a").sync(local, SyncState(null, null), now = 100)
         assertIs<SyncResult.Failed>(result)
     }
+
+    @Test
+    fun upToDateWhenRemoteAlreadyMatchesReturnsUpToDateAndDoesNotPush() = runTest {
+        // Converge once: first sync against an empty server establishes the steady-state document.
+        val firstTransport = FakeTransport(remote = null)
+        val firstResult = SyncEngine(firstTransport, PlainCodec, deviceId = "a")
+            .sync(local, SyncState(null, null), now = 100)
+        assertIs<SyncResult.Applied>(firstResult)
+        val converged = firstResult.state.baseDocument!!
+
+        // Second sync: the server already holds exactly the converged document and local hasn't
+        // changed, so no encrypt/push should happen.
+        val secondTransport = FakeTransport(remote = RemoteSnapshot(converged.encodeToString(), "r1"))
+        val secondResult = SyncEngine(secondTransport, PlainCodec, deviceId = "a")
+            .sync(local, SyncState("r1", converged), now = 100)
+
+        assertIs<SyncResult.UpToDate>(secondResult)
+        assertEquals(0, secondTransport.pushes)
+    }
 }

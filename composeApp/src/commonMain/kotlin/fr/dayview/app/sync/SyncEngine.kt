@@ -31,6 +31,7 @@ class SyncEngine(
                     }
                 }
                 val merged = localDoc.merge(remoteDoc)
+                if (remoteDoc != null && merged == remoteDoc) return SyncResult.UpToDate
                 val payload = codec.encrypt(merged.encodeToString())
                 when (val outcome = transport.push(payload, remote?.revision ?: expected)) {
                     is PushOutcome.Applied ->
