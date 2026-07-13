@@ -60,9 +60,13 @@ import fr.dayview.app.generated.resources.detour_add_button
 import fr.dayview.app.generated.resources.detour_cancel_button
 import fr.dayview.app.generated.resources.detour_capture_open_label
 import fr.dayview.app.generated.resources.detour_capture_prompt
+import fr.dayview.app.generated.resources.detour_category_label
+import fr.dayview.app.generated.resources.detour_category_placeholder
 import fr.dayview.app.generated.resources.detour_close_button
 import fr.dayview.app.generated.resources.detour_confirm_button
 import fr.dayview.app.generated.resources.detour_delete_button
+import fr.dayview.app.generated.resources.detour_description_label
+import fr.dayview.app.generated.resources.detour_description_placeholder
 import fr.dayview.app.generated.resources.detour_duration_decrease
 import fr.dayview.app.generated.resources.detour_duration_edit_label
 import fr.dayview.app.generated.resources.detour_duration_increase
@@ -79,8 +83,6 @@ import fr.dayview.app.generated.resources.detour_list_empty
 import fr.dayview.app.generated.resources.detour_list_open_label
 import fr.dayview.app.generated.resources.detour_list_title
 import fr.dayview.app.generated.resources.detour_minutes_chip
-import fr.dayview.app.generated.resources.detour_motif_label
-import fr.dayview.app.generated.resources.detour_motif_placeholder
 import fr.dayview.app.generated.resources.detour_off_window_tag
 import fr.dayview.app.generated.resources.detour_overflow
 import fr.dayview.app.generated.resources.detour_save_button
@@ -160,7 +162,7 @@ internal fun DetourRow(
 
 /**
  * Small selectable pill used for suggestions and duration picks. A non-null [onLongClick]
- * makes the pill long-pressable (the recent-motif suggestions use it to offer removal).
+ * makes the pill long-pressable (the recent-category suggestions use it to offer removal).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -205,18 +207,19 @@ internal fun DetourChip(
 private val DETOUR_DURATION_CHOICES = listOf(5, 15, 30, 45, 60)
 private val DETOUR_LONG_DURATION_CHOICES = listOf(90, 120, 180)
 
-/** Quick capture: required motif, recent-motif suggestions, quick duration picks. */
+/** Quick capture: required category, recent-category suggestions, quick duration picks. */
 @Composable
 internal fun DetourCaptureDialog(
-    recentMotifs: List<String>,
+    recentCategories: List<String>,
     now: Instant,
-    onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
+    onConfirm: (category: String, description: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
     onForget: (String) -> Unit,
     onDismiss: () -> Unit,
-    initialMotif: String = "",
+    initialCategory: String = "",
+    initialDescription: String = "",
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        DetourCaptureContent(recentMotifs, now, onConfirm, onForget, onDismiss, initialMotif)
+        DetourCaptureContent(recentCategories, now, onConfirm, onForget, onDismiss, initialCategory, initialDescription)
     }
 }
 
@@ -226,23 +229,25 @@ internal fun DetourCaptureDialog(
  */
 @Composable
 internal fun DetourCaptureContent(
-    recentMotifs: List<String>,
+    recentCategories: List<String>,
     now: Instant,
-    onConfirm: (motif: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
+    onConfirm: (category: String, description: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
     onForget: (String) -> Unit,
     onDismiss: () -> Unit,
-    initialMotif: String = "",
+    initialCategory: String = "",
+    initialDescription: String = "",
 ) {
     val colors = LocalDayViewColors.current
     val uses24Hour = LocalUses24HourClock.current
     val timeZone = TimeZone.currentSystemDefault()
     val forgetRowLabel = stringResource(Res.string.detour_forget_row_label)
-    var motif by remember { mutableStateOf(initialMotif) }
+    var category by remember { mutableStateOf(initialCategory) }
+    var description by remember { mutableStateOf(initialDescription) }
     var durationMinutes by remember { mutableIntStateOf(15) }
     var showStart by remember { mutableStateOf(false) }
     var startPinned by remember { mutableStateOf(false) }
     var pinnedStartMinutes by remember { mutableIntStateOf(0) }
-    var motifPendingForget by remember { mutableStateOf<String?>(null) }
+    var categoryPendingForget by remember { mutableStateOf<String?>(null) }
     var showLongDurations by remember { mutableStateOf(false) }
     // "Ends now" default: the start tracks the duration until the user pins it by nudging.
     val startMinutes = if (startPinned) pinnedStartMinutes else detourDefaultStartMinutes(now, durationMinutes, timeZone)
@@ -262,26 +267,34 @@ internal fun DetourCaptureContent(
         )
         Spacer(Modifier.height(10.dp))
         GoalTextField(
-            value = motif,
-            semanticLabel = stringResource(Res.string.detour_motif_label),
-            placeholder = stringResource(Res.string.detour_motif_placeholder),
-            onValueChange = { motif = it },
-            modifier = Modifier.testTag(DayViewTestTags.DetourMotifField),
+            value = category,
+            semanticLabel = stringResource(Res.string.detour_category_label),
+            placeholder = stringResource(Res.string.detour_category_placeholder),
+            onValueChange = { category = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourCategoryField),
         )
-        if (recentMotifs.isNotEmpty()) {
+        if (recentCategories.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Row(Modifier.horizontalScroll(rememberScrollState())) {
-                recentMotifs.take(6).forEachIndexed { index, recent ->
+                recentCategories.take(6).forEachIndexed { index, recent ->
                     if (index > 0) Spacer(Modifier.width(7.dp))
                     DetourChip(
                         recent,
-                        selected = recent == motif,
-                        onLongClick = { motifPendingForget = recent },
+                        selected = recent == category,
+                        onLongClick = { categoryPendingForget = recent },
                         onLongClickLabel = forgetRowLabel,
-                    ) { motif = recent }
+                    ) { category = recent }
                 }
             }
         }
+        Spacer(Modifier.height(10.dp))
+        GoalTextField(
+            value = description,
+            semanticLabel = stringResource(Res.string.detour_description_label),
+            placeholder = stringResource(Res.string.detour_description_placeholder),
+            onValueChange = { description = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
+        )
         Spacer(Modifier.height(14.dp))
         Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Spacer(Modifier.height(8.dp))
@@ -386,29 +399,29 @@ internal fun DetourCaptureContent(
                 stringResource(Res.string.detour_confirm_button),
                 colors.amber,
                 modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourConfirm),
-                enabled = motif.isNotBlank(),
+                enabled = category.isNotBlank(),
                 filled = true,
-                onClick = { onConfirm(motif, durationMinutes, if (startPinned) startMinutes else null) },
+                onClick = { onConfirm(category, description, durationMinutes, if (startPinned) startMinutes else null) },
             )
         }
     }
-    val pending = motifPendingForget
+    val pending = categoryPendingForget
     if (pending != null) {
         DetourForgetConfirmDialog(
-            motif = pending,
+            category = pending,
             onConfirm = {
                 onForget(pending)
-                motifPendingForget = null
+                categoryPendingForget = null
             },
-            onDismiss = { motifPendingForget = null },
+            onDismiss = { categoryPendingForget = null },
         )
     }
 }
 
-/** Confirmation for dropping a suggestion from the recent-motif list. */
+/** Confirmation for dropping a suggestion from the recent-category list. */
 @Composable
 private fun DetourForgetConfirmDialog(
-    motif: String,
+    category: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -427,7 +440,7 @@ private fun DetourForgetConfirmDialog(
                 fontWeight = FontWeight.Medium,
             )
             Spacer(Modifier.height(10.dp))
-            Text(motif, color = colors.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(category, color = colors.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
@@ -462,106 +475,134 @@ internal fun DetourListDialog(
     onAdd: (DetourEpisode) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    Dialog(onDismissRequest = onDismiss) {
+        DetourListContent(episodes, now, windowStart, windowEnd, onUpdate, onRemove, onAdd, onDismiss)
+    }
+}
+
+/**
+ * The list dialog's body, split out of [DetourListDialog] so Compose UI tests can
+ * drive it without a desktop Dialog window (which `runComposeUiTest` cannot reach).
+ */
+@Composable
+internal fun DetourListContent(
+    episodes: List<DetourEpisode>,
+    now: Instant,
+    windowStart: Instant,
+    windowEnd: Instant,
+    onUpdate: (Int, DetourEpisode) -> Unit,
+    onRemove: (Int) -> Unit,
+    onAdd: (DetourEpisode) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val colors = LocalDayViewColors.current
     val uses24Hour = LocalUses24HourClock.current
     var edit by remember { mutableStateOf<DetourEdit?>(null) }
     val sources = detourSources(episodes)
     val colorOf: (DetourEpisode) -> androidx.compose.ui.graphics.Color = { episode ->
-        val label = sanitizeDetourMotif(episode.motif).lowercase()
+        val label = sanitizeDetourCategory(episode.category).lowercase()
         val index = sources.firstOrNull { it.label.lowercase() == label }?.colorIndex ?: 0
         colors.detours[index % colors.detours.size]
     }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
-                .background(colors.panel, RoundedCornerShape(18.dp))
-                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                .padding(20.dp),
-        ) {
-            Text(stringResource(Res.string.detour_list_title), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
-            Spacer(Modifier.height(12.dp))
-            when (val current = edit) {
-                null -> {
-                    if (episodes.isEmpty()) {
-                        Text(stringResource(Res.string.detour_list_empty), color = colors.muted, fontSize = 13.sp)
-                    } else {
-                        Column(
-                            Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
-                        ) {
-                            episodes.forEachIndexed { index, episode ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_edit_row_label)) {
-                                            edit = DetourEdit.Existing(index, episode)
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 9.dp),
-                                ) {
-                                    Box(Modifier.size(8.dp).background(colorOf(episode), CircleShape))
-                                    Spacer(Modifier.width(10.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(episode.motif, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    Column(
+        modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .padding(20.dp),
+    ) {
+        Text(stringResource(Res.string.detour_list_title), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+        Spacer(Modifier.height(12.dp))
+        when (val current = edit) {
+            null -> {
+                if (episodes.isEmpty()) {
+                    Text(stringResource(Res.string.detour_list_empty), color = colors.muted, fontSize = 13.sp)
+                } else {
+                    Column(
+                        Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                    ) {
+                        episodes.forEachIndexed { index, episode ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_edit_row_label)) {
+                                        edit = DetourEdit.Existing(index, episode)
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 9.dp),
+                            ) {
+                                Box(Modifier.size(8.dp).background(colorOf(episode), CircleShape))
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(episode.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        stringResource(
+                                            Res.string.detour_time_range,
+                                            formatClockHm(episode.start, use24Hour = uses24Hour),
+                                            formatClockHm(episode.end, use24Hour = uses24Hour),
+                                            formatDurationHm(episode.duration),
+                                        ),
+                                        color = colors.muted,
+                                        fontSize = 11.sp,
+                                    )
+                                    if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) {
                                         Text(
-                                            stringResource(
-                                                Res.string.detour_time_range,
-                                                formatClockHm(episode.start, use24Hour = uses24Hour),
-                                                formatClockHm(episode.end, use24Hour = uses24Hour),
-                                                formatDurationHm(episode.duration),
-                                            ),
+                                            stringResource(Res.string.detour_off_window_tag),
+                                            color = colors.muted,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            letterSpacing = .5.sp,
+                                        )
+                                    }
+                                    if (episode.description.isNotEmpty()) {
+                                        Text(
+                                            episode.description,
                                             color = colors.muted,
                                             fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionText),
                                         )
-                                        if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) {
-                                            Text(
-                                                stringResource(Res.string.detour_off_window_tag),
-                                                color = colors.muted,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                letterSpacing = .5.sp,
-                                            )
-                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        FocusActionButton(stringResource(Res.string.detour_close_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
-                        FocusActionButton(
-                            stringResource(Res.string.detour_list_add_button),
-                            colors.amber,
-                            modifier = Modifier.weight(1f),
-                            filled = true,
-                            onClick = { edit = DetourEdit.New },
-                        )
-                    }
                 }
-                else -> DetourEditForm(
-                    initial = (current as? DetourEdit.Existing)?.episode,
-                    now = now,
-                    onDelete = (current as? DetourEdit.Existing)?.let { existing ->
-                        {
-                            onRemove(existing.index)
-                            edit = null
-                        }
-                    },
-                    onCancel = { edit = null },
-                    onSave = { episode ->
-                        when (current) {
-                            is DetourEdit.Existing -> onUpdate(current.index, episode)
-                            DetourEdit.New -> onAdd(episode)
-                        }
-                        edit = null
-                    },
-                )
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    FocusActionButton(stringResource(Res.string.detour_close_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+                    FocusActionButton(
+                        stringResource(Res.string.detour_list_add_button),
+                        colors.amber,
+                        modifier = Modifier.weight(1f),
+                        filled = true,
+                        onClick = { edit = DetourEdit.New },
+                    )
+                }
             }
+            else -> DetourEditForm(
+                initial = (current as? DetourEdit.Existing)?.episode,
+                now = now,
+                onDelete = (current as? DetourEdit.Existing)?.let { existing ->
+                    {
+                        onRemove(existing.index)
+                        edit = null
+                    }
+                },
+                onCancel = { edit = null },
+                onSave = { episode ->
+                    when (current) {
+                        is DetourEdit.Existing -> onUpdate(current.index, episode)
+                        DetourEdit.New -> onAdd(episode)
+                    }
+                    edit = null
+                },
+            )
         }
     }
 }
 
-/** Motif + start time + duration form shared by edit and retroactive add. */
+/** Category + start time + duration form shared by edit and retroactive add. */
 @Composable
 internal fun DetourEditForm(
     initial: DetourEpisode?,
@@ -574,7 +615,8 @@ internal fun DetourEditForm(
     val uses24Hour = LocalUses24HourClock.current
     val timeZone = TimeZone.currentSystemDefault()
     val initialStart = (initial?.start ?: now).toLocalDateTime(timeZone)
-    var motif by remember { mutableStateOf(initial?.motif.orEmpty()) }
+    var category by remember { mutableStateOf(initial?.category.orEmpty()) }
+    var description by remember { mutableStateOf(initial?.description.orEmpty()) }
     var startMinutes by remember {
         mutableIntStateOf(
             (initialStart.hour * 60 + initialStart.minute - if (initial == null) 15 else 0).coerceAtLeast(0),
@@ -585,10 +627,18 @@ internal fun DetourEditForm(
     }
     Column {
         GoalTextField(
-            value = motif,
-            semanticLabel = stringResource(Res.string.detour_motif_label),
-            placeholder = stringResource(Res.string.detour_motif_placeholder),
-            onValueChange = { motif = it },
+            value = category,
+            semanticLabel = stringResource(Res.string.detour_category_label),
+            placeholder = stringResource(Res.string.detour_category_placeholder),
+            onValueChange = { category = it },
+        )
+        Spacer(Modifier.height(12.dp))
+        GoalTextField(
+            value = description,
+            semanticLabel = stringResource(Res.string.detour_description_label),
+            placeholder = stringResource(Res.string.detour_description_placeholder),
+            onValueChange = { description = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
         )
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -663,9 +713,9 @@ internal fun DetourEditForm(
                 stringResource(Res.string.detour_save_button),
                 colors.amber,
                 modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourEditSave),
-                enabled = motif.isNotBlank(),
+                enabled = category.isNotBlank(),
                 filled = true,
-                onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, motif)) },
+                onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, category, description)) },
             )
         }
     }

@@ -10,88 +10,143 @@ import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.minutes
 
 @OptIn(ExperimentalTestApi::class)
 class DetourCaptureTest {
     @Test
     fun confirmsWithNullStartWhenNotAdjusted() = runComposeUiTest {
-        var captured: Triple<String, Int, Int?>? = null
+        var category: String? = null
+        var description: String? = null
+        var duration: Int? = null
+        var start: Int? = null
         setContent {
             // midWindowNow() is 13:00 local; the default duration is 15 minutes.
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { c, d, dur, s ->
+                    category = c
+                    description = d
+                    duration = dur
+                    start = s
+                },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
-        val (motif, duration, start) = captured!!
-        assertEquals("café", motif)
+        assertEquals("café", category)
+        assertEquals("", description)
         assertEquals(15, duration)
         assertNull(start) // untouched start stays "ends now", handled by addDetour
     }
 
     @Test
     fun adjustingPinsAnExplicitStart() = runComposeUiTest {
-        var captured: Triple<String, Int, Int?>? = null
+        var category: String? = null
+        var description: String? = null
+        var duration: Int? = null
+        var start: Int? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { c, d, dur, s ->
+                    category = c
+                    description = d
+                    duration = dur
+                    start = s
+                },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartIncrease).performClick()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
         // Default start is 13:00 − 15 min = 12:45 (765); one +5 nudge pins it at 12:50 (770).
-        assertEquals(12 * 60 + 50, captured!!.third)
+        assertEquals(12 * 60 + 50, start)
     }
 
     @Test
     fun longerRevealsAndSelectsMultiHourDurations() = runComposeUiTest {
-        var captured: Triple<String, Int, Int?>? = null
+        var category: String? = null
+        var description: String? = null
+        var duration: Int? = null
+        var start: Int? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { c, d, dur, s ->
+                    category = c
+                    description = d
+                    duration = dur
+                    start = s
+                },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("série")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("série")
         onNodeWithTag(DayViewTestTags.DetourLongToggle).performClick()
         onNodeWithTag(DayViewTestTags.detourDurationChip(180)).performClick()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
-        val (motif, duration, start) = captured!!
-        assertEquals("série", motif)
+        assertEquals("série", category)
+        assertEquals("", description)
         assertEquals(180, duration) // 3 h reached from quick capture
         assertNull(start) // start untouched → "ends now"
     }
 
     @Test
-    fun typingAStartTimePinsIt() = runComposeUiTest {
-        var captured: Triple<String, Int, Int?>? = null
+    fun confirmsWithDescriptionWhenEntered() = runComposeUiTest {
+        var category: String? = null
+        var description: String? = null
+        var duration: Int? = null
+        var start: Int? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { c, d, dur, s ->
+                    category = c
+                    description = d
+                    duration = dur
+                    start = s
+                },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourDescriptionField).performTextInput("pause clope")
+        onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
+
+        assertEquals("café", category)
+        assertEquals("pause clope", description)
+        assertEquals(15, duration)
+        assertNull(start)
+    }
+
+    @Test
+    fun typingAStartTimePinsIt() = runComposeUiTest {
+        var start: Int? = null
+        setContent {
+            DetourCaptureContent(
+                recentCategories = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { _, _, _, s -> start = s },
+                onForget = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartField).performTextClearance()
@@ -99,22 +154,22 @@ class DetourCaptureTest {
         onNodeWithTag(DayViewTestTags.DetourStartField).performImeAction()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
-        assertEquals(9 * 60 + 5, captured!!.third)
+        assertEquals(9 * 60 + 5, start)
     }
 
     @Test
     fun invalidTypedStartRevertsToPreviousValue() = runComposeUiTest {
-        var captured: Triple<String, Int, Int?>? = null
+        var start: Int? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { _, _, _, s -> start = s },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartField).performTextClearance()
@@ -124,22 +179,22 @@ class DetourCaptureTest {
         onNodeWithTag(DayViewTestTags.DetourStartValue).assertExists()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
-        assertNull(captured!!.third)
+        assertNull(start)
     }
 
     @Test
     fun nudgingFromTypedMisalignedStartSnapsToMultipleOfFive() = runComposeUiTest {
-        var captured: Triple<String, Int, Int?>? = null
+        var start: Int? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { _, _, _, s -> start = s },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartField).performTextClearance()
@@ -149,28 +204,47 @@ class DetourCaptureTest {
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
         // 9:07 + snaps up to 9:10, not 9:12.
-        assertEquals(9 * 60 + 10, captured!!.third)
+        assertEquals(9 * 60 + 10, start)
     }
 
     @Test
     fun openingTheStartFieldWithoutTypingDoesNotPinTheStart() = runComposeUiTest {
-        var captured: Triple<String, Int, Int?>? = null
+        var start: Int? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { _, _, _, s -> start = s },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartField).performImeAction()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
         // An untouched draft must not pin: the start stays "ends now".
-        assertNull(captured!!.third)
+        assertNull(start)
+    }
+
+    @Test
+    fun listRowShowsDescriptionWhenPresent() = runComposeUiTest {
+        val now = midWindowNow()
+        val dayStart = startOfLocalDay(now)
+        setContent {
+            DetourListContent(
+                episodes = listOf(detourEpisodeAt(now, 12 * 60, 15, "Slack", "reading threads")),
+                now = now,
+                windowStart = dayStart,
+                windowEnd = dayStart + (23 * 60 + 59).minutes,
+                onUpdate = { _, _ -> },
+                onRemove = {},
+                onAdd = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourDescriptionText, useUnmergedTree = true).assertExists()
     }
 }

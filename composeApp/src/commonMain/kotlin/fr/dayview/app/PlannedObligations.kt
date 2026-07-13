@@ -5,14 +5,14 @@ const val MAX_PLANNED_OBLIGATIONS = 3
 
 /** Append a sanitized motif; blank motifs and adds past the cap are ignored. */
 fun addPlannedObligation(current: List<String>, motif: String): List<String> {
-    val clean = sanitizeDetourMotif(motif)
+    val clean = sanitizeLabel(motif, 60)
     if (clean.isEmpty() || current.size >= MAX_PLANNED_OBLIGATIONS) return current
     return current + clean
 }
 
 /** Drop every case-insensitive match of [motif]; a blank or missing motif is a no-op. */
 fun removePlannedObligation(current: List<String>, motif: String): List<String> {
-    val clean = sanitizeDetourMotif(motif)
+    val clean = sanitizeLabel(motif, 60)
     if (clean.isEmpty()) return current
     return current.filter { it.lowercase() != clean.lowercase() }
 }
@@ -22,6 +22,6 @@ fun encodePlannedObligations(obligations: List<String>): String = obligations.jo
 
 /** Inverse of [encodePlannedObligations]; drops blanks, sanitizes, and caps on decode. */
 fun decodePlannedObligations(encoded: String): List<String> = encoded.split("\n")
-    .map(::sanitizeDetourMotif)
+    .map { sanitizeLabel(it, 60) }
     .filter { it.isNotEmpty() }
     .take(MAX_PLANNED_OBLIGATIONS)

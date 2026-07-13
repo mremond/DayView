@@ -438,14 +438,14 @@ class DayViewControllerTest {
         val stored = preferences.current
         assertEquals(dayKeyOf(t(now)), stored.detoursDayKey)
         val episode = stored.detours.single()
-        assertEquals("appel urgent", episode.motif)
+        assertEquals("appel urgent", episode.category)
         assertEquals(t(now), episode.end)
         assertEquals(30, episode.duration.inWholeMinutes)
-        assertEquals(listOf("appel urgent"), stored.recentDetourMotifs)
+        assertEquals(listOf("appel urgent"), stored.recentDetourCategories)
     }
 
     @Test
-    fun addDetourIgnoresBlankMotifs() {
+    fun addDetourIgnoresBlankCategories() {
         val preferences = InMemoryDayPreferences()
         val controller = testController(preferences, 1_800_000_000_000L)
         controller.addDetour("   ", 15)
@@ -465,17 +465,17 @@ class DayViewControllerTest {
 
         assertEquals(emptyList(), controller.state.detoursToday)
         controller.addDetour("Slack", 15)
-        assertEquals(listOf("Slack"), controller.state.detoursToday.map { it.motif })
+        assertEquals(listOf("Slack"), controller.state.detoursToday.map { it.category })
         assertEquals(1, preferences.current.detours.size)
     }
 
     @Test
-    fun capturingTheSameMotifTwiceKeepsOneRecentEntry() {
+    fun capturingTheSameCategoryTwiceKeepsOneRecentEntry() {
         val preferences = InMemoryDayPreferences()
         val controller = testController(preferences, 1_800_000_000_000L)
         controller.addDetour("Slack", 15)
         controller.addDetour("slack", 15)
-        assertEquals(listOf("slack"), controller.state.recentDetourMotifs)
+        assertEquals(listOf("slack"), controller.state.recentDetourCategories)
         assertEquals(2, controller.state.detoursToday.size)
     }
 
@@ -488,14 +488,14 @@ class DayViewControllerTest {
         controller.addDetourEpisode(DetourEpisode(t(now - 3_600_000L), t(now - 1_800_000L), "Appels"))
 
         // Episodes are kept sorted by start: "Appels" (1 h ago) precedes "Slack" (15 min ago).
-        assertEquals(listOf("Appels", "Slack"), controller.state.detoursToday.map { it.motif })
+        assertEquals(listOf("Appels", "Slack"), controller.state.detoursToday.map { it.category })
 
         controller.updateDetour(0, DetourEpisode(t(now - 3_600_000L), t(now - 900_000L), "Réunion"))
-        assertEquals(listOf("Réunion", "Slack"), controller.state.detoursToday.map { it.motif })
+        assertEquals(listOf("Réunion", "Slack"), controller.state.detoursToday.map { it.category })
         assertEquals(45, controller.state.detoursToday.first().duration.inWholeMinutes)
 
         controller.removeDetour(1)
-        assertEquals(listOf("Réunion"), preferences.current.detours.map { it.motif })
+        assertEquals(listOf("Réunion"), preferences.current.detours.map { it.category })
     }
 
     @Test
@@ -508,34 +508,34 @@ class DayViewControllerTest {
         controller.updateDetour(0, DetourEpisode(t(2_000L), t(1_000L), "inversé"))
         controller.updateDetour(0, DetourEpisode(t(1_000L), t(2_000L), "  "))
 
-        assertEquals(listOf("Slack"), controller.state.detoursToday.map { it.motif })
+        assertEquals(listOf("Slack"), controller.state.detoursToday.map { it.category })
         assertTrue(controller.state.detoursTotalToday.inWholeMinutes == 15L)
     }
 
     @Test
-    fun editsAndDeletesDoNotTouchRecentMotifs() {
+    fun editsAndDeletesDoNotTouchRecentCategories() {
         val now = 1_800_000_000_000L
         val controller = testController(InMemoryDayPreferences(), now)
         controller.addDetour("Slack", 15)
         controller.updateDetour(0, DetourEpisode(t(now - 600_000L), t(now), "Réunion"))
         controller.removeDetour(0)
-        assertEquals(listOf("Slack"), controller.state.recentDetourMotifs)
+        assertEquals(listOf("Slack"), controller.state.recentDetourCategories)
     }
 
     @Test
-    fun forgetRecentMotifRemovesItFromStateAndPersists() {
+    fun forgetRecentCategoryRemovesItFromStateAndPersists() {
         val preferences = InMemoryDayPreferences()
         val now = 1_800_000_000_000L
         val controller = testController(preferences, now)
         controller.addDetour("Slack", 15)
         controller.addDetour("dsfdsf", 15)
 
-        controller.forgetRecentDetourMotif("DSFDSF")
+        controller.forgetRecentDetourCategory("DSFDSF")
 
-        assertEquals(listOf("Slack"), controller.state.recentDetourMotifs)
-        assertEquals(listOf("Slack"), preferences.current.recentDetourMotifs)
+        assertEquals(listOf("Slack"), controller.state.recentDetourCategories)
+        assertEquals(listOf("Slack"), preferences.current.recentDetourCategories)
         // The day's episodes stay put; only the suggestion is forgotten.
-        assertEquals(listOf("Slack", "dsfdsf"), controller.state.detoursToday.map { it.motif })
+        assertEquals(listOf("Slack", "dsfdsf"), controller.state.detoursToday.map { it.category })
     }
 
     @Test
@@ -577,28 +577,28 @@ class DayViewControllerTest {
         val controller = testController(preferences, now)
         controller.addPlannedObligation("Appel client")
 
-        controller.completePlannedObligation("Appel client", "Appel client", 30, null)
+        controller.completePlannedObligation("Appel client", "Appel client", "", 30, null)
 
         val stored = preferences.current
         assertEquals(emptyList(), stored.plannedObligations)
         val episode = stored.detours.single()
-        assertEquals("Appel client", episode.motif)
+        assertEquals("Appel client", episode.category)
         assertEquals(30, episode.duration.inWholeMinutes)
     }
 
     @Test
-    fun completePlannedObligationRemovesTheOriginalWhenMotifWasEdited() {
+    fun completePlannedObligationRemovesTheOriginalWhenCategoryWasEdited() {
         val preferences = InMemoryDayPreferences()
         val now = 1_800_000_000_000L
         val controller = testController(preferences, now)
         controller.addPlannedObligation("Appel client")
 
-        controller.completePlannedObligation("Appel client", "Appel client re: contract", 30, null)
+        controller.completePlannedObligation("Appel client", "Appel client re: contract", "", 30, null)
 
         val stored = preferences.current
         assertEquals(emptyList(), stored.plannedObligations)
         val episode = stored.detours.single()
-        assertEquals("Appel client re: contract", episode.motif)
+        assertEquals("Appel client re: contract", episode.category)
     }
 
     @Test
@@ -738,6 +738,24 @@ class DayViewControllerTest {
         val episode = controller.state.detoursToday.single()
         assertEquals(startOfLocalDay(t(now)), episode.start) // floored to today's 00:00
         assertEquals(t(now), episode.end)
+    }
+
+    @Test
+    fun addDetourStoresSanitizedDescription() {
+        val controller = testController(InMemoryDayPreferences(), 50_000_000L)
+        controller.addDetour("Slack", 15, "reading, threads\nmore")
+        val episode = controller.state.detoursToday.single()
+        assertEquals("Slack", episode.category)
+        assertEquals("reading, threads more", episode.description) // newline→space, comma kept
+    }
+
+    @Test
+    fun updateDetourKeepsDescription() {
+        val controller = testController(InMemoryDayPreferences(), 50_000_000L)
+        controller.addDetour("Slack", 15, "note")
+        val original = controller.state.detoursToday.single()
+        controller.updateDetour(0, original.copy(description = "edited\nnote"))
+        assertEquals("edited note", controller.state.detoursToday.single().description)
     }
 
     @Test

@@ -28,7 +28,7 @@ class DayHistoryCodecTest {
         calendarNames = mapOf("cal-a" to "Work = life"),
         netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("cal-a", "cal-b")),
         focusPresenceIntervals = listOf(FocusPresenceInterval(Instant.fromEpochMilliseconds(3_000L), Instant.fromEpochMilliseconds(4_000L))),
-        detours = listOf(DetourEpisode(Instant.fromEpochMilliseconds(5_000L), Instant.fromEpochMilliseconds(6_000L), "slack")),
+        detours = listOf(DetourEpisode(Instant.fromEpochMilliseconds(5_000L), Instant.fromEpochMilliseconds(6_000L), "slack", "reading threads")),
         cleanSessions = CleanSessionLedger(dayKey = 20_000L, cleanToday = 3, streakDays = 5, streakLastDayKey = 20_000L),
         pomodoroMinutes = 25,
         pomodoroEnd = Instant.fromEpochMilliseconds(7_000L),

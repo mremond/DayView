@@ -184,14 +184,14 @@ internal data class DayViewScreenActions(
     val startPomodoro: () -> Unit,
     val stopPomodoro: () -> Unit,
     val closePomodoro: (FocusClosureOutcome) -> Unit,
-    val addDetour: (String, Int) -> Unit,
+    val addDetour: (String, Int, String) -> Unit,
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
-    val forgetDetourMotif: (String) -> Unit,
+    val forgetDetourCategory: (String) -> Unit,
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
-    val completePlannedObligation: (String, String, Int, Int?) -> Unit,
+    val completePlannedObligation: (String, String, String, Int, Int?) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -358,32 +358,32 @@ internal fun DayViewScreen(
         }
         if (showDetourCapture) {
             DetourCaptureDialog(
-                recentMotifs = state.recentDetourMotifs,
+                recentCategories = state.recentDetourCategories,
                 now = state.now,
-                onConfirm = { motif, durationMinutes, startMinutesOfDay ->
+                onConfirm = { category, description, durationMinutes, startMinutesOfDay ->
                     if (startMinutesOfDay == null) {
-                        actions.addDetour(motif, durationMinutes)
+                        actions.addDetour(category, durationMinutes, description)
                     } else {
                         actions.addDetourEpisode(
-                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, motif),
+                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, category, description),
                         )
                     }
                     showDetourCapture = false
                 },
-                onForget = actions.forgetDetourMotif,
+                onForget = actions.forgetDetourCategory,
                 onDismiss = { showDetourCapture = false },
             )
         }
-        obligationToComplete?.let { motif ->
+        obligationToComplete?.let { obligation ->
             DetourCaptureDialog(
-                recentMotifs = state.recentDetourMotifs,
+                recentCategories = state.recentDetourCategories,
                 now = state.now,
-                initialMotif = motif,
-                onConfirm = { confirmedMotif, durationMinutes, startMinutesOfDay ->
-                    actions.completePlannedObligation(motif, confirmedMotif, durationMinutes, startMinutesOfDay)
+                initialCategory = obligation,
+                onConfirm = { confirmedCategory, description, durationMinutes, startMinutesOfDay ->
+                    actions.completePlannedObligation(obligation, confirmedCategory, description, durationMinutes, startMinutesOfDay)
                     obligationToComplete = null
                 },
-                onForget = actions.forgetDetourMotif,
+                onForget = actions.forgetDetourCategory,
                 onDismiss = { obligationToComplete = null },
             )
         }
@@ -1255,7 +1255,10 @@ internal fun CountdownCircle(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Column {
-                            Text(body.motif, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(body.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            if (body.description.isNotEmpty()) {
+                                Text(body.description, color = colors.muted, fontSize = 11.sp)
+                            }
                             Text(
                                 stringResource(
                                     Res.string.detour_time_range,

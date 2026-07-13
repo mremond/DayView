@@ -37,14 +37,14 @@ class CloseFocusSnapshotTest {
 
     @Test
     fun detourOverlappingTheSessionPreventsACleanCount() {
-        val overlapping = DetourEpisode(start = now - 10.minutes, end = now - 5.minutes, motif = "Slack")
+        val overlapping = DetourEpisode(start = now - 10.minutes, end = now - 5.minutes, category = "Slack")
         val closed = closeFocusSnapshot(breakSnapshot(overlapping), now, Duration.ZERO, FocusClosureOutcome.COMPLETED)
         assertEquals(0, closed.cleanSessions.cleanToday)
     }
 
     @Test
     fun staleDetoursFromAPreviousDayAreIgnored() {
-        val overlapping = DetourEpisode(start = now - 10.minutes, end = now - 5.minutes, motif = "Slack")
+        val overlapping = DetourEpisode(start = now - 10.minutes, end = now - 5.minutes, category = "Slack")
         val snapshot = breakSnapshot(overlapping).copy(detoursDayKey = dayKeyOf(now) - 1)
         val closed = closeFocusSnapshot(snapshot, now, Duration.ZERO, FocusClosureOutcome.COMPLETED)
         assertEquals(1, closed.cleanSessions.cleanToday)

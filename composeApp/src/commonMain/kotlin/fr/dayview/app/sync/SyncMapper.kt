@@ -41,7 +41,7 @@ fun buildDocument(
         netTimeEnabled = restamp(snapshot.netTimeSettings.enabled, base?.netTimeEnabled, now, deviceId),
         detours = buildDayScoped(
             dayKey = snapshot.detoursDayKey,
-            values = snapshot.detours.map { DetourDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.motif) },
+            values = snapshot.detours.map { DetourDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.category) },
             keyOf = ::detourKey,
             base = base?.detours,
             fresh = fresh,
@@ -53,7 +53,7 @@ fun buildDocument(
             base = base?.plannedObligations,
             fresh = fresh,
         ),
-        recentDetourMotifs = buildItems(snapshot.recentDetourMotifs, { it }, base?.recentDetourMotifs, fresh),
+        recentDetourMotifs = buildItems(snapshot.recentDetourCategories, { it }, base?.recentDetourMotifs, fresh),
         cleanSessions = restamp(snapshot.cleanSessions.toDto(), base?.cleanSessions, now, deviceId),
     )
 }
@@ -112,7 +112,7 @@ fun applyDocument(document: SyncDocument, local: DayPreferencesSnapshot): DayPre
         .map { DetourEpisode(Instant.fromEpochMilliseconds(it.value.start), Instant.fromEpochMilliseconds(it.value.end), it.value.motif) },
     plannedObligationsDayKey = document.plannedObligations.dayKey,
     plannedObligations = document.plannedObligations.items.filterNot { it.deleted }.map { it.value },
-    recentDetourMotifs = document.recentDetourMotifs.filterNot { it.deleted }.map { it.value },
+    recentDetourCategories = document.recentDetourMotifs.filterNot { it.deleted }.map { it.value },
     cleanSessions = document.cleanSessions.value.toLedger(),
     // onGoalApps and fontScale are left untouched by copy() → preserved
 )
