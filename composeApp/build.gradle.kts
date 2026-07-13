@@ -190,7 +190,14 @@ compose.desktop {
             // so the trimmed runtime image ships without jdk.unsupported and the
             // packaged app crashes on the first preferences write (NoClassDefFoundError:
             // sun/misc/Unsafe). Pull the module in explicitly.
-            modules("jdk.unsupported")
+            //
+            // Likewise, Ktor's desktop client engine (ktor-client-java, used by state
+            // sync) builds on java.net.http.HttpClient, which lives in the java.net.http
+            // module. jlink doesn't detect that dependency either, so without this the
+            // packaged app crashes the moment it syncs (NoClassDefFoundError:
+            // java/net/http/HttpClient$Version). It only shows in the packaged build;
+            // `./gradlew :composeApp:run` uses the full JDK.
+            modules("jdk.unsupported", "java.net.http")
             targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "DayView"
             packageVersion = appPackageVersion
