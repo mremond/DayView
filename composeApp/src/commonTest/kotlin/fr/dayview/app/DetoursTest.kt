@@ -52,6 +52,12 @@ class DetoursTest {
     }
 
     @Test
+    fun encodeDecodeOfEmptyListUsesBareMarker() {
+        assertEquals("@2", encodeDetours(emptyList()))
+        assertEquals(emptyList(), decodeDetours("@2"))
+    }
+
+    @Test
     fun decodeLegacyBlobMapsMotifToCategory() {
         // Legacy 3-field lines (no version marker); motif becomes category, description empty.
         val legacy = "1000,2000,café\n3000,4000,appel,imprévu"

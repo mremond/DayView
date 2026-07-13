@@ -376,13 +376,13 @@ internal fun DayViewScreen(
                 onDismiss = { showDetourCapture = false },
             )
         }
-        obligationToComplete?.let { motif ->
+        obligationToComplete?.let { obligation ->
             DetourCaptureDialog(
                 recentCategories = state.recentDetourCategories,
                 now = state.now,
-                initialCategory = motif,
+                initialCategory = obligation,
                 onConfirm = { confirmedCategory, description, durationMinutes, startMinutesOfDay ->
-                    actions.completePlannedObligation(motif, confirmedCategory, description, durationMinutes, startMinutesOfDay)
+                    actions.completePlannedObligation(obligation, confirmedCategory, description, durationMinutes, startMinutesOfDay)
                     obligationToComplete = null
                 },
                 onForget = actions.forgetDetourCategory,

@@ -754,7 +754,7 @@ class DayViewControllerTest {
         val controller = testController(InMemoryDayPreferences(), 50_000_000L)
         controller.addDetour("Slack", 15, "note")
         val original = controller.state.detoursToday.single()
-        controller.updateDetour(0, original.copy(description = "edited note"))
+        controller.updateDetour(0, original.copy(description = "edited\nnote"))
         assertEquals("edited note", controller.state.detoursToday.single().description)
     }
 
