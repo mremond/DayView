@@ -1,0 +1,21 @@
+# Synology Container Manager: Container Manager -> Project -> Create,
+# point it at this folder (it reads this file), then Build & Run.
+services:
+  dayview-sync:
+    build: .
+    image: dayview-sync
+    container_name: dayview-sync
+    restart: unless-stopped
+    ports:
+      # Host:container. Reachable at http://<nas-host>:8787 (plain HTTP; front it
+      # with a reverse proxy/TLS if the endpoint is exposed outside a trusted network).
+      - "8787:8787"
+    environment:
+      # CHANGE THIS to a strong secret before deploying — it is the only access gate.
+      SYNC_TOKEN: "change-me"
+      SYNC_PORT: "8787"
+      SYNC_STORE: "/data/store.json"
+    volumes:
+      # Left = host path (create this shared folder first, e.g. via File Station);
+      # right = fixed in-container path. The store persists here across rebuilds.
+      - /volume1/docker/dayview-sync:/data
