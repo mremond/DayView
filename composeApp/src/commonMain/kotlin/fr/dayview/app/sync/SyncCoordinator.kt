@@ -41,6 +41,11 @@ class SyncCoordinator(
         mutex.withLock { runOnce() }
     }
 
+    /** Resets persisted sync state (base revision/document) so the next sync starts fresh. */
+    suspend fun reset() {
+        mutex.withLock { statePersistence.clear() }
+    }
+
     private suspend fun runOnce() {
         val key = keyStore.loadKey()
         val config = keyStore.loadConfig()

@@ -82,6 +82,29 @@ class SyncEngineTest {
     }
 
     @Test
+    fun staleBaseRevisionWithEmptyRemoteCreatesInsteadOfFailing() = runTest {
+        // The persisted state carries a stale baseRevision (e.g. from a prior sync against a
+        // different server/user), but the remote is empty (pull() returns null). The push must
+        // be a create (expectedRevision = null, If-None-Match: *), never an If-Match against the
+        // stale revision -- that would 412 forever with no self-recovery.
+        var recordedExpectedRevision: String? = "not-recorded"
+        val transport = object : SyncTransport {
+            override suspend fun pull(): RemoteSnapshot? = null
+
+            override suspend fun push(payload: String, expectedRevision: String?): PushOutcome {
+                recordedExpectedRevision = expectedRevision
+                return PushOutcome.Applied("1")
+            }
+        }
+        val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
+
+        val result = engine.sync(local, SyncState(baseRevision = "5", baseDocument = null), now = 100)
+
+        assertIs<SyncResult.Applied>(result)
+        assertEquals(null, recordedExpectedRevision)
+    }
+
+    @Test
     fun upToDateWhenRemoteAlreadyMatchesReturnsUpToDateAndDoesNotPush() = runTest {
         // Converge once: first sync against an empty server establishes the steady-state document.
         val firstTransport = FakeTransport(remote = null)

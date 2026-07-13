@@ -291,8 +291,16 @@ internal fun DayViewApp(
                                 changeSyncConfig = { cfg ->
                                     // UI state updates synchronously on the main thread; the
                                     // keystore write (disk I/O) is pushed off it.
+                                    val previous = syncConfig
                                     syncConfig = cfg
                                     scope.launch(Dispatchers.IO) { secureKeyStore?.storeConfig(cfg) }
+                                    // A different server/user must not reuse the old baseDocument
+                                    // as a merge base for the new endpoint.
+                                    if (previous != null &&
+                                        (previous.userId != cfg.userId || previous.baseUrl != cfg.baseUrl)
+                                    ) {
+                                        scope.launch(Dispatchers.IO) { syncCoordinator?.reset() }
+                                    }
                                 },
                                 generateSyncKey = {
                                     // Key generation is cheap and stays synchronous so the
@@ -313,7 +321,10 @@ internal fun DayViewApp(
                                 clearSyncKey = {
                                     syncConfig = null
                                     syncHasKey = false
-                                    scope.launch(Dispatchers.IO) { secureKeyStore?.clear() }
+                                    scope.launch(Dispatchers.IO) {
+                                        secureKeyStore?.clear()
+                                        syncCoordinator?.reset()
+                                    }
                                 },
                                 back = { controller.openToday() },
                             ),

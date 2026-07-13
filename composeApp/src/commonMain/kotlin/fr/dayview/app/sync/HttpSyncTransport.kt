@@ -23,7 +23,7 @@ class HttpSyncTransport(
     private val userId: String,
     private val token: String,
 ) : SyncTransport {
-    private val endpoint get() = "$baseUrl/sync/$userId"
+    private val endpoint get() = "${baseUrl.trimEnd('/')}/sync/$userId"
 
     override suspend fun pull(): RemoteSnapshot? {
         val response = client.get(endpoint) { bearerAuth(token) }

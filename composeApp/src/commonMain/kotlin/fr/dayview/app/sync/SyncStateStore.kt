@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 interface SyncStatePersistence {
     suspend fun load(): SyncState
     suspend fun save(state: SyncState)
+    suspend fun clear()
 }
 
 @Serializable
@@ -26,5 +27,9 @@ class FileSyncStatePersistence(
 
     override suspend fun save(state: SyncState) {
         write(SyncJson.encodeToString(StoredState(state.baseRevision, state.baseDocument)))
+    }
+
+    override suspend fun clear() {
+        save(SyncState(null, null))
     }
 }

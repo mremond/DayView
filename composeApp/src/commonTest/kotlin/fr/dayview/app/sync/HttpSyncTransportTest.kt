@@ -15,9 +15,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HttpSyncTransportTest {
-    private fun transport(engine: MockEngine) = HttpSyncTransport(
+    private fun transport(engine: MockEngine, baseUrl: String = "https://sync.example") = HttpSyncTransport(
         client = HttpClient(engine) { install(ContentNegotiation) { json(SyncJson) } },
-        baseUrl = "https://sync.example",
+        baseUrl = baseUrl,
         userId = "u1",
         token = "tok",
     )
@@ -87,6 +87,24 @@ class HttpSyncTransportTest {
             },
         )
         assertEquals(PushOutcome.Applied("r1"), t.push("blob", expectedRevision = null))
+    }
+
+    @Test
+    fun trailingSlashInBaseUrlDoesNotProduceDoubleSlash() = runTest {
+        var capturedPath: String? = null
+        val t = transport(
+            MockEngine { request ->
+                capturedPath = request.url.encodedPath
+                respond(
+                    "",
+                    HttpStatusCode.NoContent,
+                )
+            },
+            baseUrl = "https://sync.example/",
+        )
+        t.pull()
+        assertEquals("/sync/u1", capturedPath)
+        assertTrue(capturedPath?.contains("//") != true)
     }
 
     @Test

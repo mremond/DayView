@@ -32,4 +32,14 @@ class SyncStateStoreTest {
         assertNull(state.baseRevision)
         assertNull(state.baseDocument)
     }
+
+    @Test
+    fun clearResetsToDefault() = runTest {
+        val s = store()
+        s.save(SyncState("r5", sampleDocument()))
+        s.clear()
+        val loaded = store().load()
+        assertNull(loaded.baseRevision)
+        assertNull(loaded.baseDocument)
+    }
 }
