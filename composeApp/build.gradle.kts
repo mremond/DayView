@@ -2,6 +2,7 @@ import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -39,6 +40,15 @@ val appPackageVersion: String =
 
 val isMacHost: Boolean =
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
+
+// macOS dev signing: reuse a stable code identity so the calendar (TCC) grant
+// survives rebuilds. Read from local.properties (per-machine, gitignored). When
+// unset, the EventKit helper is left unsigned and behaviour is unchanged.
+val macosSigningIdentity: String? =
+    Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }.getProperty("dayview.macos.signingIdentity")?.takeIf { it.isNotBlank() }
 
 ktlint {
     filter {
@@ -271,15 +281,16 @@ val compileMacFocusStatusHelper by tasks.registering(Exec::class) {
     )
 }
 
-val macEventKitHelperOutput = layout.buildDirectory.file("generated/macosFocusStatusHelper/macos-eventkit-helper")
-val macEventKitHelperOutputFile = macEventKitHelperOutput.get().asFile
-macEventKitHelperOutputFile.parentFile.mkdirs()
+val macEventKitHelperUnsignedOutput =
+    layout.buildDirectory.file("generated/macosEventKitHelperUnsigned/macos-eventkit-helper")
+val macEventKitHelperUnsignedFile = macEventKitHelperUnsignedOutput.get().asFile
+macEventKitHelperUnsignedFile.parentFile.mkdirs()
 val compileMacEventKitHelper by tasks.registering(Exec::class) {
     onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
     inputs.file(rootProject.file("scripts/MacEventKitHelper.swift"))
     // Embedding the usage-description plist changes the binary, so re-run when it changes.
     inputs.file(rootProject.file("scripts/MacEventKitHelper-Info.plist"))
-    outputs.file(macEventKitHelperOutput)
+    outputs.file(macEventKitHelperUnsignedOutput)
     commandLine(
         "xcrun",
         "swiftc",
@@ -295,11 +306,66 @@ val compileMacEventKitHelper by tasks.registering(Exec::class) {
         "-Xlinker", "__info_plist",
         "-Xlinker", rootProject.file("scripts/MacEventKitHelper-Info.plist").absolutePath,
         "-o",
-        macEventKitHelperOutputFile.absolutePath,
+        macEventKitHelperUnsignedFile.absolutePath,
     )
+}
+
+val macEventKitHelperResourceOutput =
+    layout.buildDirectory.file("generated/macosFocusStatusHelper/macos-eventkit-helper")
+
+abstract class PrepareEventKitHelper : DefaultTask() {
+    @get:org.gradle.api.tasks.InputFile
+    abstract val unsignedHelper: org.gradle.api.file.RegularFileProperty
+
+    @get:org.gradle.api.tasks.Input
+    @get:org.gradle.api.tasks.Optional
+    abstract val signingIdentity: org.gradle.api.provider.Property<String>
+
+    @get:org.gradle.api.tasks.OutputFile
+    abstract val signedHelper: org.gradle.api.file.RegularFileProperty
+
+    @get:javax.inject.Inject
+    abstract val execOps: org.gradle.process.ExecOperations
+
+    @org.gradle.api.tasks.TaskAction
+    fun prepare() {
+        val source = unsignedHelper.get().asFile
+        val target = signedHelper.get().asFile
+        target.parentFile.mkdirs()
+        source.copyTo(target, overwrite = true)
+        target.setExecutable(true, false)
+        val identity = signingIdentity.orNull
+        if (!identity.isNullOrBlank()) {
+            execOps.exec {
+                commandLine(
+                    "codesign",
+                    "--force",
+                    "--options", "runtime",
+                    "--identifier", "fr.dayview.app.eventkit-helper",
+                    "--sign", identity,
+                    target.absolutePath,
+                )
+            }
+        }
+    }
+}
+
+val prepareMacEventKitHelper by tasks.registering(PrepareEventKitHelper::class) {
+    onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
+    dependsOn(compileMacEventKitHelper)
+    unsignedHelper.set(macEventKitHelperUnsignedOutput)
+    signedHelper.set(macEventKitHelperResourceOutput)
+    if (macosSigningIdentity != null) {
+        signingIdentity.set(macosSigningIdentity)
+    } else if (isMacHost) {
+        logger.lifecycle(
+            "DayView: dayview.macos.signingIdentity is unset; " +
+                "EventKit helper left unsigned (calendar permission will reset on rebuild).",
+        )
+    }
 }
 
 tasks.matching { it.name in setOf("desktopProcessResources", "desktopTestProcessResources") }.configureEach {
     dependsOn(compileMacFocusStatusHelper)
-    dependsOn(compileMacEventKitHelper)
+    dependsOn(prepareMacEventKitHelper)
 }
