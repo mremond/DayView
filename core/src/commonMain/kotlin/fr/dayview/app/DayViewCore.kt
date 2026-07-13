@@ -16,8 +16,13 @@ data class DayProgressSnapshot(
 )
 
 /**
- * Stable entry point for native (macOS/Swift) callers. Takes epoch milliseconds
- * instead of [Instant] and returns a flattened [DayProgressSnapshot].
+ * Stateless day-progress entry point retained from the walking skeleton: takes epoch
+ * milliseconds instead of [Instant] and returns a flattened [DayProgressSnapshot].
+ *
+ * The live native UI does NOT use this — it observes [TodaySnapshot] via `DayViewSession`,
+ * which recomputes the same day-progress fields from the controller's reactive state. This
+ * facade remains as the minimal, dependency-free proof of the Kotlin↔Swift bridge (exercised
+ * by the Swift `smoke` target); [TodaySnapshot] is authoritative for the running app.
  */
 object DayViewCore {
     fun dayProgress(

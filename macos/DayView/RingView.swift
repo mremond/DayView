@@ -87,8 +87,12 @@ struct RingView: View {
                 HStack {
                     DatePicker("Deadline", selection: $deadline)
                         .onChange(of: deadline) { newValue in
-                            if seeded {
-                                model.setGoalDeadline(epochMillis: Int64(newValue.timeIntervalSince1970 * 1000))
+                            let millis = Int64(newValue.timeIntervalSince1970 * 1000)
+                            // Only persist a genuine user change. Seeding `deadline` from the
+                            // snapshot also fires .onChange (with `seeded` already true); guard
+                            // on the value so that seed round-trip isn't written back.
+                            if seeded && millis != model.snapshot.goalDeadlineEpochMillis {
+                                model.setGoalDeadline(epochMillis: millis)
                             }
                         }
                     if model.snapshot.goalHasDeadline {

@@ -39,6 +39,7 @@ internal fun DayViewUiState.toTodaySnapshot(): TodaySnapshot {
             PomodoroStatus.IDLE -> ""
         },
         focusIntention = focusIntention,
+        // TODO: localize — hardcoded English until the native macOS UI gains i18n.
         dayStatus = if (progress.isFinished) {
             "Day over"
         } else {

@@ -55,7 +55,7 @@ fun formatGoalDateShort(
 
 /**
  * UTC-midnight millis of the local calendar day of [instant] — the value a
- * Material3 DatePicker expects for [androidx.compose.material3.rememberDatePickerState].
+ * Material3 DatePicker (rememberDatePickerState) expects.
  */
 fun goalPickerDateMillis(
     instant: Instant,
