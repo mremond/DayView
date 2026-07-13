@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -205,6 +206,13 @@ internal fun DetourChip(
                 if (selected) colors.amber.copy(alpha = .55f) else Color.Transparent,
                 shape,
             )
+            // Keep the pill out of the focus system: it is a pointer affordance with a
+            // keyboard-accessible equivalent (typing the category, the editable duration
+            // field). On Compose Desktop a focusable clickable that wins focus then hands
+            // off to a text field leaves the field focused without an active text-input
+            // session, so keystrokes are dropped until the window is refocused (see the
+            // same hazard handled in EditableTimeValue). Never owning focus avoids it.
+            .focusProperties { canFocus = false }
             .then(clickModifier)
             .padding(horizontal = 12.dp, vertical = 7.dp),
     )
