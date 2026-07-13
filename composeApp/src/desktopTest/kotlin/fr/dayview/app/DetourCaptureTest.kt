@@ -17,18 +17,18 @@ class DetourCaptureTest {
         setContent {
             // midWindowNow() is 13:00 local; the default duration is 15 minutes.
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { category, duration, start -> captured = Triple(category, duration, start) },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
-        val (motif, duration, start) = captured!!
-        assertEquals("café", motif)
+        val (category, duration, start) = captured!!
+        assertEquals("café", category)
         assertEquals(15, duration)
         assertNull(start) // untouched start stays "ends now", handled by addDetour
     }
@@ -38,14 +38,14 @@ class DetourCaptureTest {
         var captured: Triple<String, Int, Int?>? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { category, duration, start -> captured = Triple(category, duration, start) },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
         onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
         onNodeWithTag(DayViewTestTags.DetourStartIncrease).performClick()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
@@ -59,20 +59,20 @@ class DetourCaptureTest {
         var captured: Triple<String, Int, Int?>? = null
         setContent {
             DetourCaptureContent(
-                recentMotifs = emptyList(),
+                recentCategories = emptyList(),
                 now = midWindowNow(),
-                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onConfirm = { category, duration, start -> captured = Triple(category, duration, start) },
                 onForget = {},
                 onDismiss = {},
             )
         }
-        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("série")
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("série")
         onNodeWithTag(DayViewTestTags.DetourLongToggle).performClick()
         onNodeWithTag(DayViewTestTags.detourDurationChip(180)).performClick()
         onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
 
-        val (motif, duration, start) = captured!!
-        assertEquals("série", motif)
+        val (category, duration, start) = captured!!
+        assertEquals("série", category)
         assertEquals(180, duration) // 3 h reached from quick capture
         assertNull(start) // start untouched → "ends now"
     }

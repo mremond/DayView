@@ -190,7 +190,7 @@ internal data class DayViewScreenActions(
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
-    val forgetDetourMotif: (String) -> Unit,
+    val forgetDetourCategory: (String) -> Unit,
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
     val completePlannedObligation: (String, String, Int, Int?) -> Unit,
@@ -360,32 +360,32 @@ internal fun DayViewScreen(
         }
         if (showDetourCapture) {
             DetourCaptureDialog(
-                recentMotifs = state.recentDetourMotifs,
+                recentCategories = state.recentDetourCategories,
                 now = state.now,
-                onConfirm = { motif, durationMinutes, startMinutesOfDay ->
+                onConfirm = { category, durationMinutes, startMinutesOfDay ->
                     if (startMinutesOfDay == null) {
-                        actions.addDetour(motif, durationMinutes)
+                        actions.addDetour(category, durationMinutes)
                     } else {
                         actions.addDetourEpisode(
-                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, motif),
+                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, category),
                         )
                     }
                     showDetourCapture = false
                 },
-                onForget = actions.forgetDetourMotif,
+                onForget = actions.forgetDetourCategory,
                 onDismiss = { showDetourCapture = false },
             )
         }
         obligationToComplete?.let { motif ->
             DetourCaptureDialog(
-                recentMotifs = state.recentDetourMotifs,
+                recentCategories = state.recentDetourCategories,
                 now = state.now,
-                initialMotif = motif,
-                onConfirm = { confirmedMotif, durationMinutes, startMinutesOfDay ->
-                    actions.completePlannedObligation(motif, confirmedMotif, durationMinutes, startMinutesOfDay)
+                initialCategory = motif,
+                onConfirm = { confirmedCategory, durationMinutes, startMinutesOfDay ->
+                    actions.completePlannedObligation(motif, confirmedCategory, durationMinutes, startMinutesOfDay)
                     obligationToComplete = null
                 },
-                onForget = actions.forgetDetourMotif,
+                onForget = actions.forgetDetourCategory,
                 onDismiss = { obligationToComplete = null },
             )
         }
@@ -1257,7 +1257,7 @@ internal fun CountdownCircle(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Column {
-                            Text(body.motif, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(body.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             Text(
                                 stringResource(
                                     Res.string.detour_time_range,

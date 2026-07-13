@@ -70,7 +70,7 @@ internal data class DayViewUiState(
     val lastFocusClosure: FocusClosureOutcome? = null,
     val detoursDayKey: Long = -1L,
     val detours: List<DetourEpisode> = emptyList(),
-    val recentDetourMotifs: List<String> = emptyList(),
+    val recentDetourCategories: List<String> = emptyList(),
     val plannedObligationsDayKey: Long = -1L,
     val plannedObligations: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -431,21 +431,21 @@ internal class DayViewController(
     }
 
     /** Quick capture: the episode ends now and starts [durationMinutes] earlier. */
-    fun addDetour(motif: String, durationMinutes: Int) {
-        val clean = sanitizeDetourMotif(motif)
+    fun addDetour(category: String, durationMinutes: Int) {
+        val clean = sanitizeDetourCategory(category)
         if (clean.isEmpty()) return
         val end = state.now
         // Keep the full declared span; only floor at the start of the local day so a very long
         // capture cannot cross into yesterday and break the day-scoped, time-only list display.
         val start = maxOf(end - durationMinutes.coerceIn(1, 12 * 60).minutes, startOfLocalDay(end))
-        commitDetours(state.detoursToday + DetourEpisode(start, end, clean), pushMotif = clean)
+        commitDetours(state.detoursToday + DetourEpisode(start, end, clean), pushCategory = clean)
     }
 
     /** Retroactive add from the list editor; also feeds the suggestions. */
     fun addDetourEpisode(episode: DetourEpisode) {
-        val clean = episode.copy(motif = sanitizeDetourMotif(episode.motif))
-        if (clean.motif.isEmpty() || clean.end <= clean.start) return
-        commitDetours(state.detoursToday + clean, pushMotif = clean.motif)
+        val clean = episode.copy(category = sanitizeDetourCategory(episode.category))
+        if (clean.category.isEmpty() || clean.end <= clean.start) return
+        commitDetours(state.detoursToday + clean, pushCategory = clean.category)
     }
 
     /** Replace the episode at [index] of [DayViewUiState.detoursToday]. */
@@ -455,8 +455,8 @@ internal class DayViewController(
     ) {
         val today = state.detoursToday
         if (index !in today.indices) return
-        val clean = episode.copy(motif = sanitizeDetourMotif(episode.motif))
-        if (clean.motif.isEmpty() || clean.end <= clean.start) return
+        val clean = episode.copy(category = sanitizeDetourCategory(episode.category))
+        if (clean.category.isEmpty() || clean.end <= clean.start) return
         commitDetours(today.toMutableList().also { it[index] = clean })
     }
 
@@ -466,24 +466,24 @@ internal class DayViewController(
         commitDetours(today.toMutableList().also { it.removeAt(index) })
     }
 
-    /** Drop a motif from the recent-suggestions list; the day's episodes are untouched. */
-    fun forgetRecentDetourMotif(motif: String) {
-        val pruned = removeRecentDetourMotif(state.recentDetourMotifs, motif)
-        if (pruned == state.recentDetourMotifs) return
-        state = state.copy(recentDetourMotifs = pruned)
+    /** Drop a category from the recent-suggestions list; the day's episodes are untouched. */
+    fun forgetRecentDetourCategory(category: String) {
+        val pruned = removeRecentDetourCategory(state.recentDetourCategories, category)
+        if (pruned == state.recentDetourCategories) return
+        state = state.copy(recentDetourCategories = pruned)
         persistState()
     }
 
     private fun commitDetours(
         episodes: List<DetourEpisode>,
-        pushMotif: String? = null,
+        pushCategory: String? = null,
     ) {
         state = state.copy(
             detoursDayKey = dayKeyOf(state.now),
             detours = episodes.sortedBy { it.start },
-            recentDetourMotifs = pushMotif
-                ?.let { pushRecentDetourMotif(state.recentDetourMotifs, it) }
-                ?: state.recentDetourMotifs,
+            recentDetourCategories = pushCategory
+                ?.let { pushRecentDetourCategory(state.recentDetourCategories, it) }
+                ?: state.recentDetourCategories,
         )
         persistState()
     }
@@ -497,17 +497,17 @@ internal class DayViewController(
     }
 
     fun completePlannedObligation(
-        originalMotif: String,
-        detourMotif: String,
+        originalObligation: String,
+        detourCategory: String,
         durationMinutes: Int,
         startMinutesOfDay: Int?,
     ) {
         if (startMinutesOfDay == null) {
-            addDetour(detourMotif, durationMinutes)
+            addDetour(detourCategory, durationMinutes)
         } else {
-            addDetourEpisode(detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourMotif))
+            addDetourEpisode(detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourCategory))
         }
-        removePlannedObligation(originalMotif)
+        removePlannedObligation(originalObligation)
     }
 
     private fun commitPlannedObligations(obligations: List<String>) {
@@ -573,7 +573,7 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     availableCalendars = availableCalendars,
     detoursDayKey = detoursDayKey,
     detours = detours,
-    recentDetourMotifs = recentDetourMotifs,
+    recentDetourCategories = recentDetourCategories,
     plannedObligationsDayKey = plannedObligationsDayKey,
     plannedObligations = plannedObligations,
     themeMode = themeMode,
@@ -591,9 +591,9 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         goalTitle = goalTitle.take(80),
         pomodoroMinutes = pomodoroMinutes.coerceIn(5, 180),
         focusIntention = focusIntention.take(100),
-        detours = detours.map { it.copy(motif = sanitizeDetourMotif(it.motif)) },
-        recentDetourMotifs = recentDetourMotifs.take(MAX_RECENT_DETOUR_MOTIFS),
-        plannedObligations = plannedObligations.map(::sanitizeDetourMotif)
+        detours = detours.map { it.copy(category = sanitizeDetourCategory(it.category)) },
+        recentDetourCategories = recentDetourCategories.take(MAX_RECENT_DETOUR_CATEGORIES),
+        plannedObligations = plannedObligations.map { sanitizeLabel(it, 60) }
             .filter { it.isNotEmpty() }
             .take(MAX_PLANNED_OBLIGATIONS),
         cleanSessions = cleanSessions.copy(
@@ -627,7 +627,7 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         availableCalendars = safe.availableCalendars,
         detoursDayKey = safe.detoursDayKey,
         detours = safe.detours,
-        recentDetourMotifs = safe.recentDetourMotifs,
+        recentDetourCategories = safe.recentDetourCategories,
         plannedObligationsDayKey = safe.plannedObligationsDayKey,
         plannedObligations = safe.plannedObligations,
         themeMode = safe.themeMode,
@@ -653,7 +653,7 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         onGoalApps = safe.onGoalApps,
         detoursDayKey = safe.detoursDayKey,
         detours = safe.detours,
-        recentDetourMotifs = safe.recentDetourMotifs,
+        recentDetourCategories = safe.recentDetourCategories,
         plannedObligationsDayKey = safe.plannedObligationsDayKey,
         plannedObligations = safe.plannedObligations,
         themeMode = safe.themeMode,

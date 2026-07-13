@@ -94,7 +94,7 @@ class DayPreferencesStoreTest {
                     "Appel, urgent",
                 ),
             ),
-            recentDetourMotifs = listOf("Appel, urgent", "Slack"),
+            recentDetourCategories = listOf("Appel, urgent", "Slack"),
         )
         store.persist(snapshot)
         assertEquals(snapshot, store.snapshots.first())

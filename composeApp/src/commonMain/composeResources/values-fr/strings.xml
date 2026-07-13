@@ -228,10 +228,10 @@
     <string name="detour_list_open_label">Détours du jour</string>
     <string name="detour_section">DÉTOUR</string>
     <string name="detour_capture_prompt">Qu’est-ce qui vous a détourné du chemin ?</string>
-    <string name="detour_motif_label">Motif du détour</string>
-    <string name="detour_motif_placeholder">Ex. appel imprévu</string>
-    <string name="detour_forget_row_label">Oublier ce motif</string>
-    <string name="detour_forget_prompt">Oublier ce motif ?</string>
+    <string name="detour_category_label">Catégorie</string>
+    <string name="detour_category_placeholder">Ex. appel imprévu</string>
+    <string name="detour_forget_row_label">Oublier cette catégorie</string>
+    <string name="detour_forget_prompt">Oublier cette catégorie ?</string>
     <string name="detour_forget_confirm">OUBLIER</string>
     <string name="detour_duration_section">DURÉE APPROXIMATIVE</string>
     <string name="detour_duration_more">Plus long</string>

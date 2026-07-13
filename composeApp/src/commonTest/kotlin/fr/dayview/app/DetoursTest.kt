@@ -13,12 +13,12 @@ private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
 class DetoursTest {
     @Test
     fun sanitizeStripsNewlinesTrimsAndBounds() {
-        assertEquals("appel urgent", sanitizeDetourMotif("  appel\nurgent \r"))
-        assertEquals(60, sanitizeDetourMotif("x".repeat(80)).length)
+        assertEquals("appel urgent", sanitizeDetourCategory("  appel\nurgent \r"))
+        assertEquals(60, sanitizeDetourCategory("x".repeat(80)).length)
     }
 
     @Test
-    fun detoursEncodeDecodeRoundTripsMotifsWithCommas() {
+    fun detoursEncodeDecodeRoundTripsCategoriesWithCommas() {
         val episodes = listOf(
             DetourEpisode(t(1_000L), t(2_000L), "Appel, urgent"),
             DetourEpisode(t(3_000L), t(4_000L), "Slack"),
@@ -27,43 +27,43 @@ class DetoursTest {
     }
 
     @Test
-    fun decodeSkipsMalformedBlankAndEmptyMotifLines() {
+    fun decodeSkipsMalformedBlankAndEmptyCategoryLines() {
         val encoded = "not a line\n1000,2000,ok\n5000,4000,inverted\n1000,2000,\n\n"
         assertEquals(listOf(DetourEpisode(t(1_000L), t(2_000L), "ok")), decodeDetours(encoded))
     }
 
     @Test
-    fun recentMotifsEncodeDecodeRoundTrips() {
-        val motifs = listOf("Appel, urgent", "Slack")
-        assertEquals(motifs, decodeRecentDetourMotifs(encodeRecentDetourMotifs(motifs)))
-        assertEquals(emptyList(), decodeRecentDetourMotifs(""))
+    fun recentCategoriesEncodeDecodeRoundTrips() {
+        val categories = listOf("Appel, urgent", "Slack")
+        assertEquals(categories, decodeRecentDetourCategories(encodeRecentDetourCategories(categories)))
+        assertEquals(emptyList(), decodeRecentDetourCategories(""))
     }
 
     @Test
     fun pushRecentDedupesCaseInsensitivelyAndCaps() {
-        val once = pushRecentDetourMotif(listOf("Slack", "Appels"), "slack")
+        val once = pushRecentDetourCategory(listOf("Slack", "Appels"), "slack")
         assertEquals(listOf("slack", "Appels"), once)
         var recents = emptyList<String>()
-        repeat(15) { recents = pushRecentDetourMotif(recents, "motif $it") }
-        assertEquals(MAX_RECENT_DETOUR_MOTIFS, recents.size)
-        assertEquals("motif 14", recents.first())
+        repeat(15) { recents = pushRecentDetourCategory(recents, "category $it") }
+        assertEquals(MAX_RECENT_DETOUR_CATEGORIES, recents.size)
+        assertEquals("category 14", recents.first())
     }
 
     @Test
-    fun pushRecentIgnoresBlankMotifs() {
-        assertEquals(listOf("Slack"), pushRecentDetourMotif(listOf("Slack"), "  \n"))
+    fun pushRecentIgnoresBlankCategories() {
+        assertEquals(listOf("Slack"), pushRecentDetourCategory(listOf("Slack"), "  \n"))
     }
 
     @Test
-    fun removeRecentDropsMotifCaseInsensitively() {
-        assertEquals(listOf("Slack"), removeRecentDetourMotif(listOf("Slack", "dsfdsf"), "DSFDSF"))
-        assertEquals(emptyList(), removeRecentDetourMotif(listOf("Slack"), "  slack  "))
+    fun removeRecentDropsCategoryCaseInsensitively() {
+        assertEquals(listOf("Slack"), removeRecentDetourCategory(listOf("Slack", "dsfdsf"), "DSFDSF"))
+        assertEquals(emptyList(), removeRecentDetourCategory(listOf("Slack"), "  slack  "))
     }
 
     @Test
     fun removeRecentLeavesListUntouchedWhenAbsent() {
-        assertEquals(listOf("Slack", "Appels"), removeRecentDetourMotif(listOf("Slack", "Appels"), "absent"))
-        assertEquals(listOf("Slack"), removeRecentDetourMotif(listOf("Slack"), "  "))
+        assertEquals(listOf("Slack", "Appels"), removeRecentDetourCategory(listOf("Slack", "Appels"), "absent"))
+        assertEquals(listOf("Slack"), removeRecentDetourCategory(listOf("Slack"), "  "))
     }
 
     @Test
@@ -78,7 +78,7 @@ class DetoursTest {
     }
 
     @Test
-    fun sourcesAggregateByNormalizedMotifHeaviestFirst() {
+    fun sourcesAggregateByNormalizedCategoryHeaviestFirst() {
         val episodes = listOf(
             DetourEpisode(t(0L), t(1_200_000L), "Slack"), // 20 min
             DetourEpisode(t(2_000_000L), t(3_200_000L), "Appels"), // 20 min
@@ -152,7 +152,7 @@ class DetoursTest {
             angleDegrees = -90f,
             sizeFraction = 1f,
             colorIndex = 0,
-            motif = "Slack",
+            category = "Slack",
             start = t(0L),
             end = t(1L),
         )
@@ -169,7 +169,7 @@ class DetoursTest {
         val zone = TimeZone.of("Europe/Paris")
         val reference = Instant.parse("2026-07-12T10:00:00Z")
         val episode = detourEpisodeAt(reference, 9 * 60 + 30, 45, " appel ", zone)
-        assertEquals("appel", episode.motif)
+        assertEquals("appel", episode.category)
         assertEquals(45, episode.duration.inWholeMinutes)
         assertEquals("09:30", formatClockHm(episode.start, zone))
     }
@@ -192,20 +192,20 @@ class DetoursTest {
     @Test
     fun sanitizeIsIdempotentAtTheTruncationBoundary() {
         val raw = "a".repeat(59) + " bcd" // truncates to 59 'a' + trailing space
-        val once = sanitizeDetourMotif(raw)
-        assertEquals(once, sanitizeDetourMotif(once))
+        val once = sanitizeDetourCategory(raw)
+        assertEquals(once, sanitizeDetourCategory(once))
         assertEquals("a".repeat(59), once)
     }
 
     @Test
-    fun bodiesKeepEpisodesWithLongTruncatedMotifs() {
-        val motif = "a".repeat(59) + " bcd"
+    fun bodiesKeepEpisodesWithLongTruncatedCategories() {
+        val category = "a".repeat(59) + " bcd"
         val body = detourBodies(
             t(0L),
             t(36_000_000L),
-            listOf(DetourEpisode(t(0L), t(1_800_000L), motif)),
+            listOf(DetourEpisode(t(0L), t(1_800_000L), category)),
         ).single()
-        assertEquals("a".repeat(59), body.motif)
+        assertEquals("a".repeat(59), body.category)
     }
 
     @Test

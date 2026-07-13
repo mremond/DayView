@@ -12,53 +12,56 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /** A hand-declared detour: a named stretch of time spent off the path. */
-data class DetourEpisode(val start: Instant, val end: Instant, val motif: String) {
+data class DetourEpisode(val start: Instant, val end: Instant, val category: String) {
     val duration: Duration get() = end - start
 }
 
-const val MAX_RECENT_DETOUR_MOTIFS = 10
+const val MAX_RECENT_DETOUR_CATEGORIES = 10
 
-/** Single-line, trimmed, bounded motif; every capture and edit feeds through this. */
-fun sanitizeDetourMotif(raw: String): String = raw.replace("\n", " ").replace("\r", " ").trim().take(60).trim()
+/** Single-line, trimmed, length-bounded label. */
+fun sanitizeLabel(raw: String, maxLen: Int): String = raw.replace("\n", " ").replace("\r", " ").trim().take(maxLen).trim()
 
-/** Serialize episodes to one `start,end,motif` line each (epoch millis, motif last). */
+/** Single-line, trimmed, bounded category; every capture and edit feeds through this. */
+fun sanitizeDetourCategory(raw: String): String = sanitizeLabel(raw, 60)
+
+/** Serialize episodes to one `start,end,category` line each (epoch millis, category last). */
 fun encodeDetours(episodes: List<DetourEpisode>): String = episodes.joinToString("\n") {
-    "${it.start.toEpochMilliseconds()},${it.end.toEpochMilliseconds()},${sanitizeDetourMotif(it.motif)}"
+    "${it.start.toEpochMilliseconds()},${it.end.toEpochMilliseconds()},${sanitizeDetourCategory(it.category)}"
 }
 
 /**
- * Inverse of [encodeDetours]. The motif is the third field and the split is bounded, so
- * commas inside motifs survive; blank, malformed, inverted or motif-less lines are skipped.
+ * Inverse of [encodeDetours]. The category is the third field and the split is bounded, so
+ * commas inside categories survive; blank, malformed, inverted or category-less lines are skipped.
  */
 fun decodeDetours(encoded: String): List<DetourEpisode> = encoded.split("\n").mapNotNull { line ->
     val parts = line.split(",", limit = 3)
     val start = parts.getOrNull(0)?.toLongOrNull()
     val end = parts.getOrNull(1)?.toLongOrNull()
-    val motif = parts.getOrNull(2)?.let(::sanitizeDetourMotif)
-    if (parts.size == 3 && start != null && end != null && end > start && !motif.isNullOrEmpty()) {
-        DetourEpisode(Instant.fromEpochMilliseconds(start), Instant.fromEpochMilliseconds(end), motif)
+    val category = parts.getOrNull(2)?.let(::sanitizeDetourCategory)
+    if (parts.size == 3 && start != null && end != null && end > start && !category.isNullOrEmpty()) {
+        DetourEpisode(Instant.fromEpochMilliseconds(start), Instant.fromEpochMilliseconds(end), category)
     } else {
         null
     }
 }
 
-/** One motif per line; motifs are single-line by construction. */
-fun encodeRecentDetourMotifs(motifs: List<String>): String = motifs.joinToString("\n")
+/** One category per line; categories are single-line by construction. */
+fun encodeRecentDetourCategories(categories: List<String>): String = categories.joinToString("\n")
 
-/** Inverse of [encodeRecentDetourMotifs]; drops blank lines. */
-fun decodeRecentDetourMotifs(encoded: String): List<String> = encoded.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+/** Inverse of [encodeRecentDetourCategories]; drops blank lines. */
+fun decodeRecentDetourCategories(encoded: String): List<String> = encoded.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
 
 /** Most-recent-first suggestion list: case-insensitive dedupe, capped. */
-fun pushRecentDetourMotif(recents: List<String>, motif: String): List<String> {
-    val clean = sanitizeDetourMotif(motif)
+fun pushRecentDetourCategory(recents: List<String>, category: String): List<String> {
+    val clean = sanitizeDetourCategory(category)
     if (clean.isEmpty()) return recents
     return (listOf(clean) + recents.filter { it.lowercase() != clean.lowercase() })
-        .take(MAX_RECENT_DETOUR_MOTIFS)
+        .take(MAX_RECENT_DETOUR_CATEGORIES)
 }
 
-/** Drop a suggestion from the recent list, case-insensitively; blank motifs are a no-op. */
-fun removeRecentDetourMotif(recents: List<String>, motif: String): List<String> {
-    val clean = sanitizeDetourMotif(motif)
+/** Drop a suggestion from the recent list, case-insensitively; blank categories are a no-op. */
+fun removeRecentDetourCategory(recents: List<String>, category: String): List<String> {
+    val clean = sanitizeDetourCategory(category)
     if (clean.isEmpty()) return recents
     return recents.filter { it.lowercase() != clean.lowercase() }
 }
@@ -79,10 +82,10 @@ fun dayKeyOf(
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): Long = now.toLocalDateTime(timeZone).date.toEpochDays()
 
-/** A distraction source: episodes grouped by normalized motif. */
+/** A distraction source: episodes grouped by normalized category. */
 data class DetourSource(val label: String, val colorIndex: Int, val total: Duration)
 
-private fun sourceKey(motif: String): String = sanitizeDetourMotif(motif).lowercase()
+private fun sourceKey(category: String): String = sanitizeDetourCategory(category).lowercase()
 
 /**
  * Per-source cumulated durations, heaviest first. Color indices follow the chronological
@@ -94,10 +97,10 @@ fun detourSources(episodes: List<DetourEpisode>): List<DetourSource> {
     val labelBySource = LinkedHashMap<String, String>()
     val totalBySource = LinkedHashMap<String, Duration>()
     for (episode in episodes.sortedBy { it.start }) {
-        val key = sourceKey(episode.motif)
+        val key = sourceKey(episode.category)
         if (key.isEmpty()) continue
         colorBySource.getOrPut(key) { colorBySource.size }
-        labelBySource.getOrPut(key) { sanitizeDetourMotif(episode.motif) }
+        labelBySource.getOrPut(key) { sanitizeDetourCategory(episode.category) }
         totalBySource[key] = (totalBySource[key] ?: Duration.ZERO) + episode.duration
     }
     return colorBySource.keys.map { key ->
@@ -140,7 +143,7 @@ data class DetourBody(
     val angleDegrees: Float,
     val sizeFraction: Float,
     val colorIndex: Int,
-    val motif: String,
+    val category: String,
     val start: Instant,
     val end: Instant,
 )
@@ -163,7 +166,7 @@ fun detourBodies(
     if (total <= Duration.ZERO) return emptyList()
     val colorBySource = detourSources(episodes).associate { sourceKey(it.label) to it.colorIndex }
     return episodes.sortedBy { it.start }.mapNotNull { episode ->
-        val colorIndex = colorBySource[sourceKey(episode.motif)] ?: return@mapNotNull null
+        val colorIndex = colorBySource[sourceKey(episode.category)] ?: return@mapNotNull null
         val midpoint = episode.start + episode.duration / 2
         if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) return@mapNotNull null
         val fraction = ((midpoint - windowStart) / total).toFloat()
@@ -174,7 +177,7 @@ fun detourBodies(
             angleDegrees = -90f + fraction * 360f,
             sizeFraction = sizeFraction,
             colorIndex = colorIndex,
-            motif = sanitizeDetourMotif(episode.motif),
+            category = sanitizeDetourCategory(episode.category),
             start = episode.start,
             end = episode.end,
         )
@@ -237,7 +240,7 @@ fun detourEpisodeAt(
     dayReference: Instant,
     startMinutesOfDay: Int,
     durationMinutes: Int,
-    motif: String,
+    category: String,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): DetourEpisode {
     val local = dayReference.toLocalDateTime(timeZone)
@@ -252,6 +255,6 @@ fun detourEpisodeAt(
     return DetourEpisode(
         start = start,
         end = start + durationMinutes.coerceIn(1, 12 * 60).minutes,
-        motif = sanitizeDetourMotif(motif),
+        category = sanitizeDetourCategory(category),
     )
 }

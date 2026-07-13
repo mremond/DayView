@@ -280,11 +280,11 @@ internal fun DayViewApp(
                                     controller.closePomodoro(outcome)
                                     onFocusAlarmChange(null, intention)
                                 },
-                                addDetour = { motif, durationMinutes -> controller.addDetour(motif, durationMinutes) },
+                                addDetour = { category, durationMinutes -> controller.addDetour(category, durationMinutes) },
                                 updateDetour = { index, episode -> controller.updateDetour(index, episode) },
                                 removeDetour = { controller.removeDetour(it) },
                                 addDetourEpisode = { controller.addDetourEpisode(it) },
-                                forgetDetourMotif = { controller.forgetRecentDetourMotif(it) },
+                                forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
                                 addPlannedObligation = { controller.addPlannedObligation(it) },
                                 removePlannedObligation = { controller.removePlannedObligation(it) },
                                 completePlannedObligation = controller::completePlannedObligation,
