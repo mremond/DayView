@@ -20,10 +20,14 @@ import androidx.compose.ui.unit.Density
 import fr.dayview.app.sync.RawSyncKey
 import fr.dayview.app.sync.SecureKeyStore
 import fr.dayview.app.sync.SyncCoordinator
+import fr.dayview.app.sync.SyncOnResumeEffect
 import fr.dayview.app.sync.SyncStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -32,9 +36,10 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-@OptIn(ExperimentalEncodingApi::class)
+@OptIn(ExperimentalEncodingApi::class, FlowPreview::class)
 @Composable
 internal fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
@@ -84,6 +89,9 @@ internal fun DayViewApp(
                 Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
                     val scope = rememberCoroutineScope()
                     val initialSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
+                    // Buffered so a burst of local edits collapses into a single pending signal;
+                    // the debounced collector below turns it into a single sync trigger.
+                    val localWriteSignal = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
                     val controller = remember(preferences) {
                         DayViewController(
                             preferences,
@@ -91,6 +99,7 @@ internal fun DayViewApp(
                             initialSnapshot,
                             history = history,
                             initialFocusPresenceIntervals = focusPresenceIntervals,
+                            onLocalWrite = { localWriteSignal.tryEmit(Unit) },
                         )
                     }
                     val state = controller.state
@@ -113,6 +122,26 @@ internal fun DayViewApp(
                     var syncHasKey by remember { mutableStateOf(secureKeyStore?.loadKey() != null) }
                     val fallbackSyncStatus = remember { MutableStateFlow(SyncStatus.Idle) }
                     val syncStatus by (syncCoordinator?.status ?: fallbackSyncStatus).collectAsState()
+
+                    // Sync I/O (network + keystore/state-file reads) must never run on the
+                    // Compose UI dispatcher; every syncNow() call — automatic or manual —
+                    // is routed through this helper. No-op when sync isn't configured.
+                    fun launchSync() {
+                        scope.launch(Dispatchers.IO) { syncCoordinator?.syncNow() }
+                    }
+                    if (syncCoordinator != null) {
+                        // Startup: run once when the coordinator becomes available.
+                        LaunchedEffect(syncCoordinator) { launchSync() }
+                        // Foreground/resume (Android) or periodic (desktop, see the actual).
+                        SyncOnResumeEffect { launchSync() }
+                        // Debounced local-write trigger. `onLocalWrite` above only fires from
+                        // DayViewController's local-write path (persistState), never from a
+                        // sync-applied change (that goes through preferences.persist directly),
+                        // so this cannot create a sync/apply echo loop.
+                        LaunchedEffect(syncCoordinator) {
+                            localWriteSignal.debounce(3.seconds).collect { launchSync() }
+                        }
+                    }
 
                     LaunchedEffect(preferences) {
                         preferences.snapshots.collect { controller.onPreferencesChanged(it) }
@@ -260,26 +289,31 @@ internal fun DayViewApp(
                                 openCategory = { controller.openSettingsCategory(it) },
                                 closeCategory = { controller.closeSettingsCategory() },
                                 changeSyncConfig = { cfg ->
-                                    secureKeyStore?.storeConfig(cfg)
+                                    // UI state updates synchronously on the main thread; the
+                                    // keystore write (disk I/O) is pushed off it.
                                     syncConfig = cfg
+                                    scope.launch(Dispatchers.IO) { secureKeyStore?.storeConfig(cfg) }
                                 },
                                 generateSyncKey = {
+                                    // Key generation is cheap and stays synchronous so the
+                                    // Base64 string can be returned immediately; only the
+                                    // keystore persistence goes to IO.
                                     val key = RawSyncKey.generate()
-                                    secureKeyStore?.storeKey(key)
                                     syncHasKey = true
+                                    scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
                                     Base64.encode(key.bytes)
                                 },
                                 pasteSyncKey = { b64 ->
                                     runCatching { RawSyncKey(Base64.decode(b64)) }.getOrNull()?.let { key ->
-                                        secureKeyStore?.storeKey(key)
                                         syncHasKey = true
+                                        scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
                                     }
                                 },
-                                syncNow = { scope.launch { syncCoordinator?.syncNow() } },
+                                syncNow = { launchSync() },
                                 clearSyncKey = {
-                                    secureKeyStore?.clear()
                                     syncConfig = null
                                     syncHasKey = false
+                                    scope.launch(Dispatchers.IO) { secureKeyStore?.clear() }
                                 },
                                 back = { controller.openToday() },
                             ),
