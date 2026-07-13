@@ -10,3 +10,7 @@ hs_err_pid*.log
 
 # Visual-companion brainstorming scratch
 .superpowers/
+
+# DayView sync endpoint runtime state
+server/sync-store.json
+server/sync-store.json.tmp
