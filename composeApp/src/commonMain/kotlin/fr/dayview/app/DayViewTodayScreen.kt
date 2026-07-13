@@ -193,7 +193,7 @@ internal data class DayViewScreenActions(
     val forgetDetourCategory: (String) -> Unit,
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
-    val completePlannedObligation: (String, String, Int, Int?) -> Unit,
+    val completePlannedObligation: (String, String, String, Int, Int?) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -382,7 +382,7 @@ internal fun DayViewScreen(
                 now = state.now,
                 initialCategory = motif,
                 onConfirm = { confirmedCategory, durationMinutes, startMinutesOfDay ->
-                    actions.completePlannedObligation(motif, confirmedCategory, durationMinutes, startMinutesOfDay)
+                    actions.completePlannedObligation(motif, confirmedCategory, "", durationMinutes, startMinutesOfDay)
                     obligationToComplete = null
                 },
                 onForget = actions.forgetDetourCategory,

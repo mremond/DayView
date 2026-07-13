@@ -128,7 +128,7 @@ internal fun noopDayViewActions(
     forgetDetourCategory = {},
     addPlannedObligation = {},
     removePlannedObligation = {},
-    completePlannedObligation = { _, _, _, _ -> },
+    completePlannedObligation = { _, _, _, _, _ -> },
 )
 
 internal fun noReminders(): FocusReminderUiState = FocusReminderUiState(

@@ -577,7 +577,7 @@ class DayViewControllerTest {
         val controller = testController(preferences, now)
         controller.addPlannedObligation("Appel client")
 
-        controller.completePlannedObligation("Appel client", "Appel client", 30, null)
+        controller.completePlannedObligation("Appel client", "Appel client", "", 30, null)
 
         val stored = preferences.current
         assertEquals(emptyList(), stored.plannedObligations)
@@ -593,7 +593,7 @@ class DayViewControllerTest {
         val controller = testController(preferences, now)
         controller.addPlannedObligation("Appel client")
 
-        controller.completePlannedObligation("Appel client", "Appel client re: contract", 30, null)
+        controller.completePlannedObligation("Appel client", "Appel client re: contract", "", 30, null)
 
         val stored = preferences.current
         assertEquals(emptyList(), stored.plannedObligations)
@@ -738,6 +738,24 @@ class DayViewControllerTest {
         val episode = controller.state.detoursToday.single()
         assertEquals(startOfLocalDay(t(now)), episode.start) // floored to today's 00:00
         assertEquals(t(now), episode.end)
+    }
+
+    @Test
+    fun addDetourStoresSanitizedDescription() {
+        val controller = testController(InMemoryDayPreferences(), 50_000_000L)
+        controller.addDetour("Slack", 15, "reading, threads\nmore")
+        val episode = controller.state.detoursToday.single()
+        assertEquals("Slack", episode.category)
+        assertEquals("reading, threads more", episode.description) // newline→space, comma kept
+    }
+
+    @Test
+    fun updateDetourKeepsDescription() {
+        val controller = testController(InMemoryDayPreferences(), 50_000_000L)
+        controller.addDetour("Slack", 15, "note")
+        val original = controller.state.detoursToday.single()
+        controller.updateDetour(0, original.copy(description = "edited note"))
+        assertEquals("edited note", controller.state.detoursToday.single().description)
     }
 
     @Test

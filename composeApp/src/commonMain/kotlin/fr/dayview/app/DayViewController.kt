@@ -431,19 +431,29 @@ internal class DayViewController(
     }
 
     /** Quick capture: the episode ends now and starts [durationMinutes] earlier. */
-    fun addDetour(category: String, durationMinutes: Int) {
+    fun addDetour(
+        category: String,
+        durationMinutes: Int,
+        description: String = "",
+    ) {
         val clean = sanitizeDetourCategory(category)
         if (clean.isEmpty()) return
         val end = state.now
         // Keep the full declared span; only floor at the start of the local day so a very long
         // capture cannot cross into yesterday and break the day-scoped, time-only list display.
         val start = maxOf(end - durationMinutes.coerceIn(1, 12 * 60).minutes, startOfLocalDay(end))
-        commitDetours(state.detoursToday + DetourEpisode(start, end, clean), pushCategory = clean)
+        commitDetours(
+            state.detoursToday + DetourEpisode(start, end, clean, sanitizeDetourDescription(description)),
+            pushCategory = clean,
+        )
     }
 
     /** Retroactive add from the list editor; also feeds the suggestions. */
     fun addDetourEpisode(episode: DetourEpisode) {
-        val clean = episode.copy(category = sanitizeDetourCategory(episode.category))
+        val clean = episode.copy(
+            category = sanitizeDetourCategory(episode.category),
+            description = sanitizeDetourDescription(episode.description),
+        )
         if (clean.category.isEmpty() || clean.end <= clean.start) return
         commitDetours(state.detoursToday + clean, pushCategory = clean.category)
     }
@@ -455,7 +465,10 @@ internal class DayViewController(
     ) {
         val today = state.detoursToday
         if (index !in today.indices) return
-        val clean = episode.copy(category = sanitizeDetourCategory(episode.category))
+        val clean = episode.copy(
+            category = sanitizeDetourCategory(episode.category),
+            description = sanitizeDetourDescription(episode.description),
+        )
         if (clean.category.isEmpty() || clean.end <= clean.start) return
         commitDetours(today.toMutableList().also { it[index] = clean })
     }
@@ -499,13 +512,16 @@ internal class DayViewController(
     fun completePlannedObligation(
         originalObligation: String,
         detourCategory: String,
+        description: String,
         durationMinutes: Int,
         startMinutesOfDay: Int?,
     ) {
         if (startMinutesOfDay == null) {
-            addDetour(detourCategory, durationMinutes)
+            addDetour(detourCategory, durationMinutes, description)
         } else {
-            addDetourEpisode(detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourCategory))
+            addDetourEpisode(
+                detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourCategory, description),
+            )
         }
         removePlannedObligation(originalObligation)
     }
