@@ -675,6 +675,7 @@ internal fun DetourEditForm(
  * A stepper's value text that turns into a small text field on tap. Enter or
  * focus loss commits when [parse] accepts the draft; otherwise the previous
  * value is kept. While editing, an unparsable draft shows the error border.
+ * Closing the field without changing the seeded text does not commit at all.
  */
 @Composable
 internal fun EditableTimeValue(
@@ -707,10 +708,18 @@ internal fun EditableTimeValue(
     } else {
         val focusRequester = remember { FocusRequester() }
         var wasFocused by remember { mutableStateOf(false) }
+
+        // Text seeded when the field opened; resets whenever `editing` toggles because
+        // this whole branch is re-entered. Compared against below so an untouched draft
+        // (e.g. tap-to-open then blur) closes the field without firing onCommit.
+        val initialText = remember { draft.text }
         val isError = parse(draft.text) == null
+
+        // Also reached when a stepper (+/-) button is clicked while editing: its focus
+        // steal commits via the focus-loss handler below before the button's own onClick runs.
         fun commit() {
             if (!editing) return
-            parse(draft.text)?.let(onCommit)
+            if (draft.text != initialText) parse(draft.text)?.let(onCommit)
             editing = false
         }
         BasicTextField(

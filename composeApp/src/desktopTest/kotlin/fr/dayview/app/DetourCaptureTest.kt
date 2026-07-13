@@ -151,4 +151,26 @@ class DetourCaptureTest {
         // 9:07 + snaps up to 9:10, not 9:12.
         assertEquals(9 * 60 + 10, captured!!.third)
     }
+
+    @Test
+    fun openingTheStartFieldWithoutTypingDoesNotPinTheStart() = runComposeUiTest {
+        var captured: Triple<String, Int, Int?>? = null
+        setContent {
+            DetourCaptureContent(
+                recentMotifs = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { motif, duration, start -> captured = Triple(motif, duration, start) },
+                onForget = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourMotifField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performImeAction()
+        onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
+
+        // An untouched draft must not pin: the start stays "ends now".
+        assertNull(captured!!.third)
+    }
 }
