@@ -35,6 +35,7 @@ import fr.dayview.app.generated.resources.planned_obligation_done_button
 import fr.dayview.app.generated.resources.planned_obligation_motif_label
 import fr.dayview.app.generated.resources.planned_obligation_motif_placeholder
 import fr.dayview.app.generated.resources.planned_obligation_remove_label
+import fr.dayview.app.generated.resources.planned_obligations_cap_reached
 import fr.dayview.app.generated.resources.planned_obligations_chip
 import fr.dayview.app.generated.resources.planned_obligations_open_label
 import fr.dayview.app.generated.resources.planned_obligations_title
@@ -67,13 +68,14 @@ internal fun PlannedObligationsChip(
 @Composable
 internal fun PlannedObligationsDialog(
     obligations: List<String>,
+    slotsUsed: Int,
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        PlannedObligationsContent(obligations, onAdd, onComplete, onRemove, onDismiss)
+        PlannedObligationsContent(obligations, slotsUsed, onAdd, onComplete, onRemove, onDismiss)
     }
 }
 
@@ -84,6 +86,7 @@ internal fun PlannedObligationsDialog(
 @Composable
 internal fun PlannedObligationsContent(
     obligations: List<String>,
+    slotsUsed: Int = obligations.size,
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
@@ -91,7 +94,7 @@ internal fun PlannedObligationsContent(
 ) {
     val colors = LocalDayViewColors.current
     var draft by remember { mutableStateOf("") }
-    val atCap = obligations.size >= MAX_PLANNED_OBLIGATIONS
+    val atCap = slotsUsed >= MAX_PLANNED_OBLIGATIONS
     val removeLabel = stringResource(Res.string.planned_obligation_remove_label)
 
     Column(
@@ -159,6 +162,13 @@ internal fun PlannedObligationsContent(
                     },
                 )
             }
+        } else if (obligations.size < MAX_PLANNED_OBLIGATIONS) {
+            Text(
+                stringResource(Res.string.planned_obligations_cap_reached),
+                color = colors.muted,
+                fontSize = 11.sp,
+                modifier = Modifier.testTag(DayViewTestTags.PlannedObligationsCapHint),
+            )
         }
 
         FocusActionButton(

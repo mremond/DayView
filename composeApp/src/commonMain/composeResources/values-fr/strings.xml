@@ -286,6 +286,7 @@
     <string name="planned_obligations_chip">Obligations %1$d/%2$d</string>
     <string name="planned_obligations_open_label">Ouvrir les obligations du jour</string>
     <string name="planned_obligation_remove_label">Supprimer l\'obligation</string>
+    <string name="planned_obligations_cap_reached">Les 3 obligations du jour sont utilisées.</string>
 
     <!-- Settings — sync -->
     <string name="sync_settings_description">Gardez vos réglages et votre historique synchronisés entre Mac et Android.</string>

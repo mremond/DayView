@@ -26,6 +26,42 @@ class PlannedObligationsUiTest {
     }
 
     @Test
+    fun addFieldHiddenWhenSlotsSpentByCompletions() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("a"),
+                    slotsUsed = 3, // 1 active + 2 completed
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationInput).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.PlannedObligationsCapHint).assertExists()
+    }
+
+    @Test
+    fun addFieldVisibleBelowTheCap() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("a"),
+                    slotsUsed = 1,
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationInput).assertExists()
+        onNodeWithTag(DayViewTestTags.PlannedObligationsCapHint).assertDoesNotExist()
+    }
+
+    @Test
     fun doneReportsTheRowMotif() = runComposeUiTest {
         var completed: String? = null
         setContent {

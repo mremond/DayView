@@ -290,7 +290,7 @@ internal fun DayViewScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                         PlannedObligationsChip(
-                            count = state.plannedObligationsToday.size,
+                            count = state.plannedObligationSlotsUsed,
                             cap = MAX_PLANNED_OBLIGATIONS,
                             onOpen = { showObligations = true },
                         )
@@ -353,7 +353,7 @@ internal fun DayViewScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 PlannedObligationsChip(
-                    count = state.plannedObligationsToday.size,
+                    count = state.plannedObligationSlotsUsed,
                     cap = MAX_PLANNED_OBLIGATIONS,
                     onOpen = { showObligations = true },
                 )
@@ -411,6 +411,7 @@ internal fun DayViewScreen(
         if (showObligations) {
             PlannedObligationsDialog(
                 obligations = state.plannedObligationsToday,
+                slotsUsed = state.plannedObligationSlotsUsed,
                 onAdd = actions.addPlannedObligation,
                 onComplete = {
                     obligationToComplete = it
