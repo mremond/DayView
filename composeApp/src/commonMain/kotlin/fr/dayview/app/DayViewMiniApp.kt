@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
@@ -175,6 +177,8 @@ private fun MiniGoal(
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.2.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(3.dp))
             Text(
@@ -183,6 +187,7 @@ private fun MiniGoal(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         remaining?.let {
@@ -209,6 +214,8 @@ private fun MiniFocusStart(onClick: () -> Unit) {
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.1.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
         Spacer(Modifier.width(12.dp))
@@ -226,49 +233,63 @@ private fun MiniFocus(
 ) {
     val colors = LocalDayViewColors.current
     val isBreak = progress.status == PomodoroStatus.BREAK
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
-            .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
-            .padding(horizontal = 14.dp, vertical = 11.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+    BoxWithConstraints {
+        // On a narrow card the fixed clock and buttons would starve the label
+        // column; shrink them so the label keeps readable width.
+        val compact = maxWidth < 250.dp
+        val gap = if (compact) 8.dp else 12.dp
+        val buttonSize = if (compact) 32.dp else 40.dp
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
+                .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
+                .padding(horizontal = if (compact) 12.dp else 14.dp, vertical = 11.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
+                        color = if (isBreak) colors.mint else colors.amber,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.1.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        intention.ifBlank { stringResource(Res.string.mini_focus_single_thing) },
+                        color = colors.cloud,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(Modifier.width(gap))
                 Text(
-                    if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
-                    color = if (isBreak) colors.mint else colors.amber,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.1.sp,
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    intention.ifBlank { stringResource(Res.string.mini_focus_single_thing) },
+                    if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
                     color = colors.cloud,
-                    fontSize = 12.sp,
-                    maxLines = 1,
+                    fontSize = if (compact) 18.sp else 24.sp,
+                    fontWeight = FontWeight.Light,
                 )
+                Spacer(Modifier.width(gap))
+                if (isBreak) {
+                    FocusRelaunchRoundButton(
+                        onRelaunch,
+                        Modifier.testTag(DayViewTestTags.MiniFocusRelaunch),
+                        size = buttonSize,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                FocusStopRoundButton(onStop, size = buttonSize)
             }
-            Spacer(Modifier.width(12.dp))
-            Text(
-                if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
-                color = colors.cloud,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Light,
-            )
-            Spacer(Modifier.width(12.dp))
             if (isBreak) {
-                FocusRelaunchRoundButton(onRelaunch, Modifier.testTag(DayViewTestTags.MiniFocusRelaunch))
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.height(11.dp))
+                FocusClosureSection(onClose)
             }
-            FocusStopRoundButton(onStop)
-        }
-        if (isBreak) {
-            Spacer(Modifier.height(11.dp))
-            FocusClosureSection(onClose)
         }
     }
 }

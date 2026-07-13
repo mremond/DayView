@@ -16,6 +16,10 @@ class CountdownScalingTest {
     fun counterScaleTracksRingWithinBounds() {
         // Small ring floors at .72; matches today's compact/mini behaviour.
         assertEquals(0.72f, countdownCounterScale(200.dp))
+        // On a tiny dial (mini window resized down) the floor relaxes so the
+        // numerals never outgrow the ring: they track circleSize/200 instead.
+        assertEquals(0.5f, countdownCounterScale(100.dp))
+        assertEquals(0.25f, countdownCounterScale(50.dp))
         // At the reference 380.dp the scale is exactly 1.0.
         assertEquals(1.0f, countdownCounterScale(380.dp))
         // A large ring lifts the numerals above 1.0, capped at 1.4.

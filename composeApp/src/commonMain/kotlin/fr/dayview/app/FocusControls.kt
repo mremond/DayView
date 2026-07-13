@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
@@ -36,10 +37,14 @@ import org.jetbrains.compose.resources.stringResource
  * sequence without going through the closure ritual.
  */
 @Composable
-internal fun FocusRelaunchRoundButton(onRelaunch: () -> Unit, modifier: Modifier = Modifier) {
+internal fun FocusRelaunchRoundButton(
+    onRelaunch: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+) {
     val colors = LocalDayViewColors.current
     Box(
-        modifier = modifier.size(40.dp)
+        modifier = modifier.size(size)
             .background(colors.overlay.copy(alpha = .08f), CircleShape)
             .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.focus_relaunch_label), onClick = onRelaunch),
         contentAlignment = Alignment.Center,
@@ -47,7 +52,7 @@ internal fun FocusRelaunchRoundButton(onRelaunch: () -> Unit, modifier: Modifier
         Text(
             "»",
             color = colors.mint,
-            fontSize = 20.sp,
+            fontSize = (size.value / 2).sp,
             fontWeight = FontWeight.Medium,
         )
     }
@@ -96,16 +101,20 @@ internal fun FocusClosureSection(onClose: (FocusClosureOutcome) -> Unit) {
 }
 
 @Composable
-internal fun FocusStopRoundButton(onStop: () -> Unit, modifier: Modifier = Modifier) {
+internal fun FocusStopRoundButton(
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+) {
     val colors = LocalDayViewColors.current
     Box(
-        modifier = modifier.size(40.dp)
+        modifier = modifier.size(size)
             .background(colors.overlay.copy(alpha = .08f), CircleShape)
             .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.focus_stop_label), onClick = onStop),
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            modifier = Modifier.size(12.dp)
+            modifier = Modifier.size(size * 0.3f)
                 .background(colors.red.copy(alpha = .85f), RoundedCornerShape(2.dp)),
         )
     }
