@@ -97,6 +97,7 @@ kotlin {
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.datastore.preferences)
                 implementation(libs.ktor.client.okhttp)
+                implementation(libs.androidx.security.crypto)
             }
         }
         val androidUnitTest by getting {

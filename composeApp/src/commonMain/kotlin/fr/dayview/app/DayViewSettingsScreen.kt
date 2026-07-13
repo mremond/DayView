@@ -37,6 +37,7 @@ import fr.dayview.app.generated.resources.settings_section_display
 import fr.dayview.app.generated.resources.settings_section_net_time
 import fr.dayview.app.generated.resources.settings_section_on_goal
 import fr.dayview.app.generated.resources.settings_section_sounds
+import fr.dayview.app.generated.resources.settings_section_sync
 import fr.dayview.app.generated.resources.settings_show_seconds_description
 import fr.dayview.app.generated.resources.settings_sounds_description
 import fr.dayview.app.generated.resources.settings_summary_apps
@@ -47,7 +48,9 @@ import fr.dayview.app.generated.resources.settings_summary_on
 import fr.dayview.app.generated.resources.settings_summary_seconds_off
 import fr.dayview.app.generated.resources.settings_summary_seconds_on
 import fr.dayview.app.generated.resources.settings_summary_sounds_on
+import fr.dayview.app.generated.resources.settings_summary_sync
 import fr.dayview.app.generated.resources.settings_title
+import fr.dayview.app.generated.resources.sync_settings_description
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -150,6 +153,16 @@ private fun SettingsCategoryDetail(
             runningApps = platformState.runningApps,
             onOnGoalAppsChange = actions.changeOnGoalApps,
         )
+        SettingsCategory.SYNC -> SyncSettingsScreen(
+            config = platformState.syncConfig,
+            status = platformState.syncStatus,
+            hasKey = platformState.syncHasKey,
+            onConfigChange = actions.changeSyncConfig,
+            onGenerateKey = actions.generateSyncKey,
+            onPasteKey = actions.pasteSyncKey,
+            onSyncNow = actions.syncNow,
+            onClear = actions.clearSyncKey,
+        )
     }
 }
 
@@ -188,6 +201,7 @@ private fun categoryTitle(category: SettingsCategory): String = stringResource(
         SettingsCategory.SOUNDS -> Res.string.settings_section_sounds
         SettingsCategory.NET_TIME -> Res.string.settings_section_net_time
         SettingsCategory.ON_GOAL -> Res.string.settings_section_on_goal
+        SettingsCategory.SYNC -> Res.string.settings_section_sync
     },
 )
 
@@ -199,6 +213,7 @@ private fun categoryDescription(category: SettingsCategory): String = stringReso
         SettingsCategory.SOUNDS -> Res.string.settings_sounds_description
         SettingsCategory.NET_TIME -> Res.string.settings_net_time_description
         SettingsCategory.ON_GOAL -> Res.string.settings_on_goal_description
+        SettingsCategory.SYNC -> Res.string.sync_settings_description
     },
 )
 
@@ -238,5 +253,11 @@ private fun categorySummary(
             stringResource(Res.string.settings_summary_no_apps)
         } else {
             stringResource(Res.string.settings_summary_apps, state.onGoalApps.size.toString())
+        }
+    SettingsCategory.SYNC ->
+        if (platformState.syncHasKey && platformState.syncConfig != null) {
+            stringResource(Res.string.settings_summary_on)
+        } else {
+            stringResource(Res.string.settings_summary_sync)
         }
 }

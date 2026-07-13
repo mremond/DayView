@@ -13,6 +13,7 @@ import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import dev.whyoleg.cryptography.random.CryptographyRandom
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dayview_tray
 import fr.dayview.app.generated.resources.dayview_tray_monochrome
@@ -31,6 +32,15 @@ import fr.dayview.app.generated.resources.desktop_quit_dayview
 import fr.dayview.app.generated.resources.desktop_show_mini_window
 import fr.dayview.app.generated.resources.desktop_today_remaining
 import fr.dayview.app.generated.resources.focus_single_thing
+import fr.dayview.app.sync.Aes256GcmCodec
+import fr.dayview.app.sync.FileSyncStatePersistence
+import fr.dayview.app.sync.HttpSyncTransport
+import fr.dayview.app.sync.SyncCoordinator
+import fr.dayview.app.sync.createSyncHttpClient
+import fr.dayview.app.sync.desktopSecureKeyStore
+import fr.dayview.app.sync.deviceIdOrCreate
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -40,6 +50,7 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import java.io.File
 import kotlin.math.ceil
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -58,10 +69,33 @@ fun main() {
     runApplication()
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 private fun runApplication() = application {
     val preferences = remember { desktopDayPreferences() }
     val history = remember { createDayHistoryStore() }
     val scope = rememberCoroutineScope()
+    val syncKeyStore = remember { desktopSecureKeyStore() }
+    val syncCoordinator = remember {
+        val stateFile = File(System.getProperty("user.home"), ".dayview/sync-state.json")
+        val statePersistence = FileSyncStatePersistence(
+            read = { stateFile.takeIf { it.exists() }?.readText() },
+            write = {
+                stateFile.parentFile?.mkdirs()
+                stateFile.writeText(it)
+            },
+        )
+        val deviceId = syncKeyStore.deviceIdOrCreate { CryptographyRandom.nextBytes(16).toHexString() }
+        SyncCoordinator(
+            deviceId = deviceId,
+            keyStore = syncKeyStore,
+            statePersistence = statePersistence,
+            preferences = preferences,
+            transportFactory = { HttpSyncTransport(createSyncHttpClient(), it.baseUrl, it.userId, it.token) },
+            codecFactory = { Aes256GcmCodec(it) },
+            scope = CoroutineScope(Dispatchers.Default),
+            now = { Clock.System.now().toEpochMilliseconds() },
+        )
+    }
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
     val dockBadge = remember { MacDockBadge() }
@@ -322,6 +356,8 @@ private fun runApplication() = application {
                 runningApps = { runningApplicationsProvider.runningApps() },
                 focusPresenceIntervals = focusPresenceIntervals,
                 sessionOffGoal = sessionOffGoal,
+                secureKeyStore = syncKeyStore,
+                syncCoordinator = syncCoordinator,
             )
         }
     }

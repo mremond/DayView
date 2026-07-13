@@ -19,7 +19,6 @@ class SyncEngine(
 ) {
     suspend fun sync(local: DayPreferencesSnapshot, state: SyncState, now: Long): SyncResult {
         val localDoc = buildDocument(local, state.baseDocument, deviceId, now)
-        var expected = state.baseRevision
         try {
             repeat(maxRetries) {
                 val remote = transport.pull()
@@ -33,13 +32,13 @@ class SyncEngine(
                 val merged = localDoc.merge(remoteDoc)
                 if (remoteDoc != null && merged == remoteDoc) return SyncResult.UpToDate
                 val payload = codec.encrypt(merged.encodeToString())
-                when (val outcome = transport.push(payload, remote?.revision ?: expected)) {
+                when (val outcome = transport.push(payload, remote?.revision)) {
                     is PushOutcome.Applied ->
                         return SyncResult.Applied(
                             snapshot = applyDocument(merged, local),
                             state = SyncState(outcome.revision, merged),
                         )
-                    is PushOutcome.Rejected -> expected = outcome.current.revision
+                    is PushOutcome.Rejected -> Unit
                 }
             }
         } catch (e: SyncKeyMismatchException) {

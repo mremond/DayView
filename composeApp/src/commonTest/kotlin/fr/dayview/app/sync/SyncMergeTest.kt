@@ -1,7 +1,9 @@
 package fr.dayview.app.sync
 
+import fr.dayview.app.MAX_RECENT_DETOUR_CATEGORIES
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class SyncMergeTest {
     @Test
@@ -66,5 +68,32 @@ class SyncMergeTest {
         val b = sampleDocument(deviceId = "b", at = 200)
         val once = a.merge(b)
         assertEquals(once, once.merge(b))
+    }
+
+    // Simulates SyncEngine's real loop: each round a device builds a local doc with a fresh,
+    // disjoint set of recent motifs, merges it against the accumulated base, then the merged
+    // result is fed back in as the next base (mirroring SyncEngine persisting `merged` as
+    // state.baseDocument). buildDocument's own bound only ever sees the pre-merge local doc, so
+    // without a bound applied to the merge output itself, mergeItems' plain per-id union
+    // re-admits every tombstone either side had already dropped and the base grows without
+    // bound. This test fails (accumulated size far exceeds 2 * MAX_RECENT_DETOUR_CATEGORIES) if the
+    // merge-level bound in SyncDocument.merge is reverted, confirmed by temporarily reverting the
+    // `boundRecentMotifItems(...)` wrapper around `mergeItems(...)` there.
+    @Test
+    fun mergeKeepsRecentMotifsBoundedAcrossLoop() {
+        var base: SyncDocument? = null
+        repeat(30) { round ->
+            val motifs = (0 until MAX_RECENT_DETOUR_CATEGORIES).map {
+                SyncItem("round$round-m$it", "round$round-m$it", false, Stamp((round + 1).toLong() * 1000, "dev"))
+            }
+            val local = sampleDocument(deviceId = "dev", at = (round + 1).toLong() * 1000)
+                .copy(recentDetourMotifs = motifs)
+            val merged = local.merge(base)
+            assertTrue(
+                merged.recentDetourMotifs.size <= 2 * MAX_RECENT_DETOUR_CATEGORIES,
+                "round $round: recentDetourMotifs grew to ${merged.recentDetourMotifs.size}",
+            )
+            base = merged
+        }
     }
 }

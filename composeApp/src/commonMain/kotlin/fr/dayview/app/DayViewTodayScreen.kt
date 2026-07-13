@@ -82,6 +82,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -1960,6 +1961,7 @@ internal fun GoalTextField(
     isError: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Done,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     onFocusLost: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -1977,6 +1979,7 @@ internal fun GoalTextField(
         ),
         textStyle = TextStyle(color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium),
         cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
+        visualTransformation = visualTransformation,
         modifier = modifier.fillMaxWidth()
             .onFocusChanged { focusState ->
                 if (wasFocused && !focusState.isFocused) onFocusLost()

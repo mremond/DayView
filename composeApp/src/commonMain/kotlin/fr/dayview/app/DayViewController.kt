@@ -44,6 +44,7 @@ internal enum class SettingsCategory {
     SOUNDS,
     NET_TIME,
     ON_GOAL,
+    SYNC,
 }
 
 internal data class DayViewUiState(
@@ -177,6 +178,7 @@ internal class DayViewController(
     initialNow: Instant = Clock.System.now(),
     private val history: DayHistoryStore = InMemoryDayHistoryStore(),
     initialFocusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
+    private val onLocalWrite: () -> Unit = {},
 ) {
     // Focus presence is desktop-only and persisted outside the shared snapshot
     // (DesktopPreferences.loadFocusPresence). Seed it into the initial state so the
@@ -204,6 +206,7 @@ internal class DayViewController(
                 selfWritesInFlight--
             }
         }
+        onLocalWrite()
     }
 
     init {

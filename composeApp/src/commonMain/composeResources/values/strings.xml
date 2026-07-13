@@ -202,6 +202,9 @@
     <string name="volume_increase">Increase the volume by 10%</string>
     <string name="sound_preview">PREVIEW</string>
 
+    <!-- Settings — sync -->
+    <string name="settings_section_sync">SYNC</string>
+
     <!-- Settings — category list summaries -->
     <string name="settings_summary_day">%1$s – %2$s</string>
     <string name="settings_summary_on">On</string>
@@ -211,6 +214,7 @@
     <string name="settings_summary_sounds_on">On · every %1$s min</string>
     <string name="settings_summary_apps">%1$s apps</string>
     <string name="settings_summary_no_apps">None selected</string>
+    <string name="settings_summary_sync">Not set up</string>
 
     <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
          macOS focus-nudge notification (used from desktopMain). -->
@@ -283,4 +287,29 @@
     <string name="planned_obligations_chip">Obligations %1$d/%2$d</string>
     <string name="planned_obligations_open_label">Open today\'s obligations</string>
     <string name="planned_obligation_remove_label">Remove obligation</string>
+
+    <!-- Settings — sync -->
+    <string name="sync_settings_description">Keep your settings and history in step between Mac and Android.</string>
+    <string name="sync_settings_url_label">SERVER URL</string>
+    <string name="sync_settings_url_placeholder">https://sync.example.com</string>
+    <string name="sync_settings_user_label">USER ID</string>
+    <string name="sync_settings_user_placeholder">you@example.com</string>
+    <string name="sync_settings_token_label">ACCESS TOKEN</string>
+    <string name="sync_settings_token_placeholder">Paste your access token</string>
+    <string name="sync_settings_key_section">ENCRYPTION KEY</string>
+    <string name="sync_settings_key_description">Encrypts your data before it leaves this device. Generate it once, then copy it to your other device.</string>
+    <string name="sync_settings_key_present">A key is stored on this device.</string>
+    <string name="sync_settings_key_missing">No key stored yet.</string>
+    <string name="sync_settings_generate_key">GENERATE KEY</string>
+    <string name="sync_settings_generated_key_prompt">Copy this key to your other device, then paste it there:</string>
+    <string name="sync_settings_paste_key_label">PASTE KEY</string>
+    <string name="sync_settings_paste_key_placeholder">Paste a key from another device</string>
+    <string name="sync_settings_sync_now">SYNC NOW</string>
+    <string name="sync_settings_clear">CLEAR</string>
+    <string name="sync_status_idle">Idle.</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_status_ok">Up to date.</string>
+    <string name="sync_status_key_error">Key error — check the key on both devices.</string>
+    <string name="sync_status_failed">Sync failed.</string>
+    <string name="sync_status_not_configured">Not configured yet.</string>
 </resources>

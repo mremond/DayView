@@ -201,6 +201,9 @@
     <string name="volume_increase">Augmenter le volume de 10 %</string>
     <string name="sound_preview">ÉCOUTER</string>
 
+    <!-- Settings — sync -->
+    <string name="settings_section_sync">SYNC</string>
+
     <!-- Settings — category list summaries -->
     <string name="settings_summary_day">%1$s – %2$s</string>
     <string name="settings_summary_on">Activé</string>
@@ -210,6 +213,7 @@
     <string name="settings_summary_sounds_on">Activé · toutes les %1$s min</string>
     <string name="settings_summary_apps">%1$s applis</string>
     <string name="settings_summary_no_apps">Aucune</string>
+    <string name="settings_summary_sync">Non configuré</string>
 
     <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
          macOS focus-nudge notification (used from desktopMain). -->
@@ -282,4 +286,29 @@
     <string name="planned_obligations_chip">Obligations %1$d/%2$d</string>
     <string name="planned_obligations_open_label">Ouvrir les obligations du jour</string>
     <string name="planned_obligation_remove_label">Supprimer l\'obligation</string>
+
+    <!-- Settings — sync -->
+    <string name="sync_settings_description">Gardez vos réglages et votre historique synchronisés entre Mac et Android.</string>
+    <string name="sync_settings_url_label">URL DU SERVEUR</string>
+    <string name="sync_settings_url_placeholder">https://sync.exemple.com</string>
+    <string name="sync_settings_user_label">IDENTIFIANT</string>
+    <string name="sync_settings_user_placeholder">vous@exemple.com</string>
+    <string name="sync_settings_token_label">JETON D’ACCÈS</string>
+    <string name="sync_settings_token_placeholder">Collez votre jeton d’accès</string>
+    <string name="sync_settings_key_section">CLÉ DE CHIFFREMENT</string>
+    <string name="sync_settings_key_description">Chiffre vos données avant qu’elles ne quittent cet appareil. Générez-la une fois, puis copiez-la sur votre autre appareil.</string>
+    <string name="sync_settings_key_present">Une clé est enregistrée sur cet appareil.</string>
+    <string name="sync_settings_key_missing">Aucune clé enregistrée pour l’instant.</string>
+    <string name="sync_settings_generate_key">GÉNÉRER UNE CLÉ</string>
+    <string name="sync_settings_generated_key_prompt">Copiez cette clé sur votre autre appareil, puis collez-la là-bas :</string>
+    <string name="sync_settings_paste_key_label">COLLER LA CLÉ</string>
+    <string name="sync_settings_paste_key_placeholder">Collez une clé provenant d’un autre appareil</string>
+    <string name="sync_settings_sync_now">SYNCHRONISER</string>
+    <string name="sync_settings_clear">EFFACER</string>
+    <string name="sync_status_idle">Inactif.</string>
+    <string name="sync_status_syncing">Synchronisation…</string>
+    <string name="sync_status_ok">À jour.</string>
+    <string name="sync_status_key_error">Erreur de clé — vérifiez la clé sur les deux appareils.</string>
+    <string name="sync_status_failed">Échec de la synchronisation.</string>
+    <string name="sync_status_not_configured">Pas encore configuré.</string>
 </resources>
