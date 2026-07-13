@@ -10,13 +10,20 @@ import kotlin.test.assertTrue
 private class FakeTransport(
     var remote: RemoteSnapshot?,
     private val rejectFirst: Boolean = false,
+    /** Newer remote document installed by the "concurrent writer" that causes the first push to be rejected. */
+    private val rejectWithRemote: RemoteSnapshot? = null,
 ) : SyncTransport {
     var pushes = 0
     override suspend fun pull() = remote
     override suspend fun push(payload: String, expectedRevision: String?): PushOutcome {
         pushes++
-        // Simulates a concurrent writer beating this device to the first revision.
-        if (rejectFirst && pushes == 1) return PushOutcome.Rejected(remote ?: RemoteSnapshot(payload, "r1"))
+        // Simulates a concurrent writer beating this device to the first revision, publishing
+        // a newer remote document that the engine must pull and merge against on retry.
+        if (rejectFirst && pushes == 1) {
+            val rejected = rejectWithRemote ?: remote ?: RemoteSnapshot(payload, "r1")
+            remote = rejected
+            return PushOutcome.Rejected(rejected)
+        }
         remote = RemoteSnapshot(payload, "r${pushes + 1}")
         return PushOutcome.Applied("r${pushes + 1}")
     }
@@ -48,11 +55,23 @@ class SyncEngineTest {
 
     @Test
     fun rejectedPushRetriesAgainstNewerRemote() = runTest {
-        val transport = FakeTransport(remote = null, rejectFirst = true)
+        // A conflicting remote document, stamped older than `now` everywhere except for a single
+        // field carrying a distinctive value stamped strictly newer, so it alone must win the merge.
+        val newerRemoteDoc = sampleDocument(deviceId = "other", at = 50).copy(
+            focusIntention = Versioned("remote-wins", Stamp(at = 500, by = "remote")),
+        )
+        val rejectingRemote = RemoteSnapshot(newerRemoteDoc.encodeToString(), "r-conflict")
+        val transport = FakeTransport(remote = null, rejectFirst = true, rejectWithRemote = rejectingRemote)
         val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
+
         val result = engine.sync(local, SyncState(null, null), now = 100)
+
         assertIs<SyncResult.Applied>(result)
         assertTrue(transport.pushes >= 2)
+        // Proves the retry actually pulled and merged against the newer remote document, not the
+        // stale one seen before the rejection.
+        assertEquals("remote-wins", result.snapshot.focusIntention)
+        assertEquals("remote-wins", result.state.baseDocument?.focusIntention?.value)
     }
 
     @Test
