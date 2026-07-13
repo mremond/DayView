@@ -12,7 +12,7 @@ import kotlin.time.Instant
  * day-scoped fields of [DayViewUiState]; the ring is re-derived from these via the same
  * projection used live, so history renders identically without duplicated drawing logic.
  */
-internal data class DayHistoryRecord(
+data class DayHistoryRecord(
     val dayKey: Long,
     val startMinutes: Int,
     val endMinutes: Int,
@@ -48,7 +48,7 @@ private fun DayHistoryRecord.frozenNow(timeZone: TimeZone): Instant = instantAtM
  * precision (deterministic). Only day-scoped fields are meaningful; everything else takes
  * its default.
  */
-internal fun DayHistoryRecord.toFrozenUiState(
+fun DayHistoryRecord.toFrozenUiState(
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): DayViewUiState = DayViewUiState(
     now = frozenNow(timeZone),
