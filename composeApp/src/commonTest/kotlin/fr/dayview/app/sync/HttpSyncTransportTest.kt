@@ -72,4 +72,36 @@ class HttpSyncTransportTest {
         assertTrue(outcome is PushOutcome.Rejected)
         assertEquals(RemoteSnapshot("newer", "r9"), (outcome as PushOutcome.Rejected).current)
     }
+
+    @Test
+    fun pushWithNullRevisionSendsIfNoneMatch() = runTest {
+        val t = transport(
+            MockEngine { request ->
+                assertEquals("*", request.headers[HttpHeaders.IfNoneMatch])
+                assertNull(request.headers[HttpHeaders.IfMatch])
+                respond(
+                    """{"revision":"r1"}""",
+                    HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+        )
+        assertEquals(PushOutcome.Applied("r1"), t.push("blob", expectedRevision = null))
+    }
+
+    @Test
+    fun pushWithRevisionSendsIfMatch() = runTest {
+        val t = transport(
+            MockEngine { request ->
+                assertEquals("r7", request.headers[HttpHeaders.IfMatch])
+                assertNull(request.headers[HttpHeaders.IfNoneMatch])
+                respond(
+                    """{"revision":"r8"}""",
+                    HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+        )
+        assertEquals(PushOutcome.Applied("r8"), t.push("blob", expectedRevision = "r7"))
+    }
 }
