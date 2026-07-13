@@ -30,9 +30,9 @@ binary, but TCC keys on the *responsible* one.
 Two launch contexts have two responsible processes:
 
 - **Packaged `/Applications/DayView.app`** → responsible = the app bundle (`fr.dayview.app`).
-- **`./gradlew :composeApp:run`** → responsible = whatever launched the JVM (terminal app
-  or `java`). **Pending confirmation** from the dev-mode Allow dialog name before Fix B is
-  finalised.
+- **`./gradlew :composeApp:run`** → responsible = **Terminal** (confirmed via System
+  Settings → Calendars). Terminal is a stable identity, so this grant already persists
+  across rebuilds — see Fix B (dropped).
 
 ## Fix A — sign the app bundle with a stable Developer ID identity (packaged app)
 
@@ -100,21 +100,24 @@ Notarization. TCC persistence on the developer's own machine needs only a stable
 ID signature; notarization is a Gatekeeper concern for distribution to *other* machines and
 is deferred.
 
-## Fix B — disclaim responsibility for the helper (dev `gradlew run`), CONDITIONAL
+## Fix B — disclaim responsibility for the helper (dev `gradlew run`) — DROPPED
 
-Intent: spawn the helper with `POSIX_SPAWN_SETDISCLAIM` (via `responsibility_spawnattrs_setdisclaim`)
-so the helper becomes its **own** responsible process, keyed to its stable Developer ID
-identity — fixing the dev loop and hardening the packaged app uniformly. JNA is already a
-desktop dependency, so the private libSystem call is reachable without new dependencies.
+Original intent: spawn the helper with `POSIX_SPAWN_SETDISCLAIM` so it becomes its own
+responsible process, keyed to its stable Developer ID identity, to fix a presumed dev-loop
+re-prompt.
 
-**Gate:** finalise B only after reading the dev-mode Allow dialog name:
+**Dropped after gathering the gate evidence.** Under `./gradlew :composeApp:run` the
+responsible process is **Terminal**, a stable identity. Evidence: System Settings →
+Privacy & Security → Calendars listed **Terminal** (initially with "add only" access, which
+is why clicking the grant button produced no prompt yet showed no events — add-only cannot
+read). Because Terminal's identity does not change across rebuilds, the dev grant already
+persists; the only real issue was the access *level*, resolved by granting Terminal full
+access. The dev loop was therefore never the re-prompt source — the ad-hoc-signed installed
+bundle (Fix A) was.
 
-- Dialog names the **terminal app** (stable identity) → the dev grant may already persist;
-  B may be unnecessary or only prevents polluting the terminal's grant. Re-evaluate scope.
-- Dialog names something **unstable** → B as above is the fix.
-
-The `posix_spawn` rework (manual stdin/stdout pipe wiring to preserve the line-based
-protocol) is non-trivial and will not be written until the gate evidence is in.
+Trade-off accepted: the dev grant is tied to Terminal, so it is shared with anything else
+launched from Terminal and a different launcher would prompt once. Acceptable for a dev
+loop; not worth the fragile `posix_spawn` rewrite (YAGNI).
 
 ## Verification
 
@@ -127,7 +130,7 @@ protocol) is non-trivial and will not be written until the gate evidence is in.
      Application: ProcessOne`, `flags=0x10000(runtime)`, `TeamIdentifier=8L55BDM864`.
   4. Grant calendar access once; confirm busy time renders.
   5. Repackage + reinstall; relaunch; confirm calendar reads **without** a new prompt.
-- Fix B acceptance: same grant-once → rebuild → relaunch loop under `./gradlew :composeApp:run`.
+- Fix B: dropped (dev grant persists via Terminal's stable identity; see Fix B section).
 
 ## Out of scope
 
