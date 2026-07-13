@@ -19,6 +19,17 @@ interface CalendarSource {
         windowEnd: Instant,
         includedCalendarIds: Set<String>,
     ): List<BusyInterval>
+
+    /**
+     * S'abonne aux changements externes de l'agenda : [onChange] est appelé quand le fournisseur
+     * de calendrier signale une modification, pour déclencher une relecture sans attendre le tick
+     * de minute ni un retour au premier plan. Renvoie une poignée dont [AutoCloseable.close]
+     * arrête l'observation. Par défaut, sans effet (sources incapables de pousser un changement :
+     * EventKit desktop, [NoopCalendarSource]) ; Android enregistre un ContentObserver.
+     */
+    fun observeChanges(onChange: () -> Unit): AutoCloseable = object : AutoCloseable {
+        override fun close() {}
+    }
 }
 
 object NoopCalendarSource : CalendarSource {

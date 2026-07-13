@@ -97,6 +97,7 @@ internal fun DayViewApp(
                     val calendarSource = remember { createCalendarSource() }
                     val calendarScope = rememberCoroutineScope()
                     var calendarPermissionProbe by remember { mutableIntStateOf(0) }
+                    var calendarChangeProbe by remember { mutableIntStateOf(0) }
 
                     LaunchedEffect(preferences) {
                         preferences.snapshots.collect { controller.onPreferencesChanged(it) }
@@ -117,6 +118,7 @@ internal fun DayViewApp(
                         state.startMinutes,
                         state.endMinutes,
                         calendarPermissionProbe,
+                        calendarChangeProbe,
                     ) {
                         val (permission, busy, calendars) = withContext(Dispatchers.Default) {
                             if (!state.netTimeSettings.enabled) {
@@ -137,6 +139,19 @@ internal fun DayViewApp(
                             }
                         }
                         controller.updateNetTimeData(permission, busy, calendars)
+                    }
+
+                    // Watch the calendar provider so external edits (a new event, a moved
+                    // meeting) refresh the busy layer promptly while the app is foregrounded,
+                    // instead of waiting for the next minute tick or a resume. No-op on
+                    // platforms whose source cannot push changes (desktop, Noop).
+                    DisposableEffect(calendarSource, state.netTimeSettings.enabled) {
+                        val handle = if (state.netTimeSettings.enabled) {
+                            runCatching { calendarSource.observeChanges { calendarChangeProbe++ } }.getOrNull()
+                        } else {
+                            null
+                        }
+                        onDispose { handle?.let { runCatching { it.close() } } }
                     }
 
                     val onRequestCalendarAccess: () -> Unit = {
