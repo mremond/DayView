@@ -26,18 +26,20 @@ import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.sync_settings_clear
 import fr.dayview.app.generated.resources.sync_settings_description
 import fr.dayview.app.generated.resources.sync_settings_generate_key
-import fr.dayview.app.generated.resources.sync_settings_generated_key_prompt
+import fr.dayview.app.generated.resources.sync_settings_generated_phrase_prompt
 import fr.dayview.app.generated.resources.sync_settings_key_description
 import fr.dayview.app.generated.resources.sync_settings_key_missing
 import fr.dayview.app.generated.resources.sync_settings_key_present
 import fr.dayview.app.generated.resources.sync_settings_key_section
-import fr.dayview.app.generated.resources.sync_settings_paste_key_label
-import fr.dayview.app.generated.resources.sync_settings_paste_key_placeholder
+import fr.dayview.app.generated.resources.sync_settings_phrase_invalid
+import fr.dayview.app.generated.resources.sync_settings_phrase_label
+import fr.dayview.app.generated.resources.sync_settings_phrase_placeholder
 import fr.dayview.app.generated.resources.sync_settings_sync_now
 import fr.dayview.app.generated.resources.sync_settings_token_label
 import fr.dayview.app.generated.resources.sync_settings_token_placeholder
 import fr.dayview.app.generated.resources.sync_settings_url_label
 import fr.dayview.app.generated.resources.sync_settings_url_placeholder
+import fr.dayview.app.generated.resources.sync_settings_use_phrase
 import fr.dayview.app.generated.resources.sync_settings_user_label
 import fr.dayview.app.generated.resources.sync_settings_user_placeholder
 import fr.dayview.app.generated.resources.sync_status_failed
@@ -62,7 +64,7 @@ internal fun SyncSettingsScreen(
     hasKey: Boolean,
     onConfigChange: (SyncConfig) -> Unit,
     onGenerateKey: () -> String,
-    onPasteKey: (String) -> Unit,
+    onPasteKey: (String) -> Boolean,
     onSyncNow: () -> Unit,
     onClear: () -> Unit,
 ) {
@@ -70,6 +72,7 @@ internal fun SyncSettingsScreen(
     val effectiveConfig = config ?: SyncConfig(baseUrl = "", userId = "", token = "")
     var generatedKey by remember { mutableStateOf<String?>(null) }
     var pasteKeyDraft by remember { mutableStateOf("") }
+    var phraseError by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SyncSettingsScreen)) {
         Text(
@@ -132,38 +135,55 @@ internal fun SyncSettingsScreen(
                 onClick = { generatedKey = onGenerateKey() },
                 modifier = Modifier.testTag(DayViewTestTags.SyncSettingsGenerateKey),
             )
-            generatedKey?.let { key ->
+            generatedKey?.let { phrase ->
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    stringResource(Res.string.sync_settings_generated_key_prompt),
+                    stringResource(Res.string.sync_settings_generated_phrase_prompt),
                     color = colors.muted,
                     fontSize = 11.sp,
                 )
                 Spacer(Modifier.height(4.dp))
                 SelectionContainer {
                     Text(
-                        key,
+                        phrase.split(Regex("\\s+")).filter { it.isNotBlank() }
+                            .mapIndexed { i, word -> "${i + 1}. $word" }
+                            .joinToString("   "),
                         color = colors.cloud,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.testTag(DayViewTestTags.SyncSettingsGeneratedKey),
+                        modifier = Modifier.testTag(DayViewTestTags.SyncSettingsGeneratedPhrase),
                     )
                 }
             }
             Spacer(Modifier.height(14.dp))
             SettingsDivider()
             Spacer(Modifier.height(14.dp))
-            SyncFieldLabel(stringResource(Res.string.sync_settings_paste_key_label))
+            SyncFieldLabel(stringResource(Res.string.sync_settings_phrase_label))
             GoalTextField(
                 value = pasteKeyDraft,
-                semanticLabel = stringResource(Res.string.sync_settings_paste_key_label),
-                placeholder = stringResource(Res.string.sync_settings_paste_key_placeholder),
+                semanticLabel = stringResource(Res.string.sync_settings_phrase_label),
+                placeholder = stringResource(Res.string.sync_settings_phrase_placeholder),
+                isError = phraseError,
                 onValueChange = { draft ->
                     pasteKeyDraft = draft
-                    onPasteKey(draft)
+                    phraseError = !onPasteKey(draft)
                 },
-                modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPasteKey),
+                modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseInput),
             )
+            Spacer(Modifier.height(10.dp))
+            SettingsAccentButton(
+                text = stringResource(Res.string.sync_settings_use_phrase),
+                onClick = { phraseError = !onPasteKey(pasteKeyDraft) },
+            )
+            if (phraseError) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(Res.string.sync_settings_phrase_invalid),
+                    color = colors.red,
+                    fontSize = 11.sp,
+                    modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseError),
+                )
+            }
         }
 
         Spacer(Modifier.height(14.dp))

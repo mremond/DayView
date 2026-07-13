@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import fr.dayview.app.sync.RawSyncKey
+import fr.dayview.app.sync.RecoveryPhrase
 import fr.dayview.app.sync.SecureKeyStore
 import fr.dayview.app.sync.SyncCoordinator
 import fr.dayview.app.sync.SyncOnResumeEffect
@@ -32,14 +33,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-@OptIn(ExperimentalEncodingApi::class, FlowPreview::class)
+@OptIn(FlowPreview::class)
 @Composable
 internal fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
@@ -320,17 +319,21 @@ internal fun DayViewApp(
                                 },
                                 generateSyncKey = {
                                     // Key generation is cheap and stays synchronous so the
-                                    // Base64 string can be returned immediately; only the
+                                    // recovery phrase can be returned immediately; only the
                                     // keystore persistence goes to IO.
                                     val key = RawSyncKey.generate()
                                     syncHasKey = true
                                     scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
-                                    Base64.encode(key.bytes)
+                                    RecoveryPhrase.encode(key).joinToString(" ")
                                 },
-                                pasteSyncKey = { b64 ->
-                                    runCatching { RawSyncKey(Base64.decode(b64)) }.getOrNull()?.let { key ->
+                                pasteSyncKey = { phrase ->
+                                    val key = RecoveryPhrase.decodePhrase(phrase)
+                                    if (key != null) {
                                         syncHasKey = true
                                         scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
+                                        true
+                                    } else {
+                                        false
                                     }
                                 },
                                 syncNow = { launchSync() },

@@ -31,7 +31,7 @@ internal data class SettingsScreenActions(
     val closeCategory: () -> Unit = {},
     val changeSyncConfig: (SyncConfig) -> Unit = {},
     val generateSyncKey: () -> String = { "" },
-    val pasteSyncKey: (String) -> Unit = {},
+    val pasteSyncKey: (String) -> Boolean = { false },
     val syncNow: () -> Unit = {},
     val clearSyncKey: () -> Unit = {},
     val back: () -> Unit,
