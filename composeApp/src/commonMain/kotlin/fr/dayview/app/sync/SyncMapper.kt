@@ -61,15 +61,26 @@ fun buildDocument(
 
 /**
  * Bounds the recent-motif item set so it doesn't grow without limit: keeps at most the newest
- * [MAX_RECENT_DETOUR_MOTIFS] live items by [Stamp.at], and keeps only the tombstones that are no
- * older than the oldest retained live item — older tombstones have already served their purpose
- * (losing to a live re-add would have restamped them) and can be dropped.
+ * [MAX_RECENT_DETOUR_MOTIFS] live items and, separately, at most the newest
+ * [MAX_RECENT_DETOUR_MOTIFS] tombstones, both ranked by [Stamp.at]. The result size is therefore
+ * always <= 2 * [MAX_RECENT_DETOUR_MOTIFS] regardless of what any individual item's stamp is.
+ *
+ * This must be count-based rather than cutoff-based: a recurring motif (e.g. "email", reused
+ * every day) keeps its original stamp forever — [buildItems] only restamps a live item when its
+ * value changes, not when it's merely reused/reordered. A timestamp cutoff derived from the
+ * oldest kept live item would therefore get pinned to that ancient stamp, and every tombstone
+ * created afterwards would satisfy `stamp.at >= cutoff` and be retained forever, defeating the
+ * bound under normal usage.
+ *
+ * Trade-off: dropping the oldest tombstones means that if one device explicitly "forgets" a
+ * motif and another device has been offline long enough that the tombstone is evicted before it
+ * syncs, the forget can be undone — the motif reappears as a suggestion. This is accepted for
+ * this low-stakes suggestion list (bounded size wins over perfect delete propagation) and does
+ * not affect any other synced field.
  */
 private fun boundRecentMotifs(items: List<SyncItem<String>>): List<SyncItem<String>> {
-    val liveByRecency = items.filterNot { it.deleted }.sortedByDescending { it.stamp.at }
-    val keptLive = liveByRecency.take(MAX_RECENT_DETOUR_MOTIFS)
-    val cutoff = keptLive.lastOrNull()?.stamp?.at ?: Long.MAX_VALUE
-    val keptTombstones = items.filter { it.deleted && it.stamp.at >= cutoff }
+    val keptLive = items.filterNot { it.deleted }.sortedByDescending { it.stamp.at }.take(MAX_RECENT_DETOUR_MOTIFS)
+    val keptTombstones = items.filter { it.deleted }.sortedByDescending { it.stamp.at }.take(MAX_RECENT_DETOUR_MOTIFS)
     return keptLive + keptTombstones
 }
 
