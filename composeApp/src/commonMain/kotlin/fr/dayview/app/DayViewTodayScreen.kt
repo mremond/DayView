@@ -1074,6 +1074,17 @@ internal fun CountdownCircle(
                     // multiplier back out preserves the OS font setting while dropping the slider.
                     LocalDensity provides Density(counterDensity.density, counterDensity.fontScale / prefFontScale),
                 ) {
+                    val hasNetRow = netTime != null && netTime.busyRemaining > Duration.ZERO
+                    val interior = countdownInterior(
+                        circleSize = circleSize,
+                        counterScale = counterScale,
+                        showSeconds = showSeconds,
+                        hasNet = hasNetRow,
+                        hasBusy = hasNetRow,
+                        hasFocus = focusedToday > Duration.ZERO,
+                        hasDetours = detoursTotal > Duration.ZERO,
+                        hasAccolades = cleanSessionsToday > 0 || streakDays > 0,
+                    )
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             if (progress.isFinished) stringResource(Res.string.countdown_day_over) else stringResource(Res.string.countdown_time_left),
@@ -1099,34 +1110,41 @@ internal fun CountdownCircle(
                                     letterSpacing = (.8f * counterScale).sp,
                                 )
                             }
-                            if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
-                                Spacer(Modifier.height(6.dp))
+                            if (interior.showNet && netTime != null) {
+                                Spacer(Modifier.height(6.dp * counterScale))
                                 Text(
-                                    stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining)),
+                                    if (interior.netCompact) {
+                                        formatDurationHm(netTime.netRemaining)
+                                    } else {
+                                        stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining))
+                                    },
                                     color = colors.mint,
-                                    fontSize = 14.sp,
+                                    fontSize = (14 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
-                                    letterSpacing = .5.sp,
+                                    letterSpacing = (.5f * counterScale).sp,
+                                    modifier = Modifier.testTag(DayViewTestTags.NetRemaining),
                                 )
-                                Text(
-                                    stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
-                                    color = colors.muted,
-                                    fontSize = 11.sp,
-                                    letterSpacing = .5.sp,
-                                )
+                                if (interior.showBusy) {
+                                    Text(
+                                        stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
+                                        color = colors.muted,
+                                        fontSize = (11 * counterScale).sp,
+                                        letterSpacing = (.5f * counterScale).sp,
+                                    )
+                                }
                             }
-                            if (focusedToday > Duration.ZERO) {
-                                Spacer(Modifier.height(6.dp))
+                            if (interior.showFocus) {
+                                Spacer(Modifier.height(6.dp * counterScale))
                                 Text(
                                     stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
                                     color = colors.mint,
-                                    fontSize = 13.sp,
+                                    fontSize = (13 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
-                                    letterSpacing = .5.sp,
+                                    letterSpacing = (.5f * counterScale).sp,
                                 )
                             }
-                            if (detoursTotal > Duration.ZERO) {
-                                Spacer(Modifier.height(6.dp))
+                            if (interior.showDetours) {
+                                Spacer(Modifier.height(6.dp * counterScale))
                                 Text(
                                     if (detoursOffWindow > Duration.ZERO) {
                                         stringResource(
@@ -1138,9 +1156,10 @@ internal fun CountdownCircle(
                                         stringResource(Res.string.detours_today, formatDurationHm(detoursTotal))
                                     },
                                     color = colors.amber,
-                                    fontSize = 13.sp,
+                                    fontSize = (13 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
-                                    letterSpacing = .5.sp,
+                                    letterSpacing = (.5f * counterScale).sp,
+                                    modifier = Modifier.testTag(DayViewTestTags.Detours),
                                 )
                             }
                         } else if (focusedToday > Duration.ZERO) {
@@ -1155,7 +1174,7 @@ internal fun CountdownCircle(
                                 modifier = Modifier.testTag(DayViewTestTags.FocusRecap),
                             )
                         }
-                        if (cleanSessionsToday > 0 || streakDays > 0) {
+                        if (interior.showAccolades && (cleanSessionsToday > 0 || streakDays > 0)) {
                             Spacer(Modifier.height(6.dp))
                             val countLabel = if (cleanSessionsToday > 0) {
                                 stringResource(Res.string.clean_sessions_today, cleanSessionsToday)
