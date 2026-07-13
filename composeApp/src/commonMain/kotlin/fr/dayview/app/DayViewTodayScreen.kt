@@ -1292,7 +1292,7 @@ internal fun CountdownCircle(
                     RingScrubReadout(
                         readout = readout,
                         uses24Hour = uses24Hour,
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
                     )
                 }
             }
