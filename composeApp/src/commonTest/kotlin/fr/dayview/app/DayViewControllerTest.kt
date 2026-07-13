@@ -828,6 +828,9 @@ class DayViewControllerTest {
         assertEquals((10.hours) - 1.hours, net.netDay)
         // Both intervals still draw on the ring.
         assertEquals(2, controller.state.busyBlockArcsState.size)
+    }
+
+    @Test
     fun setGoalDeadlineInstantBackfillsStartLikeCommit() {
         val controller = testController(InMemoryDayPreferences(), 10_000L)
         val deadline = t(10_000L) + 5.minutes
