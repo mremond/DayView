@@ -18,9 +18,9 @@ class DetoursTest {
     }
 
     @Test
-    fun detoursEncodeDecodeRoundTripsCategoriesWithCommas() {
+    fun detoursEncodeDecodeRoundTrips() {
         val episodes = listOf(
-            DetourEpisode(t(1_000L), t(2_000L), "Appel, urgent"),
+            DetourEpisode(t(1_000L), t(2_000L), "Appel urgent"),
             DetourEpisode(t(3_000L), t(4_000L), "Slack"),
         )
         assertEquals(episodes, decodeDetours(encodeDetours(episodes)))
@@ -153,6 +153,7 @@ class DetoursTest {
             sizeFraction = 1f,
             colorIndex = 0,
             category = "Slack",
+            description = "",
             start = t(0L),
             end = t(1L),
         )
@@ -165,10 +166,31 @@ class DetoursTest {
     }
 
     @Test
+    fun sanitizeDetourCategoryStripsCommasAndCaps() {
+        // Comma → space (inputs without a trailing space avoid a double space).
+        assertEquals("Reseaux sociaux", sanitizeDetourCategory("Reseaux,sociaux"))
+        assertEquals(60, sanitizeDetourCategory("x".repeat(200)).length)
+    }
+
+    @Test
+    fun sanitizeDetourDescriptionStripsNewlinesAndCaps() {
+        assertEquals("a b", sanitizeDetourDescription("a\nb"))
+        assertEquals(200, sanitizeDetourDescription("y".repeat(300)).length)
+        assertEquals("with, comma", sanitizeDetourDescription("with, comma")) // commas kept
+    }
+
+    @Test
+    fun detourEpisodeCarriesDescription() {
+        val episode = detourEpisodeAt(t(0), 12 * 60, 15, "Slack", "reading threads")
+        assertEquals("Slack", episode.category)
+        assertEquals("reading threads", episode.description)
+    }
+
+    @Test
     fun detourEpisodeAtBuildsOnTheSameLocalDay() {
         val zone = TimeZone.of("Europe/Paris")
         val reference = Instant.parse("2026-07-12T10:00:00Z")
-        val episode = detourEpisodeAt(reference, 9 * 60 + 30, 45, " appel ", zone)
+        val episode = detourEpisodeAt(reference, 9 * 60 + 30, 45, " appel ", timeZone = zone)
         assertEquals("appel", episode.category)
         assertEquals(45, episode.duration.inWholeMinutes)
         assertEquals("09:30", formatClockHm(episode.start, zone))

@@ -91,10 +91,10 @@ class DayPreferencesStoreTest {
                 DetourEpisode(
                     Instant.fromEpochMilliseconds(1_000L),
                     Instant.fromEpochMilliseconds(2_000L),
-                    "Appel, urgent",
+                    "Appel urgent",
                 ),
             ),
-            recentDetourCategories = listOf("Appel, urgent", "Slack"),
+            recentDetourCategories = listOf("Appel urgent", "Slack"),
         )
         store.persist(snapshot)
         assertEquals(snapshot, store.snapshots.first())

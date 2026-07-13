@@ -12,7 +12,12 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /** A hand-declared detour: a named stretch of time spent off the path. */
-data class DetourEpisode(val start: Instant, val end: Instant, val category: String) {
+data class DetourEpisode(
+    val start: Instant,
+    val end: Instant,
+    val category: String,
+    val description: String = "",
+) {
     val duration: Duration get() = end - start
 }
 
@@ -21,8 +26,11 @@ const val MAX_RECENT_DETOUR_CATEGORIES = 10
 /** Single-line, trimmed, length-bounded label. */
 fun sanitizeLabel(raw: String, maxLen: Int): String = raw.replace("\n", " ").replace("\r", " ").trim().take(maxLen).trim()
 
-/** Single-line, trimmed, bounded category; every capture and edit feeds through this. */
-fun sanitizeDetourCategory(raw: String): String = sanitizeLabel(raw, 60)
+/** Single-line, trimmed, bounded category, commas stripped; every capture and edit feeds through this. */
+fun sanitizeDetourCategory(raw: String): String = sanitizeLabel(raw, 60).replace(",", " ").trim()
+
+/** Single-line, trimmed, bounded free-text description; commas are kept. */
+fun sanitizeDetourDescription(raw: String): String = sanitizeLabel(raw, 200)
 
 /** Serialize episodes to one `start,end,category` line each (epoch millis, category last). */
 fun encodeDetours(episodes: List<DetourEpisode>): String = episodes.joinToString("\n") {
@@ -144,6 +152,7 @@ data class DetourBody(
     val sizeFraction: Float,
     val colorIndex: Int,
     val category: String,
+    val description: String,
     val start: Instant,
     val end: Instant,
 )
@@ -178,6 +187,7 @@ fun detourBodies(
             sizeFraction = sizeFraction,
             colorIndex = colorIndex,
             category = sanitizeDetourCategory(episode.category),
+            description = sanitizeDetourDescription(episode.description),
             start = episode.start,
             end = episode.end,
         )
@@ -241,6 +251,7 @@ fun detourEpisodeAt(
     startMinutesOfDay: Int,
     durationMinutes: Int,
     category: String,
+    description: String = "",
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): DetourEpisode {
     val local = dayReference.toLocalDateTime(timeZone)
@@ -256,5 +267,6 @@ fun detourEpisodeAt(
         start = start,
         end = start + durationMinutes.coerceIn(1, 12 * 60).minutes,
         category = sanitizeDetourCategory(category),
+        description = sanitizeDetourDescription(description),
     )
 }
