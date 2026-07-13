@@ -1014,13 +1014,14 @@ internal fun CountdownCircle(
                     // never fight the green sweep, while hue means "reserved". A wide low-alpha
                     // pass gives the glow, a narrower bright pass the core; round caps let short
                     // events settle in as soft pills.
+                    // The ring rests beneath these markers, so a completed day keeps its events
+                    // and distractions at full live-view colour — the green never washes them out.
                     val busyInset = inset + strokeWidth * .95f
                     val busyLaneSize = Size(size.width - busyInset * 2, size.height - busyInset * 2)
-                    val residualAlpha = if (progress.isFinished) .4f else 1f
                     busyBlockArcs.forEach { arc ->
                         val col = colors.busy[arc.colorIndex % colors.busy.size]
                         drawArc(
-                            color = col.copy(alpha = .16f * residualAlpha),
+                            color = col.copy(alpha = .16f),
                             startAngle = arc.startAngleDegrees,
                             sweepAngle = arc.sweepDegrees,
                             useCenter = false,
@@ -1029,7 +1030,7 @@ internal fun CountdownCircle(
                             style = Stroke(strokeWidth * .7f, cap = StrokeCap.Round),
                         )
                         drawArc(
-                            color = col.copy(alpha = .92f * residualAlpha),
+                            color = col.copy(alpha = .92f),
                             startAngle = arc.startAngleDegrees,
                             sweepAngle = arc.sweepDegrees,
                             useCenter = false,
@@ -1053,10 +1054,10 @@ internal fun CountdownCircle(
                         // Keep a visible floor size so short detours still read, especially when
                         // they land next to the moment marker right after being added.
                         val radius = strokeWidth * (.42f + .32f * body.sizeFraction)
-                        drawCircle(color = color.copy(alpha = .28f * residualAlpha), radius = radius * 1.5f, center = bodyCenter)
-                        drawCircle(color = color.copy(alpha = residualAlpha), radius = radius, center = bodyCenter)
+                        drawCircle(color = color.copy(alpha = .28f), radius = radius * 1.5f, center = bodyCenter)
+                        drawCircle(color = color, radius = radius, center = bodyCenter)
                         drawCircle(
-                            color = Color.White.copy(alpha = .5f * residualAlpha),
+                            color = Color.White.copy(alpha = .5f),
                             radius = radius * .28f,
                             center = bodyCenter - Offset(radius * .3f, radius * .3f),
                         )
