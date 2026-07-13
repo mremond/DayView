@@ -10,6 +10,9 @@ import kotlin.time.Instant
 
 private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
 
+// Reuses DetoursTest's existing `t(ms)` helper for instants.
+private fun ep(startMs: Long, endMs: Long, category: String, description: String = "") = DetourEpisode(t(startMs), t(endMs), category, description)
+
 class DetoursTest {
     @Test
     fun sanitizeStripsNewlinesTrimsAndBounds() {
@@ -30,6 +33,43 @@ class DetoursTest {
     fun decodeSkipsMalformedBlankAndEmptyCategoryLines() {
         val encoded = "not a line\n1000,2000,ok\n5000,4000,inverted\n1000,2000,\n\n"
         assertEquals(listOf(DetourEpisode(t(1_000L), t(2_000L), "ok")), decodeDetours(encoded))
+    }
+
+    @Test
+    fun encodeDecodeRoundTripsDescription() {
+        val episodes = listOf(
+            ep(1_000, 2_000, "Slack", "reading threads, then more"), // description keeps commas
+            ep(3_000, 4_000, "Pause", ""),
+        )
+        assertEquals(episodes, decodeDetours(encodeDetours(episodes)))
+    }
+
+    @Test
+    fun decodeStripsCommaFromCategoryOnEncode() {
+        val decoded = decodeDetours(encodeDetours(listOf(ep(1_000, 2_000, "a,b", "d"))))
+        assertEquals("a b", decoded.single().category) // comma → space
+        assertEquals("d", decoded.single().description)
+    }
+
+    @Test
+    fun decodeLegacyBlobMapsMotifToCategory() {
+        // Legacy 3-field lines (no version marker); motif becomes category, description empty.
+        val legacy = "1000,2000,café\n3000,4000,appel,imprévu"
+        val decoded = decodeDetours(legacy)
+        assertEquals(2, decoded.size)
+        assertEquals("café", decoded[0].category)
+        assertEquals("", decoded[0].description)
+        assertEquals("appel imprévu", decoded[1].category) // legacy comma folded to a space
+        assertEquals("", decoded[1].description)
+    }
+
+    @Test
+    fun decodeSkipsMalformedMarkedLines() {
+        val blob = "@2\n1000,2000,ok,note\nblank\n5000,4000,inverted,x\n7000,8000,,nocat"
+        val decoded = decodeDetours(blob)
+        assertEquals(1, decoded.size)
+        assertEquals("ok", decoded.single().category)
+        assertEquals("note", decoded.single().description)
     }
 
     @Test

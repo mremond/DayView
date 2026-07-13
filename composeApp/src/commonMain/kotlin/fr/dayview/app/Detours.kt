@@ -32,24 +32,46 @@ fun sanitizeDetourCategory(raw: String): String = sanitizeLabel(raw, 60).replace
 /** Single-line, trimmed, bounded free-text description; commas are kept. */
 fun sanitizeDetourDescription(raw: String): String = sanitizeLabel(raw, 200)
 
-/** Serialize episodes to one `start,end,category` line each (epoch millis, category last). */
-fun encodeDetours(episodes: List<DetourEpisode>): String = episodes.joinToString("\n") {
-    "${it.start.toEpochMilliseconds()},${it.end.toEpochMilliseconds()},${sanitizeDetourCategory(it.category)}"
+private const val DETOURS_FORMAT_MARKER = "@2"
+
+/**
+ * Serialize episodes behind a version marker: one `start,end,category,description` line per
+ * episode (epoch millis; category third and comma-stripped so it's a safe fixed field;
+ * description last so its own commas survive). Empty list encodes to just the marker.
+ */
+fun encodeDetours(episodes: List<DetourEpisode>): String {
+    val lines = episodes.joinToString("\n") {
+        val category = sanitizeDetourCategory(it.category)
+        val description = sanitizeDetourDescription(it.description)
+        "${it.start.toEpochMilliseconds()},${it.end.toEpochMilliseconds()},$category,$description"
+    }
+    return if (lines.isEmpty()) DETOURS_FORMAT_MARKER else "$DETOURS_FORMAT_MARKER\n$lines"
 }
 
 /**
- * Inverse of [encodeDetours]. The category is the third field and the split is bounded, so
- * commas inside categories survive; blank, malformed, inverted or category-less lines are skipped.
+ * Inverse of [encodeDetours]. When the first line is the [DETOURS_FORMAT_MARKER], the remaining
+ * lines are the current four-field format (category third, description last so its commas
+ * survive). Otherwise the whole blob is legacy `start,end,motif` (motif comma-tolerant, last
+ * field): the motif becomes the category and the description is empty. Either way, blank,
+ * malformed, inverted or category-less lines are skipped.
  */
-fun decodeDetours(encoded: String): List<DetourEpisode> = encoded.split("\n").mapNotNull { line ->
-    val parts = line.split(",", limit = 3)
-    val start = parts.getOrNull(0)?.toLongOrNull()
-    val end = parts.getOrNull(1)?.toLongOrNull()
-    val category = parts.getOrNull(2)?.let(::sanitizeDetourCategory)
-    if (parts.size == 3 && start != null && end != null && end > start && !category.isNullOrEmpty()) {
-        DetourEpisode(Instant.fromEpochMilliseconds(start), Instant.fromEpochMilliseconds(end), category)
-    } else {
-        null
+fun decodeDetours(encoded: String): List<DetourEpisode> {
+    if (encoded.isBlank()) return emptyList()
+    val lines = encoded.split("\n")
+    val marked = lines.firstOrNull() == DETOURS_FORMAT_MARKER
+    val bodyLines = if (marked) lines.drop(1) else lines
+    return bodyLines.mapNotNull { line ->
+        val limit = if (marked) 4 else 3
+        val parts = line.split(",", limit = limit)
+        val start = parts.getOrNull(0)?.toLongOrNull()
+        val end = parts.getOrNull(1)?.toLongOrNull()
+        val category = parts.getOrNull(2)?.let(::sanitizeDetourCategory)
+        val description = if (marked) parts.getOrNull(3)?.let(::sanitizeDetourDescription).orEmpty() else ""
+        if (start != null && end != null && end > start && !category.isNullOrEmpty()) {
+            DetourEpisode(Instant.fromEpochMilliseconds(start), Instant.fromEpochMilliseconds(end), category, description)
+        } else {
+            null
+        }
     }
 }
 
