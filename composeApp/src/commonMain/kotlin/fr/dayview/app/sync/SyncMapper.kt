@@ -54,7 +54,7 @@ fun buildDocument(
             base = base?.plannedObligations,
             fresh = fresh,
         ),
-        recentDetourMotifs = boundRecentMotifs(buildItems(snapshot.recentDetourMotifs, { it }, base?.recentDetourMotifs, fresh)),
+        recentDetourMotifs = boundRecentMotifItems(buildItems(snapshot.recentDetourMotifs, { it }, base?.recentDetourMotifs, fresh)),
         cleanSessions = restamp(snapshot.cleanSessions.toDto(), base?.cleanSessions, now, deviceId),
     )
 }
@@ -62,8 +62,9 @@ fun buildDocument(
 /**
  * Bounds the recent-motif item set so it doesn't grow without limit: keeps at most the newest
  * [MAX_RECENT_DETOUR_MOTIFS] live items and, separately, at most the newest
- * [MAX_RECENT_DETOUR_MOTIFS] tombstones, both ranked by [Stamp.at]. The result size is therefore
- * always <= 2 * [MAX_RECENT_DETOUR_MOTIFS] regardless of what any individual item's stamp is.
+ * [MAX_RECENT_DETOUR_MOTIFS] tombstones, ranked by [Stamp.at] with a deterministic tie-break on
+ * [SyncItem.id]. The result size is therefore always <= 2 * [MAX_RECENT_DETOUR_MOTIFS] regardless
+ * of what any individual item's stamp is.
  *
  * This must be count-based rather than cutoff-based: a recurring motif (e.g. "email", reused
  * every day) keeps its original stamp forever — [buildItems] only restamps a live item when its
@@ -77,11 +78,20 @@ fun buildDocument(
  * syncs, the forget can be undone — the motif reappears as a suggestion. This is accepted for
  * this low-stakes suggestion list (bounded size wins over perfect delete propagation) and does
  * not affect any other synced field.
+ *
+ * Applied both when building a fresh local document ([buildDocument]) and, critically, to the
+ * output of [SyncDocument.merge]'s `recentDetourMotifs` union — a merge is a plain per-id union
+ * that would otherwise re-admit every tombstone either side had already dropped, growing without
+ * bound across repeated sync rounds. Bounding the merge output (not just the pre-merge local doc)
+ * keeps "a merged SyncDocument is always bounded" an invariant, so the persisted base document and
+ * the pushed blob stay bounded too. The tie-break must be total so two devices bound an identical
+ * merged set identically: this keeps the merge commutative (`merge(a, b) == merge(b, a)`).
  */
-private fun boundRecentMotifs(items: List<SyncItem<String>>): List<SyncItem<String>> {
-    val keptLive = items.filterNot { it.deleted }.sortedByDescending { it.stamp.at }.take(MAX_RECENT_DETOUR_MOTIFS)
-    val keptTombstones = items.filter { it.deleted }.sortedByDescending { it.stamp.at }.take(MAX_RECENT_DETOUR_MOTIFS)
-    return keptLive + keptTombstones
+internal fun boundRecentMotifItems(items: List<SyncItem<String>>): List<SyncItem<String>> {
+    val order = compareByDescending<SyncItem<String>> { it.stamp.at }.thenBy { it.id }
+    val live = items.filter { !it.deleted }.sortedWith(order).take(MAX_RECENT_DETOUR_MOTIFS)
+    val tombs = items.filter { it.deleted }.sortedWith(order).take(MAX_RECENT_DETOUR_MOTIFS)
+    return (live + tombs).sortedBy { it.id }
 }
 
 private fun <T> buildDayScoped(

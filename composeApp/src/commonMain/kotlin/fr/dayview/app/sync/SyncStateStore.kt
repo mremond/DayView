@@ -16,7 +16,11 @@ class FileSyncStatePersistence(
 ) : SyncStatePersistence {
     override suspend fun load(): SyncState {
         val text = read() ?: return SyncState(null, null)
-        val stored = SyncJson.decodeFromString<StoredState>(text)
+        // A truncated, hand-edited, or schema-changed file must degrade to "nothing stored"
+        // rather than crash the caller (e.g. SyncCoordinator.runOnce(), ahead of the sync
+        // engine's own try/catch).
+        val stored = runCatching { SyncJson.decodeFromString<StoredState>(text) }.getOrNull()
+            ?: return SyncState(null, null)
         return SyncState(stored.baseRevision, stored.baseDocument)
     }
 

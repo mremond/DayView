@@ -24,4 +24,12 @@ class SyncStateStoreTest {
         assertEquals("r5", loaded.baseRevision)
         assertEquals(sampleDocument(), loaded.baseDocument)
     }
+
+    @Test
+    fun loadReturnsDefaultOnCorruptFile() = runTest {
+        backing = "not json {{{"
+        val state = store().load()
+        assertNull(state.baseRevision)
+        assertNull(state.baseDocument)
+    }
 }
