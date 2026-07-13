@@ -44,6 +44,7 @@ internal enum class SettingsCategory {
     SOUNDS,
     NET_TIME,
     ON_GOAL,
+    SYNC,
 }
 
 internal data class DayViewUiState(

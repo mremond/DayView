@@ -189,6 +189,9 @@
     <string name="volume_increase">Increase the volume by 10%</string>
     <string name="sound_preview">PREVIEW</string>
 
+    <!-- Settings — sync -->
+    <string name="settings_section_sync">SYNC</string>
+
     <!-- Settings — category list summaries -->
     <string name="settings_summary_day">%1$s – %2$s</string>
     <string name="settings_summary_on">On</string>
@@ -198,6 +201,7 @@
     <string name="settings_summary_sounds_on">On · every %1$s min</string>
     <string name="settings_summary_apps">%1$s apps</string>
     <string name="settings_summary_no_apps">None selected</string>
+    <string name="settings_summary_sync">Not set up</string>
 
     <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
          macOS focus-nudge notification (used from desktopMain). -->

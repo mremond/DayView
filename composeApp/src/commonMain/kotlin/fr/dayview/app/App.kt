@@ -17,16 +17,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import fr.dayview.app.sync.RawSyncKey
+import fr.dayview.app.sync.SecureKeyStore
+import fr.dayview.app.sync.SyncCoordinator
+import fr.dayview.app.sync.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
+@OptIn(ExperimentalEncodingApi::class)
 @Composable
 internal fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
@@ -46,6 +54,8 @@ internal fun DayViewApp(
     runningApps: () -> List<AppRef> = { emptyList() },
     focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     sessionOffGoal: Duration = Duration.ZERO,
+    secureKeyStore: SecureKeyStore? = null,
+    syncCoordinator: SyncCoordinator? = null,
 ) {
     val initialThemeSnapshot = remember(preferences) { runBlocking { preferences.snapshots.first() } }
     val themeSnapshot by preferences.snapshots.collectAsState(initial = initialThemeSnapshot)
@@ -97,6 +107,12 @@ internal fun DayViewApp(
                     val calendarSource = remember { createCalendarSource() }
                     val calendarScope = rememberCoroutineScope()
                     var calendarPermissionProbe by remember { mutableIntStateOf(0) }
+                    // Synchronous key/config store: not a Flow, so the UI state is a
+                    // Compose snapshot state re-derived only by the callbacks below.
+                    var syncConfig by remember { mutableStateOf(secureKeyStore?.loadConfig()) }
+                    var syncHasKey by remember { mutableStateOf(secureKeyStore?.loadKey() != null) }
+                    val fallbackSyncStatus = remember { MutableStateFlow(SyncStatus.Idle) }
+                    val syncStatus by (syncCoordinator?.status ?: fallbackSyncStatus).collectAsState()
 
                     LaunchedEffect(preferences) {
                         preferences.snapshots.collect { controller.onPreferencesChanged(it) }
@@ -219,6 +235,9 @@ internal fun DayViewApp(
                                 netTimeSupported = calendarSource.isSupported(),
                                 onGoalSupported = hasRunningApps,
                                 runningApps = runningApps,
+                                syncConfig = syncConfig,
+                                syncStatus = syncStatus,
+                                syncHasKey = syncHasKey,
                             ),
                             actions = SettingsScreenActions(
                                 changeStartTime = { controller.setStartMinutes(it) },
@@ -240,6 +259,28 @@ internal fun DayViewApp(
                                 changeFontScale = { controller.setFontScale(it) },
                                 openCategory = { controller.openSettingsCategory(it) },
                                 closeCategory = { controller.closeSettingsCategory() },
+                                changeSyncConfig = { cfg ->
+                                    secureKeyStore?.storeConfig(cfg)
+                                    syncConfig = cfg
+                                },
+                                generateSyncKey = {
+                                    val key = RawSyncKey.generate()
+                                    secureKeyStore?.storeKey(key)
+                                    syncHasKey = true
+                                    Base64.encode(key.bytes)
+                                },
+                                pasteSyncKey = { b64 ->
+                                    runCatching { RawSyncKey(Base64.decode(b64)) }.getOrNull()?.let { key ->
+                                        secureKeyStore?.storeKey(key)
+                                        syncHasKey = true
+                                    }
+                                },
+                                syncNow = { scope.launch { syncCoordinator?.syncNow() } },
+                                clearSyncKey = {
+                                    secureKeyStore?.clear()
+                                    syncConfig = null
+                                    syncHasKey = false
+                                },
                                 back = { controller.openToday() },
                             ),
                         )

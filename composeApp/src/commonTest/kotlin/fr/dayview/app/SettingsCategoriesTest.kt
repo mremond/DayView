@@ -19,6 +19,7 @@ class SettingsCategoriesTest {
                 SettingsCategory.DISPLAY,
                 SettingsCategory.SOUNDS,
                 SettingsCategory.NET_TIME,
+                SettingsCategory.SYNC,
             ),
             settingsCategoriesFor(platform),
         )
@@ -40,6 +41,7 @@ class SettingsCategoriesTest {
                 SettingsCategory.SOUNDS,
                 SettingsCategory.NET_TIME,
                 SettingsCategory.ON_GOAL,
+                SettingsCategory.SYNC,
             ),
             settingsCategoriesFor(platform),
         )
@@ -55,7 +57,7 @@ class SettingsCategoriesTest {
         )
 
         assertEquals(
-            listOf(SettingsCategory.DAY, SettingsCategory.DISPLAY, SettingsCategory.SOUNDS),
+            listOf(SettingsCategory.DAY, SettingsCategory.DISPLAY, SettingsCategory.SOUNDS, SettingsCategory.SYNC),
             settingsCategoriesFor(platform),
         )
     }

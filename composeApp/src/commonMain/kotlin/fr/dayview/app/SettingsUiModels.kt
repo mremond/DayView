@@ -1,11 +1,17 @@
 package fr.dayview.app
 
+import fr.dayview.app.sync.SyncConfig
+import fr.dayview.app.sync.SyncStatus
+
 internal data class SettingsPlatformUiState(
     val monochromeMenuBarIcon: Boolean?,
     val launchAtLogin: Boolean?,
     val netTimeSupported: Boolean = false,
     val onGoalSupported: Boolean = false,
     val runningApps: () -> List<AppRef> = { emptyList() },
+    val syncConfig: SyncConfig? = null,
+    val syncStatus: SyncStatus = SyncStatus.Idle,
+    val syncHasKey: Boolean = false,
 )
 
 internal data class SettingsScreenActions(
@@ -23,6 +29,11 @@ internal data class SettingsScreenActions(
     val changeFontScale: (Float) -> Unit = {},
     val openCategory: (SettingsCategory) -> Unit = {},
     val closeCategory: () -> Unit = {},
+    val changeSyncConfig: (SyncConfig) -> Unit = {},
+    val generateSyncKey: () -> String = { "" },
+    val pasteSyncKey: (String) -> Unit = {},
+    val syncNow: () -> Unit = {},
+    val clearSyncKey: () -> Unit = {},
     val back: () -> Unit,
 )
 
@@ -33,4 +44,5 @@ internal fun settingsCategoriesFor(platformState: SettingsPlatformUiState): List
     add(SettingsCategory.SOUNDS)
     if (platformState.netTimeSupported) add(SettingsCategory.NET_TIME)
     if (platformState.onGoalSupported) add(SettingsCategory.ON_GOAL)
+    add(SettingsCategory.SYNC)
 }
