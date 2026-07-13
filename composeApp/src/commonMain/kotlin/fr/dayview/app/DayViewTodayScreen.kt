@@ -105,7 +105,6 @@ import fr.dayview.app.generated.resources.dialog_ok
 import fr.dayview.app.generated.resources.focus_break_conscious
 import fr.dayview.app.generated.resources.focus_break_disconnect
 import fr.dayview.app.generated.resources.focus_break_since
-import fr.dayview.app.generated.resources.focus_close_section
 import fr.dayview.app.generated.resources.focus_closed
 import fr.dayview.app.generated.resources.focus_drift_dismiss
 import fr.dayview.app.generated.resources.focus_drift_title
@@ -121,7 +120,6 @@ import fr.dayview.app.generated.resources.focus_outcome_completed
 import fr.dayview.app.generated.resources.focus_outcome_progressed
 import fr.dayview.app.generated.resources.focus_outcome_to_resume
 import fr.dayview.app.generated.resources.focus_resume
-import fr.dayview.app.generated.resources.focus_resume_button
 import fr.dayview.app.generated.resources.focus_resume_point
 import fr.dayview.app.generated.resources.focus_resume_time_left
 import fr.dayview.app.generated.resources.focus_section
@@ -1638,7 +1636,13 @@ private fun FocusPanel(
                 letterSpacing = 1.sp,
             )
             Spacer(Modifier.height(5.dp))
-            Text(formatBreakClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(formatBreakClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
+                Spacer(Modifier.weight(1f))
+                FocusRelaunchRoundButton(onStart, Modifier.testTag(DayViewTestTags.FocusRelaunch))
+                Spacer(Modifier.width(8.dp))
+                FocusStopRoundButton(onStop, Modifier.testTag(DayViewTestTags.FocusStop))
+            }
             Spacer(Modifier.height(14.dp))
             Text(
                 if (progress.breakElapsed < 10.minutes) {
@@ -1651,46 +1655,8 @@ private fun FocusPanel(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = .9.sp,
             )
-            Spacer(Modifier.height(9.dp))
-            FocusActionButton(
-                stringResource(Res.string.focus_resume_button),
-                colors.mint,
-                modifier = Modifier.fillMaxWidth(),
-                filled = true,
-                onClick = onStart,
-            )
             Spacer(Modifier.height(14.dp))
-            Text(
-                stringResource(Res.string.focus_close_section),
-                color = colors.muted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FocusActionButton(
-                    stringResource(Res.string.focus_outcome_completed),
-                    colors.mint,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onClose(FocusClosureOutcome.COMPLETED) },
-                )
-                FocusActionButton(
-                    stringResource(Res.string.focus_outcome_progressed),
-                    colors.amber,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onClose(FocusClosureOutcome.PROGRESSED) },
-                )
-                FocusActionButton(
-                    stringResource(Res.string.focus_outcome_to_resume),
-                    colors.muted,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onClose(FocusClosureOutcome.TO_RESUME) },
-                )
-            }
+            FocusClosureSection(onClose)
         } else {
             FocusCreationContent(
                 progress = progress,

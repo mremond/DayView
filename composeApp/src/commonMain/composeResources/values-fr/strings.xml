@@ -82,7 +82,6 @@
     <string name="focus_cancel_button">ANNULER</string>
     <string name="focus_stop">ARRÊTER</string>
     <string name="focus_resume">REPRENDRE</string>
-    <string name="focus_resume_button">REPRENDRE UN FOCUS</string>
     <string name="focus_outcome_completed">TERMINÉ</string>
     <string name="focus_outcome_progressed">AVANCÉ</string>
     <string name="focus_outcome_to_resume">À REPRENDRE</string>
@@ -113,7 +112,8 @@
     <!-- Mini window -->
     <string name="mini_no_goal">Aucun objectif défini</string>
     <string name="mini_start_focus_label">Démarrer un focus</string>
-    <string name="mini_stop_focus_label">Arrêter le focus</string>
+    <string name="focus_relaunch_label">Relancer un focus</string>
+    <string name="focus_stop_label">Arrêter le focus</string>
     <string name="mini_focus_active">FOCUS EN COURS</string>
     <string name="mini_focus_single_thing">Une seule chose à la fois</string>
 
@@ -253,6 +253,8 @@
     <string name="detour_start_decrease">Avancer le début de 5 minutes</string>
     <string name="detour_start_increase">Retarder le début de 5 minutes</string>
     <string name="detour_start_value">Début : %1$s</string>
+    <string name="detour_start_edit_label">Saisir l\'heure de début</string>
+    <string name="detour_duration_edit_label">Saisir la durée en minutes</string>
     <string name="detour_duration_decrease">Diminuer la durée de 5 minutes</string>
     <string name="detour_duration_increase">Augmenter la durée de 5 minutes</string>
     <string name="detour_duration_value">Durée : %1$s minutes</string>

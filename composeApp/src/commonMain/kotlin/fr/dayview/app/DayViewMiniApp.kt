@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,7 +31,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
@@ -51,7 +48,6 @@ import fr.dayview.app.generated.resources.mini_focus_active
 import fr.dayview.app.generated.resources.mini_focus_single_thing
 import fr.dayview.app.generated.resources.mini_no_goal
 import fr.dayview.app.generated.resources.mini_start_focus_label
-import fr.dayview.app.generated.resources.mini_stop_focus_label
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
 
@@ -66,6 +62,7 @@ fun DayViewMiniApp(
     focusIntention: String,
     onStartFocus: (String) -> Unit,
     onStopFocus: () -> Unit,
+    onCloseFocus: (FocusClosureOutcome) -> Unit,
     onOpenMainWindow: () -> Unit,
 ) {
     DayViewTheme(uses24Hour = rememberUses24HourClock()) { colors ->
@@ -109,7 +106,9 @@ fun DayViewMiniApp(
                         MiniFocus(
                             progress = pomodoro,
                             intention = focusIntention,
+                            onRelaunch = { onStartFocus(focusIntention) },
                             onStop = onStopFocus,
+                            onClose = onCloseFocus,
                         )
                     }
                 }
@@ -228,67 +227,70 @@ private fun MiniFocusStart(onClick: () -> Unit) {
 private fun MiniFocus(
     progress: PomodoroProgress,
     intention: String,
+    onRelaunch: () -> Unit,
     onStop: () -> Unit,
+    onClose: (FocusClosureOutcome) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val isBreak = progress.status == PomodoroStatus.BREAK
     BoxWithConstraints {
-        // On a narrow card the fixed clock and stop button would starve the label
+        // On a narrow card the fixed clock and buttons would starve the label
         // column; shrink them so the label keeps readable width.
         val compact = maxWidth < 250.dp
         val gap = if (compact) 8.dp else 12.dp
-        Row(
+        val buttonSize = if (compact) 32.dp else 40.dp
+        Column(
             modifier = Modifier.fillMaxWidth()
                 .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
                 .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
                 .padding(horizontal = if (compact) 12.dp else 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
+                        color = if (isBreak) colors.mint else colors.amber,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.1.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        intention.ifBlank { stringResource(Res.string.mini_focus_single_thing) },
+                        color = colors.cloud,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(Modifier.width(gap))
                 Text(
-                    if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
-                    color = if (isBreak) colors.mint else colors.amber,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.1.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    intention.ifBlank { stringResource(Res.string.mini_focus_single_thing) },
+                    if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
                     color = colors.cloud,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    fontSize = if (compact) 18.sp else 24.sp,
+                    fontWeight = FontWeight.Light,
                 )
+                Spacer(Modifier.width(gap))
+                if (isBreak) {
+                    FocusRelaunchRoundButton(
+                        onRelaunch,
+                        Modifier.testTag(DayViewTestTags.MiniFocusRelaunch),
+                        size = buttonSize,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                FocusStopRoundButton(onStop, size = buttonSize)
             }
-            Spacer(Modifier.width(gap))
-            Text(
-                if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
-                color = colors.cloud,
-                fontSize = if (compact) 18.sp else 24.sp,
-                fontWeight = FontWeight.Light,
-            )
-            Spacer(Modifier.width(gap))
-            MiniStopButton(onStop, size = if (compact) 32.dp else 40.dp)
+            if (isBreak) {
+                Spacer(Modifier.height(11.dp))
+                FocusClosureSection(onClose)
+            }
         }
-    }
-}
-
-@Composable
-private fun MiniStopButton(onStop: () -> Unit, size: Dp = 40.dp) {
-    val colors = LocalDayViewColors.current
-    Box(
-        modifier = Modifier.size(size)
-            .background(colors.overlay.copy(alpha = .08f), CircleShape)
-            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_stop_focus_label), onClick = onStop),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier.size(size * 0.3f)
-                .background(colors.red.copy(alpha = .85f), RoundedCornerShape(2.dp)),
-        )
     }
 }
 

@@ -394,12 +394,15 @@ internal class DayViewController(
 
     fun closePomodoro(outcome: FocusClosureOutcome) {
         val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
-        val dayKey = dayKeyOf(state.now)
-        val ledger = state.pomodoroEnd?.let { end ->
-            val window = FocusSessionWindow(end - state.pomodoroMinutes.minutes, end)
-            val clean = evaluateSessionClean(window, state.sessionOffGoal, state.detoursToday, outcome)
-            if (clean) registerCleanSession(state.cleanSessions, dayKey) else rollOver(state.cleanSessions, dayKey)
-        } ?: state.cleanSessions
+        val ledger = closedFocusLedger(
+            cleanSessions = state.cleanSessions,
+            dayKey = dayKeyOf(state.now),
+            pomodoroEnd = state.pomodoroEnd,
+            pomodoroMinutes = state.pomodoroMinutes,
+            sessionOffGoal = state.sessionOffGoal,
+            detoursToday = state.detoursToday,
+            outcome = outcome,
+        )
         // Single atomic persist of the whole snapshot: unlike the previous
         // two-save version, there is no intermediate state to reconcile against.
         state = state.copy(

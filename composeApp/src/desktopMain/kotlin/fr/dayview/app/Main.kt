@@ -361,6 +361,14 @@ private fun runApplication() = application {
                         preferences.persist(s.copy(pomodoroMinutes = pomodoroMinutes, pomodoroEnd = null))
                     }
                 },
+                onCloseFocus = { outcome ->
+                    scope.launch {
+                        val s = preferences.snapshots.first()
+                        preferences.persist(
+                            closeFocusSnapshot(s.copy(pomodoroMinutes = pomodoroMinutes), now, sessionOffGoal, outcome),
+                        )
+                    }
+                },
                 onOpenMainWindow = {
                     isMiniWindowVisible = false
                     isWindowVisible = true

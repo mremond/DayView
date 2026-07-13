@@ -21,10 +21,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,9 +37,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +68,7 @@ import fr.dayview.app.generated.resources.detour_delete_button
 import fr.dayview.app.generated.resources.detour_description_label
 import fr.dayview.app.generated.resources.detour_description_placeholder
 import fr.dayview.app.generated.resources.detour_duration_decrease
+import fr.dayview.app.generated.resources.detour_duration_edit_label
 import fr.dayview.app.generated.resources.detour_duration_increase
 import fr.dayview.app.generated.resources.detour_duration_label
 import fr.dayview.app.generated.resources.detour_duration_more
@@ -75,6 +90,7 @@ import fr.dayview.app.generated.resources.detour_section
 import fr.dayview.app.generated.resources.detour_source_total
 import fr.dayview.app.generated.resources.detour_start_adjust
 import fr.dayview.app.generated.resources.detour_start_decrease
+import fr.dayview.app.generated.resources.detour_start_edit_label
 import fr.dayview.app.generated.resources.detour_start_increase
 import fr.dayview.app.generated.resources.detour_start_section
 import fr.dayview.app.generated.resources.detour_start_value
@@ -342,24 +358,36 @@ internal fun DetourCaptureContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TimeButton(
                     label = "−",
-                    enabled = startMinutes >= 5,
+                    enabled = startMinutes > 0,
                     onClickLabel = stringResource(Res.string.detour_start_decrease),
                     valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
+                    modifier = Modifier.testTag(DayViewTestTags.DetourStartDecrease),
                 ) {
-                    pinnedStartMinutes = (startMinutes - 5).coerceAtLeast(0)
+                    pinnedStartMinutes = snapToFive(startMinutes, -1).coerceIn(0, 23 * 60 + 55)
                     startPinned = true
                 }
                 Spacer(Modifier.width(10.dp))
-                Text(formatMinutesOfDay(startMinutes, uses24Hour), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
+                EditableTimeValue(
+                    displayText = formatMinutesOfDay(startMinutes, uses24Hour),
+                    editText = formatMinutesOfDay(startMinutes, uses24Hour),
+                    parse = { parseMinutesOfDay(it, uses24Hour) },
+                    editLabel = stringResource(Res.string.detour_start_edit_label),
+                    valueTag = DayViewTestTags.DetourStartValue,
+                    fieldTag = DayViewTestTags.DetourStartField,
+                    onCommit = { typed ->
+                        pinnedStartMinutes = typed
+                        startPinned = true
+                    },
+                )
                 Spacer(Modifier.width(10.dp))
                 TimeButton(
                     label = "+",
-                    enabled = startMinutes <= 23 * 60 + 54,
+                    enabled = startMinutes < 23 * 60 + 55,
                     onClickLabel = stringResource(Res.string.detour_start_increase),
                     valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
                     modifier = Modifier.testTag(DayViewTestTags.DetourStartIncrease),
                 ) {
-                    pinnedStartMinutes = (startMinutes + 5).coerceAtMost(23 * 60 + 59)
+                    pinnedStartMinutes = snapToFive(startMinutes, +1).coerceIn(0, 23 * 60 + 55)
                     startPinned = true
                 }
             }
@@ -576,7 +604,7 @@ internal fun DetourListContent(
 
 /** Category + start time + duration form shared by edit and retroactive add. */
 @Composable
-private fun DetourEditForm(
+internal fun DetourEditForm(
     initial: DetourEpisode?,
     now: Instant,
     onDelete: (() -> Unit)?,
@@ -597,84 +625,184 @@ private fun DetourEditForm(
     var durationMinutes by remember {
         mutableIntStateOf(initial?.duration?.inWholeMinutes?.toInt() ?: 15)
     }
-    GoalTextField(
-        value = category,
-        semanticLabel = stringResource(Res.string.detour_category_label),
-        placeholder = stringResource(Res.string.detour_category_placeholder),
-        onValueChange = { category = it },
-    )
-    Spacer(Modifier.height(12.dp))
-    GoalTextField(
-        value = description,
-        semanticLabel = stringResource(Res.string.detour_description_label),
-        placeholder = stringResource(Res.string.detour_description_placeholder),
-        onValueChange = { description = it },
-        modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
-    )
-    Spacer(Modifier.height(12.dp))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(Res.string.detour_start_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TimeButton(
-                    label = "−",
-                    enabled = startMinutes >= 5,
-                    onClickLabel = stringResource(Res.string.detour_start_decrease),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
-                ) { startMinutes = (startMinutes - 5).coerceAtLeast(0) }
-                Spacer(Modifier.width(10.dp))
-                Text(formatMinutesOfDay(startMinutes, uses24Hour), color = colors.cloud, fontSize = 17.sp, fontWeight = FontWeight.Light)
-                Spacer(Modifier.width(10.dp))
-                TimeButton(
-                    label = "+",
-                    enabled = startMinutes <= 23 * 60 + 54,
-                    onClickLabel = stringResource(Res.string.detour_start_increase),
-                    valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
-                ) { startMinutes = (startMinutes + 5).coerceAtMost(23 * 60 + 59) }
+    Column {
+        GoalTextField(
+            value = category,
+            semanticLabel = stringResource(Res.string.detour_category_label),
+            placeholder = stringResource(Res.string.detour_category_placeholder),
+            onValueChange = { category = it },
+        )
+        Spacer(Modifier.height(12.dp))
+        GoalTextField(
+            value = description,
+            semanticLabel = stringResource(Res.string.detour_description_label),
+            placeholder = stringResource(Res.string.detour_description_placeholder),
+            onValueChange = { description = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(Res.string.detour_start_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TimeButton(
+                        label = "−",
+                        enabled = startMinutes > 0,
+                        onClickLabel = stringResource(Res.string.detour_start_decrease),
+                        valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
+                    ) { startMinutes = snapToFive(startMinutes, -1).coerceIn(0, 23 * 60 + 55) }
+                    Spacer(Modifier.width(10.dp))
+                    EditableTimeValue(
+                        displayText = formatMinutesOfDay(startMinutes, uses24Hour),
+                        editText = formatMinutesOfDay(startMinutes, uses24Hour),
+                        parse = { parseMinutesOfDay(it, uses24Hour) },
+                        editLabel = stringResource(Res.string.detour_start_edit_label),
+                        valueTag = DayViewTestTags.DetourEditStartValue,
+                        fieldTag = DayViewTestTags.DetourEditStartField,
+                        onCommit = { startMinutes = it },
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    TimeButton(
+                        label = "+",
+                        enabled = startMinutes < 23 * 60 + 55,
+                        onClickLabel = stringResource(Res.string.detour_start_increase),
+                        valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
+                        modifier = Modifier.testTag(DayViewTestTags.DetourEditStartIncrease),
+                    ) { startMinutes = snapToFive(startMinutes, +1).coerceIn(0, 23 * 60 + 55) }
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(Res.string.detour_duration_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TimeButton(
+                        label = "−",
+                        enabled = durationMinutes > 5,
+                        onClickLabel = stringResource(Res.string.detour_duration_decrease),
+                        valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
+                    ) { durationMinutes = snapToFive(durationMinutes, -1).coerceIn(5, 12 * 60) }
+                    Spacer(Modifier.width(10.dp))
+                    EditableTimeValue(
+                        displayText = stringResource(Res.string.detour_minutes_chip, durationMinutes.toString()),
+                        editText = durationMinutes.toString(),
+                        parse = ::parseDurationMinutes,
+                        editLabel = stringResource(Res.string.detour_duration_edit_label),
+                        valueTag = DayViewTestTags.DetourEditDurationValue,
+                        fieldTag = DayViewTestTags.DetourEditDurationField,
+                        onCommit = { durationMinutes = it },
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    TimeButton(
+                        label = "+",
+                        enabled = durationMinutes < 12 * 60,
+                        onClickLabel = stringResource(Res.string.detour_duration_increase),
+                        valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
+                        modifier = Modifier.testTag(DayViewTestTags.DetourEditDurationIncrease),
+                    ) { durationMinutes = snapToFive(durationMinutes, +1).coerceIn(5, 12 * 60) }
+                }
             }
         }
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(Res.string.detour_duration_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TimeButton(
-                    label = "−",
-                    enabled = durationMinutes > 5,
-                    onClickLabel = stringResource(Res.string.detour_duration_decrease),
-                    valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
-                ) { durationMinutes = (durationMinutes - 5).coerceAtLeast(5) }
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(Res.string.detour_minutes_chip, durationMinutes.toString()),
-                    color = colors.cloud,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Light,
-                )
-                Spacer(Modifier.width(10.dp))
-                TimeButton(
-                    label = "+",
-                    enabled = durationMinutes < 12 * 60,
-                    onClickLabel = stringResource(Res.string.detour_duration_increase),
-                    valueDescription = stringResource(Res.string.detour_duration_value, durationMinutes.toString()),
-                ) { durationMinutes = (durationMinutes + 5).coerceAtMost(12 * 60) }
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            if (onDelete != null) {
+                FocusActionButton(stringResource(Res.string.detour_delete_button), colors.red, modifier = Modifier.weight(1f), onClick = onDelete)
             }
+            FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onCancel)
+            FocusActionButton(
+                stringResource(Res.string.detour_save_button),
+                colors.amber,
+                modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourEditSave),
+                enabled = category.isNotBlank(),
+                filled = true,
+                onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, category, description)) },
+            )
         }
     }
-    Spacer(Modifier.height(16.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-        if (onDelete != null) {
-            FocusActionButton(stringResource(Res.string.detour_delete_button), colors.red, modifier = Modifier.weight(1f), onClick = onDelete)
-        }
-        FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onCancel)
-        FocusActionButton(
-            stringResource(Res.string.detour_save_button),
-            colors.amber,
-            modifier = Modifier.weight(1f),
-            enabled = category.isNotBlank(),
-            filled = true,
-            onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, category, description)) },
+}
+
+/**
+ * A stepper's value text that turns into a small text field on tap. Enter or
+ * focus loss commits when [parse] accepts the draft; otherwise the previous
+ * value is kept. While editing, an unparsable draft shows the error border.
+ * Closing the field without changing the seeded text does not commit at all.
+ */
+@Composable
+internal fun EditableTimeValue(
+    displayText: String,
+    editText: String,
+    parse: (String) -> Int?,
+    editLabel: String,
+    valueTag: String,
+    fieldTag: String,
+    onCommit: (Int) -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    var editing by remember { mutableStateOf(false) }
+    var draft by remember { mutableStateOf(TextFieldValue("")) }
+    if (!editing) {
+        Text(
+            displayText,
+            color = colors.cloud,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Light,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(role = Role.Button, onClickLabel = editLabel) {
+                    draft = TextFieldValue(editText, selection = TextRange(0, editText.length))
+                    editing = true
+                }
+                .testTag(valueTag)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
         )
+    } else {
+        val focusRequester = remember { FocusRequester() }
+        var wasFocused by remember { mutableStateOf(false) }
+
+        // Text seeded when the field opened; resets whenever `editing` toggles because
+        // this whole branch is re-entered. Compared against below so an untouched draft
+        // (e.g. tap-to-open then blur) closes the field without firing onCommit.
+        val initialText = remember { draft.text }
+        val isError = parse(draft.text) == null
+
+        // Also reached when a stepper (+/-) button is clicked while editing: its focus
+        // steal commits via the focus-loss handler below before the button's own onClick runs.
+        fun commit() {
+            if (!editing) return
+            if (draft.text != initialText) parse(draft.text)?.let(onCommit)
+            editing = false
+        }
+        BasicTextField(
+            value = draft,
+            onValueChange = { draft = it },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { commit() }),
+            textStyle = TextStyle(
+                color = colors.cloud,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Light,
+                textAlign = TextAlign.Center,
+            ),
+            cursorBrush = Brush.verticalGradient(listOf(colors.mint, colors.mint)),
+            modifier = Modifier
+                .width(96.dp)
+                .focusRequester(focusRequester)
+                .onFocusChanged { focusState ->
+                    if (wasFocused && !focusState.isFocused) commit()
+                    wasFocused = focusState.isFocused
+                }
+                .semantics { contentDescription = editLabel }
+                .background(colors.overlay.copy(alpha = .045f), RoundedCornerShape(8.dp))
+                .border(
+                    width = 1.dp,
+                    color = if (isError) colors.red.copy(alpha = .8f) else colors.overlay.copy(alpha = .07f),
+                    shape = RoundedCornerShape(8.dp),
+                )
+                .testTag(fieldTag)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        )
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
     }
 }
 

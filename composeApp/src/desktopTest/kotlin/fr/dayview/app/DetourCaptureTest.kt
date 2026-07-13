@@ -3,6 +3,8 @@ package fr.dayview.app
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
@@ -129,6 +131,101 @@ class DetourCaptureTest {
         assertEquals("café", category)
         assertEquals("pause clope", description)
         assertEquals(15, duration)
+        assertNull(start)
+    }
+
+    @Test
+    fun typingAStartTimePinsIt() = runComposeUiTest {
+        var start: Int? = null
+        setContent {
+            DetourCaptureContent(
+                recentCategories = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { _, _, _, s -> start = s },
+                onForget = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performTextClearance()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performTextInput("9h05")
+        onNodeWithTag(DayViewTestTags.DetourStartField).performImeAction()
+        onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
+
+        assertEquals(9 * 60 + 5, start)
+    }
+
+    @Test
+    fun invalidTypedStartRevertsToPreviousValue() = runComposeUiTest {
+        var start: Int? = null
+        setContent {
+            DetourCaptureContent(
+                recentCategories = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { _, _, _, s -> start = s },
+                onForget = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performTextClearance()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performTextInput("99:99")
+        onNodeWithTag(DayViewTestTags.DetourStartField).performImeAction()
+        // The field closes without committing; the start stays unpinned.
+        onNodeWithTag(DayViewTestTags.DetourStartValue).assertExists()
+        onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
+
+        assertNull(start)
+    }
+
+    @Test
+    fun nudgingFromTypedMisalignedStartSnapsToMultipleOfFive() = runComposeUiTest {
+        var start: Int? = null
+        setContent {
+            DetourCaptureContent(
+                recentCategories = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { _, _, _, s -> start = s },
+                onForget = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performTextClearance()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performTextInput("9h07")
+        onNodeWithTag(DayViewTestTags.DetourStartField).performImeAction()
+        onNodeWithTag(DayViewTestTags.DetourStartIncrease).performClick()
+        onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
+
+        // 9:07 + snaps up to 9:10, not 9:12.
+        assertEquals(9 * 60 + 10, start)
+    }
+
+    @Test
+    fun openingTheStartFieldWithoutTypingDoesNotPinTheStart() = runComposeUiTest {
+        var start: Int? = null
+        setContent {
+            DetourCaptureContent(
+                recentCategories = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { _, _, _, s -> start = s },
+                onForget = {},
+                onDismiss = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("café")
+        onNodeWithTag(DayViewTestTags.DetourStartAdjust).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartValue).performClick()
+        onNodeWithTag(DayViewTestTags.DetourStartField).performImeAction()
+        onNodeWithTag(DayViewTestTags.DetourConfirm).performClick()
+
+        // An untouched draft must not pin: the start stays "ends now".
         assertNull(start)
     }
 
