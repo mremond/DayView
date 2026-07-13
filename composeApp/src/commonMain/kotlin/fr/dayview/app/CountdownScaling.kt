@@ -75,11 +75,20 @@ internal fun countdownInterior(
         (RESERVE_HEADER + RESERVE_HEADER_SPACER + RESERVE_NUMERALS + if (showSeconds) RESERVE_SECONDS else 0f) *
             counterScale
     var remaining = interiorHeight - reserve
+    // Bottom-up cull: once a present row fails to fit, the budget is spent — every
+    // lower-priority row is dropped too, even one that is individually smaller. This keeps
+    // the cull monotonic in priority (a higher-priority row never disappears while a
+    // lower-priority detail survives). An absent row is skipped without spending the budget.
+    var budgetExhausted = false
 
     fun take(present: Boolean, base: Float): Boolean {
         if (!present) return false
+        if (budgetExhausted) return false
         val height = base * counterScale
-        if (height > remaining) return false
+        if (height > remaining) {
+            budgetExhausted = true
+            return false
+        }
         remaining -= height
         return true
     }

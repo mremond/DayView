@@ -72,4 +72,17 @@ class CountdownInteriorTest {
     fun netStaysFullSizeOnLargeRing() {
         assertFalse(all(circleSize = 400f, scale = 1.0f).netCompact)
     }
+
+    @Test
+    fun cullIsMonotonicInPriority() {
+        // In the size band where Focus (the taller row) fails to fit, the smaller busy
+        // sub-line must not sneak in past it: once any present row is dropped for space,
+        // every lower-priority row drops too. Regression for the take() short-circuit.
+        val interior = all(circleSize = 180f, scale = 0.72f)
+        assertTrue(interior.showNet)
+        assertTrue(interior.showDetours)
+        assertFalse(interior.showFocus)
+        assertFalse(interior.showBusy)
+        assertFalse(interior.showAccolades)
+    }
 }
