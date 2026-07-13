@@ -32,13 +32,19 @@ fun androidSecureKeyStore(context: Context): SecureKeyStore {
 
 @OptIn(ExperimentalEncodingApi::class)
 private class AndroidSecureKeyStore(private val prefs: SharedPreferences) : SecureKeyStore {
-    override fun loadKey(): RawSyncKey? = prefs.getString(KEY_SYNC_KEY, null)?.let { RawSyncKey(Base64.decode(it)) }
+    // A corrupted or partially-written preference value must degrade to "nothing
+    // stored" rather than crash callers that load the secret at startup.
+    override fun loadKey(): RawSyncKey? = prefs.getString(KEY_SYNC_KEY, null)?.let { b64 ->
+        runCatching { RawSyncKey(Base64.decode(b64)) }.getOrNull()
+    }
 
     override fun storeKey(key: RawSyncKey) {
         prefs.edit().putString(KEY_SYNC_KEY, Base64.encode(key.bytes)).apply()
     }
 
-    override fun loadConfig(): SyncConfig? = prefs.getString(KEY_SYNC_CONFIG, null)?.let { SyncJson.decodeFromString(it) }
+    override fun loadConfig(): SyncConfig? = prefs.getString(KEY_SYNC_CONFIG, null)?.let { json ->
+        runCatching { SyncJson.decodeFromString<SyncConfig>(json) }.getOrNull()
+    }
 
     override fun storeConfig(config: SyncConfig) {
         prefs.edit().putString(KEY_SYNC_CONFIG, SyncJson.encodeToString(config)).apply()

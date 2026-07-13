@@ -1,6 +1,9 @@
 package fr.dayview.app.sync
 
 import java.io.File
+import java.nio.file.FileSystemException
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
 import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -42,5 +45,49 @@ class SecureKeyStoreDesktopTest {
 
         assertNull(store.loadKey())
         assertNull(store.loadConfig())
+    }
+
+    @Test
+    fun loadReturnsNullOnCorruptedFile() {
+        file.parentFile.mkdirs()
+        file.writeText("not json {{{")
+
+        val store = desktopSecureKeyStore(file)
+
+        assertNull(store.loadKey())
+        assertNull(store.loadConfig())
+    }
+
+    @Test
+    fun loadReturnsNullOnWrongLengthKey() {
+        file.parentFile.mkdirs()
+        // "AAAA" base64-decodes to 3 bytes, well short of the required 32-byte key.
+        file.writeText("""{"keyB64":"AAAA"}""")
+
+        val store = desktopSecureKeyStore(file)
+
+        assertNull(store.loadKey())
+    }
+
+    @Test
+    fun secretFileHasOwnerOnlyPermissions() {
+        val fileStore = try {
+            Files.getFileStore(tempDir.toPath())
+        } catch (_: Exception) {
+            null
+        }
+        if (fileStore == null || !fileStore.supportsFileAttributeView("posix")) {
+            return
+        }
+
+        val store = desktopSecureKeyStore(file)
+        store.storeKey(RawSyncKey.generate())
+
+        try {
+            val permissions = Files.getPosixFilePermissions(file.toPath())
+            assertEquals(PosixFilePermissions.fromString("rw-------"), permissions)
+        } catch (_: FileSystemException) {
+            // Non-POSIX filesystem despite the FileStore check above; nothing to assert.
+        }
     }
 }
