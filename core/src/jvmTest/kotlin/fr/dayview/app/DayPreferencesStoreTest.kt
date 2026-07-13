@@ -191,4 +191,18 @@ class DayPreferencesStoreTest {
         assertEquals(20_646L, read.plannedObligationsDayKey)
         assertEquals(listOf("Appel client", "Facture"), read.plannedObligations)
     }
+
+    @Test
+    fun persistsAndReloadsCompletedObligations() = runTest {
+        val store = newStore(FakeFileSystem())
+        store.persist(
+            DayPreferencesSnapshot(
+                plannedObligationsDayKey = 19000,
+                plannedObligations = listOf("b"),
+                plannedObligationsCompleted = listOf("a"),
+            ),
+        )
+        val loaded = store.snapshots.first()
+        assertEquals(listOf("a"), loaded.plannedObligationsCompleted)
+    }
 }
