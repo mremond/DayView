@@ -186,7 +186,7 @@ internal data class DayViewScreenActions(
     val startPomodoro: () -> Unit,
     val stopPomodoro: () -> Unit,
     val closePomodoro: (FocusClosureOutcome) -> Unit,
-    val addDetour: (String, Int) -> Unit,
+    val addDetour: (String, Int, String) -> Unit,
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
@@ -362,12 +362,12 @@ internal fun DayViewScreen(
             DetourCaptureDialog(
                 recentCategories = state.recentDetourCategories,
                 now = state.now,
-                onConfirm = { category, durationMinutes, startMinutesOfDay ->
+                onConfirm = { category, description, durationMinutes, startMinutesOfDay ->
                     if (startMinutesOfDay == null) {
-                        actions.addDetour(category, durationMinutes)
+                        actions.addDetour(category, durationMinutes, description)
                     } else {
                         actions.addDetourEpisode(
-                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, category),
+                            detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, category, description),
                         )
                     }
                     showDetourCapture = false
@@ -381,8 +381,8 @@ internal fun DayViewScreen(
                 recentCategories = state.recentDetourCategories,
                 now = state.now,
                 initialCategory = motif,
-                onConfirm = { confirmedCategory, durationMinutes, startMinutesOfDay ->
-                    actions.completePlannedObligation(motif, confirmedCategory, "", durationMinutes, startMinutesOfDay)
+                onConfirm = { confirmedCategory, description, durationMinutes, startMinutesOfDay ->
+                    actions.completePlannedObligation(motif, confirmedCategory, description, durationMinutes, startMinutesOfDay)
                     obligationToComplete = null
                 },
                 onForget = actions.forgetDetourCategory,

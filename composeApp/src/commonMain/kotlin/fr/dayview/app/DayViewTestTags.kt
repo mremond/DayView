@@ -17,6 +17,7 @@ internal object DayViewTestTags {
     const val FocusStart = "focusStart"
     const val FocusStop = "focusStop"
     const val DetourCategoryField = "detourCategoryField"
+    const val DetourDescriptionField = "detourDescriptionField"
     const val DetourStartAdjust = "detourStartAdjust"
     const val DetourStartIncrease = "detourStartIncrease"
     const val DetourConfirm = "detourConfirm"

@@ -230,6 +230,8 @@
     <string name="detour_capture_prompt">Qu’est-ce qui vous a détourné du chemin ?</string>
     <string name="detour_category_label">Catégorie</string>
     <string name="detour_category_placeholder">Ex. appel imprévu</string>
+    <string name="detour_description_label">Description</string>
+    <string name="detour_description_placeholder">Détail (optionnel)</string>
     <string name="detour_forget_row_label">Oublier cette catégorie</string>
     <string name="detour_forget_prompt">Oublier cette catégorie ?</string>
     <string name="detour_forget_confirm">OUBLIER</string>

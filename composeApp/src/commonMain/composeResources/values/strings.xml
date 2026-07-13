@@ -231,6 +231,8 @@
     <string name="detour_capture_prompt">What pulled you off the path?</string>
     <string name="detour_category_label">Category</string>
     <string name="detour_category_placeholder">E.g. unexpected call</string>
+    <string name="detour_description_label">Description</string>
+    <string name="detour_description_placeholder">Optional detail</string>
     <string name="detour_forget_row_label">Forget this category</string>
     <string name="detour_forget_prompt">Forget this category?</string>
     <string name="detour_forget_confirm">FORGET</string>

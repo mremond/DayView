@@ -51,6 +51,8 @@ import fr.dayview.app.generated.resources.detour_category_placeholder
 import fr.dayview.app.generated.resources.detour_close_button
 import fr.dayview.app.generated.resources.detour_confirm_button
 import fr.dayview.app.generated.resources.detour_delete_button
+import fr.dayview.app.generated.resources.detour_description_label
+import fr.dayview.app.generated.resources.detour_description_placeholder
 import fr.dayview.app.generated.resources.detour_duration_decrease
 import fr.dayview.app.generated.resources.detour_duration_increase
 import fr.dayview.app.generated.resources.detour_duration_label
@@ -194,13 +196,14 @@ private val DETOUR_LONG_DURATION_CHOICES = listOf(90, 120, 180)
 internal fun DetourCaptureDialog(
     recentCategories: List<String>,
     now: Instant,
-    onConfirm: (category: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
+    onConfirm: (category: String, description: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
     onForget: (String) -> Unit,
     onDismiss: () -> Unit,
     initialCategory: String = "",
+    initialDescription: String = "",
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        DetourCaptureContent(recentCategories, now, onConfirm, onForget, onDismiss, initialCategory)
+        DetourCaptureContent(recentCategories, now, onConfirm, onForget, onDismiss, initialCategory, initialDescription)
     }
 }
 
@@ -212,16 +215,18 @@ internal fun DetourCaptureDialog(
 internal fun DetourCaptureContent(
     recentCategories: List<String>,
     now: Instant,
-    onConfirm: (category: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
+    onConfirm: (category: String, description: String, durationMinutes: Int, startMinutesOfDay: Int?) -> Unit,
     onForget: (String) -> Unit,
     onDismiss: () -> Unit,
     initialCategory: String = "",
+    initialDescription: String = "",
 ) {
     val colors = LocalDayViewColors.current
     val uses24Hour = LocalUses24HourClock.current
     val timeZone = TimeZone.currentSystemDefault()
     val forgetRowLabel = stringResource(Res.string.detour_forget_row_label)
     var category by remember { mutableStateOf(initialCategory) }
+    var description by remember { mutableStateOf(initialDescription) }
     var durationMinutes by remember { mutableIntStateOf(15) }
     var showStart by remember { mutableStateOf(false) }
     var startPinned by remember { mutableStateOf(false) }
@@ -266,6 +271,14 @@ internal fun DetourCaptureContent(
                 }
             }
         }
+        Spacer(Modifier.height(10.dp))
+        GoalTextField(
+            value = description,
+            semanticLabel = stringResource(Res.string.detour_description_label),
+            placeholder = stringResource(Res.string.detour_description_placeholder),
+            onValueChange = { description = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
+        )
         Spacer(Modifier.height(14.dp))
         Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Spacer(Modifier.height(8.dp))
@@ -360,7 +373,7 @@ internal fun DetourCaptureContent(
                 modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourConfirm),
                 enabled = category.isNotBlank(),
                 filled = true,
-                onClick = { onConfirm(category, durationMinutes, if (startPinned) startMinutes else null) },
+                onClick = { onConfirm(category, description, durationMinutes, if (startPinned) startMinutes else null) },
             )
         }
     }
@@ -547,6 +560,7 @@ private fun DetourEditForm(
     val timeZone = TimeZone.currentSystemDefault()
     val initialStart = (initial?.start ?: now).toLocalDateTime(timeZone)
     var category by remember { mutableStateOf(initial?.category.orEmpty()) }
+    var description by remember { mutableStateOf(initial?.description.orEmpty()) }
     var startMinutes by remember {
         mutableIntStateOf(
             (initialStart.hour * 60 + initialStart.minute - if (initial == null) 15 else 0).coerceAtLeast(0),
@@ -560,6 +574,14 @@ private fun DetourEditForm(
         semanticLabel = stringResource(Res.string.detour_category_label),
         placeholder = stringResource(Res.string.detour_category_placeholder),
         onValueChange = { category = it },
+    )
+    Spacer(Modifier.height(12.dp))
+    GoalTextField(
+        value = description,
+        semanticLabel = stringResource(Res.string.detour_description_label),
+        placeholder = stringResource(Res.string.detour_description_placeholder),
+        onValueChange = { description = it },
+        modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
     )
     Spacer(Modifier.height(12.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -623,7 +645,7 @@ private fun DetourEditForm(
             modifier = Modifier.weight(1f),
             enabled = category.isNotBlank(),
             filled = true,
-            onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, category)) },
+            onClick = { onSave(detourEpisodeAt(now, startMinutes, durationMinutes, category, description)) },
         )
     }
 }
