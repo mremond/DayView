@@ -29,10 +29,13 @@ class RecoveryPhraseTest {
     }
 
     @Test
-    fun rejectsTamperedChecksum() {
-        val words = RecoveryPhrase.encode(RawSyncKey.generate()).toMutableList()
-        words[23] = if (words[23] == "zoo") "abandon" else "zoo" // change last word → checksum breaks
-        assertNull(RecoveryPhrase.decode(words))
+    fun rejectsWrongChecksum() {
+        // 24×"abandon" is all-zero entropy carrying an all-zero checksum, but the real
+        // checksum for zero entropy is non-zero (the canonical 24th word is "art", not
+        // "abandon"), so this phrase must be rejected. Deterministic — unlike tampering a
+        // random phrase, which lands on another valid checksum ~1 time in 256 (BIP39's
+        // checksum is only 8 bits for a 256-bit key), so that form was flaky.
+        assertNull(RecoveryPhrase.decode(List(24) { "abandon" }))
     }
 
     @Test
