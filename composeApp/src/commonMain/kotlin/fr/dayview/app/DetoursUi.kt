@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -811,7 +812,16 @@ internal fun EditableTimeValue(
                 .testTag(fieldTag)
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         )
-        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+        // The value Text is focusable (Modifier.clickable), so tapping it makes it the
+        // focus owner; flipping `editing` then removes that node and composes this field
+        // in the same frame. Requesting focus during that teardown wins Compose focus (the
+        // seeded selection shows) but doesn't start the desktop text-input session, so
+        // keystrokes are dropped until the window is refocused. Yielding a frame lets the
+        // teardown settle so the focus request starts input cleanly.
+        LaunchedEffect(Unit) {
+            withFrameNanos {}
+            focusRequester.requestFocus()
+        }
     }
 }
 
