@@ -20,6 +20,8 @@ internal class FileDayHistoryStore(private val fs: HistoryFileSystem) : DayHisto
     override suspend fun read(dayKey: Long): DayHistoryRecord? = fs.read(dayKey.toString())?.let { DayHistoryCodec.decode(it) }
 
     override suspend fun listDays(range: LongRange): List<Long> = fs.list().mapNotNull { it.toLongOrNull() }.filter { it in range }.sorted()
+
+    override suspend fun listAllDays(): List<Long> = fs.list().mapNotNull { it.toLongOrNull() }.sorted()
 }
 
 internal fun createDayHistoryStore(): DayHistoryStore = createHistoryFileSystem()?.let { FileDayHistoryStore(it) } ?: InMemoryDayHistoryStore()
