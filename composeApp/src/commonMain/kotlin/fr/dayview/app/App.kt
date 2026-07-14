@@ -1,7 +1,11 @@
 package fr.dayview.app
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -14,9 +18,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import fr.dayview.app.sync.RawSyncKey
 import fr.dayview.app.sync.RecoveryPhrase
 import fr.dayview.app.sync.SecureKeyStore
@@ -101,6 +107,7 @@ internal fun DayViewApp(
                     // Buffered so a burst of local edits collapses into a single pending signal;
                     // the debounced collector below turns it into a single sync trigger.
                     val localWriteSignal = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
+                    val appEventBus = remember { AppEventBus() }
                     val controller = remember(preferences) {
                         DayViewController(
                             preferences,
@@ -110,9 +117,11 @@ internal fun DayViewApp(
                             initialFocusPresenceIntervals = focusPresenceIntervals,
                             initialFocusSessionIntervals = focusSessionIntervals,
                             onLocalWrite = { localWriteSignal.tryEmit(Unit) },
+                            appEventBus = appEventBus,
                         )
                     }
                     val state by controller.stateFlow.collectAsState()
+                    val toastHostState = remember { SnackbarHostState() }
                     // Recompute when the user opens Settings to edit the on-goal apps, rather
                     // than freezing the check at launch (when no target app may be running yet).
                     var hasRunningApps by remember { mutableStateOf(false) }
@@ -293,155 +302,167 @@ internal fun DayViewApp(
                         }
                     }
 
-                    when (state.destination) {
-                        DayViewDestination.SETTINGS -> SettingsScreen(
-                            state = state,
-                            platformState = SettingsPlatformUiState(
-                                monochromeMenuBarIcon = monochromeMenuBarIcon,
-                                launchAtLogin = launchAtLogin,
-                                netTimeSupported = calendarSource.isSupported(),
-                                onGoalSupported = hasRunningApps,
-                                runningApps = runningApps,
-                                syncConfig = syncConfig,
-                                syncStatus = syncStatus,
-                                syncHasKey = syncHasKey,
-                                powerManagementSupported = onOpenPowerSettings != null,
-                            ),
-                            actions = SettingsScreenActions(
-                                changeStartTime = { controller.setStartMinutes(it) },
-                                changeEndTime = { controller.setEndMinutes(it) },
-                                changeShowSeconds = { controller.setShowSeconds(it) },
-                                changeMonochromeMenuBarIcon = onMonochromeMenuBarIconChange,
-                                changeLaunchAtLogin = onLaunchAtLoginChange,
-                                changeSoundSettings = { controller.setSoundSettings(it) },
-                                previewSound = { cue ->
-                                    soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
-                                },
-                                changeNetTimeSettings = {
-                                    controller.setNetTimeSettings(it)
-                                    calendarPermissionProbe++
-                                },
-                                requestCalendarPermission = onRequestCalendarAccess,
-                                changeOnGoalApps = { controller.setOnGoalApps(it) },
-                                changeThemeMode = { controller.setThemeMode(it) },
-                                changeFontScale = { controller.setFontScale(it) },
-                                openCategory = { controller.openSettingsCategory(it) },
-                                closeCategory = { controller.closeSettingsCategory() },
-                                changeSyncConfig = { cfg ->
-                                    // UI state updates synchronously on the main thread; the
-                                    // keystore write (disk I/O) is pushed off it.
-                                    val previous = syncConfig
-                                    syncConfig = cfg
-                                    scope.launch(Dispatchers.IO) { secureKeyStore?.storeConfig(cfg) }
-                                    // A different server/user must not reuse the old baseDocument
-                                    // as a merge base for the new endpoint.
-                                    if (previous != null &&
-                                        (previous.userId != cfg.userId || previous.baseUrl != cfg.baseUrl)
-                                    ) {
-                                        scope.launch(Dispatchers.IO) { syncCoordinator?.reset() }
-                                    }
-                                },
-                                generateSyncKey = {
-                                    // Key generation is cheap and stays synchronous so the
-                                    // recovery phrase can be returned immediately; only the
-                                    // keystore persistence goes to IO.
-                                    val key = RawSyncKey.generate()
-                                    syncHasKey = true
-                                    scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
-                                    RecoveryPhrase.encode(key).joinToString(" ")
-                                },
-                                pasteSyncKey = { phrase ->
-                                    val key = RecoveryPhrase.decodePhrase(phrase)
-                                    if (key != null) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        when (state.destination) {
+                            DayViewDestination.SETTINGS -> SettingsScreen(
+                                state = state,
+                                platformState = SettingsPlatformUiState(
+                                    monochromeMenuBarIcon = monochromeMenuBarIcon,
+                                    launchAtLogin = launchAtLogin,
+                                    netTimeSupported = calendarSource.isSupported(),
+                                    onGoalSupported = hasRunningApps,
+                                    runningApps = runningApps,
+                                    syncConfig = syncConfig,
+                                    syncStatus = syncStatus,
+                                    syncHasKey = syncHasKey,
+                                    powerManagementSupported = onOpenPowerSettings != null,
+                                ),
+                                actions = SettingsScreenActions(
+                                    changeStartTime = { controller.setStartMinutes(it) },
+                                    changeEndTime = { controller.setEndMinutes(it) },
+                                    changeShowSeconds = { controller.setShowSeconds(it) },
+                                    changeMonochromeMenuBarIcon = onMonochromeMenuBarIconChange,
+                                    changeLaunchAtLogin = onLaunchAtLoginChange,
+                                    changeSoundSettings = { controller.setSoundSettings(it) },
+                                    previewSound = { cue ->
+                                        soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
+                                    },
+                                    changeNetTimeSettings = {
+                                        controller.setNetTimeSettings(it)
+                                        calendarPermissionProbe++
+                                    },
+                                    requestCalendarPermission = onRequestCalendarAccess,
+                                    changeOnGoalApps = { controller.setOnGoalApps(it) },
+                                    changeThemeMode = { controller.setThemeMode(it) },
+                                    changeFontScale = { controller.setFontScale(it) },
+                                    openCategory = { controller.openSettingsCategory(it) },
+                                    closeCategory = { controller.closeSettingsCategory() },
+                                    changeSyncConfig = { cfg ->
+                                        // UI state updates synchronously on the main thread; the
+                                        // keystore write (disk I/O) is pushed off it.
+                                        val previous = syncConfig
+                                        syncConfig = cfg
+                                        scope.launch(Dispatchers.IO) { secureKeyStore?.storeConfig(cfg) }
+                                        // A different server/user must not reuse the old baseDocument
+                                        // as a merge base for the new endpoint.
+                                        if (previous != null &&
+                                            (previous.userId != cfg.userId || previous.baseUrl != cfg.baseUrl)
+                                        ) {
+                                            scope.launch(Dispatchers.IO) { syncCoordinator?.reset() }
+                                        }
+                                    },
+                                    generateSyncKey = {
+                                        // Key generation is cheap and stays synchronous so the
+                                        // recovery phrase can be returned immediately; only the
+                                        // keystore persistence goes to IO.
+                                        val key = RawSyncKey.generate()
                                         syncHasKey = true
                                         scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                },
-                                syncNow = { launchSync() },
-                                clearSyncKey = {
-                                    syncConfig = null
-                                    syncHasKey = false
-                                    scope.launch(Dispatchers.IO) {
-                                        secureKeyStore?.clear()
-                                        syncCoordinator?.reset()
-                                    }
-                                },
-                                openPowerSettings = onOpenPowerSettings ?: {},
-                                back = { controller.openToday() },
-                            ),
-                        )
-                        DayViewDestination.HISTORY -> {
-                            val selected = state.selectedHistoryDay
-                            val day = state.historyWeek.firstOrNull { it.dayKey == selected }
-                            val record = day?.record
-                            if (selected != null && record != null) {
-                                HistoryDayScreen(record = record, now = day.now, onBack = { controller.closeHistory() })
-                            } else {
-                                HistoryWeekScreen(
-                                    days = state.historyWeek,
-                                    onSelectDay = { controller.openHistoryDay(it) },
-                                    onBack = { controller.closeHistory() },
-                                )
+                                        RecoveryPhrase.encode(key).joinToString(" ")
+                                    },
+                                    pasteSyncKey = { phrase ->
+                                        val key = RecoveryPhrase.decodePhrase(phrase)
+                                        if (key != null) {
+                                            syncHasKey = true
+                                            scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    },
+                                    syncNow = { launchSync() },
+                                    clearSyncKey = {
+                                        syncConfig = null
+                                        syncHasKey = false
+                                        scope.launch(Dispatchers.IO) {
+                                            secureKeyStore?.clear()
+                                            syncCoordinator?.reset()
+                                        }
+                                    },
+                                    openPowerSettings = onOpenPowerSettings ?: {},
+                                    back = { controller.openToday() },
+                                ),
+                            )
+                            DayViewDestination.HISTORY -> {
+                                val selected = state.selectedHistoryDay
+                                val day = state.historyWeek.firstOrNull { it.dayKey == selected }
+                                val record = day?.record
+                                if (selected != null && record != null) {
+                                    HistoryDayScreen(record = record, now = day.now, onBack = { controller.closeHistory() })
+                                } else {
+                                    HistoryWeekScreen(
+                                        days = state.historyWeek,
+                                        onSelectDay = { controller.openHistoryDay(it) },
+                                        onBack = { controller.closeHistory() },
+                                    )
+                                }
                             }
+                            DayViewDestination.TODAY -> DayViewScreen(
+                                state = state,
+                                actions = DayViewScreenActions(
+                                    openSettings = { controller.openSettings() },
+                                    onOpenHistory = { controller.openHistory() },
+                                    openMiniWindow = onOpenMiniWindow,
+                                    changeGoalTitle = { controller.setGoalTitle(it) },
+                                    changeGoalDeadline = { controller.setGoalDeadlineText(it) },
+                                    commitGoalDeadline = { controller.commitGoalDeadline() },
+                                    changeGoalStart = { controller.setGoalStartText(it) },
+                                    commitGoalStart = { controller.commitGoalStart() },
+                                    changeFocusIntention = { controller.setFocusIntention(it) },
+                                    changePomodoroDuration = { controller.changePomodoroDuration(it) },
+                                    startPomodoro = {
+                                        controller.startPomodoro()
+                                        controller.state.pomodoroEnd?.let {
+                                            onFocusAlarmChange(it, controller.state.focusIntention)
+                                        }
+                                    },
+                                    stopPomodoro = {
+                                        val intention = controller.state.focusIntention
+                                        controller.stopPomodoro()
+                                        onFocusAlarmChange(null, intention)
+                                    },
+                                    closePomodoro = { outcome ->
+                                        val intention = controller.state.focusIntention
+                                        controller.closePomodoro(outcome)
+                                        onFocusAlarmChange(null, intention)
+                                    },
+                                    addDetour = { category, durationMinutes, description -> controller.addDetour(category, durationMinutes, description) },
+                                    updateDetour = { index, episode -> controller.updateDetour(index, episode) },
+                                    removeDetour = { controller.removeDetour(it) },
+                                    addDetourEpisode = { controller.addDetourEpisode(it) },
+                                    startOpenDetour = { category, description -> controller.startOpenDetour(category, description) },
+                                    stopOpenDetour = { controller.stopOpenDetour() },
+                                    forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
+                                    addPlannedObligation = { controller.addPlannedObligation(it) },
+                                    removePlannedObligation = { controller.removePlannedObligation(it) },
+                                    completePlannedObligation = controller::completePlannedObligation,
+                                    openNetTimeSettings = {
+                                        controller.openSettings()
+                                        controller.openSettingsCategory(SettingsCategory.NET_TIME)
+                                    },
+                                    openSyncSettings = {
+                                        controller.openSettings()
+                                        controller.openSettingsCategory(SettingsCategory.SYNC)
+                                    },
+                                ),
+                                syncStatus = syncStatus,
+                                reminders = FocusReminderUiState(
+                                    showDriftReminder = showFocusDriftReminder,
+                                    dismissDriftReminder = onDismissFocusDriftReminder,
+                                    showResumeRitual = showFocusResumeRitual,
+                                    dismissResumeRitual = onDismissFocusResumeRitual,
+                                ),
+                            )
                         }
-                        DayViewDestination.TODAY -> DayViewScreen(
-                            state = state,
-                            actions = DayViewScreenActions(
-                                openSettings = { controller.openSettings() },
-                                onOpenHistory = { controller.openHistory() },
-                                openMiniWindow = onOpenMiniWindow,
-                                changeGoalTitle = { controller.setGoalTitle(it) },
-                                changeGoalDeadline = { controller.setGoalDeadlineText(it) },
-                                commitGoalDeadline = { controller.commitGoalDeadline() },
-                                changeGoalStart = { controller.setGoalStartText(it) },
-                                commitGoalStart = { controller.commitGoalStart() },
-                                changeFocusIntention = { controller.setFocusIntention(it) },
-                                changePomodoroDuration = { controller.changePomodoroDuration(it) },
-                                startPomodoro = {
-                                    controller.startPomodoro()
-                                    controller.state.pomodoroEnd?.let {
-                                        onFocusAlarmChange(it, controller.state.focusIntention)
-                                    }
-                                },
-                                stopPomodoro = {
-                                    val intention = controller.state.focusIntention
-                                    controller.stopPomodoro()
-                                    onFocusAlarmChange(null, intention)
-                                },
-                                closePomodoro = { outcome ->
-                                    val intention = controller.state.focusIntention
-                                    controller.closePomodoro(outcome)
-                                    onFocusAlarmChange(null, intention)
-                                },
-                                addDetour = { category, durationMinutes, description -> controller.addDetour(category, durationMinutes, description) },
-                                updateDetour = { index, episode -> controller.updateDetour(index, episode) },
-                                removeDetour = { controller.removeDetour(it) },
-                                addDetourEpisode = { controller.addDetourEpisode(it) },
-                                startOpenDetour = { category, description -> controller.startOpenDetour(category, description) },
-                                stopOpenDetour = { controller.stopOpenDetour() },
-                                forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
-                                addPlannedObligation = { controller.addPlannedObligation(it) },
-                                removePlannedObligation = { controller.removePlannedObligation(it) },
-                                completePlannedObligation = controller::completePlannedObligation,
-                                openNetTimeSettings = {
-                                    controller.openSettings()
-                                    controller.openSettingsCategory(SettingsCategory.NET_TIME)
-                                },
-                                openSyncSettings = {
-                                    controller.openSettings()
-                                    controller.openSettingsCategory(SettingsCategory.SYNC)
-                                },
-                            ),
-                            syncStatus = syncStatus,
-                            reminders = FocusReminderUiState(
-                                showDriftReminder = showFocusDriftReminder,
-                                dismissDriftReminder = onDismissFocusDriftReminder,
-                                showResumeRitual = showFocusResumeRitual,
-                                dismissResumeRitual = onDismissFocusResumeRitual,
-                            ),
+                        ToastEventHost(
+                            events = appEventBus.events,
+                            hostState = toastHostState,
+                            onUndoDetour = { controller.restoreLastRemovedDetour() },
+                            onUndoObligation = { controller.restoreLastRemovedObligation() },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .safeDrawingPadding()
+                                .padding(16.dp),
                         )
                     }
                 }

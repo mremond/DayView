@@ -15,9 +15,11 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +41,7 @@ import fr.dayview.app.generated.resources.toast_save_failed
 import fr.dayview.app.generated.resources.toast_sound_failed
 import fr.dayview.app.generated.resources.toast_synced
 import fr.dayview.app.generated.resources.toast_undo
+import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.resources.getString
 
 enum class ToastSeverity { Success, Error, Info }
@@ -155,4 +158,30 @@ fun DayViewToastHost(
             DayViewToast(visuals = visuals, onAction = { data.performAction() })
         }
     }
+}
+
+/**
+ * Collects [AppEvent.Toast]s, maps each to a localized [ToastVisuals], shows it through
+ * [hostState], and — when the user taps the action — invokes the visuals' undo callback.
+ * Extracted from DayViewApp so the event→toast→undo seam is testable.
+ */
+@Composable
+fun ToastEventHost(
+    events: Flow<AppEvent>,
+    hostState: SnackbarHostState,
+    onUndoDetour: () -> Unit,
+    onUndoObligation: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LaunchedEffect(events, hostState) {
+        events.collect { event ->
+            if (event is AppEvent.Toast) {
+                val visuals = toastVisualsFor(event, onUndoDetour, onUndoObligation)
+                if (hostState.showSnackbar(visuals) == SnackbarResult.ActionPerformed) {
+                    visuals.onAction?.invoke()
+                }
+            }
+        }
+    }
+    DayViewToastHost(hostState, modifier)
 }
