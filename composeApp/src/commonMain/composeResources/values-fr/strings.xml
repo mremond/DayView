@@ -258,9 +258,7 @@
     <string name="clean_streak">Série %1$d j</string>
     <string name="detour_time_range">%1$s – %2$s · %3$s</string>
     <string name="detour_off_window_tag">hors plage</string>
-    <string name="detour_add_button">+ DÉTOUR</string>
-    <string name="detour_capture_open_label">Déclarer un détour</string>
-    <string name="detour_list_open_label">Détours du jour</string>
+    <string name="detour_capture_open_label">Ajouter un détour</string>
     <string name="detour_section">DÉTOUR</string>
     <string name="open_detour_status">EN COURS</string>
     <string name="detour_capture_prompt">Qu’est-ce qui vous a détourné du chemin ?</string>
@@ -273,8 +271,6 @@
     <string name="detour_forget_confirm">OUBLIER</string>
     <string name="detour_duration_section">DURÉE APPROXIMATIVE</string>
     <string name="detour_minutes_chip">%1$s min</string>
-    <string name="detour_source_total">%1$s %2$s</string>
-    <string name="detour_overflow">+%1$s</string>
     <string name="detour_cancel_button">ANNULER</string>
     <string name="detour_confirm_button">AJOUTER</string>
     <string name="detour_start_open_button">DÉMARRER</string>
@@ -303,7 +299,9 @@
     <string name="planned_obligation_motif_placeholder">ex. Appel client</string>
     <string name="planned_obligation_add_button">AJOUTER</string>
     <string name="planned_obligation_done_button">FAIT</string>
-    <string name="planned_obligations_chip">Incontournables · À faire %1$d · Faits %2$d</string>
+    <string name="planned_obligations_empty_action">Ajouter un incontournable</string>
+    <string name="planned_obligations_one_action">1 incontournable</string>
+    <string name="planned_obligations_count_action">%1$d incontournables</string>
     <string name="planned_obligations_open_label">Ouvrir les incontournables du jour</string>
     <string name="planned_obligation_remove_label">Supprimer l’incontournable</string>
     <string name="planned_obligations_active_section">À FAIRE</string>

@@ -40,34 +40,9 @@ import fr.dayview.app.generated.resources.planned_obligation_motif_placeholder
 import fr.dayview.app.generated.resources.planned_obligation_remove_label
 import fr.dayview.app.generated.resources.planned_obligations_active_section
 import fr.dayview.app.generated.resources.planned_obligations_cap_reached
-import fr.dayview.app.generated.resources.planned_obligations_chip
 import fr.dayview.app.generated.resources.planned_obligations_completed_section
-import fr.dayview.app.generated.resources.planned_obligations_open_label
 import fr.dayview.app.generated.resources.planned_obligations_title
 import org.jetbrains.compose.resources.stringResource
-
-/** Compact main-screen entry point that opens today's must-dos modal; always visible. */
-@Composable
-internal fun PlannedObligationsChip(
-    activeCount: Int,
-    completedCount: Int,
-    onOpen: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalDayViewColors.current
-    Text(
-        stringResource(Res.string.planned_obligations_chip, activeCount, completedCount),
-        color = colors.muted,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Medium,
-        modifier = modifier
-            .minimumInteractiveComponentSize()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.planned_obligations_open_label), onClick = onOpen)
-            .testTag(DayViewTestTags.PlannedObligationsChip)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-    )
-}
 
 /** Modal wrapper around [PlannedObligationsContent] (untestable Dialog window; test the content). */
 @Composable

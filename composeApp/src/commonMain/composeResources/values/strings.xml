@@ -259,9 +259,7 @@
     <string name="clean_streak">Streak %1$d d</string>
     <string name="detour_time_range">%1$s – %2$s · %3$s</string>
     <string name="detour_off_window_tag">off window</string>
-    <string name="detour_add_button">+ DETOUR</string>
-    <string name="detour_capture_open_label">Declare a detour</string>
-    <string name="detour_list_open_label">Today’s detours</string>
+    <string name="detour_capture_open_label">Add a detour</string>
     <string name="detour_section">DETOUR</string>
     <string name="open_detour_status">IN PROGRESS</string>
     <string name="detour_capture_prompt">What pulled you off the path?</string>
@@ -274,8 +272,6 @@
     <string name="detour_forget_confirm">FORGET</string>
     <string name="detour_duration_section">APPROXIMATE DURATION</string>
     <string name="detour_minutes_chip">%1$s min</string>
-    <string name="detour_source_total">%1$s %2$s</string>
-    <string name="detour_overflow">+%1$s</string>
     <string name="detour_cancel_button">CANCEL</string>
     <string name="detour_confirm_button">ADD</string>
     <string name="detour_start_open_button">START</string>
@@ -304,7 +300,9 @@
     <string name="planned_obligation_motif_placeholder">e.g. Client call</string>
     <string name="planned_obligation_add_button">ADD</string>
     <string name="planned_obligation_done_button">DONE</string>
-    <string name="planned_obligations_chip">Must-dos · %1$d open · %2$d done</string>
+    <string name="planned_obligations_empty_action">Add a must-do</string>
+    <string name="planned_obligations_one_action">1 must-do</string>
+    <string name="planned_obligations_count_action">%1$d must-dos</string>
     <string name="planned_obligations_open_label">Open today’s must-dos</string>
     <string name="planned_obligation_remove_label">Remove must-do</string>
     <string name="planned_obligations_active_section">TO DO</string>

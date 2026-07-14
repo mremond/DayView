@@ -59,9 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import fr.dayview.app.generated.resources.Res
-import fr.dayview.app.generated.resources.detour_add_button
 import fr.dayview.app.generated.resources.detour_cancel_button
-import fr.dayview.app.generated.resources.detour_capture_open_label
 import fr.dayview.app.generated.resources.detour_capture_prompt
 import fr.dayview.app.generated.resources.detour_category_label
 import fr.dayview.app.generated.resources.detour_category_placeholder
@@ -82,14 +80,11 @@ import fr.dayview.app.generated.resources.detour_forget_prompt
 import fr.dayview.app.generated.resources.detour_forget_row_label
 import fr.dayview.app.generated.resources.detour_list_add_button
 import fr.dayview.app.generated.resources.detour_list_empty
-import fr.dayview.app.generated.resources.detour_list_open_label
 import fr.dayview.app.generated.resources.detour_list_title
 import fr.dayview.app.generated.resources.detour_minutes_chip
 import fr.dayview.app.generated.resources.detour_off_window_tag
-import fr.dayview.app.generated.resources.detour_overflow
 import fr.dayview.app.generated.resources.detour_save_button
 import fr.dayview.app.generated.resources.detour_section
-import fr.dayview.app.generated.resources.detour_source_total
 import fr.dayview.app.generated.resources.detour_start_adjust
 import fr.dayview.app.generated.resources.detour_start_decrease
 import fr.dayview.app.generated.resources.detour_start_edit_label
@@ -102,65 +97,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
-
-/** Per-source tally under the dial plus the capture affordance. */
-@Composable
-internal fun DetourRow(
-    sources: List<DetourSource>,
-    onOpenList: () -> Unit,
-    onCapture: () -> Unit,
-) {
-    val colors = LocalDayViewColors.current
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (sources.isNotEmpty()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_list_open_label), onClick = onOpenList)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-            ) {
-                sources.take(3).forEachIndexed { index, source ->
-                    if (index > 0) Spacer(Modifier.width(10.dp))
-                    Box(
-                        Modifier.size(7.dp)
-                            .background(colors.detours[source.colorIndex % colors.detours.size], CircleShape),
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        stringResource(Res.string.detour_source_total, source.label, formatDurationHm(source.total)),
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 140.dp),
-                    )
-                }
-                if (sources.size > 3) {
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(Res.string.detour_overflow, (sources.size - 3).toString()),
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-        }
-        Text(
-            stringResource(Res.string.detour_add_button),
-            color = colors.muted,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp,
-            modifier = Modifier.minimumInteractiveComponentSize()
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_capture_open_label), onClick = onCapture)
-                .padding(vertical = 8.dp, horizontal = 6.dp),
-        )
-    }
-}
 
 /**
  * Small selectable pill used for suggestions and duration picks. A non-null [onLongClick]
