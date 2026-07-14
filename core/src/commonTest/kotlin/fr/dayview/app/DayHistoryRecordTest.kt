@@ -66,6 +66,7 @@ class DayHistoryRecordTest {
             calendarNames = emptyMap(),
             netTimeSettings = NetTimeSettings(),
             focusPresenceIntervals = emptyList(),
+            focusSessionIntervals = emptyList(),
             detours = emptyList(),
             cleanSessions = CleanSessionLedger(),
             pomodoroMinutes = 25,

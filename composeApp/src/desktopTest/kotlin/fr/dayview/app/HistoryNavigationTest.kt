@@ -93,7 +93,8 @@ class HistoryNavigationTest {
         val yesterday = DayHistoryRecord(
             dayKey = yesterdayKey, startMinutes = 480, endMinutes = 1080, focusIntention = "",
             busyIntervals = emptyList(), calendarNames = emptyMap(), netTimeSettings = NetTimeSettings(),
-            focusPresenceIntervals = emptyList(), detours = emptyList(), cleanSessions = CleanSessionLedger(),
+            focusPresenceIntervals = emptyList(), focusSessionIntervals = emptyList(), detours = emptyList(),
+            cleanSessions = CleanSessionLedger(),
             pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
         )
         kotlinx.coroutines.runBlocking { history.write(yesterday) }

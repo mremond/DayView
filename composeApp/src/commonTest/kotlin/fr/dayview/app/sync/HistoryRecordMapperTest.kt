@@ -23,6 +23,7 @@ class HistoryRecordMapperTest {
         calendarNames = mapOf("cal-1" to "Work"),
         netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("cal-1", "cal-2")),
         focusPresenceIntervals = listOf(FocusPresenceInterval(Instant.fromEpochMilliseconds(1500), Instant.fromEpochMilliseconds(1800))),
+        focusSessionIntervals = listOf(FocusPresenceInterval(Instant.fromEpochMilliseconds(1400), Instant.fromEpochMilliseconds(1900))),
         detours = listOf(DetourEpisode(Instant.fromEpochMilliseconds(3000), Instant.fromEpochMilliseconds(4000), "email", "inbox zero")),
         cleanSessions = CleanSessionLedger(dayKey = 20100, cleanToday = 2, streakDays = 5, streakLastDayKey = 20100),
         pomodoroMinutes = 25,
