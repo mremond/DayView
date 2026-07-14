@@ -307,6 +307,7 @@
     <string name="sync_settings_phrase_placeholder">Enter your 24-word recovery phrase</string>
     <string name="sync_settings_use_phrase">USE PHRASE</string>
     <string name="sync_settings_phrase_invalid">Invalid recovery phrase.</string>
+    <string name="sync_settings_phrase_accepted">Recovery phrase accepted — key saved.</string>
     <string name="sync_settings_sync_now">SYNC NOW</string>
     <string name="sync_settings_clear">CLEAR</string>
     <string name="sync_status_idle">Idle.</string>

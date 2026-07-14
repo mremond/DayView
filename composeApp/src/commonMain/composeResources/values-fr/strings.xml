@@ -306,6 +306,7 @@
     <string name="sync_settings_phrase_placeholder">Saisissez votre phrase de récupération de 24 mots</string>
     <string name="sync_settings_use_phrase">UTILISER LA PHRASE</string>
     <string name="sync_settings_phrase_invalid">Phrase de récupération invalide.</string>
+    <string name="sync_settings_phrase_accepted">Phrase de récupération acceptée — clé enregistrée.</string>
     <string name="sync_settings_sync_now">SYNCHRONISER</string>
     <string name="sync_settings_clear">EFFACER</string>
     <string name="sync_status_idle">Inactif.</string>
