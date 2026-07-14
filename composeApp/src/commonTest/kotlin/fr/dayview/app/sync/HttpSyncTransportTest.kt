@@ -122,4 +122,42 @@ class HttpSyncTransportTest {
         )
         assertEquals(PushOutcome.Applied("r8"), t.push("blob", expectedRevision = "r7"))
     }
+
+    @Test
+    fun getHistoryDayReturnsNullOn204() = runTest {
+        val t = transport(MockEngine { respond("", HttpStatusCode.NoContent) })
+        assertNull(t.getHistoryDay("abc"))
+    }
+
+    @Test
+    fun getHistoryDayParsesPayload() = runTest {
+        val t = transport(
+            MockEngine {
+                respond(
+                    """{"payload":"blob"}""",
+                    HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            },
+        )
+        assertEquals("blob", t.getHistoryDay("abc"))
+    }
+
+    @Test
+    fun putHistoryDaySendsIfNoneMatchToHistoryPath() = runTest {
+        val t = transport(
+            MockEngine { request ->
+                assertEquals("*", request.headers[HttpHeaders.IfNoneMatch])
+                assertTrue(request.url.encodedPath.endsWith("/sync/u1/history/abc"))
+                respond("", HttpStatusCode.Created)
+            },
+        )
+        t.putHistoryDay("abc", "blob") // must not throw on 201
+    }
+
+    @Test
+    fun putHistoryDayTreats412AsSuccess() = runTest {
+        val t = transport(MockEngine { respond("", HttpStatusCode.PreconditionFailed) })
+        t.putHistoryDay("abc", "blob") // write-once conflict is not an error
+    }
 }

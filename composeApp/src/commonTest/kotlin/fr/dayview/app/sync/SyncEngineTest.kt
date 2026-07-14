@@ -1,11 +1,33 @@
 package fr.dayview.app.sync
 
+import fr.dayview.app.CleanSessionLedger
+import fr.dayview.app.DayHistoryRecord
 import fr.dayview.app.DayPreferencesSnapshot
+import fr.dayview.app.InMemoryDayHistoryStore
+import fr.dayview.app.NetTimeSettings
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+
+private fun historyRecord(dayKey: Long) = DayHistoryRecord(
+    dayKey = dayKey,
+    startMinutes = 480,
+    endMinutes = 1320,
+    focusIntention = "",
+    busyIntervals = emptyList(),
+    calendarNames = emptyMap(),
+    netTimeSettings = NetTimeSettings(),
+    focusPresenceIntervals = emptyList(),
+    detours = emptyList(),
+    cleanSessions = CleanSessionLedger(),
+    pomodoroMinutes = 0,
+    pomodoroEnd = null,
+    goalTitle = "",
+    goalDeadline = null,
+    goalStart = null,
+)
 
 private class FakeTransport(
     var remote: RemoteSnapshot?,
@@ -27,6 +49,10 @@ private class FakeTransport(
         remote = RemoteSnapshot(payload, "r${pushes + 1}")
         return PushOutcome.Applied("r${pushes + 1}")
     }
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? = null
 }
 
 class SyncEngineTest {
@@ -76,6 +102,8 @@ class SyncEngineTest {
         val throwing = object : SyncTransport {
             override suspend fun pull(): RemoteSnapshot? = throw RuntimeException("network")
             override suspend fun push(payload: String, expectedRevision: String?) = throw RuntimeException("network")
+            override suspend fun putHistoryDay(opaqueKey: String, payload: String) = throw RuntimeException("network")
+            override suspend fun getHistoryDay(opaqueKey: String): String? = throw RuntimeException("network")
         }
         val result = SyncEngine(throwing, PlainCodec, deviceId = "a").sync(local, SyncState(null, null), now = 100)
         assertIs<SyncResult.Failed>(result)
@@ -95,6 +123,10 @@ class SyncEngineTest {
                 recordedExpectedRevision = expectedRevision
                 return PushOutcome.Applied("1")
             }
+
+            override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+            override suspend fun getHistoryDay(opaqueKey: String): String? = null
         }
         val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
 
@@ -121,5 +153,21 @@ class SyncEngineTest {
 
         assertIs<SyncResult.UpToDate>(secondResult)
         assertEquals(0, secondTransport.pushes)
+    }
+
+    @Test
+    fun syncReconcilesHistoryAndPushesManifest() = runTest {
+        val key = RawSyncKey(ByteArray(32) { it.toByte() })
+        val store = InMemoryDayHistoryStore().apply {
+            write(historyRecord(dayKey = 7)) // local-only archived day
+        }
+        val transport = FakeTransport(remote = null)
+        val historySync = HistorySync(store, transport, HistoryBlobCodec(key), HistoryKey(key))
+        val engine = SyncEngine(transport, PlainCodec, deviceId = "a", historySync = historySync)
+
+        val result = engine.sync(local, SyncState(null, null), now = 100)
+
+        assertIs<SyncResult.Applied>(result)
+        assertEquals(listOf(7L), result.state.baseDocument?.historyDays)
     }
 }

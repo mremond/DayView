@@ -18,6 +18,17 @@
 // Any request without a valid Bearer token -> 401. A PUT with neither
 // precondition -> 428.
 //
+// Per-day write-once history archive, keyed by an opaque key (blind to the
+// server):
+//
+//	PUT  /sync/{userId}/history/{opaqueKey}   Authorization: Bearer <token>
+//	     If-None-Match: *        required; write-once, first writer wins
+//	     body: {"payload":"<blob>"}
+//	     -> 201 (created)   412 (key already exists)   428 (missing precondition)
+//
+//	GET  /sync/{userId}/history/{opaqueKey}   Authorization: Bearer <token>
+//	     -> 200 {"payload":"<blob>"}   or   204 (nothing stored for that key)
+//
 // Config via environment: SYNC_TOKEN (bearer token, default "dev-token"),
 // SYNC_STORE (JSON persistence file, default "./sync-store.json"),
 // SYNC_PORT (listen port, default 8787; a CLI arg overrides it).
@@ -39,8 +50,9 @@ import (
 )
 
 type entry struct {
-	Revision string `json:"revision"`
-	Payload  string `json:"payload"`
+	Revision string            `json:"revision"`
+	Payload  string            `json:"payload"`
+	History  map[string]string `json:"history,omitempty"`
 }
 
 var (
@@ -90,6 +102,15 @@ func userID(path string) (string, bool) {
 	return "", false
 }
 
+// historyRef extracts {userId},{opaqueKey} from a /sync/{userId}/history/{opaqueKey} path.
+func historyRef(path string) (uid, key string, ok bool) {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) == 4 && parts[0] == "sync" && parts[2] == "history" && parts[1] != "" && parts[3] != "" {
+		return parts[1], parts[3], true
+	}
+	return "", "", false
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -99,6 +120,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func handle(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Authorization") != "Bearer "+token {
 		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	if uid, key, ok := historyRef(r.URL.Path); ok {
+		handleHistory(w, r, uid, key)
 		return
 	}
 	uid, ok := userID(r.URL.Path)
@@ -112,7 +137,10 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		e, exists := store[uid]
 		mu.Unlock()
-		if !exists {
+		// A real main document always has a non-empty revision (>= "1"); an
+		// entry present only to hold history has Revision == "" and counts as
+		// "no main document stored yet".
+		if !exists || e.Revision == "" {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -132,19 +160,22 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
 		e, exists := store[uid]
+		// A real main document has a non-empty revision. An entry present only
+		// to hold history (Revision == "") is treated as "no main doc yet".
+		hasDoc := exists && e.Revision != ""
 
 		var newRev string
 		switch {
 		case ifNoneMatch == "*":
-			if exists { // already exists -> conflict
+			if hasDoc { // already exists -> conflict
 				writeJSON(w, http.StatusPreconditionFailed, entry{Revision: e.Revision, Payload: e.Payload})
 				return
 			}
 			newRev = "1"
 		case ifMatch != "":
-			if !exists || e.Revision != ifMatch { // moved under us
+			if !hasDoc || e.Revision != ifMatch { // moved under us
 				cur := entry{Revision: "0"}
-				if exists {
+				if hasDoc {
 					cur = e
 				}
 				writeJSON(w, http.StatusPreconditionFailed, cur)
@@ -157,13 +188,64 @@ func handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		store[uid] = entry{Revision: newRev, Payload: *body.Payload}
+		// Preserve any history already stored for this user.
+		e.Revision = newRev
+		e.Payload = *body.Payload
+		store[uid] = e
 		if err := persist(); err != nil {
 			log.Printf("persist: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"revision": newRev})
+
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func handleHistory(w http.ResponseWriter, r *http.Request, uid, key string) {
+	switch r.Method {
+	case http.MethodGet:
+		mu.Lock()
+		blob, ok := store[uid].History[key]
+		mu.Unlock()
+		if !ok {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"payload": blob})
+
+	case http.MethodPut:
+		var body struct {
+			Payload *string `json:"payload"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Payload == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("If-None-Match") != "*" {
+			w.WriteHeader(http.StatusPreconditionRequired) // 428
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		e := store[uid]
+		if _, exists := e.History[key]; exists {
+			w.WriteHeader(http.StatusPreconditionFailed) // write-once: first writer wins
+			return
+		}
+		if e.History == nil {
+			e.History = map[string]string{}
+		}
+		e.History[key] = *body.Payload
+		store[uid] = e
+		if err := persist(); err != nil {
+			log.Printf("persist: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
