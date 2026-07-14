@@ -63,4 +63,38 @@ class AppEventAndUndoTest {
         assertEquals(listOf("Alpha", "Beta"), c.state.plannedObligationsToday)
         job.cancel()
     }
+
+    @Test
+    fun removeObligationRestoresAllCaseInsensitiveDuplicatesAtOriginalPositions() = runTest {
+        val bus = AppEventBus()
+        val received = mutableListOf<AppEvent>()
+        val job = launch { bus.events.collect { received.add(it) } }
+        runCurrent()
+
+        val c = controller(bus)
+        c.addPlannedObligation("Alpha")
+        c.addPlannedObligation("Alpha")
+        c.addPlannedObligation("Beta")
+        assertEquals(listOf("Alpha", "Alpha", "Beta"), c.state.plannedObligationsToday)
+
+        c.removePlannedObligation("Alpha")
+        runCurrent()
+        assertEquals(listOf("Beta"), c.state.plannedObligationsToday)
+        assertEquals(AppEvent.Toast(ToastKind.ObligationRemoved, "Alpha"), received.last())
+
+        c.restoreLastRemovedObligation()
+        assertEquals(listOf("Alpha", "Alpha", "Beta"), c.state.plannedObligationsToday)
+        job.cancel()
+    }
+
+    @Test
+    fun restoreObligationWithNothingRemovedIsNoOp() = runTest {
+        val bus = AppEventBus()
+        val c = controller(bus)
+        c.addPlannedObligation("Alpha")
+
+        c.restoreLastRemovedObligation()
+
+        assertEquals(listOf("Alpha"), c.state.plannedObligationsToday)
+    }
 }

@@ -215,7 +215,11 @@ class DayViewController(
     // Last items removed via the UI, kept in memory only so a toast can offer a single
     // "undo" (never persisted — restoring re-runs the normal commit path).
     private var lastRemovedDetour: DetourEpisode? = null
-    private var lastRemovedObligation: Pair<Int, String>? = null
+
+    // Every case-insensitive match removePlannedObligation dropped, each paired with its
+    // original index, so restore can be the exact inverse of a removal that may have
+    // dropped more than one entry (duplicate/case-variant motifs).
+    private var lastRemovedObligation: List<Pair<Int, String>>? = null
 
     private fun persistState() {
         val snapshot = state.toSnapshot()
@@ -592,9 +596,9 @@ class DayViewController(
 
     fun removePlannedObligation(motif: String) {
         val today = state.plannedObligationsToday
-        val index = today.indexOf(motif)
-        if (index < 0) return
-        lastRemovedObligation = index to motif
+        val matches = today.withIndex().filter { (_, entry) -> matchesPlannedObligation(entry, motif) }
+        if (matches.isEmpty()) return
+        lastRemovedObligation = matches.map { it.index to it.value }
         commitPlannedObligations(
             removePlannedObligation(today, motif),
             state.plannedObligationsCompletedToday,
@@ -602,12 +606,18 @@ class DayViewController(
         appEventBus.post(AppEvent.Toast(ToastKind.ObligationRemoved, motif))
     }
 
-    /** Reinsert the last obligation removed via [removePlannedObligation] at its old index. */
+    /**
+     * Reinsert every entry removed by the last [removePlannedObligation] call at its
+     * original index (ascending order, so earlier inserts don't shift later indices out
+     * of place).
+     */
     fun restoreLastRemovedObligation() {
-        val (index, motif) = lastRemovedObligation ?: return
+        val removed = lastRemovedObligation ?: return
         lastRemovedObligation = null
         val active = state.plannedObligationsToday.toMutableList()
-        active.add(index.coerceIn(0, active.size), motif)
+        removed.sortedBy { it.first }.forEach { (index, motif) ->
+            active.add(index.coerceIn(0, active.size), motif)
+        }
         commitPlannedObligations(active, state.plannedObligationsCompletedToday)
     }
 

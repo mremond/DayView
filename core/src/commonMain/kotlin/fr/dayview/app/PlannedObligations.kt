@@ -15,9 +15,18 @@ fun addPlannedObligation(current: List<String>, motif: String, alreadyUsed: Int 
 
 /** Drop every case-insensitive match of [motif]; a blank or missing motif is a no-op. */
 fun removePlannedObligation(current: List<String>, motif: String): List<String> {
+    if (sanitizeLabel(motif, 60).isEmpty()) return current
+    return current.filterNot { matchesPlannedObligation(it, motif) }
+}
+
+/**
+ * True if [entry] is what [removePlannedObligation] would drop for [motif]: same
+ * sanitize-then-lowercase-compare predicate, exposed so callers (e.g. undo capture) can
+ * find matches without duplicating the matching logic.
+ */
+fun matchesPlannedObligation(entry: String, motif: String): Boolean {
     val clean = sanitizeLabel(motif, 60)
-    if (clean.isEmpty()) return current
-    return current.filter { it.lowercase() != clean.lowercase() }
+    return clean.isNotEmpty() && entry.lowercase() == clean.lowercase()
 }
 
 /**
