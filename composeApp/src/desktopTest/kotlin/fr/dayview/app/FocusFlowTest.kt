@@ -1,11 +1,15 @@
 package fr.dayview.app
 
 import androidx.compose.runtime.remember
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +33,44 @@ class FocusFlowTest {
         onNodeWithTag(DayViewTestTags.FocusEntry).performScrollTo().performClick()
         onNodeWithTag(DayViewTestTags.FocusStart).performScrollTo().performClick()
         assertTrue(controller.state.focusIsActive)
+    }
+
+    @Test
+    fun commandEnterStartsReadyFocus() = runComposeUiTest {
+        val snapshot = DayPreferencesSnapshot(focusIntention = "Écrire le rapport")
+        lateinit var controller: DayViewController
+        setContent {
+            val c = remember { seededController(snapshot) }
+            controller = c
+            WideDayView(state = c.state, actions = controllerDayViewActions(c))
+        }
+        onNodeWithTag(DayViewTestTags.FocusEntry).performScrollTo().performClick()
+        onNodeWithTag(DayViewTestTags.FocusStart).requestFocus().performKeyInput {
+            keyDown(Key.MetaLeft)
+            pressKey(Key.Enter)
+            keyUp(Key.MetaLeft)
+        }
+        assertTrue(controller.state.focusIsActive)
+    }
+
+    @Test
+    fun horizontalArrowsAdjustFocusedDurationControl() = runComposeUiTest {
+        val snapshot = DayPreferencesSnapshot(focusIntention = "Écrire le rapport", pomodoroMinutes = 25)
+        lateinit var controller: DayViewController
+        setContent {
+            val c = remember { seededController(snapshot) }
+            controller = c
+            WideDayView(state = c.state, actions = controllerDayViewActions(c))
+        }
+        onNodeWithTag(DayViewTestTags.FocusEntry).performScrollTo().performClick()
+        onNodeWithTag(DayViewTestTags.FocusDurationDecrease).requestFocus().performKeyInput {
+            pressKey(Key.DirectionRight)
+        }
+        assertEquals(30, controller.state.pomodoroProgress.durationMinutes)
+        onNodeWithTag(DayViewTestTags.FocusDurationDecrease).performKeyInput {
+            pressKey(Key.DirectionLeft)
+        }
+        assertEquals(25, controller.state.pomodoroProgress.durationMinutes)
     }
 
     @Test

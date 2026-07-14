@@ -2027,60 +2027,75 @@ private fun FocusCreationContent(
     onStart: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    if (lastClosure != null) {
-        FocusClosureChip(lastClosure)
-    }
-    Text(
-        stringResource(Res.string.focus_intention_prompt),
-        color = colors.muted,
-        fontSize = 9.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp,
-    )
-    Spacer(Modifier.height(7.dp))
-    GoalTextField(
-        value = intention,
-        semanticLabel = stringResource(Res.string.focus_intention_label),
-        placeholder = stringResource(Res.string.focus_intention_placeholder),
-        onValueChange = onIntentionChange,
-    )
-    Spacer(Modifier.height(12.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .startFocusOnCommandEnter(
+                enabled = intention.isNotBlank(),
+                onStart = onStart,
+            ),
     ) {
-        TimeButton(
-            label = "−",
-            enabled = progress.durationMinutes > 5,
-            onClickLabel = stringResource(Res.string.focus_duration_decrease),
-            valueDescription = stringResource(Res.string.focus_duration_value, progress.durationMinutes.toString()),
-        ) { onDurationChange(-5) }
-        Spacer(Modifier.width(18.dp))
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
-            Text(stringResource(Res.string.minutes_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        if (lastClosure != null) {
+            FocusClosureChip(lastClosure)
         }
-        Spacer(Modifier.width(18.dp))
-        TimeButton(
-            label = "+",
-            enabled = progress.durationMinutes < 180,
-            onClickLabel = stringResource(Res.string.focus_duration_increase),
-            valueDescription = stringResource(Res.string.focus_duration_value, progress.durationMinutes.toString()),
-        ) { onDurationChange(5) }
-    }
-    Spacer(Modifier.height(13.dp))
-    FocusActionButton(
-        stringResource(Res.string.focus_start_full_button),
-        colors.amber,
-        modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.FocusStart),
-        enabled = intention.isNotBlank(),
-        filled = true,
-        onClick = onStart,
-    )
-    if (intention.isBlank()) {
+        Text(
+            stringResource(Res.string.focus_intention_prompt),
+            color = colors.muted,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+        )
         Spacer(Modifier.height(7.dp))
-        Text(stringResource(Res.string.focus_intention_hint), color = colors.muted, fontSize = 10.sp)
+        GoalTextField(
+            value = intention,
+            semanticLabel = stringResource(Res.string.focus_intention_label),
+            placeholder = stringResource(Res.string.focus_intention_placeholder),
+            onValueChange = onIntentionChange,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .adjustDurationWithArrowKeys(
+                    onDecrease = { if (progress.durationMinutes > 5) onDurationChange(-5) },
+                    onIncrease = { if (progress.durationMinutes < 180) onDurationChange(5) },
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            TimeButton(
+                label = "−",
+                enabled = progress.durationMinutes > 5,
+                onClickLabel = stringResource(Res.string.focus_duration_decrease),
+                valueDescription = stringResource(Res.string.focus_duration_value, progress.durationMinutes.toString()),
+                modifier = Modifier.testTag(DayViewTestTags.FocusDurationDecrease),
+            ) { onDurationChange(-5) }
+            Spacer(Modifier.width(18.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(progress.durationMinutes.toString(), color = colors.cloud, fontSize = 28.sp, fontWeight = FontWeight.Light)
+                Text(stringResource(Res.string.minutes_label), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            }
+            Spacer(Modifier.width(18.dp))
+            TimeButton(
+                label = "+",
+                enabled = progress.durationMinutes < 180,
+                onClickLabel = stringResource(Res.string.focus_duration_increase),
+                valueDescription = stringResource(Res.string.focus_duration_value, progress.durationMinutes.toString()),
+                modifier = Modifier.testTag(DayViewTestTags.FocusDurationIncrease),
+            ) { onDurationChange(5) }
+        }
+        Spacer(Modifier.height(13.dp))
+        val startLabel = stringResource(Res.string.focus_start_full_button)
+        FocusActionButton(
+            if (desktopKeyboardShortcutsEnabled()) "$startLabel · ⌘↩" else startLabel,
+            colors.amber,
+            modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.FocusStart),
+            enabled = intention.isNotBlank(),
+            filled = true,
+            onClick = onStart,
+        )
+        if (intention.isBlank()) {
+            Spacer(Modifier.height(7.dp))
+            Text(stringResource(Res.string.focus_intention_hint), color = colors.muted, fontSize = 10.sp)
+        }
     }
 }
 
