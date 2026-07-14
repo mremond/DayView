@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,10 +28,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
@@ -60,6 +63,7 @@ fun DayViewMiniApp(
     goalDeadline: Instant?,
     pomodoro: PomodoroProgress,
     focusIntention: String,
+    fontScale: Float = 1f,
     onStartFocus: (String) -> Unit,
     onStopFocus: () -> Unit,
     onCloseFocus: (FocusClosureOutcome) -> Unit,
@@ -68,75 +72,85 @@ fun DayViewMiniApp(
     DayViewTheme(uses24Hour = rememberUses24HourClock()) { colors ->
         var showIntentionModal by remember { mutableStateOf(false) }
         var draftIntention by remember(focusIntention) { mutableStateOf(focusIntention) }
+        val baseDensity = LocalDensity.current
+        val safeFontScale = fontScale.coerceIn(1f, DISPLAY_SCALE_MAX)
 
-        Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
-            Box(Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(colors.glow, colors.ink),
-                                radius = 650f,
+        CompositionLocalProvider(
+            LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * safeFontScale),
+            LocalPreferenceFontScale provides safeFontScale,
+        ) {
+            Surface(modifier = Modifier.fillMaxSize(), color = colors.ink) {
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val showGoal = showGoalInMiniWindow(maxHeight.value, safeFontScale)
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(colors.glow, colors.ink),
+                                    radius = 650f,
+                                ),
+                            )
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        CountdownCircle(
+                            progress = progress,
+                            showSeconds = showSeconds,
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                        )
+                        if (showGoal) {
+                            MiniGoal(
+                                title = goalTitle,
+                                deadline = goalDeadline,
+                                now = now,
+                                workStartMinutes = progress.startHour * 60 + progress.startMinute,
+                                workEndMinutes = progress.endHour * 60 + progress.endMinute,
+                            )
+                            Spacer(Modifier.height(10.dp))
+                        }
+                        if (pomodoro.status == PomodoroStatus.IDLE) {
+                            MiniFocusStart(
+                                onClick = {
+                                    draftIntention = focusIntention
+                                    showIntentionModal = true
+                                },
+                            )
+                        } else {
+                            MiniFocus(
+                                progress = pomodoro,
+                                intention = focusIntention,
+                                onRelaunch = { onStartFocus(focusIntention) },
+                                onStop = onStopFocus,
+                                onClose = onCloseFocus,
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .testTag(DayViewTestTags.OpenMainWindow)
+                            .minimumInteractiveComponentSize()
+                            .clickable(
+                                role = Role.Button,
+                                onClickLabel = stringResource(Res.string.desktop_open_full_window),
+                                onClick = onOpenMainWindow,
                             ),
-                        )
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    CountdownCircle(
-                        progress = progress,
-                        showSeconds = showSeconds,
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                    )
-                    MiniGoal(
-                        title = goalTitle,
-                        deadline = goalDeadline,
-                        now = now,
-                        workStartMinutes = progress.startHour * 60 + progress.startMinute,
-                        workEndMinutes = progress.endHour * 60 + progress.endMinute,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    if (pomodoro.status == PomodoroStatus.IDLE) {
-                        MiniFocusStart(
-                            onClick = {
-                                draftIntention = focusIntention
-                                showIntentionModal = true
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ExpandWindowGlyph(color = colors.muted)
+                    }
+                    if (showIntentionModal) {
+                        FocusIntentionModal(
+                            intention = draftIntention,
+                            onIntentionChange = { draftIntention = it },
+                            onStart = {
+                                onStartFocus(draftIntention)
+                                showIntentionModal = false
                             },
-                        )
-                    } else {
-                        MiniFocus(
-                            progress = pomodoro,
-                            intention = focusIntention,
-                            onRelaunch = { onStartFocus(focusIntention) },
-                            onStop = onStopFocus,
-                            onClose = onCloseFocus,
+                            onDismiss = { showIntentionModal = false },
                         )
                     }
-                }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .testTag(DayViewTestTags.OpenMainWindow)
-                        .minimumInteractiveComponentSize()
-                        .clickable(
-                            role = Role.Button,
-                            onClickLabel = stringResource(Res.string.desktop_open_full_window),
-                            onClick = onOpenMainWindow,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    ExpandWindowGlyph(color = colors.muted)
-                }
-                if (showIntentionModal) {
-                    FocusIntentionModal(
-                        intention = draftIntention,
-                        onIntentionChange = { draftIntention = it },
-                        onStart = {
-                            onStartFocus(draftIntention)
-                            showIntentionModal = false
-                        },
-                        onDismiss = { showIntentionModal = false },
-                    )
                 }
             }
         }
@@ -165,6 +179,7 @@ private fun MiniGoal(
     }
     Row(
         modifier = Modifier.fillMaxWidth()
+            .testTag(DayViewTestTags.MiniGoal)
             .background(colors.panel, RoundedCornerShape(15.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(15.dp))
             .padding(horizontal = 14.dp, vertical = 11.dp),

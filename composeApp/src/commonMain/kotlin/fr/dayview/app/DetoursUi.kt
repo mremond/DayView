@@ -267,6 +267,7 @@ internal fun DetourCaptureContent(
         modifier = Modifier.widthIn(max = 380.dp).fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
     ) {
         Text(stringResource(Res.string.detour_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)

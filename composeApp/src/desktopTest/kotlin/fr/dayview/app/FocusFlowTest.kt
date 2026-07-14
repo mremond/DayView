@@ -5,6 +5,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,7 +26,8 @@ class FocusFlowTest {
             controller = c
             WideDayView(state = c.state, actions = controllerDayViewActions(c))
         }
-        onNodeWithTag(DayViewTestTags.FocusStart).performClick()
+        onNodeWithTag(DayViewTestTags.FocusEntry).performScrollTo().performClick()
+        onNodeWithTag(DayViewTestTags.FocusStart).performScrollTo().performClick()
         assertTrue(controller.state.focusIsActive)
     }
 
@@ -43,7 +45,7 @@ class FocusFlowTest {
             WideDayView(state = c.state, actions = controllerDayViewActions(c))
         }
         assertTrue(controller.state.focusIsActive)
-        onNodeWithTag(DayViewTestTags.FocusStop).performClick()
+        onNodeWithTag(DayViewTestTags.FocusStop).performScrollTo().performClick()
         assertFalse(controller.state.focusIsActive)
     }
 
@@ -61,7 +63,7 @@ class FocusFlowTest {
             WideDayView(state = c.state, actions = controllerDayViewActions(c))
         }
         assertEquals(PomodoroStatus.BREAK, controller.state.pomodoroProgress.status)
-        onNodeWithTag(DayViewTestTags.FocusRelaunch).performClick()
+        onNodeWithTag(DayViewTestTags.FocusRelaunch).performScrollTo().performClick()
         assertTrue(controller.state.focusIsActive)
         assertEquals("Écrire le rapport", controller.state.focusIntention)
     }
@@ -80,7 +82,7 @@ class FocusFlowTest {
             WideDayView(state = c.state, actions = controllerDayViewActions(c))
         }
         assertEquals(PomodoroStatus.BREAK, controller.state.pomodoroProgress.status)
-        onNodeWithTag(DayViewTestTags.FocusStop).performClick()
+        onNodeWithTag(DayViewTestTags.FocusStop).performScrollTo().performClick()
         assertEquals(PomodoroStatus.IDLE, controller.state.pomodoroProgress.status)
         assertNull(controller.state.lastFocusClosure)
     }
@@ -92,6 +94,7 @@ class FocusFlowTest {
             val state = remember { seededController(snapshot).state }
             WideDayView(state = state, actions = noopDayViewActions())
         }
-        onNodeWithTag(DayViewTestTags.FocusStart).assertIsNotEnabled()
+        onNodeWithTag(DayViewTestTags.FocusEntry).performScrollTo().performClick()
+        onNodeWithTag(DayViewTestTags.FocusStart).performScrollTo().assertIsNotEnabled()
     }
 }
