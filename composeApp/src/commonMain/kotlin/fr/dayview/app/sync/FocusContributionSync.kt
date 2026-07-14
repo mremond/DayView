@@ -34,6 +34,7 @@ class FocusContributionSync(
             try {
                 val blob = transport.getHistoryDay(keyIndex.opaqueFocusKey(day, device)) ?: continue
                 val contribution = FocusContributionMapper.deserialize(blobCodec.decryptFocus(day, device, blob)) ?: continue
+                if (contribution.dayKey != day || contribution.deviceId != device) continue
                 store.write(contribution)
             } catch (e: SyncKeyMismatchException) {
                 // wrong key for this blob — skip

@@ -62,4 +62,19 @@ class FocusContributionSyncTest {
         sync.reconcile(listOf("20260:self")) // our own entry, nothing to fetch
         assertTrue(store.listKeys().isEmpty())
     }
+
+    @Test
+    fun ignoresDownloadedContributionWhoseEmbeddedAttributionMismatchesTheManifestKey() = runTest {
+        val transport = FakeFocusTransport()
+        // Blob stored under (20260, "other") but its DTO claims deviceId = "self".
+        val mislabeled = FocusContribution(20260, "self", emptyList(), listOf(iv(20, 30)))
+        transport.seedFocus(
+            HistoryKey(key).opaqueFocusKey(20260, "other"),
+            HistoryBlobCodec(key).encryptFocus(20260, "other", FocusContributionMapper.serialize(mislabeled)),
+        )
+        val store = InMemoryFocusContributionStore()
+        val sync = FocusContributionSync(store, transport, HistoryBlobCodec(key), HistoryKey(key), deviceId = "self")
+        sync.reconcile(listOf("20260:other"))
+        assertTrue(store.listKeys().isEmpty()) // mismatched attribution rejected, nothing stored
+    }
 }
