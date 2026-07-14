@@ -10,4 +10,6 @@ sealed interface PushOutcome {
 interface SyncTransport {
     suspend fun pull(): RemoteSnapshot?
     suspend fun push(payload: String, expectedRevision: String?): PushOutcome
+    suspend fun putHistoryDay(opaqueKey: String, payload: String)
+    suspend fun getHistoryDay(opaqueKey: String): String?
 }

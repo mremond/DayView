@@ -27,6 +27,10 @@ private class FakeTransport(
         remote = RemoteSnapshot(payload, "r${pushes + 1}")
         return PushOutcome.Applied("r${pushes + 1}")
     }
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? = null
 }
 
 class SyncEngineTest {
@@ -76,6 +80,8 @@ class SyncEngineTest {
         val throwing = object : SyncTransport {
             override suspend fun pull(): RemoteSnapshot? = throw RuntimeException("network")
             override suspend fun push(payload: String, expectedRevision: String?) = throw RuntimeException("network")
+            override suspend fun putHistoryDay(opaqueKey: String, payload: String) = throw RuntimeException("network")
+            override suspend fun getHistoryDay(opaqueKey: String): String? = throw RuntimeException("network")
         }
         val result = SyncEngine(throwing, PlainCodec, deviceId = "a").sync(local, SyncState(null, null), now = 100)
         assertIs<SyncResult.Failed>(result)
@@ -95,6 +101,10 @@ class SyncEngineTest {
                 recordedExpectedRevision = expectedRevision
                 return PushOutcome.Applied("1")
             }
+
+            override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+            override suspend fun getHistoryDay(opaqueKey: String): String? = null
         }
         val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
 

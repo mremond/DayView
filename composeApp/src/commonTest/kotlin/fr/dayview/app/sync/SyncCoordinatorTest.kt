@@ -31,6 +31,10 @@ private class OneShotTransport : SyncTransport {
         pushes++
         return PushOutcome.Applied("r1")
     }
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? = null
 }
 
 /** Wraps a transport and records the maximum number of overlapping [push] calls it observed. */
@@ -52,6 +56,10 @@ private class ConcurrencyTrackingTransport(private val inner: SyncTransport = On
             inFlight.decrementAndGet()
         }
     }
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) = inner.putHistoryDay(opaqueKey, payload)
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? = inner.getHistoryDay(opaqueKey)
 }
 
 class SyncCoordinatorTest {
