@@ -13,7 +13,7 @@ The current implementation does not perform any synchronization: Android stores 
 After associating both devices with the same account, the user will see:
 
 - start and end times for the day;
-- global goal and deadline;
+- long-term goal and deadline;
 - display preferences and sound settings;
 - focus duration and intention;
 - current session focus state.
@@ -50,7 +50,7 @@ Outside initial scope:
 | Day | start, end | time zone of the device |
 | Display | display seconds | window size and position |
 | Sound | activation, reminders, interval, volume | system audio state |
-| Goal | title, deadline | widget rendering |
+| Long-term goal | title, deadline | widget rendering |
 | Focus | id, intention, duration, state, start, and end | programmed alarms and notifications |
 | Desktop | — | menu icon monochrome, launch on opening session |
 | Android | — | permissions, widget configuration, and tile |
@@ -142,7 +142,7 @@ Network calls should not be placed in composables. User actions write first to l
 
 A failure of the remote service must never block the timer.
 
-Eventually, it will be preferable to separate in local storage the settings, goal, and focus session. The current `DayPreferences` interface can remain as a facade during this migration.
+Eventually, it will be preferable to separate in local storage the settings, long-term goal, and focus session. The current `DayPreferences` interface can remain as a facade during this migration.
 
 ## Synchronization Cycle
 

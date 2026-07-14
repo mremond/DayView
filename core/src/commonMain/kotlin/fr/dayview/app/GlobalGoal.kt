@@ -11,6 +11,10 @@ import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.Instant
 
+/**
+ * Long-term goal calculations ("Cap" in French). The shorter `goal` identifier is retained in
+ * code and persisted preference keys for compatibility; it never means a goal limited to today.
+ */
 fun parseGoalDeadline(
     value: String,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),

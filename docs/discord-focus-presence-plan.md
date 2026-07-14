@@ -67,7 +67,7 @@ Excluded initial scope:
 - team statistics or ranking;
 - messages at each startup, interruption, or minute elapsed;
 - cloud synchronization of the Discord configuration;
-- publishing of the global objective or work hours.
+- publishing of the long-term goal or work hours.
 
 ## Settings and Privacy
 
@@ -211,7 +211,7 @@ The payload must remain minimal:
 - timestamp of end: `endsAtMillis`;
 - visual DayView registered as asset Discord.
 
-Do not transmit the global objective, application names at first place, attention signal or user identifier DayView.
+Do not transmit the long-term goal, application names at first place, attention signal or user identifier DayView.
 
 ## Publication Facultative in a Channel
 

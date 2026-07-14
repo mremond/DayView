@@ -168,7 +168,7 @@ Inclus :
 Hors périmètre pour la première version :
 
 - l'écriture ou la création d'événements ;
-- la prise en compte de plusieurs jours (objectif global, agenda hebdomadaire) ;
+- la prise en compte de plusieurs jours (cap à long terme, agenda hebdomadaire) ;
 - les événements tentatifs, « disponible » et journée entière ;
 - l'affichage des participants et du lieu des événements ;
 - l'équivalent tactile de l'overlay de survol (appui) ;
