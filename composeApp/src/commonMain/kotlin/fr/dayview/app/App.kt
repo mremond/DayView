@@ -145,8 +145,9 @@ internal fun DayViewApp(
                     val syncStatus by (syncCoordinator?.status ?: fallbackSyncStatus).collectAsState()
 
                     // Sync I/O (network + keystore/state-file reads) must never run on the
-                    // Compose UI dispatcher; every syncNow() call — automatic or manual —
-                    // is routed through this helper. No-op when sync isn't configured.
+                    // Compose UI dispatcher. Automatic triggers are routed through this helper;
+                    // the manual Sync Now action dispatches directly so it can act on the
+                    // returned status. No-op when sync isn't configured.
                     fun launchSync() {
                         scope.launch(Dispatchers.IO) { syncCoordinator?.syncNow() }
                     }
