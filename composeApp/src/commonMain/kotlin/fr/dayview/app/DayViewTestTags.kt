@@ -23,6 +23,8 @@ internal object DayViewTestTags {
     const val MiniGoal = "miniGoal"
     const val FocusEntry = "focusEntry"
     const val FocusStart = "focusStart"
+    const val FocusDurationDecrease = "focusDurationDecrease"
+    const val FocusDurationIncrease = "focusDurationIncrease"
     const val FocusStop = "focusStop"
     const val FocusRelaunch = "focusRelaunch"
     const val DetourCategoryField = "detourCategoryField"

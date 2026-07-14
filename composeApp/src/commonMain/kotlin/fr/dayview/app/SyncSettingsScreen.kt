@@ -430,6 +430,7 @@ internal fun SyncConfirmDialogContent(
     val colors = LocalDayViewColors.current
     Column(
         modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth()
+            .dismissOnEscape(onDismiss)
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
             .padding(20.dp),

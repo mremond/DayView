@@ -268,6 +268,7 @@ internal fun DetourCaptureContent(
     val startMinutes = if (startPinned) pinnedStartMinutes else detourDefaultStartMinutes(now, durationMinutes, timeZone)
     Column(
         modifier = Modifier.widthIn(max = 380.dp).fillMaxWidth()
+            .dismissOnEscape(onDismiss)
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
             .verticalScroll(rememberScrollState())
@@ -435,6 +436,7 @@ private fun DetourForgetConfirmDialog(
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth()
+                .dismissOnEscape(onDismiss)
                 .background(colors.panel, RoundedCornerShape(18.dp))
                 .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
                 .padding(20.dp),
@@ -512,6 +514,7 @@ internal fun DetourListContent(
     }
     Column(
         modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
+            .dismissOnEscape(onDismiss)
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
             .padding(20.dp),
@@ -723,7 +726,21 @@ private fun DetourDurationStepper(
     fieldTag: String,
     increaseTag: String,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.adjustDurationWithArrowKeys(
+            onDecrease = {
+                if (durationMinutes > 5) {
+                    onDurationChange(snapToFive(durationMinutes, -1).coerceIn(5, 12 * 60))
+                }
+            },
+            onIncrease = {
+                if (durationMinutes < 12 * 60) {
+                    onDurationChange(snapToFive(durationMinutes, +1).coerceIn(5, 12 * 60))
+                }
+            },
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         TimeButton(
             label = "−",
             enabled = durationMinutes > 5,
