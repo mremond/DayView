@@ -353,9 +353,10 @@ internal fun DayViewApp(
                         )
                         DayViewDestination.HISTORY -> {
                             val selected = state.selectedHistoryDay
-                            val record = state.historyWeek.firstOrNull { it.dayKey == selected }?.record
+                            val day = state.historyWeek.firstOrNull { it.dayKey == selected }
+                            val record = day?.record
                             if (selected != null && record != null) {
-                                HistoryDayScreen(record = record, onBack = { controller.closeHistory() })
+                                HistoryDayScreen(record = record, now = day.now, onBack = { controller.closeHistory() })
                             } else {
                                 HistoryWeekScreen(
                                     days = state.historyWeek,

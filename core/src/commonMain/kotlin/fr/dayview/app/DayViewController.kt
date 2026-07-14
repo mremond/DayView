@@ -272,7 +272,7 @@ class DayViewController(
                     key in present -> history.read(key)
                     else -> null
                 }
-                HistoryWeekDay(key, record)
+                HistoryWeekDay(key, record, now = if (key == todayKey) state.now else null)
             }
             state = state.copy(historyWeek = days)
         }

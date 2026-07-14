@@ -7,6 +7,7 @@ import kotlinx.datetime.atTime
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
@@ -51,6 +52,35 @@ class DayHistoryRecordTest {
         // The day is fully elapsed in the replay (now == window end).
         assertTrue(state.dayProgress.isFinished)
         assertEquals(2, state.cleanSessionsToday)
+    }
+
+    @Test
+    fun liveNowKeepsTodayInProgress() {
+        val record = DayHistoryRecord(
+            dayKey = dayKey,
+            startMinutes = 8 * 60,
+            endMinutes = 18 * 60,
+            focusIntention = "",
+            busyIntervals = emptyList(),
+            calendarNames = emptyMap(),
+            netTimeSettings = NetTimeSettings(),
+            focusPresenceIntervals = emptyList(),
+            detours = emptyList(),
+            cleanSessions = CleanSessionLedger(),
+            pomodoroMinutes = 25,
+            pomodoroEnd = null,
+            goalTitle = "",
+            goalDeadline = null,
+            goalStart = null,
+        )
+
+        // Today's cell is projected at the live instant, not frozen at the window end, so
+        // the ring reads as in progress rather than finished.
+        val nowMidday = instantAt(12, 0)
+        val state = record.toFrozenUiState(tz, now = nowMidday)
+
+        assertEquals(nowMidday, state.now)
+        assertFalse(state.dayProgress.isFinished)
     }
 
     @Test
