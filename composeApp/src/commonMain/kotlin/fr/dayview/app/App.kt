@@ -201,7 +201,7 @@ internal fun DayViewApp(
                                     // silently reading as an empty busy layer.
                                     val intervalsResult = runCatching {
                                         calendarSource.busyIntervals(start, end, state.netTimeSettings.includedCalendarIds)
-                                    }
+                                    }.onFailure { logError("calendar", "busyIntervals read failed", it) }
                                     val available = runCatching { calendarSource.availableCalendars() }
                                         .getOrDefault(emptyList())
                                     NetTimeProbe(
@@ -325,7 +325,11 @@ internal fun DayViewApp(
                                     changeLaunchAtLogin = onLaunchAtLoginChange,
                                     changeSoundSettings = { controller.setSoundSettings(it) },
                                     previewSound = { cue ->
-                                        soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
+                                        runCatching {
+                                            soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
+                                        }.onFailure {
+                                            appEventBus.reportTransient("sound", it, ToastKind.SoundPreviewFailed)
+                                        }
                                     },
                                     changeNetTimeSettings = {
                                         controller.setNetTimeSettings(it)
@@ -342,7 +346,10 @@ internal fun DayViewApp(
                                         // keystore write (disk I/O) is pushed off it.
                                         val previous = syncConfig
                                         syncConfig = cfg
-                                        scope.launch(Dispatchers.IO) { secureKeyStore?.storeConfig(cfg) }
+                                        scope.launch(Dispatchers.IO) {
+                                            runCatching { secureKeyStore?.storeConfig(cfg) }
+                                                .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
+                                        }
                                         // A different server/user must not reuse the old baseDocument
                                         // as a merge base for the new endpoint.
                                         if (previous != null &&
@@ -357,25 +364,39 @@ internal fun DayViewApp(
                                         // keystore persistence goes to IO.
                                         val key = RawSyncKey.generate()
                                         syncHasKey = true
-                                        scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
+                                        scope.launch(Dispatchers.IO) {
+                                            runCatching { secureKeyStore?.storeKey(key) }
+                                                .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
+                                        }
                                         RecoveryPhrase.encode(key).joinToString(" ")
                                     },
                                     pasteSyncKey = { phrase ->
                                         val key = RecoveryPhrase.decodePhrase(phrase)
                                         if (key != null) {
                                             syncHasKey = true
-                                            scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
+                                            scope.launch(Dispatchers.IO) {
+                                                runCatching { secureKeyStore?.storeKey(key) }
+                                                    .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
+                                            }
                                             true
                                         } else {
                                             false
                                         }
                                     },
-                                    syncNow = { launchSync() },
+                                    syncNow = {
+                                        scope.launch(Dispatchers.IO) {
+                                            syncCoordinator?.syncNow()
+                                            if (syncCoordinator?.status?.value == SyncStatus.Ok) {
+                                                appEventBus.post(AppEvent.Toast(ToastKind.SyncSucceeded))
+                                            }
+                                        }
+                                    },
                                     clearSyncKey = {
                                         syncConfig = null
                                         syncHasKey = false
                                         scope.launch(Dispatchers.IO) {
-                                            secureKeyStore?.clear()
+                                            runCatching { secureKeyStore?.clear() }
+                                                .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
                                             syncCoordinator?.reset()
                                         }
                                     },
