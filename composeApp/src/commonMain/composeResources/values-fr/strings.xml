@@ -70,15 +70,15 @@
     <string name="scrub_now">Maintenant</string>
     <string name="day_available_percent">%1$s % de la journée disponible</string>
 
-    <!-- Global goal -->
-    <string name="goal_section_title">OBJECTIF GLOBAL</string>
-    <string name="goal_badge">OBJECTIF</string>
-    <string name="goal_define">+ Définir un objectif</string>
+    <!-- Long-term cap -->
+    <string name="goal_section_title">CAP</string>
+    <string name="goal_badge">CAP</string>
+    <string name="goal_define">+ Définir un cap</string>
     <string name="goal_define_deadline">+ Définir une échéance</string>
-    <string name="goal_title_label">Objectif du jour</string>
-    <string name="goal_title_placeholder">Que voulez-vous accomplir ?</string>
-    <string name="goal_start_label">Début de l’objectif</string>
-    <string name="goal_deadline_label">Date limite de l’objectif</string>
+    <string name="goal_title_label">Cap à long terme</string>
+    <string name="goal_title_placeholder">Quel cap voulez-vous atteindre ?</string>
+    <string name="goal_start_label">Début du cap</string>
+    <string name="goal_deadline_label">Échéance du cap</string>
     <string name="goal_start_before_deadline">Le début doit précéder l’échéance.</string>
     <string name="goal_choose_date">Choisissez une date.</string>
     <string name="goal_invalid_time">Heure invalide (changement d’heure).</string>
@@ -123,7 +123,7 @@
     <string name="minutes_label">MINUTES</string>
 
     <!-- Mini window -->
-    <string name="mini_no_goal">Aucun objectif défini</string>
+    <string name="mini_no_goal">Aucun cap défini</string>
     <string name="mini_start_focus_label">Démarrer un focus</string>
     <string name="focus_relaunch_label">Relancer un focus</string>
     <string name="focus_stop_label">Arrêter le focus</string>
@@ -170,8 +170,8 @@
     <string name="settings_net_time_footnote">Seuls les événements marqués occupé (hors journée entière) sont soustraits.</string>
 
     <!-- Settings — on-goal apps -->
-    <string name="settings_section_on_goal">APPLICATIONS DE L’OBJECTIF</string>
-    <string name="settings_on_goal_description">Ces applications comptent comme du travail sur l’objectif pendant une session de focus.</string>
+    <string name="settings_section_on_goal">APPLICATIONS DU CAP</string>
+    <string name="settings_on_goal_description">Ces applications comptent comme du travail sur le cap pendant une session de focus.</string>
     <string name="settings_no_apps_selected">Aucune application sélectionnée.</string>
     <string name="settings_no_apps_available">Aucune application disponible.</string>
     <string name="settings_close">FERMER</string>
@@ -226,8 +226,8 @@
          macOS focus-nudge notification (used from desktopMain). -->
     <string name="desktop_day_over">Journée terminée</string>
     <string name="desktop_today_remaining">Aujourd’hui · %1$s h %2$s</string>
-    <string name="desktop_goal_deadline_reached">Objectif · échéance atteinte</string>
-    <string name="desktop_goal_hours">Objectif · %1$s h</string>
+    <string name="desktop_goal_deadline_reached">Cap · échéance atteinte</string>
+    <string name="desktop_goal_hours">Cap · %1$s h</string>
     <string name="desktop_goal_title_hours">%1$s · %2$s h</string>
     <string name="desktop_focus">Focus</string>
     <string name="desktop_break">Pause · %1$s</string>
@@ -284,18 +284,18 @@
     <string name="detour_delete_button">SUPPRIMER</string>
     <string name="detour_save_button">ENREGISTRER</string>
 
-    <!-- Planned obligations -->
-    <string name="planned_obligations_title">Obligations du jour</string>
-    <string name="planned_obligation_motif_label">Obligation à faire aujourd'hui</string>
+    <!-- Daily must-dos -->
+    <string name="planned_obligations_title">Incontournables du jour</string>
+    <string name="planned_obligation_motif_label">Incontournable à faire aujourd’hui</string>
     <string name="planned_obligation_motif_placeholder">ex. Appel client</string>
     <string name="planned_obligation_add_button">AJOUTER</string>
     <string name="planned_obligation_done_button">FAIT</string>
-    <string name="planned_obligations_chip">Obligations · À faire %1$d · Faites %2$d</string>
-    <string name="planned_obligations_open_label">Ouvrir les obligations du jour</string>
-    <string name="planned_obligation_remove_label">Supprimer l\'obligation</string>
+    <string name="planned_obligations_chip">Incontournables · À faire %1$d · Faits %2$d</string>
+    <string name="planned_obligations_open_label">Ouvrir les incontournables du jour</string>
+    <string name="planned_obligation_remove_label">Supprimer l’incontournable</string>
     <string name="planned_obligations_active_section">À FAIRE</string>
-    <string name="planned_obligations_completed_section">FAITES AUJOURD’HUI</string>
-    <string name="planned_obligations_cap_reached">Limite du jour atteinte : 3 obligations planifiées.</string>
+    <string name="planned_obligations_completed_section">FAITS AUJOURD’HUI</string>
+    <string name="planned_obligations_cap_reached">Limite du jour atteinte : 3 incontournables planifiés.</string>
 
     <!-- Settings — sync -->
     <string name="sync_settings_description">Gardez vos réglages et votre historique synchronisés entre Mac et Android.</string>

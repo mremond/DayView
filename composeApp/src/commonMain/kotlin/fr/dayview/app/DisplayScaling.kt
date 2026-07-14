@@ -30,7 +30,8 @@ internal fun useWideTodayLayout(widthDp: Float, heightDp: Float, fontScale: Floa
 
 /**
  * Below this height the mini window preserves the live ring and Focus controls, but drops the
- * secondary goal card. The allowance grows with the text preference so labels never collide.
+ * secondary long-term-goal card. The allowance grows with the text preference so labels never
+ * collide.
  */
 internal fun showGoalInMiniWindow(heightDp: Float, fontScale: Float): Boolean {
     val safeFontScale = fontScale.coerceIn(1f, DISPLAY_SCALE_MAX)

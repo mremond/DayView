@@ -71,13 +71,13 @@
     <string name="scrub_now">Now</string>
     <string name="day_available_percent">%1$s% of the day available</string>
 
-    <!-- Global goal -->
-    <string name="goal_section_title">OVERALL GOAL</string>
-    <string name="goal_badge">GOAL</string>
-    <string name="goal_define">+ Set a goal</string>
+    <!-- Long-term goal -->
+    <string name="goal_section_title">LONG-TERM GOAL</string>
+    <string name="goal_badge">LONG-TERM GOAL</string>
+    <string name="goal_define">+ Set a long-term goal</string>
     <string name="goal_define_deadline">+ Set a deadline</string>
-    <string name="goal_title_label">Goal for the day</string>
-    <string name="goal_title_placeholder">What do you want to accomplish?</string>
+    <string name="goal_title_label">Long-term goal</string>
+    <string name="goal_title_placeholder">What long-term goal do you want to reach?</string>
     <string name="goal_start_label">Goal start</string>
     <string name="goal_deadline_label">Goal deadline</string>
     <string name="goal_start_before_deadline">The start must come before the deadline.</string>
@@ -124,7 +124,7 @@
     <string name="minutes_label">MINUTES</string>
 
     <!-- Mini window -->
-    <string name="mini_no_goal">No goal set</string>
+    <string name="mini_no_goal">No long-term goal set</string>
     <string name="mini_start_focus_label">Start a focus</string>
     <string name="focus_relaunch_label">Start the next focus</string>
     <string name="focus_stop_label">Stop the focus</string>
@@ -172,7 +172,7 @@
 
     <!-- Settings — on-goal apps -->
     <string name="settings_section_on_goal">GOAL APPS</string>
-    <string name="settings_on_goal_description">These apps count as working on the goal during a focus session.</string>
+    <string name="settings_on_goal_description">These apps count as working on the long-term goal during a focus session.</string>
     <string name="settings_no_apps_selected">No apps selected.</string>
     <string name="settings_no_apps_available">No apps available.</string>
     <string name="settings_close">CLOSE</string>
@@ -285,18 +285,18 @@
     <string name="detour_delete_button">DELETE</string>
     <string name="detour_save_button">SAVE</string>
 
-    <!-- Planned obligations -->
-    <string name="planned_obligations_title">Today's obligations</string>
-    <string name="planned_obligation_motif_label">Obligation to do today</string>
+    <!-- Daily must-dos -->
+    <string name="planned_obligations_title">Today’s must-dos</string>
+    <string name="planned_obligation_motif_label">Must-do for today</string>
     <string name="planned_obligation_motif_placeholder">e.g. Client call</string>
     <string name="planned_obligation_add_button">ADD</string>
     <string name="planned_obligation_done_button">DONE</string>
-    <string name="planned_obligations_chip">Obligations · %1$d open · %2$d done</string>
-    <string name="planned_obligations_open_label">Open today\'s obligations</string>
-    <string name="planned_obligation_remove_label">Remove obligation</string>
+    <string name="planned_obligations_chip">Must-dos · %1$d open · %2$d done</string>
+    <string name="planned_obligations_open_label">Open today’s must-dos</string>
+    <string name="planned_obligation_remove_label">Remove must-do</string>
     <string name="planned_obligations_active_section">TO DO</string>
     <string name="planned_obligations_completed_section">DONE TODAY</string>
-    <string name="planned_obligations_cap_reached">Daily limit reached: 3 obligations planned.</string>
+    <string name="planned_obligations_cap_reached">Daily limit reached: 3 must-dos planned.</string>
 
     <!-- Settings — sync -->
     <string name="sync_settings_description">Keep your settings and history in step between Mac and Android.</string>

@@ -46,7 +46,7 @@ import fr.dayview.app.generated.resources.planned_obligations_open_label
 import fr.dayview.app.generated.resources.planned_obligations_title
 import org.jetbrains.compose.resources.stringResource
 
-/** Compact main-screen entry point that opens the obligations modal; always visible. */
+/** Compact main-screen entry point that opens today's must-dos modal; always visible. */
 @Composable
 internal fun PlannedObligationsChip(
     activeCount: Int,
@@ -85,8 +85,9 @@ internal fun PlannedObligationsDialog(
 }
 
 /**
- * The day's must-do obligations: at most [MAX_PLANNED_OBLIGATIONS], each completable via
- * FAIT or deletable via the ✕. Split out of the Dialog so Compose UI tests can drive it.
+ * Today's must-dos: at most [MAX_PLANNED_OBLIGATIONS], each completable via DONE/FAIT or
+ * deletable via the ✕. The legacy function name mirrors persisted storage fields. Split out of
+ * the Dialog so Compose UI tests can drive it.
  */
 @Composable
 internal fun PlannedObligationsContent(
