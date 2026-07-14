@@ -1,5 +1,6 @@
 package fr.dayview.app
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -40,6 +41,11 @@ class DayViewWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         val snapshot = readSnapshot(context)
         appWidgetIds.forEach { update(context, manager, it, snapshot) }
+        scheduleNextRefresh(context, snapshot)
+    }
+
+    override fun onDisabled(context: Context) {
+        cancelRefresh(context)
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -53,7 +59,7 @@ class DayViewWidget : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action in TIME_CHANGE_ACTIONS) updateAll(context)
+        if (intent.action == ACTION_WIDGET_REFRESH || intent.action in TIME_CHANGE_ACTIONS) updateAll(context)
     }
 
     companion object {
@@ -74,7 +80,47 @@ class DayViewWidget : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, DayViewWidget::class.java)
             manager.getAppWidgetIds(component).forEach { update(context, manager, it, snapshot) }
+            scheduleNextRefresh(context, snapshot)
         }
+
+        /**
+         * Arms an idle-safe alarm at the next instant the widget's reading changes (see
+         * [nextWidgetRefreshMillis]), re-armed on each fire. This is what carries the widget
+         * across an overnight Doze: the periodic [updatePeriodMillis] update is deferred while
+         * the device sleeps, so without this the morning reading stays frozen on the previous
+         * day until the app is opened. Cancels the alarm when no widget is placed.
+         */
+        private fun scheduleNextRefresh(context: Context, snapshot: DayPreferencesSnapshot) {
+            val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
+            val manager = AppWidgetManager.getInstance(context)
+            val component = ComponentName(context, DayViewWidget::class.java)
+            if (manager.getAppWidgetIds(component).isEmpty()) {
+                alarmManager.cancel(refreshPendingIntent(context))
+                return
+            }
+            val next = nextWidgetRefreshMillis(
+                nowMillis = System.currentTimeMillis(),
+                startMinutesOfDay = snapshot.startMinutes,
+                endMinutesOfDay = snapshot.endMinutes,
+            )
+            val exact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
+            if (exact) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, refreshPendingIntent(context))
+            } else {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, refreshPendingIntent(context))
+            }
+        }
+
+        private fun cancelRefresh(context: Context) {
+            context.getSystemService(AlarmManager::class.java)?.cancel(refreshPendingIntent(context))
+        }
+
+        private fun refreshPendingIntent(context: Context): PendingIntent = PendingIntent.getBroadcast(
+            context,
+            WIDGET_REFRESH_REQUEST_CODE,
+            Intent(context, DayViewWidget::class.java).setAction(ACTION_WIDGET_REFRESH),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
         private fun readSnapshot(context: Context): DayPreferencesSnapshot = runBlocking { DayViewPreferences.get(context).snapshots.first() }
 
@@ -270,6 +316,9 @@ class DayViewWidget : AppWidgetProvider() {
             }
             return bitmap
         }
+
+        private const val ACTION_WIDGET_REFRESH = "fr.dayview.app.action.WIDGET_REFRESH"
+        private const val WIDGET_REFRESH_REQUEST_CODE = 4201
 
         private val TIME_CHANGE_ACTIONS = setOf(
             Intent.ACTION_TIME_CHANGED,
