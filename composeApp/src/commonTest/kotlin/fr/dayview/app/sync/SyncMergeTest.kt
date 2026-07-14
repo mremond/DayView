@@ -108,4 +108,13 @@ class SyncMergeTest {
             base = merged
         }
     }
+
+    @Test
+    fun mergeUnionsHistoryDays() {
+        val a = sampleDocument(deviceId = "a", at = 10).copy(historyDays = listOf(1L, 3L))
+        val b = sampleDocument(deviceId = "b", at = 10).copy(historyDays = listOf(3L, 2L))
+        assertEquals(listOf(1L, 2L, 3L), a.merge(b).historyDays)
+        // commutative + deduped + sorted
+        assertEquals(a.merge(b).historyDays, b.merge(a).historyDays)
+    }
 }
