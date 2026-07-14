@@ -4,14 +4,22 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 // Point persistence at a real writable temp file so persist() exercises its
-// real code path (atomic temp-file + rename) instead of being bypassed.
-func init() { storePath = filepath.Join(os.TempDir(), "dayview-sync-test-store.json") }
+// real code path (atomic temp-file + rename) instead of being bypassed. Each
+// test run gets its own unique file so concurrent `go test` runs don't
+// collide and no stray fixed-name file is left behind.
+func init() {
+	f, err := os.CreateTemp("", "dayview-sync-test-store-*.json")
+	if err != nil {
+		panic(err)
+	}
+	f.Close()
+	storePath = f.Name()
+}
 
 func req(t *testing.T, method, path, body string, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
