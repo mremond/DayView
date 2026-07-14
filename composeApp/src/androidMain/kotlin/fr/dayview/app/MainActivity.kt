@@ -72,6 +72,7 @@ class MainActivity : ComponentActivity() {
             codecFactory = { Aes256GcmCodec(it) },
             scope = CoroutineScope(Dispatchers.Default),
             now = { Clock.System.now().toEpochMilliseconds() },
+            historyStore = DayViewPreferences.history(),
         )
 
         setContent {
@@ -89,6 +90,7 @@ class MainActivity : ComponentActivity() {
                 onRequestCalendarPermission = {
                     calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                 },
+                onOpenPowerSettings = { openPowerManagementSettings(this) },
                 secureKeyStore = keyStore,
                 syncCoordinator = syncCoordinator,
             )

@@ -91,7 +91,7 @@ internal fun HistoryWeekScreen(
                     Text(weekdayLabel(day.dayKey))
                     val record = day.record
                     if (record != null) {
-                        val state = remember(record) { record.toFrozenUiState() }
+                        val state = remember(record, day.now) { record.toFrozenUiState(now = day.now) }
                         MiniRing(
                             progress = state.dayProgress,
                             busyBlockArcs = state.busyBlockArcsState,

@@ -1,9 +1,13 @@
 package fr.dayview.app
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -103,5 +107,31 @@ class MiniWindowTest {
         onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.TO_RESUME)).assertExists()
         onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.COMPLETED)).performClick()
         assertEquals(FocusClosureOutcome.COMPLETED, closedWith)
+    }
+
+    @Test
+    fun shortMiniWindowKeepsPrimaryControlsAndHidesGoal() = runComposeUiTest {
+        val now = midWindowNow()
+        setContent {
+            Box(Modifier.requiredSize(width = 360.dp, height = 300.dp)) {
+                DayViewMiniApp(
+                    progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                    showSeconds = false,
+                    now = now,
+                    goalTitle = "Livrer la version du jour",
+                    goalDeadline = null,
+                    pomodoro = calculatePomodoroProgress(now, 25, null),
+                    focusIntention = "",
+                    fontScale = 1.5f,
+                    onStartFocus = {},
+                    onStopFocus = {},
+                    onCloseFocus = {},
+                    onOpenMainWindow = {},
+                )
+            }
+        }
+
+        onNodeWithTag(DayViewTestTags.MiniGoal).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.OpenMainWindow).assertExists()
     }
 }

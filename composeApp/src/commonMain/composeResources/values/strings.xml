@@ -25,6 +25,13 @@
     <string name="weekday_sat">Sat</string>
     <string name="weekday_sun">Sun</string>
 
+    <!-- Today screen — notices (surfaced when a background feature can't run) -->
+    <string name="notice_calendar_permission">Calendar access is off — Net Time is paused.</string>
+    <string name="notice_calendar_error">Couldn’t read your calendar — Net Time may be out of date.</string>
+    <string name="notice_sync_failed">Sync failed — your devices may be out of step.</string>
+    <string name="notice_sync_key_error">Sync key mismatch — check the key on both devices.</string>
+    <string name="notice_review_action">Open settings</string>
+
     <!-- Today screen — compact status line -->
     <string name="today_status_not_started">The day hasn’t started yet.</string>
     <string name="today_status_finished">Your planned time is up.</string>
@@ -60,6 +67,8 @@
     </string-array>
 
     <!-- Countdown circle -->
+    <string name="countdown_a11y_remaining">%1$s left, %2$d% of the day remaining.</string>
+    <string name="countdown_a11y_finished">Your day is complete.</string>
     <string name="countdown_time_left">TIME LEFT</string>
     <string name="countdown_day_over">DAY\nOVER</string>
     <string name="seconds_remaining">%1$s seconds</string>
@@ -143,6 +152,7 @@
 
     <!-- Settings — display -->
     <string name="settings_section_display">DISPLAY</string>
+    <string name="settings_display_description">Choose the theme, adjust the text size, and pick what the counter shows.</string>
     <string name="settings_show_seconds">SHOW SECONDS</string>
     <string name="settings_show_seconds_description">Turn them off for a calmer display and fewer refreshes.</string>
     <string name="settings_theme_label">APPEARANCE</string>
@@ -206,6 +216,12 @@
     <!-- Settings — sync -->
     <string name="settings_section_sync">SYNC</string>
 
+    <!-- Settings — system -->
+    <string name="settings_section_system">SYSTEM</string>
+    <string name="settings_system_description">Let DayView refresh in the background so the widget stays up to date.</string>
+    <string name="system_settings_body">Some devices (e-ink readers and others) limit background updates, which can leave the home-screen widget frozen on the previous day. Allow DayView to run in the background or at startup to keep the widget current.</string>
+    <string name="system_settings_open">Open power settings</string>
+
     <!-- Settings — category list summaries -->
     <string name="settings_summary_day">%1$s – %2$s</string>
     <string name="settings_summary_on">On</string>
@@ -216,6 +232,7 @@
     <string name="settings_summary_apps">%1$s apps</string>
     <string name="settings_summary_no_apps">None selected</string>
     <string name="settings_summary_sync">Not set up</string>
+    <string name="settings_summary_system">Background refresh</string>
 
     <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
          macOS focus-nudge notification (used from desktopMain). -->
@@ -285,10 +302,12 @@
     <string name="planned_obligation_motif_placeholder">e.g. Client call</string>
     <string name="planned_obligation_add_button">ADD</string>
     <string name="planned_obligation_done_button">DONE</string>
-    <string name="planned_obligations_chip">Obligations %1$d/%2$d</string>
+    <string name="planned_obligations_chip">Obligations · %1$d open · %2$d done</string>
     <string name="planned_obligations_open_label">Open today\'s obligations</string>
     <string name="planned_obligation_remove_label">Remove obligation</string>
-    <string name="planned_obligations_cap_reached">All 3 of today\'s obligations are used.</string>
+    <string name="planned_obligations_active_section">TO DO</string>
+    <string name="planned_obligations_completed_section">DONE TODAY</string>
+    <string name="planned_obligations_cap_reached">Daily limit reached: 3 obligations planned.</string>
 
     <!-- Settings — sync -->
     <string name="sync_settings_description">Keep your settings and history in step between Mac and Android.</string>
@@ -311,6 +330,18 @@
     <string name="sync_settings_phrase_accepted">Recovery phrase accepted — key saved.</string>
     <string name="sync_settings_sync_now">SYNC NOW</string>
     <string name="sync_settings_clear">CLEAR</string>
+    <string name="sync_settings_regenerate_key">REGENERATE KEY</string>
+    <string name="sync_settings_replace_key">REPLACE KEY</string>
+    <string name="sync_settings_erase_note">Disables sync on this device. Data already on the server is not deleted.</string>
+    <string name="sync_settings_regenerate_confirm_title">Regenerate key?</string>
+    <string name="sync_settings_regenerate_confirm_message">The old key will be lost. Sync will stop until you copy the new key to your other devices.</string>
+    <string name="sync_settings_regenerate_confirm_button">REGENERATE</string>
+    <string name="sync_settings_replace_confirm_title">Replace key?</string>
+    <string name="sync_settings_replace_confirm_message">The current key will be replaced. Make sure this phrase comes from your other device.</string>
+    <string name="sync_settings_replace_confirm_button">REPLACE</string>
+    <string name="sync_settings_erase_confirm_title">Erase sync?</string>
+    <string name="sync_settings_erase_confirm_message">This device will forget the server settings and key and stop syncing. Data already on the server is not deleted.</string>
+    <string name="sync_settings_erase_confirm_button">ERASE</string>
     <string name="sync_status_idle">Idle.</string>
     <string name="sync_status_syncing">Syncing…</string>
     <string name="sync_status_ok">Up to date.</string>

@@ -29,6 +29,15 @@ class SyncDocumentJsonTest {
         assertEquals(emptyList(), decoded.plannedObligationsCompleted.items)
         assertEquals(-1L, decoded.plannedObligationsCompleted.dayKey)
     }
+
+    @Test
+    fun documentWithoutHistoryDaysDecodesToEmpty() {
+        val doc = sampleDocument(deviceId = "a", at = 10)
+        val json = doc.copy(historyDays = emptyList()).encodeToString()
+        // strip the field to simulate an older client's payload
+        val legacy = json.replace(Regex(""","historyDays":\[[^]]*]"""), "")
+        assertEquals(emptyList(), decodeSyncDocument(legacy).historyDays)
+    }
 }
 
 /** Shared fixture reused by later tests. */

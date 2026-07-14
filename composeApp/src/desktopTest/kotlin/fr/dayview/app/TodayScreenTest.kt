@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import fr.dayview.app.sync.SyncStatus
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
@@ -21,7 +22,7 @@ class TodayScreenTest {
         }
         onNodeWithTag(DayViewTestTags.Countdown).assertExists()
         onNodeWithText("Livrer la v2").assertExists()
-        onNodeWithTag(DayViewTestTags.FocusStart).assertExists()
+        onNodeWithTag(DayViewTestTags.FocusEntry).assertExists()
     }
 
     @Test
@@ -52,6 +53,57 @@ class TodayScreenTest {
         onNodeWithTag(DayViewTestTags.MiniWindow).assertExists()
         onNodeWithTag(DayViewTestTags.MiniWindow).performClick()
         assertTrue(miniOpened)
+    }
+
+    @Test
+    fun showsCalendarNoticeWhenNetTimeEnabledButPermissionMissing() = runComposeUiTest {
+        var netTimeOpened = false
+        val snapshot = DayPreferencesSnapshot(netTimeSettings = NetTimeSettings(enabled = true))
+        setContent {
+            // netCalendarPermission defaults to false, so an enabled Net Time surfaces the notice.
+            val state = remember { seededController(snapshot).state }
+            WideDayView(
+                state = state,
+                actions = noopDayViewActions(openNetTimeSettings = { netTimeOpened = true }),
+            )
+        }
+        onNodeWithTag(DayViewTestTags.CalendarNotice).assertExists()
+        onNodeWithTag(DayViewTestTags.CalendarNotice).performClick()
+        assertTrue(netTimeOpened)
+    }
+
+    @Test
+    fun hidesCalendarNoticeWhenNetTimeDisabled() = runComposeUiTest {
+        setContent {
+            val state = remember { seededController(DayPreferencesSnapshot()).state }
+            WideDayView(state = state, actions = noopDayViewActions())
+        }
+        onNodeWithTag(DayViewTestTags.CalendarNotice).assertDoesNotExist()
+    }
+
+    @Test
+    fun showsSyncNoticeOnFailureAndRoutesToSyncSettings() = runComposeUiTest {
+        var syncOpened = false
+        setContent {
+            val state = remember { seededController(DayPreferencesSnapshot()).state }
+            WideDayView(
+                state = state,
+                actions = noopDayViewActions(openSyncSettings = { syncOpened = true }),
+                syncStatus = SyncStatus.Failed,
+            )
+        }
+        onNodeWithTag(DayViewTestTags.SyncNotice).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncNotice).performClick()
+        assertTrue(syncOpened)
+    }
+
+    @Test
+    fun hidesSyncNoticeWhenHealthy() = runComposeUiTest {
+        setContent {
+            val state = remember { seededController(DayPreferencesSnapshot()).state }
+            WideDayView(state = state, actions = noopDayViewActions(), syncStatus = SyncStatus.Ok)
+        }
+        onNodeWithTag(DayViewTestTags.SyncNotice).assertDoesNotExist()
     }
 
     @Test

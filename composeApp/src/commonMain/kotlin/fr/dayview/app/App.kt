@@ -38,6 +38,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
+/** Result of one calendar read cycle, carried from the background probe to the controller. */
+private data class NetTimeProbe(
+    val permission: Boolean,
+    val busy: List<BusyInterval> = emptyList(),
+    val calendars: List<CalendarInfo> = emptyList(),
+    val readError: Boolean = false,
+)
+
 @OptIn(FlowPreview::class)
 @Composable
 internal fun DayViewApp(
@@ -50,6 +58,7 @@ internal fun DayViewApp(
     onOpenMiniWindow: (() -> Unit)? = null,
     onFocusAlarmChange: (end: Instant?, intention: String) -> Unit = { _, _ -> },
     onRequestCalendarPermission: (() -> Unit)? = null,
+    onOpenPowerSettings: (() -> Unit)? = null,
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
     showFocusResumeRitual: Boolean = false,
@@ -171,25 +180,33 @@ internal fun DayViewApp(
                         calendarPermissionProbe,
                         calendarChangeProbe,
                     ) {
-                        val (permission, busy, calendars) = withContext(Dispatchers.Default) {
+                        val probe = withContext(Dispatchers.Default) {
                             if (!state.netTimeSettings.enabled) {
-                                Triple(false, emptyList<BusyInterval>(), emptyList<CalendarInfo>())
+                                NetTimeProbe(permission = false)
                             } else {
                                 val granted = runCatching { calendarSource.hasPermission() }.getOrDefault(false)
                                 if (granted) {
                                     val (start, end) = dayWindow(state.now, state.startMinutes, state.endMinutes)
-                                    val intervals = runCatching {
+                                    // Distinguish "no events" from "the read failed": a provider or
+                                    // permission-revocation error must surface on Today rather than
+                                    // silently reading as an empty busy layer.
+                                    val intervalsResult = runCatching {
                                         calendarSource.busyIntervals(start, end, state.netTimeSettings.includedCalendarIds)
-                                    }.getOrDefault(emptyList())
+                                    }
                                     val available = runCatching { calendarSource.availableCalendars() }
                                         .getOrDefault(emptyList())
-                                    Triple(true, intervals, available)
+                                    NetTimeProbe(
+                                        permission = true,
+                                        busy = intervalsResult.getOrDefault(emptyList()),
+                                        calendars = available,
+                                        readError = intervalsResult.isFailure,
+                                    )
                                 } else {
-                                    Triple(false, emptyList<BusyInterval>(), emptyList<CalendarInfo>())
+                                    NetTimeProbe(permission = false)
                                 }
                             }
                         }
-                        controller.updateNetTimeData(permission, busy, calendars)
+                        controller.updateNetTimeData(probe.permission, probe.busy, probe.calendars, probe.readError)
                     }
 
                     // Watch the calendar provider so external edits (a new event, a moved
@@ -288,6 +305,7 @@ internal fun DayViewApp(
                                 syncConfig = syncConfig,
                                 syncStatus = syncStatus,
                                 syncHasKey = syncHasKey,
+                                powerManagementSupported = onOpenPowerSettings != null,
                             ),
                             actions = SettingsScreenActions(
                                 changeStartTime = { controller.setStartMinutes(it) },
@@ -351,14 +369,16 @@ internal fun DayViewApp(
                                         syncCoordinator?.reset()
                                     }
                                 },
+                                openPowerSettings = onOpenPowerSettings ?: {},
                                 back = { controller.openToday() },
                             ),
                         )
                         DayViewDestination.HISTORY -> {
                             val selected = state.selectedHistoryDay
-                            val record = state.historyWeek.firstOrNull { it.dayKey == selected }?.record
+                            val day = state.historyWeek.firstOrNull { it.dayKey == selected }
+                            val record = day?.record
                             if (selected != null && record != null) {
-                                HistoryDayScreen(record = record, onBack = { controller.closeHistory() })
+                                HistoryDayScreen(record = record, now = day.now, onBack = { controller.closeHistory() })
                             } else {
                                 HistoryWeekScreen(
                                     days = state.historyWeek,
@@ -404,7 +424,16 @@ internal fun DayViewApp(
                                 addPlannedObligation = { controller.addPlannedObligation(it) },
                                 removePlannedObligation = { controller.removePlannedObligation(it) },
                                 completePlannedObligation = controller::completePlannedObligation,
+                                openNetTimeSettings = {
+                                    controller.openSettings()
+                                    controller.openSettingsCategory(SettingsCategory.NET_TIME)
+                                },
+                                openSyncSettings = {
+                                    controller.openSettings()
+                                    controller.openSettingsCategory(SettingsCategory.SYNC)
+                                },
                             ),
+                            syncStatus = syncStatus,
                             reminders = FocusReminderUiState(
                                 showDriftReminder = showFocusDriftReminder,
                                 dismissDriftReminder = onDismissFocusDriftReminder,

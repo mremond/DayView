@@ -84,6 +84,32 @@ class HistoryNavigationTest {
     }
 
     @Test
+    fun openHistoryTagsTodaysCellWithLiveNow() {
+        // Pinned mid-week so "yesterday" lands inside the same Monday→Sunday history week.
+        val now = midWeekNow()
+        val todayKey = dayKeyOf(now)
+        val history = InMemoryDayHistoryStore()
+        val yesterdayKey = todayKey - 1
+        val yesterday = DayHistoryRecord(
+            dayKey = yesterdayKey, startMinutes = 480, endMinutes = 1080, focusIntention = "",
+            busyIntervals = emptyList(), calendarNames = emptyMap(), netTimeSettings = NetTimeSettings(),
+            focusPresenceIntervals = emptyList(), detours = emptyList(), cleanSessions = CleanSessionLedger(),
+            pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
+        )
+        kotlinx.coroutines.runBlocking { history.write(yesterday) }
+        val controller = controllerWith(DayPreferencesSnapshot(), now, history)
+
+        controller.openHistory()
+
+        // Today's cell carries the live instant so its ring renders in-progress; archived
+        // days carry no live now and stay frozen at their window end.
+        val today = controller.state.historyWeek.first { it.dayKey == todayKey }
+        assertEquals(now, today.now)
+        val yesterdayCell = controller.state.historyWeek.first { it.dayKey == yesterdayKey }
+        assertNull(yesterdayCell.now)
+    }
+
+    @Test
     fun openHistoryDaySelectsADay() {
         val controller = controllerWith(DayPreferencesSnapshot(), midWindowNow(), InMemoryDayHistoryStore())
         controller.openHistory()

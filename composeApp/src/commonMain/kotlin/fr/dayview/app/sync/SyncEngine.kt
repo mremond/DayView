@@ -1,6 +1,7 @@
 package fr.dayview.app.sync
 
 import fr.dayview.app.DayPreferencesSnapshot
+import kotlin.coroutines.cancellation.CancellationException
 
 data class SyncState(val baseRevision: String?, val baseDocument: SyncDocument?)
 
@@ -16,6 +17,7 @@ class SyncEngine(
     private val codec: PayloadCodec,
     private val deviceId: String,
     private val maxRetries: Int = 3,
+    private val historySync: HistorySync? = null,
 ) {
     suspend fun sync(local: DayPreferencesSnapshot, state: SyncState, now: Long): SyncResult {
         val localDoc = buildDocument(local, state.baseDocument, deviceId, now)
@@ -29,7 +31,10 @@ class SyncEngine(
                         return SyncResult.KeyError
                     }
                 }
-                val merged = localDoc.merge(remoteDoc)
+                var merged = localDoc.merge(remoteDoc)
+                if (historySync != null) {
+                    merged = merged.copy(historyDays = historySync.reconcile(merged.historyDays))
+                }
                 if (remoteDoc != null && merged == remoteDoc) return SyncResult.UpToDate
                 val payload = codec.encrypt(merged.encodeToString())
                 when (val outcome = transport.push(payload, remote?.revision)) {
@@ -43,6 +48,8 @@ class SyncEngine(
             }
         } catch (e: SyncKeyMismatchException) {
             return SyncResult.KeyError
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             return SyncResult.Failed(e)
         }

@@ -44,15 +44,17 @@ private fun instantAtMinutes(
 private fun DayHistoryRecord.frozenNow(timeZone: TimeZone): Instant = instantAtMinutes(dayKey, endMinutes, timeZone)
 
 /**
- * Rebuild a [DayViewUiState] pinned to the recorded day, with `now` at the day's end so
- * the ring reads as a completed day. `showSeconds = false` keeps the replay at minute
- * precision (deterministic). Only day-scoped fields are meaningful; everything else takes
- * its default.
+ * Rebuild a [DayViewUiState] pinned to the recorded day. By default `now` sits at the day's
+ * end so an archived day reads as completed; pass [now] to project the ring at a live instant
+ * instead, which is how today's still-in-progress cell avoids rendering as finished.
+ * `showSeconds = false` keeps the replay at minute precision (deterministic). Only day-scoped
+ * fields are meaningful; everything else takes its default.
  */
 fun DayHistoryRecord.toFrozenUiState(
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    now: Instant? = null,
 ): DayViewUiState = DayViewUiState(
-    now = frozenNow(timeZone),
+    now = now ?: frozenNow(timeZone),
     startMinutes = startMinutes,
     endMinutes = endMinutes,
     showSeconds = false,

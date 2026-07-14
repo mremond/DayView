@@ -13,6 +13,31 @@ internal const val DISPLAY_SCALE_REFERENCE_DP = 560f
 /** Upper bound on the automatic display zoom, so an extreme canvas cannot balloon the UI. */
 internal const val DISPLAY_SCALE_MAX = 1.5f
 
+/** Minimum canvas dimensions for the two-column Today dashboard at the default text size. */
+internal const val TODAY_WIDE_MIN_WIDTH_DP = 780f
+internal const val TODAY_WIDE_MIN_HEIGHT_DP = 760f
+
+/**
+ * The two-column dashboard only works when both dimensions can carry it. Enlarged text raises
+ * the height budget; otherwise a wide landscape phone or a short desktop window would select a
+ * layout whose left column cannot scroll. The one-column fallback is vertically scrollable.
+ */
+internal fun useWideTodayLayout(widthDp: Float, heightDp: Float, fontScale: Float): Boolean {
+    val safeFontScale = fontScale.coerceIn(1f, DISPLAY_SCALE_MAX)
+    return widthDp >= TODAY_WIDE_MIN_WIDTH_DP &&
+        heightDp >= TODAY_WIDE_MIN_HEIGHT_DP * safeFontScale
+}
+
+/**
+ * Below this height the mini window preserves the live ring and Focus controls, but drops the
+ * secondary goal card. The allowance grows with the text preference so labels never collide.
+ */
+internal fun showGoalInMiniWindow(heightDp: Float, fontScale: Float): Boolean {
+    val safeFontScale = fontScale.coerceIn(1f, DISPLAY_SCALE_MAX)
+    val requiredHeight = 400f + (safeFontScale - 1f) * 160f
+    return heightDp >= requiredHeight
+}
+
 /**
  * Automatic whole-UI zoom factor derived purely from the available space. It scales the
  * composition density, so the ring, text, and spacing all grow together to fill a large

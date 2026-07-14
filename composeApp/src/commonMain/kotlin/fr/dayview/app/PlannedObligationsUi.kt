@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -25,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -35,8 +38,10 @@ import fr.dayview.app.generated.resources.planned_obligation_done_button
 import fr.dayview.app.generated.resources.planned_obligation_motif_label
 import fr.dayview.app.generated.resources.planned_obligation_motif_placeholder
 import fr.dayview.app.generated.resources.planned_obligation_remove_label
+import fr.dayview.app.generated.resources.planned_obligations_active_section
 import fr.dayview.app.generated.resources.planned_obligations_cap_reached
 import fr.dayview.app.generated.resources.planned_obligations_chip
+import fr.dayview.app.generated.resources.planned_obligations_completed_section
 import fr.dayview.app.generated.resources.planned_obligations_open_label
 import fr.dayview.app.generated.resources.planned_obligations_title
 import org.jetbrains.compose.resources.stringResource
@@ -44,14 +49,14 @@ import org.jetbrains.compose.resources.stringResource
 /** Compact main-screen entry point that opens the obligations modal; always visible. */
 @Composable
 internal fun PlannedObligationsChip(
-    count: Int,
-    cap: Int,
+    activeCount: Int,
+    completedCount: Int,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
     Text(
-        stringResource(Res.string.planned_obligations_chip, count, cap),
+        stringResource(Res.string.planned_obligations_chip, activeCount, completedCount),
         color = colors.muted,
         fontSize = 11.sp,
         fontWeight = FontWeight.Medium,
@@ -68,14 +73,14 @@ internal fun PlannedObligationsChip(
 @Composable
 internal fun PlannedObligationsDialog(
     obligations: List<String>,
-    slotsUsed: Int,
+    completedObligations: List<String>,
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        PlannedObligationsContent(obligations, slotsUsed, onAdd, onComplete, onRemove, onDismiss)
+        PlannedObligationsContent(obligations, completedObligations, onAdd, onComplete, onRemove, onDismiss)
     }
 }
 
@@ -86,7 +91,7 @@ internal fun PlannedObligationsDialog(
 @Composable
 internal fun PlannedObligationsContent(
     obligations: List<String>,
-    slotsUsed: Int = obligations.size,
+    completedObligations: List<String> = emptyList(),
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
@@ -94,13 +99,14 @@ internal fun PlannedObligationsContent(
 ) {
     val colors = LocalDayViewColors.current
     var draft by remember { mutableStateOf("") }
-    val atCap = slotsUsed >= MAX_PLANNED_OBLIGATIONS
+    val atCap = obligations.size + completedObligations.size >= MAX_PLANNED_OBLIGATIONS
     val removeLabel = stringResource(Res.string.planned_obligation_remove_label)
 
     Column(
         modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -111,6 +117,17 @@ internal fun PlannedObligationsContent(
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.3.sp,
         )
+
+        if (obligations.isNotEmpty()) {
+            Text(
+                stringResource(Res.string.planned_obligations_active_section),
+                color = colors.muted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                modifier = Modifier.testTag(DayViewTestTags.PlannedObligationsActiveSection),
+            )
+        }
 
         obligations.forEach { motif ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -169,6 +186,30 @@ internal fun PlannedObligationsContent(
                 fontSize = 11.sp,
                 modifier = Modifier.testTag(DayViewTestTags.PlannedObligationsCapHint),
             )
+        }
+
+        if (completedObligations.isNotEmpty()) {
+            Text(
+                stringResource(Res.string.planned_obligations_completed_section),
+                color = colors.muted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                modifier = Modifier.testTag(DayViewTestTags.PlannedObligationsCompletedSection),
+            )
+            completedObligations.forEach { motif ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✓", color = colors.mint, fontSize = 13.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        motif,
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        textDecoration = TextDecoration.LineThrough,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
         }
 
         FocusActionButton(

@@ -63,4 +63,13 @@ class FileDayHistoryStoreTest {
         store.write(record(100L).copy(focusIntention = "changed"))
         assertEquals(first, fs.files["100"])
     }
+
+    @Test
+    fun listAllDaysReturnsEveryArchivedDaySorted() = runTest {
+        val store = FileDayHistoryStore(FakeHistoryFileSystem())
+        store.write(record(20200))
+        store.write(record(20100))
+        store.write(record(20300))
+        assertEquals(listOf(20100L, 20200L, 20300L), store.listAllDays())
+    }
 }

@@ -10,6 +10,7 @@ import fr.dayview.app.sync.SyncConfig
 import fr.dayview.app.sync.SyncStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -144,12 +145,12 @@ class SyncSettingsScreenTest {
     }
 
     @Test
-    fun clickingClearInvokesCallback() = runComposeUiTest {
+    fun clickingEraseDoesNotImmediatelyClear() = runComposeUiTest {
         var cleared = false
         setContent { setSyncSettingsScreen(onClear = { cleared = true }) }
 
         onNodeWithTag(DayViewTestTags.SyncSettingsClear).performClick()
-        assertTrue(cleared)
+        assertFalse(cleared)
     }
 
     @Test
@@ -168,5 +169,69 @@ class SyncSettingsScreenTest {
         assertEquals("h", recorded?.baseUrl)
         assertEquals("", recorded?.userId)
         assertEquals("", recorded?.token)
+    }
+
+    @Test
+    fun keyPresentShowsRegenerateAndReplaceNotGenerate() = runComposeUiTest {
+        setContent { setSyncSettingsScreen(hasKey = true) }
+
+        onNodeWithTag(DayViewTestTags.SyncSettingsRegenerateKey).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncSettingsReplaceKey).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncSettingsGenerateKey).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).assertDoesNotExist()
+    }
+
+    @Test
+    fun noKeyShowsGenerateAndPhraseNotRegenerate() = runComposeUiTest {
+        setContent { setSyncSettingsScreen(hasKey = false) }
+
+        onNodeWithTag(DayViewTestTags.SyncSettingsGenerateKey).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncSettingsRegenerateKey).assertDoesNotExist()
+    }
+
+    @Test
+    fun clickingRegenerateDoesNotImmediatelyGenerate() = runComposeUiTest {
+        var generated = false
+        setContent {
+            setSyncSettingsScreen(
+                hasKey = true,
+                onGenerateKey = {
+                    generated = true
+                    ""
+                },
+            )
+        }
+
+        onNodeWithTag(DayViewTestTags.SyncSettingsRegenerateKey).performClick()
+        assertFalse(generated)
+    }
+
+    @Test
+    fun clickingReplaceRevealsPhraseField() = runComposeUiTest {
+        setContent { setSyncSettingsScreen(hasKey = true) }
+
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.SyncSettingsReplaceKey).performClick()
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).assertExists()
+    }
+
+    @Test
+    fun clickingUsePhraseWhileReplacingDoesNotImmediatelyPaste() = runComposeUiTest {
+        var pasted = false
+        setContent {
+            setSyncSettingsScreen(
+                hasKey = true,
+                onPasteKey = {
+                    pasted = true
+                    true
+                },
+            )
+        }
+
+        onNodeWithTag(DayViewTestTags.SyncSettingsReplaceKey).performClick()
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseInput).performTextInput("some phrase")
+        onNodeWithTag(DayViewTestTags.SyncSettingsUsePhrase).performClick()
+        assertFalse(pasted)
     }
 }

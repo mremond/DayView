@@ -15,18 +15,22 @@ import androidx.compose.ui.unit.dp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.history_title
 import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Instant
 
 /**
- * Read-only replay of one archived day: the live ring, fed from the record's frozen
- * state, with no action panels (no starting focus or editing detours on a past day).
+ * Read-only replay of one day: the live ring, fed from the record's projected state, with no
+ * action panels (no starting focus or editing detours from history). [now] projects today's
+ * still-in-progress day at the live instant; leave it null for archived days so the ring
+ * freezes at the day's end.
  */
 @Composable
 internal fun HistoryDayScreen(
     record: DayHistoryRecord,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    now: Instant? = null,
 ) {
-    val state = remember(record) { record.toFrozenUiState() }
+    val state = remember(record, now) { record.toFrozenUiState(now = now) }
     val colors = LocalDayViewColors.current
     Column(
         modifier = modifier.fillMaxSize()

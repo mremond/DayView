@@ -94,6 +94,7 @@ private fun runApplication() = application {
             codecFactory = { Aes256GcmCodec(it) },
             scope = CoroutineScope(Dispatchers.Default),
             now = { Clock.System.now().toEpochMilliseconds() },
+            historyStore = history,
         )
     }
     val loginLauncher = remember { MacLoginLauncher() }
@@ -407,6 +408,7 @@ private fun runApplication() = application {
                 goalDeadline = goalDeadline,
                 pomodoro = pomodoro,
                 focusIntention = focusIntention,
+                fontScale = preferenceSnapshot.fontScale,
                 onStartFocus = { intention ->
                     scope.launch {
                         val s = preferences.snapshots.first()

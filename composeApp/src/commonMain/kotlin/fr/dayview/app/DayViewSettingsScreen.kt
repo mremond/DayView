@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.settings_autosave_note
 import fr.dayview.app.generated.resources.settings_day_description
+import fr.dayview.app.generated.resources.settings_display_description
 import fr.dayview.app.generated.resources.settings_net_time_description
 import fr.dayview.app.generated.resources.settings_on_goal_description
 import fr.dayview.app.generated.resources.settings_section_day
@@ -38,7 +39,7 @@ import fr.dayview.app.generated.resources.settings_section_net_time
 import fr.dayview.app.generated.resources.settings_section_on_goal
 import fr.dayview.app.generated.resources.settings_section_sounds
 import fr.dayview.app.generated.resources.settings_section_sync
-import fr.dayview.app.generated.resources.settings_show_seconds_description
+import fr.dayview.app.generated.resources.settings_section_system
 import fr.dayview.app.generated.resources.settings_sounds_description
 import fr.dayview.app.generated.resources.settings_summary_apps
 import fr.dayview.app.generated.resources.settings_summary_day
@@ -49,6 +50,8 @@ import fr.dayview.app.generated.resources.settings_summary_seconds_off
 import fr.dayview.app.generated.resources.settings_summary_seconds_on
 import fr.dayview.app.generated.resources.settings_summary_sounds_on
 import fr.dayview.app.generated.resources.settings_summary_sync
+import fr.dayview.app.generated.resources.settings_summary_system
+import fr.dayview.app.generated.resources.settings_system_description
 import fr.dayview.app.generated.resources.settings_title
 import fr.dayview.app.generated.resources.sync_settings_description
 import org.jetbrains.compose.resources.stringResource
@@ -163,6 +166,7 @@ private fun SettingsCategoryDetail(
             onSyncNow = actions.syncNow,
             onClear = actions.clearSyncKey,
         )
+        SettingsCategory.SYSTEM -> SystemSettingsScreen(onOpenPowerSettings = actions.openPowerSettings)
     }
 }
 
@@ -202,6 +206,7 @@ private fun categoryTitle(category: SettingsCategory): String = stringResource(
         SettingsCategory.NET_TIME -> Res.string.settings_section_net_time
         SettingsCategory.ON_GOAL -> Res.string.settings_section_on_goal
         SettingsCategory.SYNC -> Res.string.settings_section_sync
+        SettingsCategory.SYSTEM -> Res.string.settings_section_system
     },
 )
 
@@ -209,11 +214,12 @@ private fun categoryTitle(category: SettingsCategory): String = stringResource(
 private fun categoryDescription(category: SettingsCategory): String = stringResource(
     when (category) {
         SettingsCategory.DAY -> Res.string.settings_day_description
-        SettingsCategory.DISPLAY -> Res.string.settings_show_seconds_description
+        SettingsCategory.DISPLAY -> Res.string.settings_display_description
         SettingsCategory.SOUNDS -> Res.string.settings_sounds_description
         SettingsCategory.NET_TIME -> Res.string.settings_net_time_description
         SettingsCategory.ON_GOAL -> Res.string.settings_on_goal_description
         SettingsCategory.SYNC -> Res.string.sync_settings_description
+        SettingsCategory.SYSTEM -> Res.string.settings_system_description
     },
 )
 
@@ -260,4 +266,5 @@ private fun categorySummary(
         } else {
             stringResource(Res.string.settings_summary_sync)
         }
+    SettingsCategory.SYSTEM -> stringResource(Res.string.settings_summary_system)
 }
