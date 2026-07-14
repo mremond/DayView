@@ -11,6 +11,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -26,6 +27,12 @@ class HttpSyncTransportTest {
     fun pullReturnsNullOn204() = runTest {
         val t = transport(MockEngine { respond("", HttpStatusCode.NoContent) })
         assertNull(t.pull())
+    }
+
+    @Test
+    fun pullReportsAuthenticationFailure() = runTest {
+        val t = transport(MockEngine { respond("", HttpStatusCode.Unauthorized) })
+        assertFailsWith<SyncAuthenticationException> { t.pull() }
     }
 
     @Test

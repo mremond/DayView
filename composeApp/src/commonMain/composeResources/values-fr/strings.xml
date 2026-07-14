@@ -316,6 +316,37 @@
 
     <!-- Settings — sync -->
     <string name="sync_settings_description">Gardez vos réglages et votre historique synchronisés entre Mac et Android.</string>
+    <string name="sync_setup_progress">Étape %1$d sur 5</string>
+    <string name="sync_setup_continue">CONTINUER</string>
+    <string name="sync_setup_previous">RETOUR</string>
+    <string name="sync_setup_server_title">Connecter votre serveur</string>
+    <string name="sync_setup_server_description">Saisissez l’URL de base de votre serveur de synchronisation DayView.</string>
+    <string name="sync_setup_scan_title">Configurer depuis un autre appareil</string>
+    <string name="sync_setup_scan_description">Scannez son QR code temporaire pour importer le serveur, le compte et la clé de chiffrement.</string>
+    <string name="sync_setup_scan_button">SCANNER UN QR CODE</string>
+    <string name="sync_setup_importing">Import et test de la configuration…</string>
+    <string name="sync_setup_scan_invalid">Ce code de configuration DayView n’est pas valide.</string>
+    <string name="sync_setup_scan_expired">Ce code a expiré. Générez-en un nouveau sur l’autre appareil.</string>
+    <string name="sync_setup_scan_failed">La configuration n’a pas pu être importée. Vérifiez la connexion et réessayez.</string>
+    <string name="sync_setup_account_title">Identifier ce compte</string>
+    <string name="sync_setup_account_description">Saisissez l’identifiant du compte et le jeton d’accès fournis par votre serveur.</string>
+    <string name="sync_setup_key_title">Protéger vos données</string>
+    <string name="sync_setup_key_description">Générez une clé de chiffrement ou saisissez la phrase de récupération d’un autre appareil.</string>
+    <string name="sync_setup_test_title">Tester la connexion</string>
+    <string name="sync_setup_test_description">DayView va vérifier le serveur, les identifiants et la clé, puis effectuer la première synchronisation.</string>
+    <string name="sync_setup_test_button">TESTER ET SYNCHRONISER</string>
+    <string name="sync_setup_test_auth_error">Le serveur a refusé le compte ou le jeton d’accès.</string>
+    <string name="sync_setup_test_key_error">Le serveur répond, mais la clé de chiffrement ne correspond pas.</string>
+    <string name="sync_setup_test_connection_error">DayView n’a pas pu terminer la synchronisation. Vérifiez l’URL du serveur et la connexion.</string>
+    <string name="sync_setup_complete_title">Cet appareil est synchronisé</string>
+    <string name="sync_setup_complete_description">Connecté à %1$s avec le compte %2$s.</string>
+    <string name="sync_setup_add_device">AJOUTER UN APPAREIL</string>
+    <string name="sync_setup_pairing_creating">Création d’un code temporaire…</string>
+    <string name="sync_setup_pairing_title">Scannez ce code avec DayView sur Android</string>
+    <string name="sync_setup_pairing_description">Il contient le serveur, le compte et la clé de chiffrement. Il expire après deux minutes et ne fonctionne qu’une fois.</string>
+    <string name="sync_setup_pairing_failed">Le code temporaire n’a pas pu être créé. Vérifiez que le serveur est à jour et accessible.</string>
+    <string name="sync_setup_pairing_qr_description">QR code temporaire de configuration de la synchronisation DayView</string>
+    <string name="sync_setup_reconfigure">MODIFIER LA CONFIGURATION</string>
     <string name="sync_settings_url_label">URL DU SERVEUR</string>
     <string name="sync_settings_url_placeholder">https://sync.exemple.com</string>
     <string name="sync_settings_user_label">IDENTIFIANT</string>
