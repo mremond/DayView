@@ -37,6 +37,12 @@ fun buildDocument(
             deviceId,
         ),
         pomodoro = restamp(PomodoroDto(snapshot.pomodoroMinutes, snapshot.pomodoroEnd.toMillisOrAbsent()), base?.pomodoro, now, deviceId),
+        openDetour = restamp(
+            OpenDetourDto(snapshot.openDetourStart.toMillisOrAbsent(), snapshot.openDetourCategory, snapshot.openDetourDescription),
+            base?.openDetour,
+            now,
+            deviceId,
+        ),
         focusIntention = restamp(snapshot.focusIntention, base?.focusIntention, now, deviceId),
         themeMode = restamp(snapshot.themeMode.name, base?.themeMode, now, deviceId),
         netTimeEnabled = restamp(snapshot.netTimeSettings.enabled, base?.netTimeEnabled, now, deviceId),
@@ -146,6 +152,9 @@ fun applyDocument(document: SyncDocument, local: DayPreferencesSnapshot): DayPre
     goalStart = document.goal.value.start.toInstantOrNull(),
     pomodoroMinutes = document.pomodoro.value.minutes,
     pomodoroEnd = document.pomodoro.value.end.toInstantOrNull(),
+    openDetourStart = document.openDetour.value.start.toInstantOrNull(),
+    openDetourCategory = document.openDetour.value.category,
+    openDetourDescription = document.openDetour.value.description,
     focusIntention = document.focusIntention.value,
     themeMode = ThemeMode.entries.firstOrNull { it.name == document.themeMode.value } ?: local.themeMode,
     // preserve device-local calendar ids; only the enabled toggle is synced
