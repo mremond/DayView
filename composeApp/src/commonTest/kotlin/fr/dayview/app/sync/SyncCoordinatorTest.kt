@@ -1,7 +1,11 @@
 package fr.dayview.app.sync
 
+import fr.dayview.app.CleanSessionLedger
+import fr.dayview.app.DayHistoryRecord
 import fr.dayview.app.DayPreferences
 import fr.dayview.app.DayPreferencesSnapshot
+import fr.dayview.app.InMemoryDayHistoryStore
+import fr.dayview.app.NetTimeSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -62,6 +66,24 @@ private class ConcurrencyTrackingTransport(private val inner: SyncTransport = On
     override suspend fun getHistoryDay(opaqueKey: String): String? = inner.getHistoryDay(opaqueKey)
 }
 
+private fun historyRecord(dayKey: Long) = DayHistoryRecord(
+    dayKey = dayKey,
+    startMinutes = 480,
+    endMinutes = 1320,
+    focusIntention = "",
+    busyIntervals = emptyList(),
+    calendarNames = emptyMap(),
+    netTimeSettings = NetTimeSettings(),
+    focusPresenceIntervals = emptyList(),
+    detours = emptyList(),
+    cleanSessions = CleanSessionLedger(),
+    pomodoroMinutes = 0,
+    pomodoroEnd = null,
+    goalTitle = "",
+    goalDeadline = null,
+    goalStart = null,
+)
+
 class SyncCoordinatorTest {
     private fun coordinator(
         keyStore: SecureKeyStore,
@@ -112,5 +134,30 @@ class SyncCoordinatorTest {
         List(5) { launch { c.syncNow() } }.joinAll()
         assertEquals(1, transport.observedMax)
         assertEquals(SyncStatus.Ok, c.status.first())
+    }
+
+    @Test
+    fun syncNowUploadsLocalHistoryDayIntoManifest() = runTest {
+        val store = InMemoryDayHistoryStore().apply { write(historyRecord(dayKey = 42)) }
+        val transport = OneShotTransport()
+        val ks = InMemorySecureKeyStore().apply {
+            storeKey(RawSyncKey(ByteArray(32) { it.toByte() }))
+            storeConfig(SyncConfig("https://x", "u1", "t"))
+        }
+        var stored: String? = null
+        val statePersistence = FileSyncStatePersistence(read = { stored }, write = { stored = it })
+        val c = SyncCoordinator(
+            deviceId = "a",
+            keyStore = ks,
+            statePersistence = statePersistence,
+            preferences = FakePrefs(DayPreferencesSnapshot()),
+            transportFactory = { transport },
+            codecFactory = { PlainCodec },
+            scope = this.backgroundScope,
+            now = { 100L },
+            historyStore = store,
+        )
+        c.syncNow()
+        assertEquals(listOf(42L), statePersistence.load().baseDocument?.historyDays)
     }
 }
