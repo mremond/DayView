@@ -91,6 +91,7 @@ class MainActivity : ComponentActivity() {
                     calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                 },
                 onOpenPowerSettings = { openPowerManagementSettings(this) },
+                derivesEngagedFromSessions = true,
                 secureKeyStore = keyStore,
                 syncCoordinator = syncCoordinator,
             )
