@@ -19,6 +19,13 @@ only ever flow one way (desktop has no camera). The recovery phrase works
 everywhere and is the cross-platform core; QR is a later convenience layered on
 top of the same key.
 
+Implementation update (2026-07-14): the later guided-sync work has now added
+QR generation on desktop and Android plus scanning on Android. It uses Google
+Code Scanner rather than CameraX, so DayView itself does not request camera
+permission. The QR also carries the server URL and account identifier, together
+with a short-lived single-use enrollment code; it never carries a long-lived
+access token.
+
 ## Scope
 
 Replace, in `SyncSettingsScreen` + its `App.kt` wiring:

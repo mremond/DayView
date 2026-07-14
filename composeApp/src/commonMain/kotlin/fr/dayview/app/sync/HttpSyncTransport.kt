@@ -19,6 +19,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable private data class HistoryBody(val payload: String)
 
+class SyncAuthenticationException : Exception("Sync authentication failed")
+
 class HttpSyncTransport(
     private val client: HttpClient,
     private val baseUrl: String,
@@ -30,6 +32,10 @@ class HttpSyncTransport(
     override suspend fun pull(): RemoteSnapshot? {
         val response = client.get(endpoint) { bearerAuth(token) }
         if (response.status == HttpStatusCode.NoContent) return null
+        if (response.status == HttpStatusCode.Unauthorized) throw SyncAuthenticationException()
+        if (response.status != HttpStatusCode.OK) {
+            throw IllegalStateException("sync GET failed: ${response.status}")
+        }
         val body: RemoteBody = response.body()
         return RemoteSnapshot(payload = body.payload.orEmpty(), revision = body.revision)
     }

@@ -12,6 +12,8 @@ import kotlinx.coroutines.sync.withLock
 
 enum class SyncStatus { Idle, Syncing, Ok, KeyError, Failed, NotConfigured }
 
+enum class SyncSetupResult { Success, NotConfigured, AuthenticationFailed, KeyMismatch, ConnectionFailed }
+
 /**
  * Drives the sync loop: loads the encryption key and endpoint config, runs [SyncEngine]
  * against the current preferences snapshot, and applies the result. Concurrent triggers
@@ -41,6 +43,37 @@ class SyncCoordinator(
 
     suspend fun syncNow() {
         mutex.withLock { runOnce() }
+    }
+
+    /**
+     * Verifies authentication and the E2EE key without writing, then performs the
+     * first real sync. Success therefore means the device is connected, can read
+     * existing remote state, and has completed a synchronization cycle.
+     */
+    suspend fun verifyAndSync(): SyncSetupResult {
+        val key = keyStore.loadKey() ?: return SyncSetupResult.NotConfigured
+        val config = keyStore.loadConfig() ?: return SyncSetupResult.NotConfigured
+        _status.value = SyncStatus.Syncing
+        return try {
+            val remote = transportFactory(config).pull()
+            if (remote != null) codecFactory(key).decrypt(remote.payload)
+            syncNow()
+            when (_status.value) {
+                SyncStatus.Ok -> SyncSetupResult.Success
+                SyncStatus.KeyError -> SyncSetupResult.KeyMismatch
+                SyncStatus.NotConfigured -> SyncSetupResult.NotConfigured
+                else -> SyncSetupResult.ConnectionFailed
+            }
+        } catch (_: SyncAuthenticationException) {
+            _status.value = SyncStatus.Failed
+            SyncSetupResult.AuthenticationFailed
+        } catch (_: SyncKeyMismatchException) {
+            _status.value = SyncStatus.KeyError
+            SyncSetupResult.KeyMismatch
+        } catch (_: Throwable) {
+            _status.value = SyncStatus.Failed
+            SyncSetupResult.ConnectionFailed
+        }
     }
 
     /** Resets persisted sync state (base revision/document) so the next sync starts fresh. */

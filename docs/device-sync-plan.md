@@ -200,7 +200,7 @@ An identifier derived from `sessionId` prevents modifying an existing Focus. Mul
 
 ## Identity, Security, and Confidentiality
 
-The user must explicitly activate synchronization. A connection via link magic or code unique usage avoids introducing a personal DayView password. An association by QR code can simplify adding the second device, but does not replace an identity retrievable.
+The user must explicitly activate synchronization. The first device is configured with the server's bootstrap credential. It can then display a QR code containing the server URL, account identifier, encryption key and a short-lived single-use enrollment code. The receiving device exchanges that code for its own account-scoped credential; the long-lived credential of the source device is never placed in the QR code.
 
 Minimum requirements:
 

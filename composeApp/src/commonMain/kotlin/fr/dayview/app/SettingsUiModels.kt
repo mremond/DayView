@@ -1,6 +1,9 @@
 package fr.dayview.app
 
 import fr.dayview.app.sync.SyncConfig
+import fr.dayview.app.sync.SyncPairingCode
+import fr.dayview.app.sync.SyncPairingImportResult
+import fr.dayview.app.sync.SyncSetupResult
 import fr.dayview.app.sync.SyncStatus
 
 internal data class SettingsPlatformUiState(
@@ -34,6 +37,9 @@ internal data class SettingsScreenActions(
     val generateSyncKey: () -> String = { "" },
     val pasteSyncKey: (String) -> Boolean = { false },
     val syncNow: () -> Unit = {},
+    val testSyncSetup: suspend () -> SyncSetupResult = { SyncSetupResult.NotConfigured },
+    val createSyncPairing: suspend () -> SyncPairingCode? = { null },
+    val importSyncPairing: suspend (String) -> SyncPairingImportResult = { SyncPairingImportResult.InvalidCode },
     val clearSyncKey: () -> Unit = {},
     val openPowerSettings: () -> Unit = {},
     val back: () -> Unit,
