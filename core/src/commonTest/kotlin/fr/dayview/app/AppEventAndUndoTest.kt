@@ -97,4 +97,23 @@ class AppEventAndUndoTest {
 
         assertEquals(listOf("Alpha"), c.state.plannedObligationsToday)
     }
+
+    @Test
+    fun restoreObligationNeverExceedsCapWhenRefilledBeforeUndo() = runTest {
+        val bus = AppEventBus()
+        val c = controller(bus)
+        // Fill to the cap.
+        repeat(MAX_PLANNED_OBLIGATIONS) { c.addPlannedObligation("Motif$it") }
+        assertEquals(MAX_PLANNED_OBLIGATIONS, c.state.plannedObligationsToday.size)
+
+        c.removePlannedObligation("Motif0")
+        // Refill to the cap before the undo toast window elapses.
+        c.addPlannedObligation("Refill")
+        assertEquals(MAX_PLANNED_OBLIGATIONS, c.state.plannedObligationsToday.size)
+
+        c.restoreLastRemovedObligation()
+
+        val total = c.state.plannedObligationsToday.size + c.state.plannedObligationsCompletedToday.size
+        assertTrue(total <= MAX_PLANNED_OBLIGATIONS)
+    }
 }

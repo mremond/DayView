@@ -38,4 +38,49 @@ class ToastEventHostTest {
         waitForIdle()
         assertTrue(undone)
     }
+
+    @Test
+    fun obligationRemovedToastShowsAndActionInvokesUndo() = runComposeUiTest {
+        val bus = AppEventBus()
+        var undone = false
+        setContent {
+            DayViewTheme {
+                Box(Modifier.fillMaxSize()) {
+                    ToastEventHost(
+                        events = bus.events,
+                        hostState = remember { SnackbarHostState() },
+                        onUndoDetour = {},
+                        onUndoObligation = { undone = true },
+                    )
+                }
+            }
+        }
+        waitForIdle()
+        bus.post(AppEvent.Toast(ToastKind.ObligationRemoved, "Alpha"))
+        waitUntil { onAllNodesWithTag(DayViewTestTags.Toast).fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag(DayViewTestTags.ToastAction).performClick()
+        waitForIdle()
+        assertTrue(undone)
+    }
+
+    @Test
+    fun toastWithoutActionShowsNoActionNode() = runComposeUiTest {
+        val bus = AppEventBus()
+        setContent {
+            DayViewTheme {
+                Box(Modifier.fillMaxSize()) {
+                    ToastEventHost(
+                        events = bus.events,
+                        hostState = remember { SnackbarHostState() },
+                        onUndoDetour = {},
+                        onUndoObligation = {},
+                    )
+                }
+            }
+        }
+        waitForIdle()
+        bus.post(AppEvent.Toast(ToastKind.SyncSucceeded))
+        waitUntil { onAllNodesWithTag(DayViewTestTags.Toast).fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag(DayViewTestTags.ToastAction).assertDoesNotExist()
+    }
 }

@@ -609,16 +609,25 @@ class DayViewController(
     /**
      * Reinsert every entry removed by the last [removePlannedObligation] call at its
      * original index (ascending order, so earlier inserts don't shift later indices out
-     * of place).
+     * of place). If new obligations filled the freed slots in the meantime, entries that
+     * would push active+completed past [MAX_PLANNED_OBLIGATIONS] are dropped rather than
+     * re-inserted, so undo can never bypass the cap it would otherwise enforce; a fully
+     * dropped restore is a no-op.
      */
     fun restoreLastRemovedObligation() {
         val removed = lastRemovedObligation ?: return
         lastRemovedObligation = null
-        val active = state.plannedObligationsToday.toMutableList()
+        val completedCount = state.plannedObligationsCompletedToday.size
+        val original = state.plannedObligationsToday
+        val active = original.toMutableList()
         removed.sortedBy { it.first }.forEach { (index, motif) ->
-            active.add(index.coerceIn(0, active.size), motif)
+            if (active.size + completedCount < MAX_PLANNED_OBLIGATIONS) {
+                active.add(index.coerceIn(0, active.size), motif)
+            }
         }
-        commitPlannedObligations(active, state.plannedObligationsCompletedToday)
+        if (active != original) {
+            commitPlannedObligations(active, state.plannedObligationsCompletedToday)
+        }
     }
 
     fun completePlannedObligation(obligation: String) {
