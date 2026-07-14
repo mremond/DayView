@@ -12,6 +12,7 @@ internal object DayViewTestTags {
     const val Countdown = "dayViewCountdown"
     const val CleanSessions = "cleanSessions"
     const val FocusRecap = "focusRecap"
+    const val EngagedRecap = "engagedRecap"
     const val NetRemaining = "netRemaining"
     const val Detours = "detoursTotal"
     const val MiniWindow = "miniWindowButton"

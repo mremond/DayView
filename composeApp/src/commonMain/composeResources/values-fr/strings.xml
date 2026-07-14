@@ -65,6 +65,7 @@
     <string name="net_remaining">Net %1$s</string>
     <string name="busy_remaining">%1$s occupé</string>
     <string name="focused_today">Focus %1$s</string>
+    <string name="engaged_today">Engagé %1$s</string>
     <string name="busy_generic">Occupé</string>
     <string name="busy_time_range">%1$s – %2$s</string>
     <string name="scrub_now">Maintenant</string>

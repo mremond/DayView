@@ -107,6 +107,7 @@ import fr.dayview.app.generated.resources.detours_today
 import fr.dayview.app.generated.resources.detours_today_off_window
 import fr.dayview.app.generated.resources.dialog_cancel
 import fr.dayview.app.generated.resources.dialog_ok
+import fr.dayview.app.generated.resources.engaged_today
 import fr.dayview.app.generated.resources.focus_break_conscious
 import fr.dayview.app.generated.resources.focus_break_disconnect
 import fr.dayview.app.generated.resources.focus_break_since
@@ -271,6 +272,7 @@ internal fun DayViewScreen(
                             netTime = state.netTime,
                             focusArcs = state.focusArcsState,
                             focusedToday = state.focusedToday,
+                            sessionFocusedToday = state.sessionFocusedToday,
                             windowStart = state.dayWindow.first,
                             windowEnd = state.dayWindow.second,
                             detourBodies = state.detourBodiesState,
@@ -334,6 +336,7 @@ internal fun DayViewScreen(
                     netTime = state.netTime,
                     focusArcs = state.focusArcsState,
                     focusedToday = state.focusedToday,
+                    sessionFocusedToday = state.sessionFocusedToday,
                     windowStart = state.dayWindow.first,
                     windowEnd = state.dayWindow.second,
                     detourBodies = state.detourBodiesState,
@@ -768,6 +771,7 @@ internal fun CountdownCircle(
     netTime: NetTime? = null,
     focusArcs: List<FocusArc> = emptyList(),
     focusedToday: Duration = Duration.ZERO,
+    sessionFocusedToday: Duration = Duration.ZERO,
     windowStart: Instant = Instant.fromEpochMilliseconds(0L),
     windowEnd: Instant = Instant.fromEpochMilliseconds(0L),
     detourBodies: List<DetourBody> = emptyList(),
@@ -1153,6 +1157,16 @@ internal fun CountdownCircle(
                                     fontWeight = FontWeight.Medium,
                                     letterSpacing = (.5f * counterScale).sp,
                                 )
+                                if (sessionFocusedToday > Duration.ZERO) {
+                                    Spacer(Modifier.height(6.dp * counterScale))
+                                    Text(
+                                        stringResource(Res.string.engaged_today, formatDurationHm(sessionFocusedToday)),
+                                        color = colors.mint,
+                                        fontSize = (13 * counterScale).sp,
+                                        fontWeight = FontWeight.Medium,
+                                        letterSpacing = (.5f * counterScale).sp,
+                                    )
+                                }
                             }
                             if (interior.showDetours) {
                                 Spacer(Modifier.height(6.dp * counterScale))
@@ -1184,6 +1198,18 @@ internal fun CountdownCircle(
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.testTag(DayViewTestTags.FocusRecap),
                             )
+                            if (sessionFocusedToday > Duration.ZERO) {
+                                Spacer(Modifier.height(6.dp * counterScale))
+                                Text(
+                                    stringResource(Res.string.engaged_today, formatDurationHm(sessionFocusedToday)),
+                                    color = colors.mint,
+                                    fontSize = (13 * counterScale).sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = (.5f * counterScale).sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.testTag(DayViewTestTags.EngagedRecap),
+                                )
+                            }
                         }
                         if (interior.showAccolades && (cleanSessionsToday > 0 || streakDays > 0)) {
                             Spacer(Modifier.height(6.dp))

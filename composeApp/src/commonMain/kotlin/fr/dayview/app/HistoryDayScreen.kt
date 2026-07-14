@@ -46,6 +46,7 @@ internal fun HistoryDayScreen(
             netTime = state.netTime,
             focusArcs = state.focusArcsState,
             focusedToday = state.focusedToday,
+            sessionFocusedToday = state.sessionFocusedToday,
             windowStart = state.dayWindow.first,
             windowEnd = state.dayWindow.second,
             detourBodies = state.detourBodiesState,
