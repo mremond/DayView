@@ -262,6 +262,7 @@
     <string name="detour_capture_open_label">Declare a detour</string>
     <string name="detour_list_open_label">Today’s detours</string>
     <string name="detour_section">DETOUR</string>
+    <string name="open_detour_status">IN PROGRESS</string>
     <string name="detour_capture_prompt">What pulled you off the path?</string>
     <string name="detour_category_label">Category</string>
     <string name="detour_category_placeholder">E.g. unexpected call</string>
@@ -276,6 +277,7 @@
     <string name="detour_overflow">+%1$s</string>
     <string name="detour_cancel_button">CANCEL</string>
     <string name="detour_confirm_button">ADD</string>
+    <string name="detour_start_open_button">START</string>
     <string name="detour_list_title">TODAY’S DETOURS</string>
     <string name="detour_list_empty">No detours declared today.</string>
     <string name="detour_edit_row_label">Edit the detour</string>

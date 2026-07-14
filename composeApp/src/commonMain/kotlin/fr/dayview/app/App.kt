@@ -414,6 +414,8 @@ internal fun DayViewApp(
                                 updateDetour = { index, episode -> controller.updateDetour(index, episode) },
                                 removeDetour = { controller.removeDetour(it) },
                                 addDetourEpisode = { controller.addDetourEpisode(it) },
+                                startOpenDetour = { category, description -> controller.startOpenDetour(category, description) },
+                                stopOpenDetour = { controller.stopOpenDetour() },
                                 forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
                                 addPlannedObligation = { controller.addPlannedObligation(it) },
                                 removePlannedObligation = { controller.removePlannedObligation(it) },

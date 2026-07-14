@@ -9,6 +9,7 @@ fun SyncDocument.merge(remote: SyncDocument?): SyncDocument {
         sound = pick(sound, remote.sound),
         goal = pick(goal, remote.goal),
         pomodoro = pick(pomodoro, remote.pomodoro),
+        openDetour = pick(openDetour, remote.openDetour),
         focusIntention = pick(focusIntention, remote.focusIntention),
         themeMode = pick(themeMode, remote.themeMode),
         netTimeEnabled = pick(netTimeEnabled, remote.netTimeEnabled),

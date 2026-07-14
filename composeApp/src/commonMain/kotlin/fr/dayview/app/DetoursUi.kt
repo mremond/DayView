@@ -94,6 +94,7 @@ import fr.dayview.app.generated.resources.detour_start_adjust
 import fr.dayview.app.generated.resources.detour_start_decrease
 import fr.dayview.app.generated.resources.detour_start_edit_label
 import fr.dayview.app.generated.resources.detour_start_increase
+import fr.dayview.app.generated.resources.detour_start_open_button
 import fr.dayview.app.generated.resources.detour_start_section
 import fr.dayview.app.generated.resources.detour_start_value
 import fr.dayview.app.generated.resources.detour_time_range
@@ -230,9 +231,10 @@ internal fun DetourCaptureDialog(
     onDismiss: () -> Unit,
     initialCategory: String = "",
     initialDescription: String = "",
+    onStart: ((category: String, description: String) -> Unit)? = null,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        DetourCaptureContent(recentCategories, now, onConfirm, onForget, onDismiss, initialCategory, initialDescription)
+        DetourCaptureContent(recentCategories, now, onConfirm, onForget, onDismiss, initialCategory, initialDescription, onStart)
     }
 }
 
@@ -249,6 +251,7 @@ internal fun DetourCaptureContent(
     onDismiss: () -> Unit,
     initialCategory: String = "",
     initialDescription: String = "",
+    onStart: ((category: String, description: String) -> Unit)? = null,
 ) {
     val colors = LocalDayViewColors.current
     val uses24Hour = LocalUses24HourClock.current
@@ -389,6 +392,15 @@ internal fun DetourCaptureContent(
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+            if (onStart != null) {
+                FocusActionButton(
+                    stringResource(Res.string.detour_start_open_button),
+                    colors.amber,
+                    modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourStartOpen),
+                    enabled = category.isNotBlank(),
+                    onClick = { onStart(category, description) },
+                )
+            }
             FocusActionButton(
                 stringResource(Res.string.detour_confirm_button),
                 colors.amber,

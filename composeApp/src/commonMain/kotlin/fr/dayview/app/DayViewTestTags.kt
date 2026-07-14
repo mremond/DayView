@@ -44,6 +44,8 @@ internal object DayViewTestTags {
     const val DetourEditDurationIncrease = "detourEditDurationIncrease"
     const val DetourEditSave = "detourEditSave"
     const val DetourConfirm = "detourConfirm"
+    const val DetourStartOpen = "detourStartOpen"
+    const val OpenDetourStop = "openDetourStop"
     const val DetourDescriptionText = "detourDescriptionText"
     const val PlannedObligationInput = "plannedObligationInput"
     const val PlannedObligationAdd = "plannedObligationAdd"
