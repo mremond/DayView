@@ -50,6 +50,7 @@ internal fun DayViewApp(
     onOpenMiniWindow: (() -> Unit)? = null,
     onFocusAlarmChange: (end: Instant?, intention: String) -> Unit = { _, _ -> },
     onRequestCalendarPermission: (() -> Unit)? = null,
+    onOpenPowerSettings: (() -> Unit)? = null,
     showFocusDriftReminder: Boolean = false,
     onDismissFocusDriftReminder: () -> Unit = {},
     showFocusResumeRitual: Boolean = false,
@@ -282,6 +283,7 @@ internal fun DayViewApp(
                                 syncConfig = syncConfig,
                                 syncStatus = syncStatus,
                                 syncHasKey = syncHasKey,
+                                powerManagementSupported = onOpenPowerSettings != null,
                             ),
                             actions = SettingsScreenActions(
                                 changeStartTime = { controller.setStartMinutes(it) },
@@ -345,6 +347,7 @@ internal fun DayViewApp(
                                         syncCoordinator?.reset()
                                     }
                                 },
+                                openPowerSettings = onOpenPowerSettings ?: {},
                                 back = { controller.openToday() },
                             ),
                         )

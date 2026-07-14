@@ -12,6 +12,7 @@ internal data class SettingsPlatformUiState(
     val syncConfig: SyncConfig? = null,
     val syncStatus: SyncStatus = SyncStatus.Idle,
     val syncHasKey: Boolean = false,
+    val powerManagementSupported: Boolean = false,
 )
 
 internal data class SettingsScreenActions(
@@ -34,6 +35,7 @@ internal data class SettingsScreenActions(
     val pasteSyncKey: (String) -> Boolean = { false },
     val syncNow: () -> Unit = {},
     val clearSyncKey: () -> Unit = {},
+    val openPowerSettings: () -> Unit = {},
     val back: () -> Unit,
 )
 
@@ -45,4 +47,5 @@ internal fun settingsCategoriesFor(platformState: SettingsPlatformUiState): List
     if (platformState.netTimeSupported) add(SettingsCategory.NET_TIME)
     if (platformState.onGoalSupported) add(SettingsCategory.ON_GOAL)
     add(SettingsCategory.SYNC)
+    if (platformState.powerManagementSupported) add(SettingsCategory.SYSTEM)
 }

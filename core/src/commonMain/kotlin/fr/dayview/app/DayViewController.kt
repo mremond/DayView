@@ -24,6 +24,7 @@ enum class SettingsCategory {
     NET_TIME,
     ON_GOAL,
     SYNC,
+    SYSTEM,
 }
 
 data class DayViewUiState(

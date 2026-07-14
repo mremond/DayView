@@ -204,6 +204,12 @@
     <!-- Settings — sync -->
     <string name="settings_section_sync">SYNC</string>
 
+    <!-- Settings — system -->
+    <string name="settings_section_system">SYSTÈME</string>
+    <string name="settings_system_description">Laissez DayView se rafraîchir en arrière-plan pour garder le widget à jour.</string>
+    <string name="system_settings_body">Certains appareils (liseuses e-ink et autres) limitent les mises à jour en arrière-plan, ce qui peut figer le widget sur l\'écran d\'accueil sur la journée précédente. Autorisez DayView à s\'exécuter en arrière-plan ou au démarrage pour garder le widget à jour.</string>
+    <string name="system_settings_open">Ouvrir les réglages d\'énergie</string>
+
     <!-- Settings — category list summaries -->
     <string name="settings_summary_day">%1$s – %2$s</string>
     <string name="settings_summary_on">Activé</string>
@@ -214,6 +220,7 @@
     <string name="settings_summary_apps">%1$s applis</string>
     <string name="settings_summary_no_apps">Aucune</string>
     <string name="settings_summary_sync">Non configuré</string>
+    <string name="settings_summary_system">Rafraîchissement en arrière-plan</string>
 
     <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
          macOS focus-nudge notification (used from desktopMain). -->

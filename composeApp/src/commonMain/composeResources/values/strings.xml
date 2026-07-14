@@ -205,6 +205,12 @@
     <!-- Settings — sync -->
     <string name="settings_section_sync">SYNC</string>
 
+    <!-- Settings — system -->
+    <string name="settings_section_system">SYSTEM</string>
+    <string name="settings_system_description">Let DayView refresh in the background so the widget stays up to date.</string>
+    <string name="system_settings_body">Some devices (e-ink readers and others) limit background updates, which can leave the home-screen widget frozen on the previous day. Allow DayView to run in the background or at startup to keep the widget current.</string>
+    <string name="system_settings_open">Open power settings</string>
+
     <!-- Settings — category list summaries -->
     <string name="settings_summary_day">%1$s – %2$s</string>
     <string name="settings_summary_on">On</string>
@@ -215,6 +221,7 @@
     <string name="settings_summary_apps">%1$s apps</string>
     <string name="settings_summary_no_apps">None selected</string>
     <string name="settings_summary_sync">Not set up</string>
+    <string name="settings_summary_system">Background refresh</string>
 
     <!-- Desktop-only: system-tray menu/tooltip, macOS menu-bar status, Swing time picker,
          macOS focus-nudge notification (used from desktopMain). -->
