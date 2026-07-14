@@ -157,10 +157,6 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
-        // commonTest is shared with this variant; non-Robolectric tests that reach a
-        // platform actual (e.g. logError's android.util.Log.e call) would otherwise
-        // crash with "not mocked" instead of the test's own assertions.
-        unitTests.isReturnDefaultValues = true
     }
 }
 
