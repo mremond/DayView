@@ -31,6 +31,7 @@ import fr.dayview.app.generated.resources.sync_settings_key_description
 import fr.dayview.app.generated.resources.sync_settings_key_missing
 import fr.dayview.app.generated.resources.sync_settings_key_present
 import fr.dayview.app.generated.resources.sync_settings_key_section
+import fr.dayview.app.generated.resources.sync_settings_phrase_accepted
 import fr.dayview.app.generated.resources.sync_settings_phrase_invalid
 import fr.dayview.app.generated.resources.sync_settings_phrase_label
 import fr.dayview.app.generated.resources.sync_settings_phrase_placeholder
@@ -73,6 +74,7 @@ internal fun SyncSettingsScreen(
     var generatedKey by remember { mutableStateOf<String?>(null) }
     var pasteKeyDraft by remember { mutableStateOf("") }
     var phraseError by remember { mutableStateOf(false) }
+    var phraseAccepted by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SyncSettingsScreen)) {
         Text(
@@ -167,13 +169,19 @@ internal fun SyncSettingsScreen(
                 onValueChange = { draft ->
                     pasteKeyDraft = draft
                     phraseError = false
+                    phraseAccepted = false
                 },
                 modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseInput),
             )
             Spacer(Modifier.height(10.dp))
             SettingsAccentButton(
                 text = stringResource(Res.string.sync_settings_use_phrase),
-                onClick = { phraseError = !onPasteKey(pasteKeyDraft) },
+                onClick = {
+                    val accepted = onPasteKey(pasteKeyDraft)
+                    phraseError = !accepted
+                    phraseAccepted = accepted
+                    if (accepted) pasteKeyDraft = "" // clear the field so it's clear the phrase was taken
+                },
                 modifier = Modifier.testTag(DayViewTestTags.SyncSettingsUsePhrase),
             )
             if (phraseError) {
@@ -183,6 +191,14 @@ internal fun SyncSettingsScreen(
                     color = colors.red,
                     fontSize = 11.sp,
                     modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseError),
+                )
+            } else if (phraseAccepted) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(Res.string.sync_settings_phrase_accepted),
+                    color = colors.mint,
+                    fontSize = 11.sp,
+                    modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseAccepted),
                 )
             }
         }

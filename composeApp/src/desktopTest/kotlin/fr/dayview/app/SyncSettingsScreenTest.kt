@@ -119,6 +119,9 @@ class SyncSettingsScreenTest {
 
         onNodeWithTag(DayViewTestTags.SyncSettingsUsePhrase).performClick()
         assertEquals("some phrase", pasted)
+        // A valid phrase shows the accepted confirmation and no error.
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseAccepted).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncSettingsPhraseError).assertDoesNotExist()
     }
 
     @Test
