@@ -2,6 +2,8 @@ package fr.dayview.app
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class SettingsCategoriesTest {
     @Test
@@ -60,5 +62,21 @@ class SettingsCategoriesTest {
             listOf(SettingsCategory.DAY, SettingsCategory.DISPLAY, SettingsCategory.SOUNDS, SettingsCategory.SYNC),
             settingsCategoriesFor(platform),
         )
+    }
+
+    private fun platformState(powerManagementSupported: Boolean) = SettingsPlatformUiState(
+        monochromeMenuBarIcon = null,
+        launchAtLogin = null,
+        powerManagementSupported = powerManagementSupported,
+    )
+
+    @Test
+    fun systemCategoryIsListedWhenPowerManagementSupported() {
+        assertTrue(SettingsCategory.SYSTEM in settingsCategoriesFor(platformState(true)))
+    }
+
+    @Test
+    fun systemCategoryIsHiddenWhenUnsupported() {
+        assertFalse(SettingsCategory.SYSTEM in settingsCategoriesFor(platformState(false)))
     }
 }

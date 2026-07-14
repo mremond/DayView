@@ -59,6 +59,8 @@ internal object DayViewTestTags {
     const val SettingsSoundsScreen = "settingsSoundsScreen"
     const val SettingsNetTimeScreen = "settingsNetTimeScreen"
     const val SettingsOnGoalScreen = "settingsOnGoalScreen"
+    const val SettingsSystemScreen = "settingsSystemScreen"
+    const val SettingsOpenPowerSettings = "settingsOpenPowerSettings"
     const val SyncSettingsScreen = "syncSettingsScreen"
     const val SyncSettingsUrl = "syncSettingsUrl"
     const val SyncSettingsUser = "syncSettingsUser"
