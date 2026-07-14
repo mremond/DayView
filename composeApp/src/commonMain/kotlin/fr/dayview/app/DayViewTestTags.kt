@@ -47,6 +47,8 @@ internal object DayViewTestTags {
     const val PlannedObligationsChip = "plannedObligationsChip"
     const val PlannedObligationRemove = "plannedObligationRemove"
     const val PlannedObligationsCapHint = "plannedObligationsCapHint"
+    const val PlannedObligationsActiveSection = "plannedObligationsActiveSection"
+    const val PlannedObligationsCompletedSection = "plannedObligationsCompletedSection"
     const val SettingsShowSeconds = "settingsShowSeconds"
     const val SettingsThemeMode = "settingsThemeMode"
     const val SettingsThemeSystem = "settingsThemeSystem"

@@ -523,24 +523,11 @@ class DayViewController(
         )
     }
 
-    fun completePlannedObligation(
-        originalObligation: String,
-        detourCategory: String,
-        description: String,
-        durationMinutes: Int,
-        startMinutesOfDay: Int?,
-    ) {
-        if (startMinutesOfDay == null) {
-            addDetour(detourCategory, durationMinutes, description)
-        } else {
-            addDetourEpisode(
-                detourEpisodeAt(state.now, startMinutesOfDay, durationMinutes, detourCategory, description),
-            )
-        }
+    fun completePlannedObligation(obligation: String) {
         val (active, completed) = markObligationCompleted(
             state.plannedObligationsToday,
             state.plannedObligationsCompletedToday,
-            originalObligation,
+            obligation,
         )
         commitPlannedObligations(active, completed)
     }

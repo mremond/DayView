@@ -200,7 +200,7 @@ internal data class DayViewScreenActions(
     val forgetDetourCategory: (String) -> Unit,
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
-    val completePlannedObligation: (String, String, String, Int, Int?) -> Unit,
+    val completePlannedObligation: (String) -> Unit,
 )
 
 internal data class FocusReminderUiState(
@@ -221,7 +221,6 @@ internal fun DayViewScreen(
     val pomodoro = state.pomodoroProgress
     var showDetourCapture by remember { mutableStateOf(false) }
     var showDetourList by remember { mutableStateOf(false) }
-    var obligationToComplete by remember { mutableStateOf<String?>(null) }
     var showObligations by remember { mutableStateOf(false) }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
@@ -290,8 +289,8 @@ internal fun DayViewScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                         PlannedObligationsChip(
-                            count = state.plannedObligationSlotsUsed,
-                            cap = MAX_PLANNED_OBLIGATIONS,
+                            activeCount = state.plannedObligationsToday.size,
+                            completedCount = state.plannedObligationsCompletedToday.size,
                             onOpen = { showObligations = true },
                         )
                         Spacer(Modifier.height(12.dp))
@@ -353,8 +352,8 @@ internal fun DayViewScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 PlannedObligationsChip(
-                    count = state.plannedObligationSlotsUsed,
-                    cap = MAX_PLANNED_OBLIGATIONS,
+                    activeCount = state.plannedObligationsToday.size,
+                    completedCount = state.plannedObligationsCompletedToday.size,
                     onOpen = { showObligations = true },
                 )
                 Spacer(Modifier.height(12.dp))
@@ -383,19 +382,6 @@ internal fun DayViewScreen(
                 onDismiss = { showDetourCapture = false },
             )
         }
-        obligationToComplete?.let { obligation ->
-            DetourCaptureDialog(
-                recentCategories = state.recentDetourCategories,
-                now = state.now,
-                initialDescription = obligation,
-                onConfirm = { confirmedCategory, description, durationMinutes, startMinutesOfDay ->
-                    actions.completePlannedObligation(obligation, confirmedCategory, description, durationMinutes, startMinutesOfDay)
-                    obligationToComplete = null
-                },
-                onForget = actions.forgetDetourCategory,
-                onDismiss = { obligationToComplete = null },
-            )
-        }
         if (showDetourList) {
             DetourListDialog(
                 episodes = state.detoursToday,
@@ -411,12 +397,9 @@ internal fun DayViewScreen(
         if (showObligations) {
             PlannedObligationsDialog(
                 obligations = state.plannedObligationsToday,
-                slotsUsed = state.plannedObligationSlotsUsed,
+                completedObligations = state.plannedObligationsCompletedToday,
                 onAdd = actions.addPlannedObligation,
-                onComplete = {
-                    obligationToComplete = it
-                    showObligations = false
-                },
+                onComplete = actions.completePlannedObligation,
                 onRemove = actions.removePlannedObligation,
                 onDismiss = { showObligations = false },
             )

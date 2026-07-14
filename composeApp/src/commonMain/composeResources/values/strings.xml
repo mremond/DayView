@@ -291,10 +291,12 @@
     <string name="planned_obligation_motif_placeholder">e.g. Client call</string>
     <string name="planned_obligation_add_button">ADD</string>
     <string name="planned_obligation_done_button">DONE</string>
-    <string name="planned_obligations_chip">Obligations %1$d/%2$d</string>
+    <string name="planned_obligations_chip">Obligations · %1$d open · %2$d done</string>
     <string name="planned_obligations_open_label">Open today\'s obligations</string>
     <string name="planned_obligation_remove_label">Remove obligation</string>
-    <string name="planned_obligations_cap_reached">All 3 of today\'s obligations are used.</string>
+    <string name="planned_obligations_active_section">TO DO</string>
+    <string name="planned_obligations_completed_section">DONE TODAY</string>
+    <string name="planned_obligations_cap_reached">Daily limit reached: 3 obligations planned.</string>
 
     <!-- Settings — sync -->
     <string name="sync_settings_description">Keep your settings and history in step between Mac and Android.</string>

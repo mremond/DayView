@@ -5,6 +5,7 @@ import fr.dayview.app.generated.resources.day_available_percent
 import fr.dayview.app.generated.resources.desktop_quit_dayview
 import fr.dayview.app.generated.resources.desktop_today_remaining
 import fr.dayview.app.generated.resources.goal_progress_percent
+import fr.dayview.app.generated.resources.planned_obligations_chip
 import fr.dayview.app.generated.resources.settings_back
 import fr.dayview.app.generated.resources.volume_value
 import kotlinx.coroutines.test.runTest
@@ -30,12 +31,14 @@ class LocalizedStringsTest {
             assertEquals("Volume: 40%", getString(Res.string.volume_value, "40"))
             assertEquals("Quit DayView", getString(Res.string.desktop_quit_dayview))
             assertEquals("Today · 4 h 12", getString(Res.string.desktop_today_remaining, "4", "12"))
+            assertEquals("Obligations · 2 open · 1 done", getString(Res.string.planned_obligations_chip, "2", "1"))
 
             Locale.setDefault(Locale.FRENCH)
             assertEquals("‹  AUJOURD’HUI", getString(Res.string.settings_back))
             assertEquals("75 % de la journée disponible", getString(Res.string.day_available_percent, "75"))
             assertEquals("Quitter DayView", getString(Res.string.desktop_quit_dayview))
             assertEquals("Aujourd’hui · 4 h 12", getString(Res.string.desktop_today_remaining, "4", "12"))
+            assertEquals("Obligations · À faire 2 · Faites 1", getString(Res.string.planned_obligations_chip, "2", "1"))
         } finally {
             Locale.setDefault(previous)
         }
