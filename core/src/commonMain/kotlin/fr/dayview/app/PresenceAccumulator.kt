@@ -26,9 +26,12 @@ fun decodeFocusPresence(encoded: String): List<FocusPresenceInterval> = encoded.
 }
 
 /**
- * Builds today's intense-focus intervals from the per-tick on-goal classification.
- * On-goal ticks extend the open interval; off-goal/neutral gaps shorter than [bridge]
- * are tolerated; a longer gap closes it; intervals below [minInterval] are discarded.
+ * Builds today's presence intervals from the per-tick state classification. Ticks whose
+ * state is in [presentStates] extend the open interval; gaps where the state falls outside
+ * [presentStates] are tolerated up to [bridge], a longer such gap closes the interval; an
+ * unobserved gap between ticks (machine asleep / app backgrounded) of at least
+ * [interruptionGap], if set, also closes the interval regardless of state. Runs below
+ * [minInterval] are discarded when closed.
  */
 class PresenceAccumulator(
     private val presentStates: Set<OnGoalState> = setOf(OnGoalState.ON_GOAL),

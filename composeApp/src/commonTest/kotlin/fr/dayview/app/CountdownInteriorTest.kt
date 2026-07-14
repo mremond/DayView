@@ -6,13 +6,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CountdownInteriorTest {
-    private fun all(circleSize: Float, scale: Float, showSeconds: Boolean = false) = countdownInterior(
+    private fun all(circleSize: Float, scale: Float, showSeconds: Boolean = false, hasEngaged: Boolean = false) = countdownInterior(
         circleSize = circleSize.dp,
         counterScale = scale,
         showSeconds = showSeconds,
         hasNet = true,
         hasBusy = true,
         hasFocus = true,
+        hasEngaged = hasEngaged,
         hasDetours = true,
         hasAccolades = true,
     )
@@ -61,6 +62,7 @@ class CountdownInteriorTest {
             hasNet = false,
             hasBusy = true,
             hasFocus = false,
+            hasEngaged = false,
             hasDetours = false,
             hasAccolades = false,
         )
@@ -71,6 +73,31 @@ class CountdownInteriorTest {
     @Test
     fun netStaysFullSizeOnLargeRing() {
         assertFalse(all(circleSize = 400f, scale = 1.0f).netCompact)
+    }
+
+    @Test
+    fun engagedOnlyBudgetsTheFocusRowWithoutStrictFocus() {
+        // A fully-drifted session (no strict focus, only the lenient engaged figure) must
+        // still budget and show the focus row from the engaged line alone.
+        val interior = countdownInterior(
+            circleSize = 400.dp,
+            counterScale = 1.0f,
+            showSeconds = false,
+            hasNet = true,
+            hasBusy = true,
+            hasFocus = false,
+            hasEngaged = true,
+            hasDetours = true,
+            hasAccolades = true,
+        )
+        assertTrue(interior.showFocus)
+    }
+
+    @Test
+    fun bothFocusLinesStillFitOnALargeRing() {
+        // Two-line reservation: strict + engaged together must still fit at a comfortable size.
+        val interior = all(circleSize = 400f, scale = 1.0f, hasEngaged = true)
+        assertTrue(interior.showFocus)
     }
 
     @Test

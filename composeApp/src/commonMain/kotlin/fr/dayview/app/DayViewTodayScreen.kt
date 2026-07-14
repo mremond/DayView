@@ -1097,6 +1097,7 @@ internal fun CountdownCircle(
                         hasNet = hasNetRow,
                         hasBusy = hasNetRow,
                         hasFocus = focusedToday > Duration.ZERO,
+                        hasEngaged = sessionFocusedToday > Duration.ZERO,
                         hasDetours = detoursTotal > Duration.ZERO,
                         hasAccolades = cleanSessionsToday > 0 || streakDays > 0,
                     )
@@ -1149,14 +1150,16 @@ internal fun CountdownCircle(
                                 }
                             }
                             if (interior.showFocus) {
-                                Spacer(Modifier.height(6.dp * counterScale))
-                                Text(
-                                    stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
-                                    color = colors.mint,
-                                    fontSize = (13 * counterScale).sp,
-                                    fontWeight = FontWeight.Medium,
-                                    letterSpacing = (.5f * counterScale).sp,
-                                )
+                                if (focusedToday > Duration.ZERO) {
+                                    Spacer(Modifier.height(6.dp * counterScale))
+                                    Text(
+                                        stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
+                                        color = colors.mint,
+                                        fontSize = (13 * counterScale).sp,
+                                        fontWeight = FontWeight.Medium,
+                                        letterSpacing = (.5f * counterScale).sp,
+                                    )
+                                }
                                 if (sessionFocusedToday > Duration.ZERO) {
                                     Spacer(Modifier.height(6.dp * counterScale))
                                     Text(
@@ -1187,19 +1190,21 @@ internal fun CountdownCircle(
                                     modifier = Modifier.testTag(DayViewTestTags.Detours),
                                 )
                             }
-                        } else if (focusedToday > Duration.ZERO) {
-                            Spacer(Modifier.height(8.dp * counterScale))
-                            Text(
-                                stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
-                                color = colors.mint,
-                                fontSize = (13 * counterScale).sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = (.5f * counterScale).sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.testTag(DayViewTestTags.FocusRecap),
-                            )
+                        } else if (focusedToday > Duration.ZERO || sessionFocusedToday > Duration.ZERO) {
+                            if (focusedToday > Duration.ZERO) {
+                                Spacer(Modifier.height(8.dp * counterScale))
+                                Text(
+                                    stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
+                                    color = colors.mint,
+                                    fontSize = (13 * counterScale).sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = (.5f * counterScale).sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.testTag(DayViewTestTags.FocusRecap),
+                                )
+                            }
                             if (sessionFocusedToday > Duration.ZERO) {
-                                Spacer(Modifier.height(6.dp * counterScale))
+                                Spacer(Modifier.height(if (focusedToday > Duration.ZERO) 6.dp * counterScale else 8.dp * counterScale))
                                 Text(
                                     stringResource(Res.string.engaged_today, formatDurationHm(sessionFocusedToday)),
                                     color = colors.mint,
