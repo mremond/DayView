@@ -21,6 +21,9 @@ object DayViewPreferences {
     @Volatile
     private var historyStoreInstance: DayHistoryStore? = null
 
+    @Volatile
+    private var focusStoreInstance: FocusContributionStore? = null
+
     fun get(context: Context): DayPreferences {
         val app = context.applicationContext
         return instance ?: synchronized(this) {
@@ -35,6 +38,14 @@ object DayViewPreferences {
      */
     internal fun history(): DayHistoryStore = historyStoreInstance ?: synchronized(this) {
         historyStoreInstance ?: createDayHistoryStore().also { historyStoreInstance = it }
+    }
+
+    /**
+     * Process-wide focus contribution store, mirroring [history]'s lazy singleton and the same
+     * app-context ordering requirement.
+     */
+    internal fun focusContributions(): FocusContributionStore = focusStoreInstance ?: synchronized(this) {
+        focusStoreInstance ?: createFocusContributionStore().also { focusStoreInstance = it }
     }
 
     /**
@@ -56,6 +67,7 @@ object DayViewPreferences {
         synchronized(this) {
             instance = null
             historyStoreInstance = null
+            focusStoreInstance = null
         }
     }
 }

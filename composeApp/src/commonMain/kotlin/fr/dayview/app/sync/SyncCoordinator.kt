@@ -2,6 +2,7 @@ package fr.dayview.app.sync
 
 import fr.dayview.app.DayHistoryStore
 import fr.dayview.app.DayPreferences
+import fr.dayview.app.FocusContributionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,7 @@ class SyncCoordinator(
     private val scope: CoroutineScope,
     private val now: () -> Long,
     private val historyStore: DayHistoryStore? = null,
+    private val focusContributionStore: FocusContributionStore? = null,
 ) {
     private val _status = MutableStateFlow(SyncStatus.Idle)
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -60,7 +62,10 @@ class SyncCoordinator(
         val historySync = historyStore?.let {
             HistorySync(it, transport, HistoryBlobCodec(key), HistoryKey(key))
         }
-        val engine = SyncEngine(transport, codecFactory(key), deviceId, historySync = historySync)
+        val focusSync = focusContributionStore?.let {
+            FocusContributionSync(it, transport, HistoryBlobCodec(key), HistoryKey(key), deviceId)
+        }
+        val engine = SyncEngine(transport, codecFactory(key), deviceId, historySync = historySync, focusSync = focusSync)
         val local = preferences.snapshots.first()
         val state = statePersistence.load()
         _status.value =

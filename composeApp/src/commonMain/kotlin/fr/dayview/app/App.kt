@@ -51,6 +51,8 @@ private data class NetTimeProbe(
 internal fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
     history: DayHistoryStore = InMemoryDayHistoryStore(),
+    focusContributions: FocusContributionStore? = null,
+    deviceId: String? = null,
     monochromeMenuBarIcon: Boolean? = null,
     onMonochromeMenuBarIconChange: ((Boolean) -> Unit)? = null,
     launchAtLogin: Boolean? = null,
@@ -111,6 +113,8 @@ internal fun DayViewApp(
                             initialFocusPresenceIntervals = focusPresenceIntervals,
                             initialFocusSessionIntervals = focusSessionIntervals,
                             derivesEngagedFromSessions = derivesEngagedFromSessions,
+                            focusContributions = focusContributions,
+                            deviceId = deviceId,
                             onLocalWrite = { localWriteSignal.tryEmit(Unit) },
                         )
                     }

@@ -73,12 +73,15 @@ class MainActivity : ComponentActivity() {
             scope = CoroutineScope(Dispatchers.Default),
             now = { Clock.System.now().toEpochMilliseconds() },
             historyStore = DayViewPreferences.history(),
+            focusContributionStore = DayViewPreferences.focusContributions(),
         )
 
         setContent {
             DayViewApp(
                 preferences = preferences,
                 history = DayViewPreferences.history(),
+                focusContributions = DayViewPreferences.focusContributions(),
+                deviceId = deviceId,
                 onFocusAlarmChange = { end, intention ->
                     if (end == null) {
                         focusAlarmScheduler.cancel()

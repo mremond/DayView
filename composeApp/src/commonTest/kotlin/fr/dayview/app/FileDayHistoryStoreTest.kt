@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-private class FakeHistoryFileSystem : HistoryFileSystem {
+internal class FakeHistoryFileSystem : HistoryFileSystem {
     val files = mutableMapOf<String, String>()
     override fun read(name: String): String? = files[name]
     override fun writeAtomic(name: String, text: String) {
