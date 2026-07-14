@@ -269,8 +269,9 @@ internal fun SyncSettingsScreen(
                         val accepted = onPasteKey(pasteKeyDraft)
                         phraseError = !accepted
                         if (accepted) {
-                            phraseAccepted = true
+                            phraseAccepted = false
                             pasteKeyDraft = ""
+                            replacing = false
                             generatedKey = null
                         }
                     }
