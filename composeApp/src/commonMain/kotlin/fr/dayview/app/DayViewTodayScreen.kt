@@ -99,6 +99,8 @@ import fr.dayview.app.generated.resources.busy_remaining
 import fr.dayview.app.generated.resources.busy_time_range
 import fr.dayview.app.generated.resources.clean_sessions_today
 import fr.dayview.app.generated.resources.clean_streak
+import fr.dayview.app.generated.resources.countdown_a11y_finished
+import fr.dayview.app.generated.resources.countdown_a11y_remaining
 import fr.dayview.app.generated.resources.countdown_day_over
 import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
@@ -153,6 +155,11 @@ import fr.dayview.app.generated.resources.history_title
 import fr.dayview.app.generated.resources.mini_window_button
 import fr.dayview.app.generated.resources.minutes_label
 import fr.dayview.app.generated.resources.net_remaining
+import fr.dayview.app.generated.resources.notice_calendar_error
+import fr.dayview.app.generated.resources.notice_calendar_permission
+import fr.dayview.app.generated.resources.notice_review_action
+import fr.dayview.app.generated.resources.notice_sync_failed
+import fr.dayview.app.generated.resources.notice_sync_key_error
 import fr.dayview.app.generated.resources.scrub_now
 import fr.dayview.app.generated.resources.seconds_remaining
 import fr.dayview.app.generated.resources.settings_title
@@ -168,6 +175,7 @@ import fr.dayview.app.generated.resources.today_status_ending
 import fr.dayview.app.generated.resources.today_status_finished
 import fr.dayview.app.generated.resources.today_status_not_started
 import fr.dayview.app.generated.resources.today_status_ongoing
+import fr.dayview.app.sync.SyncStatus
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.atan2
@@ -201,6 +209,8 @@ internal data class DayViewScreenActions(
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
     val completePlannedObligation: (String) -> Unit,
+    val openNetTimeSettings: () -> Unit = {},
+    val openSyncSettings: () -> Unit = {},
 )
 
 internal data class FocusReminderUiState(
@@ -215,6 +225,7 @@ internal fun DayViewScreen(
     state: DayViewUiState,
     actions: DayViewScreenActions,
     reminders: FocusReminderUiState,
+    syncStatus: SyncStatus = SyncStatus.Idle,
 ) {
     val colors = LocalDayViewColors.current
     val progress = state.dayProgress
@@ -251,6 +262,12 @@ internal fun DayViewScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Header(actions.openSettings, actions.onOpenHistory, actions.openMiniWindow)
+            TodayNotices(
+                state = state,
+                syncStatus = syncStatus,
+                onOpenNetTimeSettings = actions.openNetTimeSettings,
+                onOpenSyncSettings = actions.openSyncSettings,
+            )
             Spacer(Modifier.height(if (wide) 28.dp else 18.dp))
 
             if (wide) {
@@ -689,6 +706,95 @@ private fun GoalEditorContent(
     )
 }
 
+private data class NoticeSpec(val message: String, val accent: Color, val tag: String, val onClick: () -> Unit)
+
+/**
+ * Surfaces background failures the user would otherwise never see from Today: a calendar
+ * that Net Time can't read (permission off or a provider error) and a failing sync. Each
+ * notice is a tappable banner that jumps straight to the setting that resolves it. Renders
+ * nothing when everything is healthy.
+ */
+@Composable
+private fun TodayNotices(
+    state: DayViewUiState,
+    syncStatus: SyncStatus,
+    onOpenNetTimeSettings: () -> Unit,
+    onOpenSyncSettings: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    val notices = buildList {
+        if (state.netTimeSettings.enabled && !state.netCalendarPermission) {
+            add(
+                NoticeSpec(
+                    stringResource(Res.string.notice_calendar_permission),
+                    colors.amber,
+                    DayViewTestTags.CalendarNotice,
+                    onOpenNetTimeSettings,
+                ),
+            )
+        } else if (state.netTimeSettings.enabled && state.netCalendarError) {
+            add(
+                NoticeSpec(
+                    stringResource(Res.string.notice_calendar_error),
+                    colors.amber,
+                    DayViewTestTags.CalendarNotice,
+                    onOpenNetTimeSettings,
+                ),
+            )
+        }
+        when (syncStatus) {
+            SyncStatus.Failed ->
+                add(
+                    NoticeSpec(
+                        stringResource(Res.string.notice_sync_failed),
+                        colors.red,
+                        DayViewTestTags.SyncNotice,
+                        onOpenSyncSettings,
+                    ),
+                )
+            SyncStatus.KeyError ->
+                add(
+                    NoticeSpec(
+                        stringResource(Res.string.notice_sync_key_error),
+                        colors.red,
+                        DayViewTestTags.SyncNotice,
+                        onOpenSyncSettings,
+                    ),
+                )
+            else -> Unit
+        }
+    }
+    if (notices.isEmpty()) return
+    val reviewLabel = stringResource(Res.string.notice_review_action)
+    Spacer(Modifier.height(14.dp))
+    Column(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 1040.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        notices.forEach { notice ->
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .testTag(notice.tag)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(notice.accent.copy(alpha = .12f))
+                    .clickable(role = Role.Button, onClickLabel = reviewLabel, onClick = notice.onClick)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(Modifier.size(8.dp).background(notice.accent, CircleShape))
+                Text(
+                    notice.message,
+                    color = colors.cloud,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun Header(onOpenSettings: () -> Unit, onOpenHistory: () -> Unit, onOpenMiniWindow: (() -> Unit)?) {
     val colors = LocalDayViewColors.current
@@ -741,6 +847,47 @@ private fun Header(onOpenSettings: () -> Unit, onOpenHistory: () -> Unit, onOpen
             }
         }
     }
+}
+
+/**
+ * A single spoken summary of the countdown ring for assistive technology. The dial is a
+ * Canvas with no intrinsic text, so this collapses the state the sighted user reads from
+ * the arc and centre readout — time left, share of the day, net time, focus and detours —
+ * into one description.
+ */
+@Composable
+private fun ringContentDescription(
+    progress: DayProgress,
+    netTime: NetTime?,
+    focusedToday: Duration,
+    detoursTotal: Duration,
+): String {
+    if (!progress.hasStarted) return stringResource(Res.string.today_status_not_started)
+    if (progress.isFinished) {
+        val finished = stringResource(Res.string.countdown_a11y_finished)
+        return if (focusedToday > Duration.ZERO) {
+            "$finished ${stringResource(Res.string.focused_today, formatDurationHm(focusedToday))}"
+        } else {
+            finished
+        }
+    }
+    val parts = mutableListOf(
+        stringResource(
+            Res.string.countdown_a11y_remaining,
+            formatDurationHm(progress.remaining),
+            progress.percentageRemaining,
+        ),
+    )
+    if (netTime != null && netTime.busyRemaining > Duration.ZERO) {
+        parts += stringResource(Res.string.net_remaining, formatDurationHm(netTime.netRemaining))
+    }
+    if (focusedToday > Duration.ZERO) {
+        parts += stringResource(Res.string.focused_today, formatDurationHm(focusedToday))
+    }
+    if (detoursTotal > Duration.ZERO) {
+        parts += stringResource(Res.string.detours_today, formatDurationHm(detoursTotal))
+    }
+    return parts.joinToString(" ")
 }
 
 @Composable
@@ -852,8 +999,14 @@ internal fun CountdownCircle(
                     }
                 }
             }
+            // The ring is drawn on a Canvas that carries no text of its own, so screen
+            // readers would otherwise skip the primary visualization entirely. Fold the
+            // remaining time, net time, focus and detours into one spoken summary.
+            val ringDescription = ringContentDescription(progress, netTime, focusedToday, detoursTotal)
             Box(scrubModifier, contentAlignment = Alignment.Center) {
-                Canvas(Modifier.fillMaxSize()) {
+                Canvas(
+                    Modifier.fillMaxSize().semantics { contentDescription = ringDescription },
+                ) {
                     val strokeWidth = size.minDimension * .055f
                     val inset = strokeWidth / 2 + 4.dp.toPx()
                     val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
