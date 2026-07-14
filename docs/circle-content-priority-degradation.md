@@ -21,7 +21,7 @@ Keep from top; drop from the bottom first.
 | Rank | Row | Notes |
 |------|-----|-------|
 | 1 | **Countdown numerals** (`06 h 56`) + "IL RESTE" header | Never drops — the whole point of the app. |
-| 2 | **Net 6 h 26** (net remaining) | The "real" time left after obligations. |
+| 2 | **Net 6 h 26** (net remaining) | The "real" time left after calendar commitments. |
 | 3 | **Détours 2 h 10** (today's distraction total) | |
 | 4 | **Focus 9 min** | |
 | 5 | **30 min occupé** (busy sub-line) | Secondary detail under Net. |
@@ -70,7 +70,7 @@ stays correct across phone, mini window, compact desktop, and Supernote without 
 
 ## Non-goals
 
-- No change to what appears **below** the ring (the detour chip, `+ DÉTOUR`, obligations count).
+- No change to what appears **below** the ring (the detour chip, `+ DÉTOUR`, must-dos count).
 - No reordering or restyling of rows beyond what scale/collapse requires.
 - No new user setting — degradation is automatic from available size.
 

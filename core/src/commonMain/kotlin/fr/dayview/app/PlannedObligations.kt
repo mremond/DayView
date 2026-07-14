@@ -1,6 +1,9 @@
 package fr.dayview.app
 
-/** The day's must-do obligations, capped so they never crowd out the goal. */
+/**
+ * Today's must-dos ("Incontournables" in French), capped so they never crowd out the long-term
+ * goal. The `plannedObligations` names are retained for stored preferences and sync compatibility.
+ */
 const val MAX_PLANNED_OBLIGATIONS = 3
 
 /** Append a sanitized motif; blank motifs and adds past the cap (active + [alreadyUsed]) are ignored. */

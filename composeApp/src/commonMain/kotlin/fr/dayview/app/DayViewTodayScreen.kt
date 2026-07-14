@@ -332,7 +332,7 @@ internal fun DayViewScreen(
                             onOpen = { showObligations = true },
                         )
                         Spacer(Modifier.height(12.dp))
-                        GlobalGoalPanel(
+                        LongTermGoalPanel(
                             title = state.goalTitle,
                             deadline = state.goalDeadline,
                             start = state.goalStart,
@@ -2125,7 +2125,7 @@ internal fun FocusActionButton(
 }
 
 @Composable
-private fun GlobalGoalPanel(
+private fun LongTermGoalPanel(
     title: String,
     deadline: Instant?,
     start: Instant?,

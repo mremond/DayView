@@ -227,7 +227,7 @@ Privacy defaults:
 
 - Camera Mode disabled;
 - intention sharing disabled;
-- global goal never shown on video in the first version;
+- long-term goal never shown on video in the first version;
 - neutral countdown text when no sharing choice has been made;
 - visible in-panel indicator while Camera Mode is active;
 - one-click **Remove from video** action.
