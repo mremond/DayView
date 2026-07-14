@@ -1,6 +1,7 @@
 package fr.dayview.app.sync
 
 import fr.dayview.app.DayPreferencesSnapshot
+import kotlin.coroutines.cancellation.CancellationException
 
 data class SyncState(val baseRevision: String?, val baseDocument: SyncDocument?)
 
@@ -47,6 +48,8 @@ class SyncEngine(
             }
         } catch (e: SyncKeyMismatchException) {
             return SyncResult.KeyError
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             return SyncResult.Failed(e)
         }
