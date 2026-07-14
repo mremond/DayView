@@ -67,6 +67,7 @@ internal fun countdownInterior(
     hasNet: Boolean,
     hasBusy: Boolean,
     hasFocus: Boolean,
+    hasEngaged: Boolean,
     hasDetours: Boolean,
     hasAccolades: Boolean,
 ): CountdownInterior {
@@ -96,7 +97,8 @@ internal fun countdownInterior(
     // Priority high → low. The busy sub-line only survives where Net does.
     val showNet = take(hasNet, ROW_NET)
     val showDetours = take(hasDetours, ROW_DETOURS)
-    val showFocus = take(hasFocus, ROW_FOCUS)
+    val focusLines = (if (hasFocus) 1 else 0) + (if (hasEngaged) 1 else 0)
+    val showFocus = take(focusLines > 0, ROW_FOCUS * focusLines)
     val showBusy = take(showNet && hasBusy, ROW_BUSY)
     val showAccolades = take(hasAccolades, ROW_ACCOLADES)
 

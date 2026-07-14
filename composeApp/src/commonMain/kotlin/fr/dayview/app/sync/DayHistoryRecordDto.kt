@@ -27,6 +27,7 @@ data class DayHistoryRecordDto(
     val netEnabled: Boolean,
     val netCalendars: List<String>,
     val focusPresence: List<PresenceDto>,
+    val focusSession: List<PresenceDto> = emptyList(),
     val detours: List<DetourEpisodeDto>,
     val cleanSessions: CleanDto,
     val pomodoroMinutes: Int,

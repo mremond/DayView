@@ -62,4 +62,26 @@ class DesktopDataStoreTest {
         assertEquals(19_000L, day)
         assertEquals(intervals, loaded)
     }
+
+    @Test
+    fun savesAndLoadsFocusSessionIntervals() = runTest {
+        val prefs = desktopDayPreferences(
+            legacy = legacyNode,
+            file = File(tempDir, "dayview.preferences_pb"),
+        )
+        val intervals = listOf(
+            FocusPresenceInterval(t(10_000L), t(70_000L)),
+        )
+        prefs.saveFocusSession(dayKey = 42L, intervals = intervals)
+        assertEquals(42L to intervals, prefs.loadFocusSession())
+    }
+
+    @Test
+    fun loadFocusSessionDefaultsToEmpty() = runTest {
+        val prefs = desktopDayPreferences(
+            legacy = legacyNode,
+            file = File(tempDir, "dayview.preferences_pb"),
+        )
+        assertEquals(-1L to emptyList<FocusPresenceInterval>(), prefs.loadFocusSession())
+    }
 }

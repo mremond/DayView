@@ -23,6 +23,11 @@ private const val KEY_FOCUS_PRESENCE = "focus_presence"
 private val focusPresenceDayKey = longPreferencesKey(KEY_FOCUS_PRESENCE_DAY)
 private val focusPresenceKey = stringPreferencesKey(KEY_FOCUS_PRESENCE)
 
+private const val KEY_FOCUS_SESSION_DAY = "focus_session_day"
+private const val KEY_FOCUS_SESSION = "focus_session"
+private val focusSessionDayKey = longPreferencesKey(KEY_FOCUS_SESSION_DAY)
+private val focusSessionKey = stringPreferencesKey(KEY_FOCUS_SESSION)
+
 class DesktopPreferences(
     private val dataStore: DataStore<Preferences>,
 ) : DayPreferences {
@@ -48,6 +53,21 @@ class DesktopPreferences(
         dataStore.edit {
             it[focusPresenceDayKey] = dayKey
             it[focusPresenceKey] = encodeFocusPresence(intervals)
+        }
+    }
+
+    // Session-focus (engaged-time) intervals: the lenient twin of focus presence, same
+    // desktop-only DataStore treatment, kept outside the shared snapshot.
+    suspend fun loadFocusSession(): Pair<Long, List<FocusPresenceInterval>> {
+        val prefs = dataStore.data.first()
+        val day = prefs[focusSessionDayKey] ?: -1L
+        return day to decodeFocusPresence(prefs[focusSessionKey].orEmpty())
+    }
+
+    suspend fun saveFocusSession(dayKey: Long, intervals: List<FocusPresenceInterval>) {
+        dataStore.edit {
+            it[focusSessionDayKey] = dayKey
+            it[focusSessionKey] = encodeFocusPresence(intervals)
         }
     }
 }

@@ -43,6 +43,52 @@ class CompletedDayTest {
     }
 
     @Test
+    fun rendersEngagedRecapWhenFinishedWithSessionTime() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                CountdownCircle(
+                    progress = finishedProgress(),
+                    showSeconds = false,
+                    focusedToday = 90.minutes,
+                    sessionFocusedToday = 120.minutes,
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.EngagedRecap).assertExists()
+    }
+
+    @Test
+    fun hidesEngagedRecapWhenFinishedWithoutSessionTime() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                CountdownCircle(
+                    progress = finishedProgress(),
+                    showSeconds = false,
+                    focusedToday = 90.minutes,
+                    sessionFocusedToday = kotlin.time.Duration.ZERO,
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.EngagedRecap).assertDoesNotExist()
+    }
+
+    @Test
+    fun rendersEngagedRecapWhenFinishedWithOnlySessionTime() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                CountdownCircle(
+                    progress = finishedProgress(),
+                    showSeconds = false,
+                    focusedToday = kotlin.time.Duration.ZERO,
+                    sessionFocusedToday = 120.minutes,
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.EngagedRecap).assertExists()
+        onNodeWithTag(DayViewTestTags.FocusRecap).assertDoesNotExist()
+    }
+
+    @Test
     fun rendersCleanSessionsWhenFinished() = runComposeUiTest {
         setContent {
             DayViewTheme {
