@@ -64,6 +64,23 @@ class FocusContributionSyncTest {
     }
 
     @Test
+    fun downloadsNewForeignEntryEvenWhenOlderForeignEntriesFillThePerCycleCap() = runTest {
+        val transport = FakeFocusTransport()
+        val store = InMemoryFocusContributionStore().apply {
+            write(FocusContribution(1, "other", emptyList(), listOf(iv(0, 10))))
+            write(FocusContribution(2, "other", emptyList(), listOf(iv(0, 10))))
+        }
+        val newEntry = FocusContribution(3, "other", emptyList(), listOf(iv(0, 10)))
+        transport.seedFocus(
+            HistoryKey(key).opaqueFocusKey(3, "other"),
+            HistoryBlobCodec(key).encryptFocus(3, "other", FocusContributionMapper.serialize(newEntry)),
+        )
+        val sync = FocusContributionSync(store, transport, HistoryBlobCodec(key), HistoryKey(key), deviceId = "self", maxPerCycle = 2)
+        sync.reconcile(listOf("1:other", "2:other", "3:other"))
+        assertTrue(store.read(3, "other") != null)
+    }
+
+    @Test
     fun ignoresDownloadedContributionWhoseEmbeddedAttributionMismatchesTheManifestKey() = runTest {
         val transport = FakeFocusTransport()
         // Blob stored under (20260, "other") but its DTO claims deviceId = "self".

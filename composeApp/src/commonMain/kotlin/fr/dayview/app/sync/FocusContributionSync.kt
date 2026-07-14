@@ -28,9 +28,14 @@ class FocusContributionSync(
         val known = knownManifest.toSet()
 
         // Download foreign entries we don't yet have locally.
-        for (item in knownManifest.mapNotNull(::parse).filter { it.second != deviceId }.sortedBy { it.first }.take(maxPerCycle)) {
+        val localKeys = store.listKeys().toSet()
+        for (
+        item in knownManifest.mapNotNull(::parse)
+            .filter { it.second != deviceId && it !in localKeys }
+            .sortedBy { it.first }
+            .take(maxPerCycle)
+        ) {
             val (day, device) = item
-            if (store.read(day, device) != null) continue
             try {
                 val blob = transport.getHistoryDay(keyIndex.opaqueFocusKey(day, device)) ?: continue
                 val contribution = FocusContributionMapper.deserialize(blobCodec.decryptFocus(day, device, blob)) ?: continue
