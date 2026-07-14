@@ -2,9 +2,9 @@ package fr.dayview.app
 
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.day_available_percent
-import fr.dayview.app.generated.resources.detour_list_title
 import fr.dayview.app.generated.resources.desktop_quit_dayview
 import fr.dayview.app.generated.resources.desktop_today_remaining
+import fr.dayview.app.generated.resources.detour_list_title
 import fr.dayview.app.generated.resources.focus_intention_label
 import fr.dayview.app.generated.resources.goal_progress_percent
 import fr.dayview.app.generated.resources.goal_section_title
