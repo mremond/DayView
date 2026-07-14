@@ -18,6 +18,7 @@ fun SyncDocument.merge(remote: SyncDocument?): SyncDocument {
         recentDetourMotifs = boundRecentMotifItems(mergeItems(recentDetourMotifs, remote.recentDetourMotifs)),
         cleanSessions = mergeClean(cleanSessions, remote.cleanSessions),
         historyDays = (historyDays + remote.historyDays).distinct().sorted(),
+        focusContributions = (focusContributions + remote.focusContributions).distinct().sorted(),
     )
 }
 

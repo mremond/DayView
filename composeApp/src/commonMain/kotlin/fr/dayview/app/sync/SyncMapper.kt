@@ -64,6 +64,7 @@ fun buildDocument(
         recentDetourMotifs = boundRecentMotifItems(buildItems(snapshot.recentDetourCategories, { it }, base?.recentDetourMotifs, fresh)),
         cleanSessions = restamp(snapshot.cleanSessions.toDto(), base?.cleanSessions, now, deviceId),
         historyDays = base?.historyDays ?: emptyList(),
+        focusContributions = base?.focusContributions ?: emptyList(),
     )
 }
 
