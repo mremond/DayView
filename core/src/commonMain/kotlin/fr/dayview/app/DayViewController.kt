@@ -175,6 +175,8 @@ class DayViewController(
     initialSnapshot: DayPreferencesSnapshot,
     initialNow: Instant = Clock.System.now(),
     private val history: DayHistoryStore = InMemoryDayHistoryStore(),
+    private val focusContributions: FocusContributionStore? = null,
+    private val deviceId: String? = null,
     initialFocusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     initialFocusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
     private val derivesEngagedFromSessions: Boolean = false,
@@ -251,7 +253,16 @@ class DayViewController(
         val key = persistedDayKey(state) ?: return
         if (key == dayKeyOf(state.now)) return
         val record = state.toHistoryRecord(key)
-        scope.launch { history.write(record) }
+        val self = deviceId
+        val contributions = focusContributions
+        scope.launch {
+            history.write(record)
+            if (self != null && contributions != null) {
+                contributions.write(
+                    FocusContribution(key, self, record.focusPresenceIntervals, record.focusSessionIntervals),
+                )
+            }
+        }
     }
 
     fun tick(now: Instant) {
@@ -287,10 +298,13 @@ class DayViewController(
             // stored cell is always null. Build it from the live state so today renders a real,
             // clickable ring instead of a greyed placeholder.
             val todayRecord = state.toHistoryRecord(todayKey)
+            val contributions = focusContributions
             val days = keys.map { key ->
                 val record = when {
                     key == todayKey -> todayRecord
-                    key in present -> history.read(key)
+                    key in present -> history.read(key)?.let { r ->
+                        if (contributions != null) r.withMergedFocus(contributions.listForDay(key)) else r
+                    }
                     else -> null
                 }
                 HistoryWeekDay(key, record, now = if (key == todayKey) state.now else null)
