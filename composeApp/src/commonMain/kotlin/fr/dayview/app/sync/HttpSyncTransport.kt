@@ -17,6 +17,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable private data class PushBody(val payload: String)
 
+@Serializable private data class HistoryBody(val payload: String)
+
 class HttpSyncTransport(
     private val client: HttpClient,
     private val baseUrl: String,
@@ -49,5 +51,25 @@ class HttpSyncTransport(
         } else {
             PushOutcome.Applied(response.body<RemoteBody>().revision)
         }
+    }
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) {
+        val response = client.put("$endpoint/history/$opaqueKey") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.IfNoneMatch, "*")
+            setBody(PushBody(payload))
+        }
+        when (response.status) {
+            HttpStatusCode.Created, HttpStatusCode.OK, HttpStatusCode.PreconditionFailed -> Unit
+            else -> throw IllegalStateException("history PUT failed: ${response.status}")
+        }
+    }
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? {
+        val response = client.get("$endpoint/history/$opaqueKey") { bearerAuth(token) }
+        if (response.status == HttpStatusCode.NoContent) return null
+        if (response.status != HttpStatusCode.OK) throw IllegalStateException("history GET failed: ${response.status}")
+        return response.body<HistoryBody>().payload
     }
 }

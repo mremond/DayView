@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 const val SYNC_SCHEMA_VERSION = 1
+const val HISTORY_SCHEMA_VERSION = 1
 
 @Serializable data class DayWindow(val start: Int, val end: Int)
 
@@ -51,6 +52,7 @@ data class SyncDocument(
     val plannedObligationsCompleted: DayScoped<String> = DayScoped(-1L, emptyList()),
     val recentDetourMotifs: List<SyncItem<String>>,
     val cleanSessions: Versioned<CleanDto>,
+    val historyDays: List<Long> = emptyList(),
 )
 
 val SyncJson: Json = Json {

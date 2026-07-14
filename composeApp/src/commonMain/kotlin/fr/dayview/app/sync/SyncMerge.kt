@@ -18,6 +18,7 @@ fun SyncDocument.merge(remote: SyncDocument?): SyncDocument {
         plannedObligationsCompleted = mergeDayScoped(plannedObligationsCompleted, remote.plannedObligationsCompleted),
         recentDetourMotifs = boundRecentMotifItems(mergeItems(recentDetourMotifs, remote.recentDetourMotifs)),
         cleanSessions = mergeClean(cleanSessions, remote.cleanSessions),
+        historyDays = (historyDays + remote.historyDays).distinct().sorted(),
     )
 }
 

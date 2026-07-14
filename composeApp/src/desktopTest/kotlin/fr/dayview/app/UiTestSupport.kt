@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import fr.dayview.app.sync.SyncStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.datetime.LocalDateTime
@@ -107,6 +108,8 @@ internal fun noopDayViewActions(
     startPomodoro: () -> Unit = {},
     stopPomodoro: () -> Unit = {},
     closePomodoro: (FocusClosureOutcome) -> Unit = {},
+    openNetTimeSettings: () -> Unit = {},
+    openSyncSettings: () -> Unit = {},
 ): DayViewScreenActions = DayViewScreenActions(
     openSettings = openSettings,
     onOpenHistory = onOpenHistory,
@@ -130,7 +133,9 @@ internal fun noopDayViewActions(
     forgetDetourCategory = {},
     addPlannedObligation = {},
     removePlannedObligation = {},
-    completePlannedObligation = { _, _, _, _, _ -> },
+    completePlannedObligation = {},
+    openNetTimeSettings = openNetTimeSettings,
+    openSyncSettings = openSyncSettings,
 )
 
 internal fun noReminders(): FocusReminderUiState = FocusReminderUiState(
@@ -146,10 +151,11 @@ internal fun WideDayView(
     state: DayViewUiState,
     actions: DayViewScreenActions,
     reminders: FocusReminderUiState = noReminders(),
+    syncStatus: SyncStatus = SyncStatus.Idle,
 ) {
     DayViewTheme {
         Box(Modifier.requiredSize(1000.dp, 720.dp)) {
-            DayViewScreen(state = state, actions = actions, reminders = reminders)
+            DayViewScreen(state = state, actions = actions, reminders = reminders, syncStatus = syncStatus)
         }
     }
 }

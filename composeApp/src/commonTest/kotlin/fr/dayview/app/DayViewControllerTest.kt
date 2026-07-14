@@ -575,34 +575,18 @@ class DayViewControllerTest {
     }
 
     @Test
-    fun completePlannedObligationLogsADetourAndRemovesTheObligation() {
+    fun completePlannedObligationMarksItDoneWithoutLoggingADetour() {
         val preferences = InMemoryDayPreferences()
         val now = 1_800_000_000_000L
         val controller = testController(preferences, now)
         controller.addPlannedObligation("Appel client")
 
-        controller.completePlannedObligation("Appel client", "Appel client", "", 30, null)
+        controller.completePlannedObligation("Appel client")
 
         val stored = preferences.current
         assertEquals(emptyList(), stored.plannedObligations)
-        val episode = stored.detours.single()
-        assertEquals("Appel client", episode.category)
-        assertEquals(30, episode.duration.inWholeMinutes)
-    }
-
-    @Test
-    fun completePlannedObligationRemovesTheOriginalWhenCategoryWasEdited() {
-        val preferences = InMemoryDayPreferences()
-        val now = 1_800_000_000_000L
-        val controller = testController(preferences, now)
-        controller.addPlannedObligation("Appel client")
-
-        controller.completePlannedObligation("Appel client", "Appel client re: contract", "", 30, null)
-
-        val stored = preferences.current
-        assertEquals(emptyList(), stored.plannedObligations)
-        val episode = stored.detours.single()
-        assertEquals("Appel client re: contract", episode.category)
+        assertEquals(listOf("Appel client"), stored.plannedObligationsCompleted)
+        assertEquals(emptyList(), stored.detours)
     }
 
     @Test
@@ -612,7 +596,7 @@ class DayViewControllerTest {
         controller.addPlannedObligation("a")
         controller.addPlannedObligation("b")
         controller.addPlannedObligation("c")
-        controller.completePlannedObligation("a", "cat", "a", 5, null)
+        controller.completePlannedObligation("a")
         assertEquals(listOf("b", "c"), controller.state.plannedObligationsToday)
         assertEquals(3, controller.state.plannedObligationSlotsUsed)
 
@@ -626,7 +610,7 @@ class DayViewControllerTest {
         val controller = testController(preferences, 10_000L)
         controller.addPlannedObligation("a")
         controller.addPlannedObligation("b")
-        controller.completePlannedObligation("a", "cat", "a", 5, null) // active {b}, completed {a} → 2 used
+        controller.completePlannedObligation("a") // active {b}, completed {a} → 2 used
         controller.removePlannedObligation("b") // active {} , completed {a} → 1 used
         assertEquals(1, controller.state.plannedObligationSlotsUsed)
         controller.addPlannedObligation("c")

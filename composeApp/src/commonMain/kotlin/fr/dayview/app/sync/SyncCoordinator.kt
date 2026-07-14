@@ -1,5 +1,6 @@
 package fr.dayview.app.sync
 
+import fr.dayview.app.DayHistoryStore
 import fr.dayview.app.DayPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ class SyncCoordinator(
     // Reserved for wiring app-level sync triggers (debounced writes, resume) in a later task.
     private val scope: CoroutineScope,
     private val now: () -> Long,
+    private val historyStore: DayHistoryStore? = null,
 ) {
     private val _status = MutableStateFlow(SyncStatus.Idle)
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -54,7 +56,11 @@ class SyncCoordinator(
             return
         }
         _status.value = SyncStatus.Syncing
-        val engine = SyncEngine(transportFactory(config), codecFactory(key), deviceId)
+        val transport = transportFactory(config)
+        val historySync = historyStore?.let {
+            HistorySync(it, transport, HistoryBlobCodec(key), HistoryKey(key))
+        }
+        val engine = SyncEngine(transport, codecFactory(key), deviceId, historySync = historySync)
         val local = preferences.snapshots.first()
         val state = statePersistence.load()
         _status.value =

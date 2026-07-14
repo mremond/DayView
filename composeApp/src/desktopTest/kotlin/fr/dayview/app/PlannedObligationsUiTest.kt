@@ -31,7 +31,7 @@ class PlannedObligationsUiTest {
             DayViewTheme {
                 PlannedObligationsContent(
                     obligations = listOf("a"),
-                    slotsUsed = 3, // 1 active + 2 completed
+                    completedObligations = listOf("b", "c"),
                     onAdd = {},
                     onComplete = {},
                     onRemove = {},
@@ -49,7 +49,6 @@ class PlannedObligationsUiTest {
             DayViewTheme {
                 PlannedObligationsContent(
                     obligations = listOf("a"),
-                    slotsUsed = 1,
                     onAdd = {},
                     onComplete = {},
                     onRemove = {},
@@ -98,14 +97,32 @@ class PlannedObligationsUiTest {
     }
 
     @Test
-    fun chipOpenFires() = runComposeUiTest {
+    fun chipShowsOpenAndDoneCountsAndOpens() = runComposeUiTest {
         var opened = false
         setContent {
             DayViewTheme {
-                PlannedObligationsChip(count = 2, cap = 3, onOpen = { opened = true })
+                PlannedObligationsChip(activeCount = 2, completedCount = 1, onOpen = { opened = true })
             }
         }
         onNodeWithTag(DayViewTestTags.PlannedObligationsChip).performClick()
         assertEquals(true, opened)
+    }
+
+    @Test
+    fun completedObligationsAreShownSeparately() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("Préparer la démo"),
+                    completedObligations = listOf("Appel client"),
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationsActiveSection).assertExists()
+        onNodeWithTag(DayViewTestTags.PlannedObligationsCompletedSection).assertExists()
     }
 }
