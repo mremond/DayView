@@ -12,6 +12,12 @@
     <string name="app_wordmark">DAYVIEW</string>
     <string name="settings_title">SETTINGS</string>
     <string name="history_title">HISTORY</string>
+    <string name="history_date">%1$s-%2$s-%3$s</string>
+    <string name="history_day_a11y">History for %1$s.</string>
+    <string name="history_day_no_data_a11y">No history recorded for %1$s.</string>
+    <string name="history_day_no_activity_a11y">No focus or busy time recorded.</string>
+    <string name="history_day_busy_a11y">Busy time: %1$s.</string>
+    <string name="history_open_day">Open this day</string>
     <string name="mini_window_button">MINI</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
