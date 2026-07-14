@@ -68,6 +68,7 @@ internal object DayViewTestTags {
     const val SyncSettingsPhraseInput = "syncSettingsPhraseInput"
     const val SyncSettingsUsePhrase = "syncSettingsUsePhrase"
     const val SyncSettingsPhraseError = "syncSettingsPhraseError"
+    const val SyncSettingsPhraseAccepted = "syncSettingsPhraseAccepted"
     const val SyncSettingsSyncNow = "syncSettingsSyncNow"
     const val SyncSettingsStatus = "syncSettingsStatus"
     const val SyncSettingsClear = "syncSettingsClear"

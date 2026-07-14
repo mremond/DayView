@@ -42,6 +42,7 @@ import fr.dayview.app.generated.resources.sync_settings_key_description
 import fr.dayview.app.generated.resources.sync_settings_key_missing
 import fr.dayview.app.generated.resources.sync_settings_key_present
 import fr.dayview.app.generated.resources.sync_settings_key_section
+import fr.dayview.app.generated.resources.sync_settings_phrase_accepted
 import fr.dayview.app.generated.resources.sync_settings_phrase_invalid
 import fr.dayview.app.generated.resources.sync_settings_phrase_label
 import fr.dayview.app.generated.resources.sync_settings_phrase_placeholder
@@ -93,6 +94,7 @@ internal fun SyncSettingsScreen(
     var generatedKey by remember { mutableStateOf<String?>(null) }
     var pasteKeyDraft by remember { mutableStateOf("") }
     var phraseError by remember { mutableStateOf(false) }
+    var phraseAccepted by remember { mutableStateOf(false) }
     var replacing by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<SyncConfirmAction?>(null) }
 
@@ -187,11 +189,18 @@ internal fun SyncSettingsScreen(
                 PhraseEntry(
                     draft = pasteKeyDraft,
                     isError = phraseError,
+                    isAccepted = phraseAccepted,
                     onDraftChange = {
                         pasteKeyDraft = it
                         phraseError = false
+                        phraseAccepted = false
                     },
-                    onUse = { phraseError = !onPasteKey(pasteKeyDraft) },
+                    onUse = {
+                        val accepted = onPasteKey(pasteKeyDraft)
+                        phraseError = !accepted
+                        phraseAccepted = accepted
+                        if (accepted) pasteKeyDraft = ""
+                    },
                 )
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -214,9 +223,11 @@ internal fun SyncSettingsScreen(
                     PhraseEntry(
                         draft = pasteKeyDraft,
                         isError = phraseError,
+                        isAccepted = phraseAccepted,
                         onDraftChange = {
                             pasteKeyDraft = it
                             phraseError = false
+                            phraseAccepted = false
                         },
                         onUse = { pendingAction = SyncConfirmAction.Replace },
                     )
@@ -250,12 +261,16 @@ internal fun SyncSettingsScreen(
             confirmLabel = stringResource(action.confirmRes),
             onConfirm = {
                 when (action) {
-                    SyncConfirmAction.Regenerate -> generatedKey = onGenerateKey()
+                    SyncConfirmAction.Regenerate -> {
+                        phraseAccepted = false
+                        generatedKey = onGenerateKey()
+                    }
                     SyncConfirmAction.Replace -> {
-                        phraseError = !onPasteKey(pasteKeyDraft)
-                        if (!phraseError) {
+                        val accepted = onPasteKey(pasteKeyDraft)
+                        phraseError = !accepted
+                        if (accepted) {
+                            phraseAccepted = true
                             pasteKeyDraft = ""
-                            replacing = false
                             generatedKey = null
                         }
                     }
@@ -263,6 +278,7 @@ internal fun SyncSettingsScreen(
                         onClear()
                         generatedKey = null
                         pasteKeyDraft = ""
+                        phraseAccepted = false
                         replacing = false
                     }
                 }
@@ -326,6 +342,7 @@ private fun GeneratedPhraseBlock(phrase: String?) {
 private fun PhraseEntry(
     draft: String,
     isError: Boolean,
+    isAccepted: Boolean,
     onDraftChange: (String) -> Unit,
     onUse: () -> Unit,
 ) {
@@ -352,6 +369,14 @@ private fun PhraseEntry(
             color = colors.red,
             fontSize = 11.sp,
             modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseError),
+        )
+    } else if (isAccepted) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(Res.string.sync_settings_phrase_accepted),
+            color = colors.mint,
+            fontSize = 11.sp,
+            modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseAccepted),
         )
     }
 }

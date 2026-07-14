@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext (plain HTTP) is permitted ONLY for the self-hosted sync endpoint. It is
+  reachable over a private VPN and its payload is end-to-end encrypted, so TLS is
+  redundant there; a public LE cert can't be issued for the internal `.vpn` hostname.
+  Everything else keeps Android's default: cleartext HTTP is blocked. Change the domain
+  to match your endpoint host if you deploy elsewhere.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">dsm.home.vpn</domain>
+    </domain-config>
+</network-security-config>
