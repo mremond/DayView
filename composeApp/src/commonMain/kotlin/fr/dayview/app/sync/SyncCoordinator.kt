@@ -39,8 +39,13 @@ class SyncCoordinator(
 
     private val mutex = Mutex()
 
-    suspend fun syncNow() {
-        mutex.withLock { runOnce() }
+    /**
+     * Runs a sync and returns the resulting [SyncStatus], read while still holding [mutex]
+     * so a concurrently queued sync cannot overwrite it before the caller observes it.
+     */
+    suspend fun syncNow(): SyncStatus = mutex.withLock {
+        runOnce()
+        _status.value
     }
 
     /** Resets persisted sync state (base revision/document) so the next sync starts fresh. */

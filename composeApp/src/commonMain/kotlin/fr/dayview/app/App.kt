@@ -385,8 +385,7 @@ internal fun DayViewApp(
                                     },
                                     syncNow = {
                                         scope.launch(Dispatchers.IO) {
-                                            syncCoordinator?.syncNow()
-                                            if (syncCoordinator?.status?.value == SyncStatus.Ok) {
+                                            if (syncCoordinator?.syncNow() == SyncStatus.Ok) {
                                                 appEventBus.post(AppEvent.Toast(ToastKind.SyncSucceeded))
                                             }
                                         }
