@@ -31,12 +31,15 @@ fun decodeFocusPresence(encoded: String): List<FocusPresenceInterval> = encoded.
  * are tolerated; a longer gap closes it; intervals below [minInterval] are discarded.
  */
 class PresenceAccumulator(
+    private val presentStates: Set<OnGoalState> = setOf(OnGoalState.ON_GOAL),
     private val bridge: Duration = 30.seconds,
     private val minInterval: Duration = 120.seconds,
+    private val interruptionGap: Duration? = null,
 ) {
     private val closed = mutableListOf<FocusPresenceInterval>()
     private var openStart: Instant? = null
-    private var lastOnGoal: Instant? = null
+    private var lastPresent: Instant? = null
+    private var lastObserved: Instant? = null
     private var currentDayKey: Long = Long.MIN_VALUE
 
     /** Seed closed intervals for [dayKey] at startup (persisted state). */
@@ -48,6 +51,8 @@ class PresenceAccumulator(
         closed.clear()
         closed.addAll(intervals)
         openStart = null
+        lastPresent = null
+        lastObserved = null
     }
 
     /**
@@ -56,14 +61,7 @@ class PresenceAccumulator(
      * bridging across the inactive gap. Returns the current closed intervals.
      */
     fun endSession(): List<FocusPresenceInterval> {
-        val start = openStart
-        val last = lastOnGoal
-        if (start != null && last != null) {
-            if (last - start >= minInterval) {
-                closed.add(FocusPresenceInterval(start, last))
-            }
-            openStart = null
-        }
+        closeOpenRun()
         return closed.toList()
     }
 
@@ -76,30 +74,42 @@ class PresenceAccumulator(
             currentDayKey = dayKey
             closed.clear()
             openStart = null
-            lastOnGoal = null
+            lastPresent = null
+            lastObserved = null
         }
-        when (state) {
-            OnGoalState.ON_GOAL -> {
-                if (openStart == null) openStart = now
-                lastOnGoal = now
-            }
-            OnGoalState.OFF_GOAL, OnGoalState.NEUTRAL -> {
-                val start = openStart
-                val last = lastOnGoal
-                if (start != null && last != null && now - last >= bridge) {
-                    if (last - start >= minInterval) {
-                        closed.add(FocusPresenceInterval(start, last))
-                    }
-                    openStart = null
-                }
+        // An unobserved gap between ticks (machine asleep / app backgrounded) never counts:
+        // close the open run at the last observed present tick before continuing.
+        val previousObserved = lastObserved
+        if (interruptionGap != null && previousObserved != null && now - previousObserved >= interruptionGap) {
+            closeOpenRun()
+        }
+        if (state in presentStates) {
+            if (openStart == null) openStart = now
+            lastPresent = now
+        } else {
+            val start = openStart
+            val last = lastPresent
+            if (start != null && last != null && now - last >= bridge) {
+                closeOpenRun()
             }
         }
+        lastObserved = now
         return snapshotIntervals()
+    }
+
+    /** Commit `[openStart, lastPresent]` iff it meets [minInterval], then clear the open run. */
+    private fun closeOpenRun() {
+        val start = openStart
+        val last = lastPresent
+        if (start != null && last != null && last - start >= minInterval) {
+            closed.add(FocusPresenceInterval(start, last))
+        }
+        openStart = null
     }
 
     private fun snapshotIntervals(): List<FocusPresenceInterval> {
         val start = openStart
-        val last = lastOnGoal
+        val last = lastPresent
         if (start != null && last != null && last - start >= minInterval) {
             return closed + FocusPresenceInterval(start, last)
         }
