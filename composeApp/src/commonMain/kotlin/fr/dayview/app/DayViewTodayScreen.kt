@@ -244,7 +244,11 @@ internal fun DayViewScreen(
             .safeDrawingPadding()
             .imePadding(),
     ) {
-        val wide = maxWidth >= 780.dp
+        val wide = useWideTodayLayout(
+            widthDp = maxWidth.value,
+            heightDp = maxHeight.value,
+            fontScale = LocalPreferenceFontScale.current,
+        )
         // Size the ring from the available width, but never let it take more than ~40% of
         // the height, so on a tall single-column screen the content below stays visible
         // instead of the circle pushing it off the bottom.
@@ -511,7 +515,8 @@ private fun CompactTodayContent(
                 modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 28.dp)
-                    .imePadding(),
+                    .imePadding()
+                    .verticalScroll(rememberScrollState()),
             ) {
                 Text(stringResource(Res.string.focus_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
                 Spacer(Modifier.height(14.dp))
@@ -544,7 +549,8 @@ private fun CompactTodayContent(
                 modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 28.dp)
-                    .imePadding(),
+                    .imePadding()
+                    .verticalScroll(rememberScrollState()),
             ) {
                 GoalEditorContent(
                     title = state.goalTitle,
@@ -647,7 +653,7 @@ private fun FocusEntryButton(
         FocusActionButton(
             stringResource(Res.string.focus_start_button),
             colors.amber,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.FocusEntry),
             filled = true,
             onClick = onClick,
         )

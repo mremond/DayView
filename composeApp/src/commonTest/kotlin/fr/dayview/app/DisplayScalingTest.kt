@@ -2,6 +2,7 @@ package fr.dayview.app
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DisplayScalingTest {
@@ -36,5 +37,26 @@ class DisplayScalingTest {
     fun nonPositiveSizeFallsBackToOne() {
         assertEquals(1f, autoDisplayScale(minDimensionDp = 0f, enabled = true))
         assertEquals(1f, autoDisplayScale(minDimensionDp = -10f, enabled = true))
+    }
+
+    @Test
+    fun wideTodayLayoutRequiresEnoughWidthAndHeight() {
+        assertTrue(useWideTodayLayout(widthDp = 1100f, heightDp = 900f, fontScale = 1f))
+        assertFalse(useWideTodayLayout(widthDp = 779f, heightDp = 900f, fontScale = 1f))
+        assertFalse(useWideTodayLayout(widthDp = 1100f, heightDp = 720f, fontScale = 1f))
+    }
+
+    @Test
+    fun enlargedTextRaisesTheWideLayoutHeightRequirement() {
+        assertFalse(useWideTodayLayout(widthDp = 1100f, heightDp = 900f, fontScale = 1.5f))
+        assertTrue(useWideTodayLayout(widthDp = 1100f, heightDp = 1200f, fontScale = 1.5f))
+    }
+
+    @Test
+    fun miniGoalYieldsSpaceToPrimaryControlsWhenHeightIsTight() {
+        assertTrue(showGoalInMiniWindow(heightDp = 520f, fontScale = 1f))
+        assertFalse(showGoalInMiniWindow(heightDp = 300f, fontScale = 1f))
+        assertFalse(showGoalInMiniWindow(heightDp = 450f, fontScale = 1.5f))
+        assertTrue(showGoalInMiniWindow(heightDp = 520f, fontScale = 1.5f))
     }
 }

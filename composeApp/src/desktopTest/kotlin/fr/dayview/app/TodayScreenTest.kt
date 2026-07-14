@@ -22,7 +22,7 @@ class TodayScreenTest {
         }
         onNodeWithTag(DayViewTestTags.Countdown).assertExists()
         onNodeWithText("Livrer la v2").assertExists()
-        onNodeWithTag(DayViewTestTags.FocusStart).assertExists()
+        onNodeWithTag(DayViewTestTags.FocusEntry).assertExists()
     }
 
     @Test

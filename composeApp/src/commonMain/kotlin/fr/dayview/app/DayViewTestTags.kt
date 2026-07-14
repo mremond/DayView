@@ -19,6 +19,8 @@ internal object DayViewTestTags {
     const val MiniWindow = "miniWindowButton"
     const val MiniFocusRelaunch = "miniFocusRelaunchButton"
     const val OpenMainWindow = "openMainWindowButton"
+    const val MiniGoal = "miniGoal"
+    const val FocusEntry = "focusEntry"
     const val FocusStart = "focusStart"
     const val FocusStop = "focusStop"
     const val FocusRelaunch = "focusRelaunch"

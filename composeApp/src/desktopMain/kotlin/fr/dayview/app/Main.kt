@@ -380,6 +380,7 @@ private fun runApplication() = application {
                 goalDeadline = goalDeadline,
                 pomodoro = pomodoro,
                 focusIntention = focusIntention,
+                fontScale = preferenceSnapshot.fontScale,
                 onStartFocus = { intention ->
                     scope.launch {
                         val s = preferences.snapshots.first()
