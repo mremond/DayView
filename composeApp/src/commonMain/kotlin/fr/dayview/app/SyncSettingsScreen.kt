@@ -256,9 +256,15 @@ internal fun SyncSettingsScreen(
                         if (!phraseError) {
                             pasteKeyDraft = ""
                             replacing = false
+                            generatedKey = null
                         }
                     }
-                    SyncConfirmAction.Erase -> onClear()
+                    SyncConfirmAction.Erase -> {
+                        onClear()
+                        generatedKey = null
+                        pasteKeyDraft = ""
+                        replacing = false
+                    }
                 }
                 pendingAction = null
             },
@@ -375,7 +381,7 @@ private fun syncStatusColor(status: SyncStatus, colors: DayViewColors) = when (s
 }
 
 @Composable
-internal fun SyncConfirmDialog(
+private fun SyncConfirmDialog(
     title: String,
     message: String,
     confirmLabel: String,
