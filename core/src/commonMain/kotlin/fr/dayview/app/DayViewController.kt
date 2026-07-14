@@ -186,6 +186,7 @@ class DayViewController(
     initialFocusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     initialFocusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
     private val onLocalWrite: () -> Unit = {},
+    private val appEventBus: AppEventBus = AppEventBus(),
 ) {
     // Focus presence is desktop-only and persisted outside the shared snapshot
     // (DesktopPreferences.loadFocusPresence). Seed it into the initial state so the
@@ -210,6 +211,11 @@ class DayViewController(
     // external change. A counter decremented in `finally` cannot be stranded by a
     // dropped/conflated echo or a failed persist, unlike matching individual echoes.
     private var selfWritesInFlight = 0
+
+    // Last items removed via the UI, kept in memory only so a toast can offer a single
+    // "undo" (never persisted — restoring re-runs the normal commit path).
+    private var lastRemovedDetour: DetourEpisode? = null
+    private var lastRemovedObligation: Pair<Int, String>? = null
 
     private fun persistState() {
         val snapshot = state.toSnapshot()
@@ -542,7 +548,17 @@ class DayViewController(
     fun removeDetour(index: Int) {
         val today = state.detoursToday
         if (index !in today.indices) return
+        val removed = today[index]
+        lastRemovedDetour = removed
         commitDetours(today.toMutableList().also { it.removeAt(index) })
+        appEventBus.post(AppEvent.Toast(ToastKind.DetourRemoved, removed.category))
+    }
+
+    /** Reinsert the last detour removed via [removeDetour]; commitDetours re-sorts by start. */
+    fun restoreLastRemovedDetour() {
+        val removed = lastRemovedDetour ?: return
+        lastRemovedDetour = null
+        commitDetours(state.detoursToday + removed)
     }
 
     /** Drop a category from the recent-suggestions list; the day's episodes are untouched. */
@@ -575,10 +591,24 @@ class DayViewController(
     }
 
     fun removePlannedObligation(motif: String) {
+        val today = state.plannedObligationsToday
+        val index = today.indexOf(motif)
+        if (index < 0) return
+        lastRemovedObligation = index to motif
         commitPlannedObligations(
-            removePlannedObligation(state.plannedObligationsToday, motif),
+            removePlannedObligation(today, motif),
             state.plannedObligationsCompletedToday,
         )
+        appEventBus.post(AppEvent.Toast(ToastKind.ObligationRemoved, motif))
+    }
+
+    /** Reinsert the last obligation removed via [removePlannedObligation] at its old index. */
+    fun restoreLastRemovedObligation() {
+        val (index, motif) = lastRemovedObligation ?: return
+        lastRemovedObligation = null
+        val active = state.plannedObligationsToday.toMutableList()
+        active.add(index.coerceIn(0, active.size), motif)
+        commitPlannedObligations(active, state.plannedObligationsCompletedToday)
     }
 
     fun completePlannedObligation(obligation: String) {
