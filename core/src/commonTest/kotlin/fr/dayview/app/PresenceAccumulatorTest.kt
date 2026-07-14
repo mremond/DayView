@@ -2,6 +2,7 @@ package fr.dayview.app
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class PresenceAccumulatorTest {
@@ -88,5 +89,71 @@ class PresenceAccumulatorTest {
             ),
             result,
         )
+    }
+
+    private fun lenient() = PresenceAccumulator(
+        presentStates = setOf(OnGoalState.ON_GOAL, OnGoalState.NEUTRAL),
+        bridge = 120.seconds,
+        minInterval = 60.seconds,
+        interruptionGap = 15.seconds,
+    )
+
+    // Feed ticks from [from]..[to] inclusive at [step] cadence (models continuous 1s observation).
+    private fun run(a: PresenceAccumulator, from: Long, to: Long, step: Long, state: OnGoalState): List<FocusPresenceInterval> {
+        var result = emptyList<FocusPresenceInterval>()
+        var t = from
+        while (t <= to) {
+            result = a.observe(ms(t), state, day)
+            t += step
+        }
+        return result
+    }
+
+    @Test
+    fun lenientCountsNeutralTime() {
+        val a = lenient()
+        val result = run(a, 0L, 90_000L, 10_000L, OnGoalState.NEUTRAL)
+        assertEquals(listOf(FocusPresenceInterval(ms(0L), ms(90_000L))), result)
+    }
+
+    @Test
+    fun lenientCountsBriefOffGoalUnderBridge() {
+        val a = lenient()
+        run(a, 0L, 60_000L, 10_000L, OnGoalState.ON_GOAL) // lastPresent = 60000
+        run(a, 70_000L, 160_000L, 10_000L, OnGoalState.OFF_GOAL) // 100s off-goal, never reaches 120s bridge
+        val result = run(a, 170_000L, 170_000L, 10_000L, OnGoalState.ON_GOAL) // back on-goal, blip absorbed
+        assertEquals(listOf(FocusPresenceInterval(ms(0L), ms(170_000L))), result)
+    }
+
+    @Test
+    fun lenientDropsSustainedOffGoalDrift() {
+        val a = lenient()
+        run(a, 0L, 60_000L, 10_000L, OnGoalState.ON_GOAL) // lastPresent = 60000
+        val result = run(a, 70_000L, 200_000L, 10_000L, OnGoalState.OFF_GOAL) // reaches 120s bridge at t=180000
+        assertEquals(listOf(FocusPresenceInterval(ms(0L), ms(60_000L))), result)
+    }
+
+    @Test
+    fun lenientExcludesUnobservedInterruption() {
+        val a = lenient()
+        run(a, 0L, 60_000L, 10_000L, OnGoalState.ON_GOAL) // interval 1: [0, 60000]
+        // 40s tick gap (>= 15s interruptionGap) closes interval 1; a fresh interval starts on resume
+        val result = run(a, 100_000L, 170_000L, 10_000L, OnGoalState.ON_GOAL)
+        assertEquals(
+            listOf(
+                FocusPresenceInterval(ms(0L), ms(60_000L)),
+                FocusPresenceInterval(ms(100_000L), ms(170_000L)),
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun lenientDiscardsRunBelowMinInterval() {
+        val a = lenient()
+        run(a, 0L, 40_000L, 10_000L, OnGoalState.ON_GOAL) // 40s run, below 60s minInterval
+        // 160s tick gap (>= 15s) closes the run; 40s < 60s so it is discarded
+        val result = a.observe(ms(200_000L), OnGoalState.ON_GOAL, day)
+        assertEquals(emptyList(), result)
     }
 }

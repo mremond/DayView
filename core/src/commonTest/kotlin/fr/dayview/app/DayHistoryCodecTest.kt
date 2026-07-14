@@ -28,6 +28,7 @@ class DayHistoryCodecTest {
         calendarNames = mapOf("cal-a" to "Work = life"),
         netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("cal-a", "cal-b")),
         focusPresenceIntervals = listOf(FocusPresenceInterval(Instant.fromEpochMilliseconds(3_000L), Instant.fromEpochMilliseconds(4_000L))),
+        focusSessionIntervals = emptyList(),
         detours = listOf(DetourEpisode(Instant.fromEpochMilliseconds(5_000L), Instant.fromEpochMilliseconds(6_000L), "slack", "reading threads")),
         cleanSessions = CleanSessionLedger(dayKey = 20_000L, cleanToday = 3, streakDays = 5, streakLastDayKey = 20_000L),
         pomodoroMinutes = 25,
@@ -41,6 +42,31 @@ class DayHistoryCodecTest {
     fun encodeThenDecodeIsLossless() {
         val record = sample()
         assertEquals(record, DayHistoryCodec.decode(DayHistoryCodec.encode(record)))
+    }
+
+    @Test
+    fun roundTripPreservesFocusSessionIntervals() {
+        val record = sample().copy(
+            focusSessionIntervals = listOf(
+                FocusPresenceInterval(
+                    Instant.fromEpochMilliseconds(1_000_000L),
+                    Instant.fromEpochMilliseconds(2_000_000L),
+                ),
+            ),
+        )
+        val decoded = DayHistoryCodec.decode(DayHistoryCodec.encode(record))
+        assertEquals(record.focusSessionIntervals, decoded?.focusSessionIntervals)
+    }
+
+    @Test
+    fun decodesLegacyRecordWithoutSessionLineAsEmpty() {
+        val record = sample()
+        val legacy = DayHistoryCodec.encode(record)
+            .lines()
+            .filterNot { it.startsWith("session=") }
+            .joinToString("\n")
+        val decoded = DayHistoryCodec.decode(legacy)
+        assertEquals(emptyList(), decoded?.focusSessionIntervals)
     }
 
     @Test

@@ -30,6 +30,7 @@ object DayHistoryCodec {
         appendLine("busy=${enc(encodeBusyIntervals(record.busyIntervals))}")
         appendLine("calNames=${enc(encodeCalendarNames(record.calendarNames))}")
         appendLine("presence=${enc(encodeFocusPresence(record.focusPresenceIntervals))}")
+        appendLine("session=${enc(encodeFocusPresence(record.focusSessionIntervals))}")
         appendLine("detours=${enc(encodeDetours(record.detours))}")
         appendLine("cleanDay=${record.cleanSessions.dayKey}")
         appendLine("cleanToday=${record.cleanSessions.cleanToday}")
@@ -67,6 +68,7 @@ object DayHistoryCodec {
                     includedCalendarIds = dec(req("netCalendars")).split("\n").filter { it.isNotEmpty() }.toSet(),
                 ),
                 focusPresenceIntervals = decodeFocusPresence(dec(req("presence"))),
+                focusSessionIntervals = map["session"]?.let { decodeFocusPresence(dec(it)) } ?: emptyList(),
                 detours = decodeDetours(dec(req("detours"))),
                 cleanSessions = CleanSessionLedger(
                     dayKey = req("cleanDay").toLong(),

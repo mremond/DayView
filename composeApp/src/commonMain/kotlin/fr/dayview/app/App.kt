@@ -66,6 +66,7 @@ internal fun DayViewApp(
     scheduleSoundAlerts: Boolean = true,
     runningApps: () -> List<AppRef> = { emptyList() },
     focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
+    focusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
     sessionOffGoal: Duration = Duration.ZERO,
     secureKeyStore: SecureKeyStore? = null,
     syncCoordinator: SyncCoordinator? = null,
@@ -107,6 +108,7 @@ internal fun DayViewApp(
                             initialSnapshot,
                             history = history,
                             initialFocusPresenceIntervals = focusPresenceIntervals,
+                            initialFocusSessionIntervals = focusSessionIntervals,
                             onLocalWrite = { localWriteSignal.tryEmit(Unit) },
                         )
                     }
@@ -159,6 +161,10 @@ internal fun DayViewApp(
 
                     LaunchedEffect(focusPresenceIntervals) {
                         controller.setFocusPresenceIntervals(focusPresenceIntervals)
+                    }
+
+                    LaunchedEffect(focusSessionIntervals) {
+                        controller.setFocusSessionIntervals(focusSessionIntervals)
                     }
 
                     LaunchedEffect(sessionOffGoal) {

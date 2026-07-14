@@ -125,6 +125,20 @@ private fun runApplication() = application {
     }
     var focusPresenceIntervals by remember { mutableStateOf(initialFocusPresence.second) }
     var lastPresenceSave by remember { mutableStateOf(Instant.DISTANT_PAST) }
+    val initialFocusSession = remember { runBlocking { preferences.loadFocusSession() } }
+    val sessionAccumulator = remember {
+        PresenceAccumulator(
+            presentStates = setOf(OnGoalState.ON_GOAL, OnGoalState.NEUTRAL),
+            bridge = 120.seconds,
+            minInterval = 60.seconds,
+            interruptionGap = 15.seconds,
+        ).also {
+            val (day, intervals) = initialFocusSession
+            if (day >= 0) it.restore(intervals, day)
+        }
+    }
+    var focusSessionIntervals by remember { mutableStateOf(initialFocusSession.second) }
+    var lastSessionSave by remember { mutableStateOf(Instant.DISTANT_PAST) }
     var wasFocusActive by remember { mutableStateOf(false) }
     val cleanlinessTracker = remember { SessionCleanlinessTracker() }
     var sessionOffGoal by remember { mutableStateOf(Duration.ZERO) }
@@ -205,6 +219,19 @@ private fun runApplication() = application {
                 if (structuralChange || currentNow - lastPresenceSave >= 30.seconds) {
                     preferences.saveFocusPresence(dayKey, updatedIntervals)
                     lastPresenceSave = currentNow
+                }
+            }
+            val updatedSession = when {
+                focusIsActive -> sessionAccumulator.observe(currentNow, classification, dayKey)
+                wasFocusActive -> sessionAccumulator.endSession()
+                else -> focusSessionIntervals
+            }
+            if (updatedSession != focusSessionIntervals) {
+                val sessionStructuralChange = updatedSession.size != focusSessionIntervals.size
+                focusSessionIntervals = updatedSession
+                if (sessionStructuralChange || currentNow - lastSessionSave >= 30.seconds) {
+                    preferences.saveFocusSession(dayKey, updatedSession)
+                    lastSessionSave = currentNow
                 }
             }
             wasFocusActive = focusIsActive
@@ -356,6 +383,7 @@ private fun runApplication() = application {
                 scheduleSoundAlerts = false,
                 runningApps = { runningApplicationsProvider.runningApps() },
                 focusPresenceIntervals = focusPresenceIntervals,
+                focusSessionIntervals = focusSessionIntervals,
                 sessionOffGoal = sessionOffGoal,
                 secureKeyStore = syncKeyStore,
                 syncCoordinator = syncCoordinator,
