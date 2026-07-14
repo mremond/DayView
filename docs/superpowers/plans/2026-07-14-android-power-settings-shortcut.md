@@ -348,7 +348,7 @@ git commit -m "Add an Android-only System settings category for power management
 ### Task 3: Launcher + MainActivity wiring + verification
 
 **Files:**
-- Modify: `composeApp/src/androidMain/kotlin/fr/dayview/app/PowerSettings.kt` (add launcher)
+- Modify: `composeApp/src/androidMain/kotlin/fr/dayview/app/PowerSettingsTarget.kt` (add launcher — this is the file Task 1 created; ktlint's FilenameRule required naming it after the `PowerSettingsTarget` class)
 - Modify: `composeApp/src/androidMain/kotlin/fr/dayview/app/MainActivity.kt:78-94` (pass callback)
 
 **Interfaces:**
@@ -357,7 +357,7 @@ git commit -m "Add an Android-only System settings category for power management
 
 - [ ] **Step 1: Add the launcher**
 
-Append to `composeApp/src/androidMain/kotlin/fr/dayview/app/PowerSettings.kt` (add imports `android.content.ActivityNotFoundException`, `android.content.Context`, `android.content.Intent`, `android.net.Uri`):
+Append to `composeApp/src/androidMain/kotlin/fr/dayview/app/PowerSettingsTarget.kt` (add imports `android.content.ActivityNotFoundException`, `android.content.Context`, `android.content.Intent`, `android.net.Uri`):
 
 ```kotlin
 /**
@@ -408,7 +408,7 @@ Run: `./gradlew :composeApp:installDebug` then open the app → Settings → the
 - [ ] **Step 6: Commit**
 
 ```bash
-git add composeApp/src/androidMain/kotlin/fr/dayview/app/PowerSettings.kt composeApp/src/androidMain/kotlin/fr/dayview/app/MainActivity.kt
+git add composeApp/src/androidMain/kotlin/fr/dayview/app/PowerSettingsTarget.kt composeApp/src/androidMain/kotlin/fr/dayview/app/MainActivity.kt
 git commit -m "Open the device power-management screen from System settings"
 ```
 
