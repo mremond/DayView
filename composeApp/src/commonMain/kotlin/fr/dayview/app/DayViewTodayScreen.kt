@@ -320,16 +320,10 @@ internal fun DayViewScreen(
                             onOpenDetourList = { showDetourList = true },
                         )
                         Spacer(Modifier.height(6.dp))
-                        DetourRow(
-                            sources = state.detourSourcesState,
-                            onOpenList = { showDetourList = true },
-                            onCapture = { showDetourCapture = true },
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        PlannedObligationsChip(
-                            activeCount = state.plannedObligationsToday.size,
-                            completedCount = state.plannedObligationsCompletedToday.size,
-                            onOpen = { showObligations = true },
+                        TodayQuickActions(
+                            activeObligationCount = state.plannedObligationsToday.size,
+                            onAddDetour = { showDetourCapture = true },
+                            onOpenObligations = { showObligations = true },
                         )
                         Spacer(Modifier.height(12.dp))
                         LongTermGoalPanel(
@@ -386,16 +380,10 @@ internal fun DayViewScreen(
                     onOpenDetourList = { showDetourList = true },
                 )
                 Spacer(Modifier.height(6.dp))
-                DetourRow(
-                    sources = state.detourSourcesState,
-                    onOpenList = { showDetourList = true },
-                    onCapture = { showDetourCapture = true },
-                )
-                Spacer(Modifier.height(12.dp))
-                PlannedObligationsChip(
-                    activeCount = state.plannedObligationsToday.size,
-                    completedCount = state.plannedObligationsCompletedToday.size,
-                    onOpen = { showObligations = true },
+                TodayQuickActions(
+                    activeObligationCount = state.plannedObligationsToday.size,
+                    onAddDetour = { showDetourCapture = true },
+                    onOpenObligations = { showObligations = true },
                 )
                 Spacer(Modifier.height(12.dp))
                 CompactTodayContent(

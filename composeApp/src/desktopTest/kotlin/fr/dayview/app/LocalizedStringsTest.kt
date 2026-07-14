@@ -4,6 +4,7 @@ import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.day_available_percent
 import fr.dayview.app.generated.resources.desktop_quit_dayview
 import fr.dayview.app.generated.resources.desktop_today_remaining
+import fr.dayview.app.generated.resources.detour_capture_open_label
 import fr.dayview.app.generated.resources.detour_list_title
 import fr.dayview.app.generated.resources.focus_intention_label
 import fr.dayview.app.generated.resources.goal_progress_percent
@@ -11,7 +12,9 @@ import fr.dayview.app.generated.resources.goal_section_title
 import fr.dayview.app.generated.resources.goal_title_label
 import fr.dayview.app.generated.resources.history_date
 import fr.dayview.app.generated.resources.history_day_no_data_a11y
-import fr.dayview.app.generated.resources.planned_obligations_chip
+import fr.dayview.app.generated.resources.planned_obligations_count_action
+import fr.dayview.app.generated.resources.planned_obligations_empty_action
+import fr.dayview.app.generated.resources.planned_obligations_one_action
 import fr.dayview.app.generated.resources.planned_obligations_title
 import fr.dayview.app.generated.resources.settings_back
 import fr.dayview.app.generated.resources.volume_value
@@ -42,7 +45,10 @@ class LocalizedStringsTest {
             assertEquals("Long-term goal", getString(Res.string.goal_title_label))
             assertEquals("Focus intention", getString(Res.string.focus_intention_label))
             assertEquals("Today’s must-dos", getString(Res.string.planned_obligations_title))
-            assertEquals("Must-dos · 2 open · 1 done", getString(Res.string.planned_obligations_chip, "2", "1"))
+            assertEquals("Add a must-do", getString(Res.string.planned_obligations_empty_action))
+            assertEquals("1 must-do", getString(Res.string.planned_obligations_one_action))
+            assertEquals("2 must-dos", getString(Res.string.planned_obligations_count_action, "2"))
+            assertEquals("Add a detour", getString(Res.string.detour_capture_open_label))
             assertEquals("TODAY’S DETOURS", getString(Res.string.detour_list_title))
             assertEquals("2026-07-14", getString(Res.string.history_date, "2026", "07", "14"))
             assertEquals("No history recorded for 2026-07-14.", getString(Res.string.history_day_no_data_a11y, "2026-07-14"))
@@ -56,7 +62,10 @@ class LocalizedStringsTest {
             assertEquals("Cap à long terme", getString(Res.string.goal_title_label))
             assertEquals("Intention du Focus", getString(Res.string.focus_intention_label))
             assertEquals("Incontournables du jour", getString(Res.string.planned_obligations_title))
-            assertEquals("Incontournables · À faire 2 · Faits 1", getString(Res.string.planned_obligations_chip, "2", "1"))
+            assertEquals("Ajouter un incontournable", getString(Res.string.planned_obligations_empty_action))
+            assertEquals("1 incontournable", getString(Res.string.planned_obligations_one_action))
+            assertEquals("2 incontournables", getString(Res.string.planned_obligations_count_action, "2"))
+            assertEquals("Ajouter un détour", getString(Res.string.detour_capture_open_label))
             assertEquals("DÉTOURS DU JOUR", getString(Res.string.detour_list_title))
             assertEquals("14/07/2026", getString(Res.string.history_date, "2026", "07", "14"))
             assertEquals("Aucun historique enregistré pour le 14/07/2026.", getString(Res.string.history_day_no_data_a11y, "14/07/2026"))
