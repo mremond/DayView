@@ -38,6 +38,14 @@
     <string name="notice_sync_key_error">Sync key mismatch — check the key on both devices.</string>
     <string name="notice_review_action">Open settings</string>
 
+    <!-- Toasts (transient feedback) -->
+    <string name="toast_detour_removed">Detour removed · %1$s</string>
+    <string name="toast_obligation_removed">Obligation removed · %1$s</string>
+    <string name="toast_synced">Up to date.</string>
+    <string name="toast_sound_failed">Couldn’t play the sound.</string>
+    <string name="toast_save_failed">Couldn’t save your changes.</string>
+    <string name="toast_undo">UNDO</string>
+
     <!-- Today screen — compact status line -->
     <string name="today_status_not_started">The day hasn’t started yet.</string>
     <string name="today_status_finished">Your planned time is up.</string>

@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -30,6 +32,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.toast_detour_removed
+import fr.dayview.app.generated.resources.toast_obligation_removed
+import fr.dayview.app.generated.resources.toast_save_failed
+import fr.dayview.app.generated.resources.toast_sound_failed
+import fr.dayview.app.generated.resources.toast_synced
+import fr.dayview.app.generated.resources.toast_undo
+import org.jetbrains.compose.resources.getString
 
 enum class ToastSeverity { Success, Error, Info }
 
@@ -94,6 +104,55 @@ fun DayViewToast(
                     .clickable(role = Role.Button, onClickLabel = label, onClick = onAction)
                     .padding(horizontal = 4.dp),
             )
+        }
+    }
+}
+
+/**
+ * Maps a semantic [AppEvent.Toast] to a localized [ToastVisuals]. Suspend (not @Composable)
+ * so it can run inside the event-collector coroutine; uses `getString`, not `stringResource`.
+ * Undo callbacks are supplied by the caller (which holds the controller).
+ */
+suspend fun toastVisualsFor(
+    event: AppEvent.Toast,
+    onUndoDetour: () -> Unit,
+    onUndoObligation: () -> Unit,
+): ToastVisuals = when (event.kind) {
+    ToastKind.DetourRemoved -> ToastVisuals(
+        message = getString(Res.string.toast_detour_removed, event.arg ?: ""),
+        severity = ToastSeverity.Success,
+        actionLabelText = getString(Res.string.toast_undo),
+        onAction = onUndoDetour,
+    )
+    ToastKind.ObligationRemoved -> ToastVisuals(
+        message = getString(Res.string.toast_obligation_removed, event.arg ?: ""),
+        severity = ToastSeverity.Success,
+        actionLabelText = getString(Res.string.toast_undo),
+        onAction = onUndoObligation,
+    )
+    ToastKind.SyncSucceeded -> ToastVisuals(
+        message = getString(Res.string.toast_synced),
+        severity = ToastSeverity.Success,
+    )
+    ToastKind.SoundPreviewFailed -> ToastVisuals(
+        message = getString(Res.string.toast_sound_failed),
+        severity = ToastSeverity.Error,
+    )
+    ToastKind.SaveFailed -> ToastVisuals(
+        message = getString(Res.string.toast_save_failed),
+        severity = ToastSeverity.Error,
+    )
+}
+
+/** Overlay host: Material's queue/timing, our [DayViewToast] rendering. */
+@Composable
+fun DayViewToastHost(
+    hostState: SnackbarHostState,
+    modifier: Modifier = Modifier,
+) {
+    SnackbarHost(hostState, modifier) { data ->
+        (data.visuals as? ToastVisuals)?.let { visuals ->
+            DayViewToast(visuals = visuals, onAction = { data.performAction() })
         }
     }
 }
