@@ -398,9 +398,13 @@ internal fun DayViewScreen(
                 },
                 onForget = actions.forgetDetourCategory,
                 onDismiss = { showDetourCapture = false },
-                onStart = { category, description ->
-                    actions.startOpenDetour(category, description)
-                    showDetourCapture = false
+                onStart = if (state.openDetourRunning) {
+                    null
+                } else {
+                    { category, description ->
+                        actions.startOpenDetour(category, description)
+                        showDetourCapture = false
+                    }
                 },
             )
         }

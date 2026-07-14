@@ -159,17 +159,19 @@ class FocusNotificationActionReceiver : BroadcastReceiver() {
             }
             FocusNotificationManager.ACTION_RESUME_FOCUS -> {
                 val s = runBlocking { preferences.snapshots.first() }
-                val durationMinutes = s.pomodoroMinutes.coerceIn(5, 180)
-                val endMillis = System.currentTimeMillis() + durationMinutes * 60_000L
-                runBlocking {
-                    preferences.persist(
-                        s.copy(
-                            pomodoroMinutes = durationMinutes,
-                            pomodoroEnd = Instant.fromEpochMilliseconds(endMillis),
-                        ),
-                    )
+                if (s.openDetourStart == null) {
+                    val durationMinutes = s.pomodoroMinutes.coerceIn(5, 180)
+                    val endMillis = System.currentTimeMillis() + durationMinutes * 60_000L
+                    runBlocking {
+                        preferences.persist(
+                            s.copy(
+                                pomodoroMinutes = durationMinutes,
+                                pomodoroEnd = Instant.fromEpochMilliseconds(endMillis),
+                            ),
+                        )
+                    }
+                    FocusAlarmScheduler(context).schedule(endMillis, s.focusIntention)
                 }
-                FocusAlarmScheduler(context).schedule(endMillis, s.focusIntention)
             }
             else -> return
         }

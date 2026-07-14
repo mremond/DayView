@@ -410,8 +410,8 @@ class DayViewController(
         category: String,
         description: String = "",
     ) {
-        // Mutually exclusive with focus: a running or on-break pomodoro owns the panel slot.
-        if (state.pomodoroEnd != null) return
+        // Mutually exclusive with focus, and only one open detour at a time.
+        if (state.pomodoroEnd != null || state.openDetourStart != null) return
         val clean = sanitizeDetourCategory(category)
         if (clean.isEmpty()) return
         state = state.copy(
@@ -427,9 +427,14 @@ class DayViewController(
         val minutes = (state.now - start).inWholeMinutes.toInt().coerceAtLeast(1)
         val category = state.openDetourCategory
         val description = state.openDetourDescription
-        // Clear the open state first (no persist yet); addDetour's own persist then writes the
-        // whole snapshot — cleared open-detour fields plus the freshly appended episode — atomically.
+        // Clear the open state first (no persist yet).
         state = state.copy(openDetourStart = null, openDetourCategory = "", openDetourDescription = "")
+        if (sanitizeDetourCategory(category).isEmpty()) {
+            // addDetour would no-op without persisting; write the cleared state ourselves.
+            persistState()
+            return
+        }
+        // addDetour's own persist then writes the cleared fields plus the new episode atomically.
         addDetour(category, minutes, description)
     }
 

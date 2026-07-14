@@ -58,14 +58,16 @@ class DayViewFocusTileService : TileService() {
             ) {
                 FocusTileAction.OPEN_APP -> openDayView()
                 FocusTileAction.START_FOCUS -> {
-                    val endMillis = now + snap.pomodoroMinutes.coerceIn(5, 180) * 60_000L
-                    runBlocking {
-                        preferences.persist(snap.copy(pomodoroEnd = Instant.fromEpochMilliseconds(endMillis)))
+                    if (snap.openDetourStart == null) {
+                        val endMillis = now + snap.pomodoroMinutes.coerceIn(5, 180) * 60_000L
+                        runBlocking {
+                            preferences.persist(snap.copy(pomodoroEnd = Instant.fromEpochMilliseconds(endMillis)))
+                        }
+                        FocusAlarmScheduler(applicationContext).schedule(
+                            endMillis,
+                            snap.focusIntention,
+                        )
                     }
-                    FocusAlarmScheduler(applicationContext).schedule(
-                        endMillis,
-                        snap.focusIntention,
-                    )
                     updateTile()
                 }
             }

@@ -2,6 +2,8 @@ package fr.dayview.app
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -69,5 +71,35 @@ class OpenDetourTest {
     fun elapsedCountsUpFromStart() {
         val c = controller(DayPreferencesSnapshot(openDetourStart = now - 3.minutes))
         assertEquals(3.minutes, c.state.openDetourElapsed)
+    }
+
+    @Test
+    fun startIgnoredWhileOpenDetourAlreadyRunning() {
+        val c = controller(DayPreferencesSnapshot(openDetourStart = now, openDetourCategory = "Première"))
+        c.tick(now + 2.minutes)
+        c.startOpenDetour("Deuxième", "x")
+        assertEquals(now, c.state.openDetourStart)
+        assertEquals("Première", c.state.openDetourCategory)
+    }
+
+    @Test
+    fun stopPersistsClearedStateEvenWithBlankCategory() = runTest {
+        DefaultDayPreferences.persist(DayPreferencesSnapshot())
+        val running = DayPreferencesSnapshot(openDetourStart = now - 5.minutes, openDetourCategory = "")
+        DefaultDayPreferences.persist(running)
+        try {
+            val c = DayViewController(
+                DefaultDayPreferences,
+                CoroutineScope(Dispatchers.Unconfined),
+                initialSnapshot = running,
+                initialNow = now,
+            )
+            c.stopOpenDetour()
+            assertNull(c.state.openDetourStart)
+            assertTrue(c.state.detoursToday.isEmpty())
+            assertNull(DefaultDayPreferences.snapshots.first().openDetourStart)
+        } finally {
+            DefaultDayPreferences.persist(DayPreferencesSnapshot())
+        }
     }
 }
