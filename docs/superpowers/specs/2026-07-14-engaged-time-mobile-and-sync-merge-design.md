@@ -131,18 +131,25 @@ conflicts and unions on read.
   (AAD binding schema + dayKey; extend AAD with deviceId).
 - **Write-once per `(dayKey, deviceId)`.** Each device only ever writes its own key → the PUT
   never 412s on a real conflict; the write-once invariant holds unchanged.
-- **`FocusContributionSync`** (sibling of `HistorySync`, invoked in `SyncEngine` right after the
-  history reconcile):
-  - **Upload:** for each locally-archived day, PUT the device's own contribution
-    (`focusPresence` + `focusSession` for that day) under `opaqueFocusKey(day, self)` and add
-    `"day:self"` to the returned manifest (only confirmed uploads enter it, like `HistorySync`).
-  - **Download:** for each `"day:device"` in the merged manifest not yet applied locally (and
-    `device != self`), GET the contribution, union its intervals into the local `DayHistoryRecord`
-    for that day (section 4), and record it as applied. Bounded per cycle like `HistorySync`.
 
-The first writer's contribution rides both the write-once record and its own side-channel blob;
-the redundancy coalesces away harmlessly, and the union of side-channel contributions alone is
-always complete.
+**Local storage — a separate `FocusContributionStore`.** The local `DayHistoryStore.write` is
+itself **write-once** (`InMemoryDayHistoryStore` / the file store ignore a second write for the
+same day). So we do **not** mutate the archived day record. Instead, a new
+`FocusContributionStore` (file-backed, keyed by `"$dayKey/$deviceId"`) holds focus contributions:
+
+- **Own contribution `(day, self)`** is written at archive/rollover from the device's **own**
+  live intervals for that day — this is the authoritative thing the device uploads. It is only
+  ever created from local work, never from a download, so a device can never re-upload another
+  device's intervals as its own (provenance is guaranteed by the key origin).
+- **Foreign contributions `(day, other)`** are written only by downloads.
+
+**`FocusContributionSync`** (sibling of `HistorySync`, invoked in `SyncEngine` right after the
+history reconcile), bounded per cycle like `HistorySync`:
+- **Upload:** for each `(day, self)` in the local contribution store not yet in the manifest, PUT
+  under `opaqueFocusKey(day, self)` and add `"day:self"` to the returned manifest (only confirmed
+  uploads enter it).
+- **Download:** for each `"day:device"` in the merged manifest with `device != self` not present
+  locally, GET the blob and `contributionStore.write(day, device, dto)`.
 
 ### 4. Union on read + coalesce
 
@@ -156,11 +163,16 @@ sorts by start and merges overlapping / adjacent intervals into a disjoint set. 
 **required**: `focusedTime` sums clipped intervals without de-overlapping
 (`CalendarNetTime.kt`), so unioning two devices' intervals without coalescing would double-count.
 
-When a contribution arrives, its `focusPresence` and `focusSession` are unioned (separately) into
-the local `DayHistoryRecord`, coalesced, and persisted. Display reads the record. The operation is
-idempotent: re-downloading one's own contribution (or overlapping data) changes nothing after
-coalescing. Android's per-session append (section 2) also goes through `mergeIntervals` so the
-live/today list stays disjoint.
+The union is computed **at read time**, not written back into the write-once record. When the
+history screens assemble a day (`openHistory`, `openHistoryDay`, week overview), the displayed
+record's `focusPresenceIntervals` / `focusSessionIntervals` become
+`mergeIntervals(record.ownIntervals + Σ contributions(day))` — computed separately for presence
+and session. Including the record's own intervals keeps legacy days (archived before this feature)
+and no-sync setups working with no contributions present. The operation is idempotent: a
+contribution equal to the record's own intervals coalesces to the same result.
+
+Android's per-session append (section 2) also runs through `mergeIntervals` so the live/today list
+stays disjoint before it is ever archived or uploaded.
 
 ### 5. UI — data-driven visibility
 
