@@ -30,8 +30,8 @@ jobs:
       - name: ktlint
         run: ./gradlew ktlintCheck
 
-      - name: Common & Android unit tests
-        run: ./gradlew :composeApp:testDebugUnitTest
+      - name: Core, common & Android unit tests
+        run: ./gradlew :core:jvmTest :composeApp:testDebugUnitTest
 
       - name: Desktop tests
         run: ./gradlew :composeApp:desktopTest

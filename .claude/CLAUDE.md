@@ -22,7 +22,7 @@ business logic are shared through Compose Multiplatform. See [README.md](../READ
 ./gradlew :composeApp:packageDmg
 
 # Tests and lint (run before every commit)
-./gradlew ktlintCheck :composeApp:testDebugUnitTest :composeApp:desktopTest
+./gradlew ktlintCheck :core:jvmTest :composeApp:testDebugUnitTest :composeApp:desktopTest
 ```
 
 Prerequisites: JDK 21 (the build uses `jvmToolchain(21)`; Robolectric needs 21 for
@@ -55,7 +55,7 @@ is unset the EventKit helper is left unsigned and macOS re-prompts on each rebui
   or anything under `docs/superpowers/`) in commit messages or pull requests. These are
   private planning artifacts; describe the change on its own terms.
 - Before committing, verify tests and lint pass without errors or stderr:
-  `./gradlew ktlintCheck :composeApp:testDebugUnitTest :composeApp:desktopTest`.
+  `./gradlew ktlintCheck :core:jvmTest :composeApp:testDebugUnitTest :composeApp:desktopTest`.
 
 ## Release Process
 
