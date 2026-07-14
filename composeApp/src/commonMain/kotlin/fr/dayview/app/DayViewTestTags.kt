@@ -17,6 +17,8 @@ internal object DayViewTestTags {
     const val Detours = "detoursTotal"
     const val CalendarNotice = "todayCalendarNotice"
     const val SyncNotice = "todaySyncNotice"
+    const val Toast = "toast"
+    const val ToastAction = "toastAction"
     const val MiniWindow = "miniWindowButton"
     const val MiniFocusRelaunch = "miniFocusRelaunchButton"
     const val OpenMainWindow = "openMainWindowButton"
