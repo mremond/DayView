@@ -16,6 +16,7 @@ class SyncEngine(
     private val codec: PayloadCodec,
     private val deviceId: String,
     private val maxRetries: Int = 3,
+    private val historySync: HistorySync? = null,
 ) {
     suspend fun sync(local: DayPreferencesSnapshot, state: SyncState, now: Long): SyncResult {
         val localDoc = buildDocument(local, state.baseDocument, deviceId, now)
@@ -29,7 +30,10 @@ class SyncEngine(
                         return SyncResult.KeyError
                     }
                 }
-                val merged = localDoc.merge(remoteDoc)
+                var merged = localDoc.merge(remoteDoc)
+                if (historySync != null) {
+                    merged = merged.copy(historyDays = historySync.reconcile(merged.historyDays))
+                }
                 if (remoteDoc != null && merged == remoteDoc) return SyncResult.UpToDate
                 val payload = codec.encrypt(merged.encodeToString())
                 when (val outcome = transport.push(payload, remote?.revision)) {

@@ -1,11 +1,33 @@
 package fr.dayview.app.sync
 
+import fr.dayview.app.CleanSessionLedger
+import fr.dayview.app.DayHistoryRecord
 import fr.dayview.app.DayPreferencesSnapshot
+import fr.dayview.app.InMemoryDayHistoryStore
+import fr.dayview.app.NetTimeSettings
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+
+private fun historyRecord(dayKey: Long) = DayHistoryRecord(
+    dayKey = dayKey,
+    startMinutes = 480,
+    endMinutes = 1320,
+    focusIntention = "",
+    busyIntervals = emptyList(),
+    calendarNames = emptyMap(),
+    netTimeSettings = NetTimeSettings(),
+    focusPresenceIntervals = emptyList(),
+    detours = emptyList(),
+    cleanSessions = CleanSessionLedger(),
+    pomodoroMinutes = 0,
+    pomodoroEnd = null,
+    goalTitle = "",
+    goalDeadline = null,
+    goalStart = null,
+)
 
 private class FakeTransport(
     var remote: RemoteSnapshot?,
@@ -131,5 +153,21 @@ class SyncEngineTest {
 
         assertIs<SyncResult.UpToDate>(secondResult)
         assertEquals(0, secondTransport.pushes)
+    }
+
+    @Test
+    fun syncReconcilesHistoryAndPushesManifest() = runTest {
+        val key = RawSyncKey(ByteArray(32) { it.toByte() })
+        val store = InMemoryDayHistoryStore().apply {
+            write(historyRecord(dayKey = 7)) // local-only archived day
+        }
+        val transport = FakeTransport(remote = null)
+        val historySync = HistorySync(store, transport, HistoryBlobCodec(key), HistoryKey(key))
+        val engine = SyncEngine(transport, PlainCodec, deviceId = "a", historySync = historySync)
+
+        val result = engine.sync(local, SyncState(null, null), now = 100)
+
+        assertIs<SyncResult.Applied>(result)
+        assertEquals(listOf(7L), result.state.baseDocument?.historyDays)
     }
 }
