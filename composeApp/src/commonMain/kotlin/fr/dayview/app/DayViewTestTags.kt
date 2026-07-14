@@ -14,6 +14,8 @@ internal object DayViewTestTags {
     const val FocusRecap = "focusRecap"
     const val NetRemaining = "netRemaining"
     const val Detours = "detoursTotal"
+    const val CalendarNotice = "todayCalendarNotice"
+    const val SyncNotice = "todaySyncNotice"
     const val MiniWindow = "miniWindowButton"
     const val MiniFocusRelaunch = "miniFocusRelaunchButton"
     const val OpenMainWindow = "openMainWindowButton"

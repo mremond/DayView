@@ -43,6 +43,7 @@ data class DayViewUiState(
     val focusIntention: String,
     val netTimeSettings: NetTimeSettings = NetTimeSettings(),
     val netCalendarPermission: Boolean = false,
+    val netCalendarError: Boolean = false,
     val busyDayKey: Long = -1L,
     val availableCalendars: List<CalendarInfo> = emptyList(),
     val busyIntervals: List<BusyInterval> = emptyList(),
@@ -546,6 +547,7 @@ class DayViewController(
         hasPermission: Boolean,
         busyIntervals: List<BusyInterval>,
         availableCalendars: List<CalendarInfo>,
+        readError: Boolean = false,
     ) {
         // The day's calendar-busy layer is transient in-memory data; persist it (day-tagged)
         // so a cold launch on the next day archives a faithful ring (see maybeArchivePreviousDay).
@@ -562,6 +564,7 @@ class DayViewController(
                 )
         state = state.copy(
             netCalendarPermission = hasPermission,
+            netCalendarError = readError,
             busyDayKey = dayKey,
             busyIntervals = busyIntervals,
             availableCalendars = availableCalendars,

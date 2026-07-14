@@ -25,6 +25,13 @@
     <string name="weekday_sat">Sat</string>
     <string name="weekday_sun">Sun</string>
 
+    <!-- Today screen — notices (surfaced when a background feature can't run) -->
+    <string name="notice_calendar_permission">Calendar access is off — Net Time is paused.</string>
+    <string name="notice_calendar_error">Couldn’t read your calendar — Net Time may be out of date.</string>
+    <string name="notice_sync_failed">Sync failed — your devices may be out of step.</string>
+    <string name="notice_sync_key_error">Sync key mismatch — check the key on both devices.</string>
+    <string name="notice_review_action">Open settings</string>
+
     <!-- Today screen — compact status line -->
     <string name="today_status_not_started">The day hasn’t started yet.</string>
     <string name="today_status_finished">Your planned time is up.</string>
@@ -60,6 +67,8 @@
     </string-array>
 
     <!-- Countdown circle -->
+    <string name="countdown_a11y_remaining">%1$s left, %2$d% of the day remaining.</string>
+    <string name="countdown_a11y_finished">Your day is complete.</string>
     <string name="countdown_time_left">TIME LEFT</string>
     <string name="countdown_day_over">DAY\nOVER</string>
     <string name="seconds_remaining">%1$s seconds</string>
@@ -142,6 +151,7 @@
 
     <!-- Settings — display -->
     <string name="settings_section_display">DISPLAY</string>
+    <string name="settings_display_description">Choose the theme, adjust the text size, and pick what the counter shows.</string>
     <string name="settings_show_seconds">SHOW SECONDS</string>
     <string name="settings_show_seconds_description">Turn them off for a calmer display and fewer refreshes.</string>
     <string name="settings_theme_label">APPEARANCE</string>

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.settings_autosave_note
 import fr.dayview.app.generated.resources.settings_day_description
+import fr.dayview.app.generated.resources.settings_display_description
 import fr.dayview.app.generated.resources.settings_net_time_description
 import fr.dayview.app.generated.resources.settings_on_goal_description
 import fr.dayview.app.generated.resources.settings_section_day
@@ -39,7 +40,6 @@ import fr.dayview.app.generated.resources.settings_section_on_goal
 import fr.dayview.app.generated.resources.settings_section_sounds
 import fr.dayview.app.generated.resources.settings_section_sync
 import fr.dayview.app.generated.resources.settings_section_system
-import fr.dayview.app.generated.resources.settings_show_seconds_description
 import fr.dayview.app.generated.resources.settings_sounds_description
 import fr.dayview.app.generated.resources.settings_summary_apps
 import fr.dayview.app.generated.resources.settings_summary_day
@@ -214,7 +214,7 @@ private fun categoryTitle(category: SettingsCategory): String = stringResource(
 private fun categoryDescription(category: SettingsCategory): String = stringResource(
     when (category) {
         SettingsCategory.DAY -> Res.string.settings_day_description
-        SettingsCategory.DISPLAY -> Res.string.settings_show_seconds_description
+        SettingsCategory.DISPLAY -> Res.string.settings_display_description
         SettingsCategory.SOUNDS -> Res.string.settings_sounds_description
         SettingsCategory.NET_TIME -> Res.string.settings_net_time_description
         SettingsCategory.ON_GOAL -> Res.string.settings_on_goal_description
