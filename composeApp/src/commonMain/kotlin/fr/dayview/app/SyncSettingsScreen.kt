@@ -1,12 +1,18 @@
 package fr.dayview.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +28,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import fr.dayview.app.generated.resources.Res
+import fr.dayview.app.generated.resources.dialog_cancel
 import fr.dayview.app.generated.resources.sync_settings_clear
 import fr.dayview.app.generated.resources.sync_settings_description
 import fr.dayview.app.generated.resources.sync_settings_generate_key
@@ -237,4 +245,54 @@ private fun syncStatusColor(status: SyncStatus, colors: DayViewColors) = when (s
     SyncStatus.Syncing -> colors.amber
     SyncStatus.KeyError, SyncStatus.Failed -> colors.red
     SyncStatus.Idle, SyncStatus.NotConfigured -> colors.muted
+}
+
+@Composable
+internal fun SyncConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        SyncConfirmDialogContent(title, message, confirmLabel, onConfirm, onDismiss)
+    }
+}
+
+@Composable
+internal fun SyncConfirmDialogContent(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Column(
+        modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .padding(20.dp),
+    ) {
+        Text(title, color = colors.cloud, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(10.dp))
+        Text(message, color = colors.muted, fontSize = 13.sp, lineHeight = 18.sp)
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            FocusActionButton(
+                stringResource(Res.string.dialog_cancel),
+                colors.muted,
+                modifier = Modifier.weight(1f).testTag(DayViewTestTags.SyncConfirmDialogCancel),
+                onClick = onDismiss,
+            )
+            FocusActionButton(
+                confirmLabel,
+                colors.red,
+                modifier = Modifier.weight(1f).testTag(DayViewTestTags.SyncConfirmDialogConfirm),
+                filled = true,
+                onClick = onConfirm,
+            )
+        }
+    }
 }
