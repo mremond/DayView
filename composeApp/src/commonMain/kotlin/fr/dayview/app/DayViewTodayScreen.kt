@@ -197,6 +197,8 @@ internal data class DayViewScreenActions(
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
     val addDetourEpisode: (DetourEpisode) -> Unit,
+    val startOpenDetour: (String, String) -> Unit,
+    val stopOpenDetour: () -> Unit,
     val forgetDetourCategory: (String) -> Unit,
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
