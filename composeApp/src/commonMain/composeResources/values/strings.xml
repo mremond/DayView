@@ -245,6 +245,7 @@
     <string name="detour_capture_open_label">Declare a detour</string>
     <string name="detour_list_open_label">Today’s detours</string>
     <string name="detour_section">DETOUR</string>
+    <string name="open_detour_status">IN PROGRESS</string>
     <string name="detour_capture_prompt">What pulled you off the path?</string>
     <string name="detour_category_label">Category</string>
     <string name="detour_category_placeholder">E.g. unexpected call</string>

@@ -102,6 +102,7 @@ import fr.dayview.app.generated.resources.clean_streak
 import fr.dayview.app.generated.resources.countdown_day_over
 import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
+import fr.dayview.app.generated.resources.detour_section
 import fr.dayview.app.generated.resources.detour_time_range
 import fr.dayview.app.generated.resources.detours_today
 import fr.dayview.app.generated.resources.detours_today_off_window
@@ -153,6 +154,7 @@ import fr.dayview.app.generated.resources.history_title
 import fr.dayview.app.generated.resources.mini_window_button
 import fr.dayview.app.generated.resources.minutes_label
 import fr.dayview.app.generated.resources.net_remaining
+import fr.dayview.app.generated.resources.open_detour_status
 import fr.dayview.app.generated.resources.scrub_now
 import fr.dayview.app.generated.resources.seconds_remaining
 import fr.dayview.app.generated.resources.settings_title
@@ -211,6 +213,17 @@ internal data class FocusReminderUiState(
     val showResumeRitual: Boolean,
     val dismissResumeRitual: () -> Unit,
 )
+
+internal data class OpenDetourPanelState(
+    val elapsed: Duration,
+    val category: String,
+    val description: String,
+)
+
+internal val DayViewUiState.openDetourPanelState: OpenDetourPanelState?
+    get() = openDetourStart?.let {
+        OpenDetourPanelState(openDetourElapsed, openDetourCategory, openDetourDescription)
+    }
 
 @Composable
 internal fun DayViewScreen(
@@ -325,6 +338,8 @@ internal fun DayViewScreen(
                         onPomodoroStart = actions.startPomodoro,
                         onPomodoroStop = actions.stopPomodoro,
                         onPomodoroClose = actions.closePomodoro,
+                        openDetour = state.openDetourPanelState,
+                        onStopOpenDetour = actions.stopOpenDetour,
                         modifier = Modifier.weight(.85f).verticalScroll(rememberScrollState()),
                     )
                 }
@@ -473,7 +488,10 @@ private fun CompactTodayContent(
         )
         Spacer(Modifier.height(14.dp))
 
-        if (pomodoro.status == PomodoroStatus.IDLE) {
+        val openDetour = state.openDetourPanelState
+        if (openDetour != null) {
+            OpenDetourPanel(openDetour, actions.stopOpenDetour)
+        } else if (pomodoro.status == PomodoroStatus.IDLE) {
             FocusEntryButton(
                 lastClosure = state.lastFocusClosure,
                 onClick = { openSheet = CompactSheet.FOCUS },
@@ -1515,6 +1533,8 @@ private fun SidePanel(
     onPomodoroStart: () -> Unit,
     onPomodoroStop: () -> Unit,
     onPomodoroClose: (FocusClosureOutcome) -> Unit,
+    openDetour: OpenDetourPanelState?,
+    onStopOpenDetour: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
@@ -1549,20 +1569,24 @@ private fun SidePanel(
         )
         Spacer(Modifier.height(22.dp))
 
-        FocusPanel(
-            progress = pomodoro,
-            intention = focusIntention,
-            lastClosure = lastFocusClosure,
-            onIntentionChange = onFocusIntentionChange,
-            showDriftReminder = showFocusDriftReminder,
-            onDismissDriftReminder = onDismissFocusDriftReminder,
-            showResumeRitual = showFocusResumeRitual,
-            onDismissResumeRitual = onDismissFocusResumeRitual,
-            onDurationChange = onPomodoroDurationChange,
-            onStart = onPomodoroStart,
-            onStop = onPomodoroStop,
-            onClose = onPomodoroClose,
-        )
+        if (openDetour != null) {
+            OpenDetourPanel(openDetour, onStopOpenDetour)
+        } else {
+            FocusPanel(
+                progress = pomodoro,
+                intention = focusIntention,
+                lastClosure = lastFocusClosure,
+                onIntentionChange = onFocusIntentionChange,
+                showDriftReminder = showFocusDriftReminder,
+                onDismissDriftReminder = onDismissFocusDriftReminder,
+                showResumeRitual = showFocusResumeRitual,
+                onDismissResumeRitual = onDismissFocusResumeRitual,
+                onDurationChange = onPomodoroDurationChange,
+                onStart = onPomodoroStart,
+                onStop = onPomodoroStop,
+                onClose = onPomodoroClose,
+            )
+        }
         Spacer(Modifier.height(18.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1777,6 +1801,38 @@ private fun FocusPanel(
                 onDurationChange = onDurationChange,
                 onStart = onStart,
             )
+        }
+    }
+}
+
+@Composable
+private fun OpenDetourPanel(
+    state: OpenDetourPanelState,
+    onStop: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+            .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(Res.string.detour_section), color = colors.amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+            Spacer(Modifier.weight(1f))
+            Text(stringResource(Res.string.open_detour_status), color = colors.mint, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(state.category, color = colors.cloud, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium)
+        if (state.description.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(state.description, color = colors.muted, fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(formatElapsedClock(state.elapsed), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
+            Spacer(Modifier.weight(1f))
+            FocusStopRoundButton(onStop, Modifier.testTag(DayViewTestTags.OpenDetourStop))
         }
     }
 }
