@@ -249,4 +249,22 @@ class DetourCaptureTest {
         }
         onNodeWithTag(DayViewTestTags.DetourDescriptionText, useUnmergedTree = true).assertExists()
     }
+
+    @Test
+    fun startButtonFiresOnStartWithCategoryAndDescription() = runComposeUiTest {
+        var started: Pair<String, String>? = null
+        setContent {
+            DetourCaptureContent(
+                recentCategories = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { _, _, _, _ -> },
+                onForget = {},
+                onDismiss = {},
+                onStart = { category, description -> started = category to description },
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("Réunion")
+        onNodeWithTag(DayViewTestTags.DetourStartOpen).performClick()
+        assertEquals("Réunion" to "", started)
+    }
 }

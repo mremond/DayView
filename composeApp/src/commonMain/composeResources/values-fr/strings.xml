@@ -258,6 +258,7 @@
     <string name="detour_overflow">+%1$s</string>
     <string name="detour_cancel_button">ANNULER</string>
     <string name="detour_confirm_button">AJOUTER</string>
+    <string name="detour_start_open_button">DÉMARRER</string>
     <string name="detour_list_title">DÉTOURS DU JOUR</string>
     <string name="detour_list_empty">Aucun détour déclaré aujourd’hui.</string>
     <string name="detour_edit_row_label">Modifier le détour</string>
