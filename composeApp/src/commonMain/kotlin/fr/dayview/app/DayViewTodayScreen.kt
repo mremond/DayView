@@ -967,11 +967,14 @@ internal fun CountdownCircle(
                             )
                         }
                     } else if (progress.isFinished) {
-                        // Day complete: the ring comes to rest as a full, vivid mint circle
-                        // (uniform colour — no leading edge to justify a sweep gradient), with a
-                        // small resting marker parked at the top where the day began and ended.
+                        // Day complete: the ring comes to rest as a calm, neutral circle rather
+                        // than a vivid mint one — the same subdued treatment a finished day gets
+                        // in the history grid (MiniRing draws no sweep once nothing remains, so it
+                        // rests on the plain track). This keeps the closed dial from reading as
+                        // heavy green, with a small resting marker parked at the top where the day
+                        // began and ended.
                         drawArc(
-                            color = accent,
+                            color = colors.overlay.copy(alpha = .16f),
                             startAngle = -90f,
                             sweepAngle = 360f,
                             useCenter = false,
@@ -981,12 +984,12 @@ internal fun CountdownCircle(
                         )
                         val restCenter = Offset(size.width / 2f, inset)
                         drawCircle(
-                            color = accent.copy(alpha = .22f),
+                            color = colors.overlay.copy(alpha = .12f),
                             radius = strokeWidth * .6f,
                             center = restCenter,
                         )
                         drawCircle(
-                            color = accent,
+                            color = colors.muted,
                             radius = strokeWidth * .34f,
                             center = restCenter,
                         )
