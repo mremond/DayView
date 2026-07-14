@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,7 +73,8 @@ internal fun HistoryWeekScreen(
         modifier = modifier.fillMaxSize()
             .background(Brush.radialGradient(colors = listOf(colors.glow, colors.ink), radius = 950f))
             .safeDrawingPadding()
-            .padding(horizontal = 24.dp, vertical = 28.dp),
+            .padding(horizontal = 48.dp, vertical = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ScreenTopBar(
             title = stringResource(Res.string.history_title),
@@ -81,7 +83,7 @@ internal fun HistoryWeekScreen(
         )
         Spacer(Modifier.height(24.dp))
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 1040.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             for (day in days) {
