@@ -47,6 +47,7 @@ data class DayViewUiState(
     val busyIntervals: List<BusyInterval> = emptyList(),
     val onGoalApps: Set<AppRef> = emptySet(),
     val focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
+    val focusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
     val lastFocusClosure: FocusClosureOutcome? = null,
     val detoursDayKey: Long = -1L,
     val detours: List<DetourEpisode> = emptyList(),
@@ -118,6 +119,12 @@ data class DayViewUiState(
             return focusedTime(start, end, focusPresenceIntervals)
         }
 
+    val sessionFocusedToday: Duration
+        get() {
+            val (start, end) = dayWindow
+            return focusedTime(start, end, focusSessionIntervals)
+        }
+
     /** Episodes of the current local day; stale storage from a previous day reads as empty. */
     val detoursToday: List<DetourEpisode>
         get() = if (detoursDayKey == dayKeyOf(dayNow)) detours else emptyList()
@@ -166,6 +173,7 @@ class DayViewController(
     initialNow: Instant = Clock.System.now(),
     private val history: DayHistoryStore = InMemoryDayHistoryStore(),
     initialFocusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
+    initialFocusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
     private val onLocalWrite: () -> Unit = {},
 ) {
     // Focus presence is desktop-only and persisted outside the shared snapshot
@@ -173,7 +181,10 @@ class DayViewController(
     // synchronous init archival below captures the previous day's presence too; the live
     // ticker overwrites it via setFocusPresenceIntervals once composition starts.
     private val _stateFlow = MutableStateFlow(
-        initialSnapshot.toUiState(initialNow).copy(focusPresenceIntervals = initialFocusPresenceIntervals),
+        initialSnapshot.toUiState(initialNow).copy(
+            focusPresenceIntervals = initialFocusPresenceIntervals,
+            focusSessionIntervals = initialFocusSessionIntervals,
+        ),
     )
     val stateFlow: StateFlow<DayViewUiState> = _stateFlow.asStateFlow()
     var state: DayViewUiState
@@ -431,6 +442,10 @@ class DayViewController(
 
     fun setFocusPresenceIntervals(intervals: List<FocusPresenceInterval>) {
         state = state.copy(focusPresenceIntervals = intervals)
+    }
+
+    fun setFocusSessionIntervals(intervals: List<FocusPresenceInterval>) {
+        state = state.copy(focusSessionIntervals = intervals)
     }
 
     fun setSessionOffGoal(duration: Duration) {

@@ -882,4 +882,14 @@ class DayViewControllerTest {
         assertEquals(null, controller.state.goalStart)
         assertEquals("", controller.state.goalDeadlineText)
     }
+
+    @Test
+    fun sessionFocusedTodayDerivesFromSessionIntervals() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        val windowStart = controller.state.dayWindow.first
+        controller.setFocusSessionIntervals(
+            listOf(FocusPresenceInterval(windowStart, windowStart + 30.minutes)),
+        )
+        assertEquals(30.minutes, controller.state.sessionFocusedToday)
+    }
 }
