@@ -40,6 +40,9 @@ data class DayViewUiState(
     val pomodoroMinutes: Int,
     val pomodoroEnd: Instant?,
     val focusIntention: String,
+    val openDetourStart: Instant? = null,
+    val openDetourCategory: String = "",
+    val openDetourDescription: String = "",
     val netTimeSettings: NetTimeSettings = NetTimeSettings(),
     val netCalendarPermission: Boolean = false,
     val busyDayKey: Long = -1L,
@@ -74,6 +77,12 @@ data class DayViewUiState(
 
     val focusIsActive: Boolean
         get() = pomodoroEnd?.let { it > now } == true
+
+    val openDetourRunning: Boolean
+        get() = openDetourStart != null
+
+    val openDetourElapsed: Duration
+        get() = openDetourStart?.let { (now - it).coerceAtLeast(Duration.ZERO) } ?: Duration.ZERO
 
     /** Bornes absolues de la journée courante, pour la projection du temps net. */
     val dayWindow: Pair<Instant, Instant>
@@ -385,6 +394,7 @@ class DayViewController(
     }
 
     fun startPomodoro() {
+        if (state.openDetourStart != null) return
         if (state.focusIntention.isBlank()) return
         val end = state.now + state.pomodoroMinutes.minutes
         state = state.copy(pomodoroEnd = end, lastFocusClosure = null)
@@ -394,6 +404,33 @@ class DayViewController(
     fun stopPomodoro() {
         state = state.copy(pomodoroEnd = null)
         persistState()
+    }
+
+    fun startOpenDetour(
+        category: String,
+        description: String = "",
+    ) {
+        // Mutually exclusive with focus: a running or on-break pomodoro owns the panel slot.
+        if (state.pomodoroEnd != null) return
+        val clean = sanitizeDetourCategory(category)
+        if (clean.isEmpty()) return
+        state = state.copy(
+            openDetourStart = state.now,
+            openDetourCategory = clean,
+            openDetourDescription = sanitizeDetourDescription(description),
+        )
+        persistState()
+    }
+
+    fun stopOpenDetour() {
+        val start = state.openDetourStart ?: return
+        val minutes = (state.now - start).inWholeMinutes.toInt().coerceAtLeast(1)
+        val category = state.openDetourCategory
+        val description = state.openDetourDescription
+        // Clear the open state first (no persist yet); addDetour's own persist then writes the
+        // whole snapshot — cleared open-detour fields plus the freshly appended episode — atomically.
+        state = state.copy(openDetourStart = null, openDetourCategory = "", openDetourDescription = "")
+        addDetour(category, minutes, description)
     }
 
     fun closePomodoro(outcome: FocusClosureOutcome) {
@@ -601,6 +638,9 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     pomodoroMinutes = pomodoroMinutes,
     pomodoroEnd = pomodoroEnd,
     focusIntention = focusIntention,
+    openDetourStart = openDetourStart,
+    openDetourCategory = openDetourCategory,
+    openDetourDescription = openDetourDescription,
     netTimeSettings = netTimeSettings,
     onGoalApps = onGoalApps,
     busyDayKey = busyDayKey,
@@ -627,6 +667,8 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         goalTitle = goalTitle.take(80),
         pomodoroMinutes = pomodoroMinutes.coerceIn(5, 180),
         focusIntention = focusIntention.take(100),
+        openDetourCategory = sanitizeDetourCategory(openDetourCategory),
+        openDetourDescription = sanitizeDetourDescription(openDetourDescription),
         detours = detours.map { it.copy(category = sanitizeDetourCategory(it.category)) },
         recentDetourCategories = recentDetourCategories.take(MAX_RECENT_DETOUR_CATEGORIES),
         plannedObligations = plannedObligations.map { sanitizeLabel(it, 60) }
@@ -659,6 +701,9 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEnd = safe.pomodoroEnd,
         focusIntention = safe.focusIntention,
+        openDetourStart = safe.openDetourStart,
+        openDetourCategory = safe.openDetourCategory,
+        openDetourDescription = safe.openDetourDescription,
         netTimeSettings = safe.netTimeSettings,
         onGoalApps = safe.onGoalApps,
         busyDayKey = safe.busyDayKey,
@@ -689,6 +734,9 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEnd = safe.pomodoroEnd,
         focusIntention = safe.focusIntention,
+        openDetourStart = safe.openDetourStart,
+        openDetourCategory = safe.openDetourCategory,
+        openDetourDescription = safe.openDetourDescription,
         netTimeSettings = safe.netTimeSettings,
         onGoalApps = safe.onGoalApps,
         detoursDayKey = safe.detoursDayKey,

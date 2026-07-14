@@ -158,4 +158,10 @@ class PomodoroTest {
 
         assertEquals(false, scheduler.observe(t(breakStart + 10 * 60_000L), t(breakStart)))
     }
+
+    @Test
+    fun formatElapsedClockPadsMinutesAndSeconds() {
+        assertEquals("01:05", formatElapsedClock(65.seconds))
+        assertEquals("00:00", formatElapsedClock(kotlin.time.Duration.ZERO))
+    }
 }
