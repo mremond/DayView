@@ -16,5 +16,13 @@ class HistoryKey(rawKey: RawSyncKey) {
 
     fun opaqueKey(dayKey: Long): String = indexKey.signatureGenerator().generateSignatureBlocking(dayKey.toString().encodeToByteArray()).toHex()
 
+    private val focusIndexKey = run {
+        val root = hmac.keyDecoder(SHA256).decodeFromByteArrayBlocking(HMAC.Key.Format.RAW, rawKey.bytes)
+        val derived = root.signatureGenerator().generateSignatureBlocking("dayview-focus-index-v1".encodeToByteArray())
+        hmac.keyDecoder(SHA256).decodeFromByteArrayBlocking(HMAC.Key.Format.RAW, derived)
+    }
+
+    fun opaqueFocusKey(dayKey: Long, deviceId: String): String = focusIndexKey.signatureGenerator().generateSignatureBlocking("$dayKey:$deviceId".encodeToByteArray()).toHex()
+
     private fun ByteArray.toHex(): String = joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
 }

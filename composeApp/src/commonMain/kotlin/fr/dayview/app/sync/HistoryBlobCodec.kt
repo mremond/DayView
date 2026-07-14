@@ -19,4 +19,14 @@ class HistoryBlobCodec(key: RawSyncKey) {
     } catch (e: Exception) {
         throw SyncKeyMismatchException(e)
     }
+
+    private fun focusAad(dayKey: Long, deviceId: String) = "dayview-focus-v$HISTORY_SCHEMA_VERSION:$dayKey:$deviceId".encodeToByteArray()
+
+    suspend fun encryptFocus(dayKey: Long, deviceId: String, plaintext: String): String = Base64.encode(cipher.encrypt(plaintext.encodeToByteArray(), focusAad(dayKey, deviceId)))
+
+    suspend fun decryptFocus(dayKey: Long, deviceId: String, ciphertext: String): String = try {
+        cipher.decrypt(Base64.decode(ciphertext), focusAad(dayKey, deviceId)).decodeToString()
+    } catch (e: Exception) {
+        throw SyncKeyMismatchException(e)
+    }
 }
