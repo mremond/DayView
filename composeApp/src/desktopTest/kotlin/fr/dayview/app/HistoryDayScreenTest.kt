@@ -13,6 +13,7 @@ class HistoryDayScreenTest {
         dayKey = 20_000L, startMinutes = 480, endMinutes = 1080, focusIntention = "",
         busyIntervals = emptyList(), calendarNames = emptyMap(),
         netTimeSettings = NetTimeSettings(), focusPresenceIntervals = emptyList(),
+        focusSessionIntervals = emptyList(),
         detours = emptyList(), cleanSessions = CleanSessionLedger(dayKey = 20_000L),
         pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
     )
