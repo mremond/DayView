@@ -2,6 +2,7 @@ package fr.dayview.app
 
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.time.Duration
 import kotlin.time.Instant
 
 /**
@@ -51,3 +52,54 @@ fun decodeFocusSessionRecords(encoded: String): List<FocusSessionRecord> {
         }
     }
 }
+
+/** Engaged time inside this session: the day-wide engaged intervals clipped to its window. */
+fun engagedTimeForSession(
+    record: FocusSessionRecord,
+    sessionIntervals: List<FocusPresenceInterval>,
+): Duration = focusedTime(record.start, record.end, sessionIntervals)
+
+/** Deep-focus time inside this session: the day-wide presence intervals clipped to its window. */
+fun deepFocusTimeForSession(
+    record: FocusSessionRecord,
+    presenceIntervals: List<FocusPresenceInterval>,
+): Duration = focusedTime(record.start, record.end, presenceIntervals)
+
+/** Angular tolerance around a session band for hover / scrub picking. */
+private const val FOCUS_SESSION_ANGLE_TOLERANCE_DEGREES = 4f
+
+/** A closed session projected as a ring band spanning its window (`-90° = window start`). */
+data class FocusSessionBand(
+    val startAngleDegrees: Float,
+    val sweepDegrees: Float,
+    val record: FocusSessionRecord,
+)
+
+/** Project records to bands over the day window; records fully outside the window are dropped. */
+fun focusSessionBands(
+    windowStart: Instant,
+    windowEnd: Instant,
+    records: List<FocusSessionRecord>,
+): List<FocusSessionBand> {
+    val total = windowEnd - windowStart
+    if (total <= Duration.ZERO) return emptyList()
+    return records.sortedBy { it.start }.mapNotNull { record ->
+        val start = record.start.coerceIn(windowStart, windowEnd)
+        val end = record.end.coerceIn(windowStart, windowEnd)
+        if (end <= start) return@mapNotNull null
+        val fStart = ((start - windowStart) / total).toFloat()
+        val fEnd = ((end - windowStart) / total).toFloat()
+        FocusSessionBand(
+            startAngleDegrees = -90f + fStart * 360f,
+            sweepDegrees = (fEnd - fStart) * 360f,
+            record = record,
+        )
+    }
+}
+
+/** The band containing [angleDegrees] (nearest within tolerance), radius-independent. Null if none. */
+fun focusSessionBandAtAngle(bands: List<FocusSessionBand>, angleDegrees: Float): FocusSessionBand? = bands
+    .minByOrNull { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angleDegrees) }
+    ?.takeIf {
+        angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angleDegrees) <= FOCUS_SESSION_ANGLE_TOLERANCE_DEGREES
+    }

@@ -30,4 +30,26 @@ class FocusSessionRecordTest {
         val decoded = decodeFocusSessionRecords(blob)
         assertEquals(listOf(FocusSessionRecord(at(5), at(6), "ok", FocusClosureOutcome.COMPLETED)), decoded)
     }
+
+    @Test
+    fun engagedAndDeepFocusClipToTheSessionWindow() {
+        val rec = FocusSessionRecord(at(0), at(1_000), "x", FocusClosureOutcome.COMPLETED)
+        val session = listOf(FocusPresenceInterval(at(0), at(600)), FocusPresenceInterval(at(2_000), at(3_000)))
+        val presence = listOf(FocusPresenceInterval(at(100), at(400)))
+        assertEquals(600, engagedTimeForSession(rec, session).inWholeMilliseconds)
+        assertEquals(300, deepFocusTimeForSession(rec, presence).inWholeMilliseconds)
+    }
+
+    @Test
+    fun bandSpansWholeSessionWindowAndIsHitByItsAngle() {
+        val ws = at(0)
+        val we = at(4_000)
+        val rec = FocusSessionRecord(at(1_000), at(2_000), "x", FocusClosureOutcome.COMPLETED)
+        val bands = focusSessionBands(ws, we, listOf(rec))
+        assertEquals(1, bands.size)
+        val mid = bands[0].startAngleDegrees + bands[0].sweepDegrees / 2f
+        assertEquals(rec, focusSessionBandAtAngle(bands, mid)?.record)
+        // An angle far from the band misses.
+        assertEquals(null, focusSessionBandAtAngle(bands, bands[0].startAngleDegrees + 180f))
+    }
 }
