@@ -27,5 +27,5 @@ internal actual fun createSyncQrCode(content: String): QrCodeMatrix {
 @Composable
 internal actual fun rememberSyncPairingScanner(
     onResult: (String) -> Unit,
-    onFailure: () -> Unit,
+    onFailure: (SyncPairingScanError) -> Unit,
 ): (() -> Unit)? = null

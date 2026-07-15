@@ -74,6 +74,7 @@ import fr.dayview.app.generated.resources.sync_setup_scan_expired
 import fr.dayview.app.generated.resources.sync_setup_scan_failed
 import fr.dayview.app.generated.resources.sync_setup_scan_invalid
 import fr.dayview.app.generated.resources.sync_setup_scan_title
+import fr.dayview.app.generated.resources.sync_setup_scan_unavailable
 import fr.dayview.app.generated.resources.sync_setup_server_description
 import fr.dayview.app.generated.resources.sync_setup_server_title
 import fr.dayview.app.generated.resources.sync_setup_test_auth_error
@@ -149,7 +150,12 @@ internal fun SyncSettingsScreen(
 
     val scanQr = rememberSyncPairingScanner(
         onResult = ::importCode,
-        onFailure = { importError = Res.string.sync_setup_scan_failed },
+        onFailure = { error ->
+            importError = when (error) {
+                SyncPairingScanError.Unavailable -> Res.string.sync_setup_scan_unavailable
+                SyncPairingScanError.Failed -> Res.string.sync_setup_scan_failed
+            }
+        },
     )
 
     LaunchedEffect(status, config, hasKey) {

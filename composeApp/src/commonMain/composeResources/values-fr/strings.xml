@@ -336,6 +336,7 @@
     <string name="sync_setup_scan_invalid">Ce code de configuration DayView n’est pas valide.</string>
     <string name="sync_setup_scan_expired">Ce code a expiré. Générez-en un nouveau sur l’autre appareil.</string>
     <string name="sync_setup_scan_failed">La configuration n’a pas pu être importée. Vérifiez la connexion et réessayez.</string>
+    <string name="sync_setup_scan_unavailable">Le scan de QR code n’est pas disponible sur cet appareil. Saisissez vos informations de synchronisation manuellement pour continuer.</string>
     <string name="sync_setup_account_title">Identifier ce compte</string>
     <string name="sync_setup_account_description">Saisissez l’identifiant du compte et le jeton d’accès fournis par votre serveur.</string>
     <string name="sync_setup_key_title">Protéger vos données</string>
