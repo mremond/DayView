@@ -161,17 +161,19 @@ internal fun SettingsAccentButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val colors = LocalDayViewColors.current
+    val accent = if (enabled) colors.mint else colors.muted
     Box(
         modifier = modifier.minimumInteractiveComponentSize()
-            .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(10.dp))
-            .border(1.dp, colors.mint.copy(alpha = .25f), RoundedCornerShape(10.dp))
-            .clickable(role = Role.Button, onClick = onClick)
+            .background(accent.copy(alpha = .12f), RoundedCornerShape(10.dp))
+            .border(1.dp, accent.copy(alpha = .25f), RoundedCornerShape(10.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = colors.mint, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
+        Text(text, color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
     }
 }
 

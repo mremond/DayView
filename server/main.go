@@ -29,6 +29,15 @@
 //	GET  /sync/{userId}/history/{opaqueKey}   Authorization: Bearer <token>
 //	     -> 200 {"payload":"<blob>"}   or   204 (nothing stored for that key)
 //
+// A configured device can enroll another one without putting its long-lived
+// credential in the QR code:
+//
+//	POST /pairing        Authorization: Bearer <token>
+//	     body: {"userId":"<user>"} -> 201 {"code","expiresAtEpochSeconds"}
+//
+//	POST /pairing/claim  body: {"code":"<single-use code>"}
+//	     -> 200 {"userId","token"} or 410 (expired/already consumed)
+//
 // Config via environment: SYNC_TOKEN (bearer token, default "dev-token"),
 // SYNC_STORE (JSON persistence file, default "./sync-store.json"),
 // SYNC_PORT (listen port, default 8787; a CLI arg overrides it).
@@ -40,6 +49,11 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -47,6 +61,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type entry struct {
@@ -55,12 +70,26 @@ type entry struct {
 	History  map[string]string `json:"history,omitempty"`
 }
 
+type persistedState struct {
+	Entries      map[string]entry  `json:"entries"`
+	DeviceTokens map[string]string `json:"deviceTokens,omitempty"` // SHA-256(token) -> user ID
+}
+
+type pairingSession struct {
+	UserID    string
+	ExpiresAt time.Time
+}
+
 var (
-	mu        sync.Mutex
-	store     = map[string]entry{}
-	token     = envOr("SYNC_TOKEN", "dev-token")
-	storePath = envOr("SYNC_STORE", "./sync-store.json")
+	mu           sync.Mutex
+	store        = map[string]entry{}
+	deviceTokens = map[string]string{}
+	pairings     = map[string]pairingSession{}
+	token        = envOr("SYNC_TOKEN", "dev-token")
+	storePath    = envOr("SYNC_STORE", "./sync-store.json")
 )
+
+const pairingTTL = 2 * time.Minute
 
 func envOr(key, def string) string {
 	if v := os.Getenv(key); v != "" {
@@ -69,20 +98,34 @@ func envOr(key, def string) string {
 	return def
 }
 
-// load reads the persisted store; a missing or malformed file yields an empty store.
+// load reads both the current wrapped format and the legacy user->entry map.
 func load() {
 	b, err := os.ReadFile(storePath)
 	if err != nil {
 		return
 	}
-	if err := json.Unmarshal(b, &store); err != nil {
-		store = map[string]entry{}
+	var state persistedState
+	if err := json.Unmarshal(b, &state); err == nil && state.Entries != nil {
+		store = state.Entries
+		deviceTokens = state.DeviceTokens
+		if deviceTokens == nil {
+			deviceTokens = map[string]string{}
+		}
+		return
 	}
+	var legacy map[string]entry
+	if err := json.Unmarshal(b, &legacy); err == nil {
+		store = legacy
+		deviceTokens = map[string]string{}
+		return
+	}
+	store = map[string]entry{}
+	deviceTokens = map[string]string{}
 }
 
 // persist writes the store atomically (temp file + rename) with owner-only perms.
 func persist() error {
-	b, err := json.Marshal(store)
+	b, err := json.Marshal(persistedState{Entries: store, DeviceTokens: deviceTokens})
 	if err != nil {
 		return err
 	}
@@ -91,6 +134,41 @@ func persist() error {
 		return err
 	}
 	return os.Rename(tmp, storePath)
+}
+
+func secureEqual(a, b string) bool {
+	return len(a) == len(b) && subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+func tokenHash(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
+}
+
+func bearerToken(r *http.Request) string {
+	return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+}
+
+func authorizedForUser(r *http.Request, uid string) bool {
+	presented := bearerToken(r)
+	if presented == "" {
+		return false
+	}
+	if secureEqual(presented, token) {
+		return true
+	}
+	mu.Lock()
+	boundUser := deviceTokens[tokenHash(presented)]
+	mu.Unlock()
+	return boundUser == uid
+}
+
+func randomToken(size int) (string, error) {
+	b := make([]byte, size)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 // userID extracts {userId} from a /sync/{userId} path.
@@ -118,17 +196,29 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Authorization") != "Bearer "+token {
-		w.WriteHeader(http.StatusUnauthorized)
+	if r.URL.Path == "/pairing" {
+		handlePairingCreate(w, r)
+		return
+	}
+	if r.URL.Path == "/pairing/claim" {
+		handlePairingClaim(w, r)
 		return
 	}
 	if uid, key, ok := historyRef(r.URL.Path); ok {
+		if !authorizedForUser(r, uid) {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		handleHistory(w, r, uid, key)
 		return
 	}
 	uid, ok := userID(r.URL.Path)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if !authorizedForUser(r, uid) {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -202,6 +292,86 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+// handlePairingCreate issues a short-lived, single-use enrollment code. The
+// caller must already hold a credential valid for the requested user.
+func handlePairingCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		UserID string `json:"userId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UserID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if !authorizedForUser(r, body.UserID) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	code, err := randomToken(24)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	expiresAt := time.Now().Add(pairingTTL)
+	mu.Lock()
+	for ref, session := range pairings {
+		if time.Now().After(session.ExpiresAt) {
+			delete(pairings, ref)
+		}
+	}
+	pairings[tokenHash(code)] = pairingSession{UserID: body.UserID, ExpiresAt: expiresAt}
+	mu.Unlock()
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"code":                  code,
+		"expiresAtEpochSeconds": expiresAt.Unix(),
+	})
+}
+
+// handlePairingClaim consumes an enrollment code and returns a credential bound
+// to that user. Only the hash of the new device token is persisted.
+func handlePairingClaim(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Code == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	mu.Lock()
+	ref := tokenHash(body.Code)
+	session, ok := pairings[ref]
+	delete(pairings, ref) // one attempt consumes the code
+	if !ok || time.Now().After(session.ExpiresAt) {
+		mu.Unlock()
+		w.WriteHeader(http.StatusGone)
+		return
+	}
+	deviceToken, err := randomToken(32)
+	if err != nil {
+		mu.Unlock()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	deviceTokens[tokenHash(deviceToken)] = session.UserID
+	if err := persist(); err != nil {
+		delete(deviceTokens, tokenHash(deviceToken))
+		mu.Unlock()
+		log.Printf("persist pairing: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	mu.Unlock()
+	writeJSON(w, http.StatusOK, map[string]string{"userId": session.UserID, "token": deviceToken})
 }
 
 func handleHistory(w http.ResponseWriter, r *http.Request, uid, key string) {

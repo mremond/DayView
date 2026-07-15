@@ -23,12 +23,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import fr.dayview.app.sync.PairingClaimResult
 import fr.dayview.app.sync.RawSyncKey
 import fr.dayview.app.sync.RecoveryPhrase
 import fr.dayview.app.sync.SecureKeyStore
+import fr.dayview.app.sync.SyncConfig
 import fr.dayview.app.sync.SyncCoordinator
 import fr.dayview.app.sync.SyncOnResumeEffect
+import fr.dayview.app.sync.SyncPairingClient
+import fr.dayview.app.sync.SyncPairingCode
+import fr.dayview.app.sync.SyncPairingImportResult
+import fr.dayview.app.sync.SyncPairingPayload
+import fr.dayview.app.sync.SyncSetupResult
 import fr.dayview.app.sync.SyncStatus
+import fr.dayview.app.sync.createSyncHttpClient
+import fr.dayview.app.sync.decodeSyncPairingPayload
+import fr.dayview.app.sync.encode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -140,7 +150,7 @@ internal fun DayViewApp(
                     // Synchronous key/config store: not a Flow, so the UI state is a
                     // Compose snapshot state re-derived only by the callbacks below.
                     var syncConfig by remember { mutableStateOf(secureKeyStore?.loadConfig()) }
-                    var syncHasKey by remember { mutableStateOf(secureKeyStore?.loadKey() != null) }
+                    var syncKey by remember { mutableStateOf(secureKeyStore?.loadKey()) }
                     val fallbackSyncStatus = remember { MutableStateFlow(SyncStatus.Idle) }
                     val syncStatus by (syncCoordinator?.status ?: fallbackSyncStatus).collectAsState()
 
@@ -315,7 +325,7 @@ internal fun DayViewApp(
                                     runningApps = runningApps,
                                     syncConfig = syncConfig,
                                     syncStatus = syncStatus,
-                                    syncHasKey = syncHasKey,
+                                    syncHasKey = syncKey != null,
                                     powerManagementSupported = onOpenPowerSettings != null,
                                 ),
                                 actions = SettingsScreenActions(
@@ -364,7 +374,7 @@ internal fun DayViewApp(
                                         // recovery phrase can be returned immediately; only the
                                         // keystore persistence goes to IO.
                                         val key = RawSyncKey.generate()
-                                        syncHasKey = true
+                                        syncKey = key
                                         scope.launch(Dispatchers.IO) {
                                             runCatching { secureKeyStore?.storeKey(key) }
                                                 .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
@@ -374,7 +384,7 @@ internal fun DayViewApp(
                                     pasteSyncKey = { phrase ->
                                         val key = RecoveryPhrase.decodePhrase(phrase)
                                         if (key != null) {
-                                            syncHasKey = true
+                                            syncKey = key
                                             scope.launch(Dispatchers.IO) {
                                                 runCatching { secureKeyStore?.storeKey(key) }
                                                     .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
@@ -391,9 +401,98 @@ internal fun DayViewApp(
                                             }
                                         }
                                     },
+                                    testSyncSetup = {
+                                        val config = syncConfig
+                                        val key = syncKey
+                                        if (config == null || key == null || syncCoordinator == null || secureKeyStore == null) {
+                                            SyncSetupResult.NotConfigured
+                                        } else {
+                                            withContext(Dispatchers.IO) {
+                                                secureKeyStore.storeConfig(config)
+                                                secureKeyStore.storeKey(key)
+                                                syncCoordinator.verifyAndSync()
+                                            }
+                                        }
+                                    },
+                                    createSyncPairing = {
+                                        val config = syncConfig
+                                        val key = syncKey
+                                        if (config == null || key == null) {
+                                            null
+                                        } else {
+                                            withContext(Dispatchers.IO) {
+                                                val client = createSyncHttpClient()
+                                                try {
+                                                    SyncPairingClient(client).create(config)?.let { ticket ->
+                                                        val payload = SyncPairingPayload(
+                                                            baseUrl = config.baseUrl,
+                                                            userId = config.userId,
+                                                            key = key,
+                                                            enrollmentCode = ticket.code,
+                                                            expiresAtEpochSeconds = ticket.expiresAtEpochSeconds,
+                                                        )
+                                                        SyncPairingCode(payload.encode(), ticket.expiresAtEpochSeconds)
+                                                    }
+                                                } finally {
+                                                    client.close()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    importSyncPairing = { rawCode ->
+                                        val payload = decodeSyncPairingPayload(rawCode)
+                                        if (payload == null) {
+                                            SyncPairingImportResult.InvalidCode
+                                        } else if (
+                                            payload.expiresAtEpochSeconds <= Clock.System.now().toEpochMilliseconds() / 1_000L
+                                        ) {
+                                            SyncPairingImportResult.Expired
+                                        } else if (secureKeyStore == null || syncCoordinator == null) {
+                                            SyncPairingImportResult.ConnectionFailed
+                                        } else {
+                                            val imported = withContext(Dispatchers.IO) {
+                                                val client = createSyncHttpClient()
+                                                try {
+                                                    when (
+                                                        val claim = SyncPairingClient(client).claim(
+                                                            payload.baseUrl,
+                                                            payload.enrollmentCode,
+                                                        )
+                                                    ) {
+                                                        PairingClaimResult.Expired -> null to SyncPairingImportResult.Expired
+                                                        PairingClaimResult.Failed -> null to SyncPairingImportResult.ConnectionFailed
+                                                        is PairingClaimResult.Success -> {
+                                                            if (claim.userId != payload.userId) {
+                                                                null to SyncPairingImportResult.InvalidCode
+                                                            } else {
+                                                                val config = SyncConfig(payload.baseUrl, payload.userId, claim.token)
+                                                                secureKeyStore.storeConfig(config)
+                                                                secureKeyStore.storeKey(payload.key)
+                                                                syncCoordinator.reset()
+                                                                val setup = syncCoordinator.verifyAndSync()
+                                                                val result = if (setup == SyncSetupResult.Success) {
+                                                                    SyncPairingImportResult.Success
+                                                                } else {
+                                                                    SyncPairingImportResult.ConnectionFailed
+                                                                }
+                                                                config to result
+                                                            }
+                                                        }
+                                                    }
+                                                } finally {
+                                                    client.close()
+                                                }
+                                            }
+                                            imported.first?.let {
+                                                syncConfig = it
+                                                syncKey = payload.key
+                                            }
+                                            imported.second
+                                        }
+                                    },
                                     clearSyncKey = {
                                         syncConfig = null
-                                        syncHasKey = false
+                                        syncKey = null
                                         scope.launch(Dispatchers.IO) {
                                             runCatching { secureKeyStore?.clear() }
                                                 .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }

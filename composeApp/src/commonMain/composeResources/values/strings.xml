@@ -325,6 +325,37 @@
 
     <!-- Settings — sync -->
     <string name="sync_settings_description">Keep your settings and history in step between Mac and Android.</string>
+    <string name="sync_setup_progress">Step %1$d of 5</string>
+    <string name="sync_setup_continue">CONTINUE</string>
+    <string name="sync_setup_previous">BACK</string>
+    <string name="sync_setup_server_title">Connect to your server</string>
+    <string name="sync_setup_server_description">Enter the base URL of your DayView sync server.</string>
+    <string name="sync_setup_scan_title">Set up from another device</string>
+    <string name="sync_setup_scan_description">Scan its temporary QR code to import the server, account and encryption key.</string>
+    <string name="sync_setup_scan_button">SCAN A QR CODE</string>
+    <string name="sync_setup_importing">Importing and testing the setup…</string>
+    <string name="sync_setup_scan_invalid">This is not a valid DayView setup code.</string>
+    <string name="sync_setup_scan_expired">This setup code has expired. Generate a new one on the other device.</string>
+    <string name="sync_setup_scan_failed">The setup could not be imported. Check the connection and try again.</string>
+    <string name="sync_setup_account_title">Identify this account</string>
+    <string name="sync_setup_account_description">Enter the account identifier and access token issued by your server.</string>
+    <string name="sync_setup_key_title">Protect your data</string>
+    <string name="sync_setup_key_description">Generate a new encryption key or enter the recovery phrase from another device.</string>
+    <string name="sync_setup_test_title">Test the connection</string>
+    <string name="sync_setup_test_description">DayView will verify the server, credentials and encryption key, then perform the first synchronization.</string>
+    <string name="sync_setup_test_button">TEST AND SYNCHRONIZE</string>
+    <string name="sync_setup_test_auth_error">The server rejected the account or access token.</string>
+    <string name="sync_setup_test_key_error">The server was reached, but the encryption key does not match.</string>
+    <string name="sync_setup_test_connection_error">DayView could not complete synchronization. Check the server URL and connection.</string>
+    <string name="sync_setup_complete_title">This device is synchronized</string>
+    <string name="sync_setup_complete_description">Connected to %1$s as %2$s.</string>
+    <string name="sync_setup_add_device">ADD ANOTHER DEVICE</string>
+    <string name="sync_setup_pairing_creating">Creating a temporary setup code…</string>
+    <string name="sync_setup_pairing_title">Scan this code with DayView on Android</string>
+    <string name="sync_setup_pairing_description">It contains the server, account and encryption key. The code expires after two minutes and can be used only once.</string>
+    <string name="sync_setup_pairing_failed">The temporary code could not be created. Make sure the server is up to date and reachable.</string>
+    <string name="sync_setup_pairing_qr_description">Temporary DayView synchronization setup QR code</string>
+    <string name="sync_setup_reconfigure">CHANGE SETUP</string>
     <string name="sync_settings_url_label">SERVER URL</string>
     <string name="sync_settings_url_placeholder">https://sync.example.com</string>
     <string name="sync_settings_user_label">USER ID</string>
