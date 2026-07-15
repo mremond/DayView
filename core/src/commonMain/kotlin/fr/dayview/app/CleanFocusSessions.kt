@@ -129,9 +129,21 @@ fun closeFocusSnapshot(
 ): DayPreferencesSnapshot {
     val dayKey = dayKeyOf(now)
     val detoursToday = if (snapshot.detoursDayKey == dayKey) snapshot.detours else emptyList()
+    val newRecord = snapshot.pomodoroEnd?.let { end ->
+        val start = end - snapshot.pomodoroMinutes.minutes
+        val effectiveEnd = minOf(now, end)
+        if (effectiveEnd <= start) {
+            null
+        } else {
+            FocusSessionRecord(start, effectiveEnd, snapshot.focusIntention, outcome)
+        }
+    }
+    val existingRecords = if (snapshot.focusSessionRecordsDayKey == dayKey) snapshot.focusSessionRecords else emptyList()
     return snapshot.copy(
         pomodoroEnd = null,
         focusIntention = focusIntentionAfterClosure(snapshot.focusIntention, outcome),
+        focusSessionRecords = if (newRecord != null) existingRecords + newRecord else existingRecords,
+        focusSessionRecordsDayKey = dayKey,
         cleanSessions = closedFocusLedger(
             cleanSessions = snapshot.cleanSessions,
             dayKey = dayKey,
