@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -52,10 +53,11 @@ internal fun PlannedObligationsDialog(
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onEdit: (String, String) -> Unit = { _, _ -> },
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        PlannedObligationsContent(obligations, completedObligations, onAdd, onComplete, onRemove, onDismiss)
+        PlannedObligationsContent(obligations, completedObligations, onAdd, onComplete, onRemove, onEdit, onDismiss)
     }
 }
 
@@ -71,6 +73,7 @@ internal fun PlannedObligationsContent(
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onEdit: (String, String) -> Unit = { _, _ -> },
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
@@ -107,31 +110,38 @@ internal fun PlannedObligationsContent(
         }
 
         obligations.forEach { motif ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    motif,
-                    color = colors.cloud,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    "✕",
-                    color = colors.muted,
-                    fontSize = 14.sp,
-                    modifier = Modifier.minimumInteractiveComponentSize()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(role = Role.Button, onClickLabel = removeLabel) { onRemove(motif) }
-                        .testTag(DayViewTestTags.PlannedObligationRemove)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                FocusActionButton(
-                    label = stringResource(Res.string.planned_obligation_done_button),
-                    color = colors.mint,
-                    modifier = Modifier.testTag(DayViewTestTags.PlannedObligationDone),
-                    onClick = { onComplete(motif) },
-                )
+            key(motif) {
+                var draft by remember(motif) { mutableStateOf(motif) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    GoalTextField(
+                        value = draft,
+                        semanticLabel = stringResource(Res.string.planned_obligation_motif_label),
+                        placeholder = stringResource(Res.string.planned_obligation_motif_placeholder),
+                        onValueChange = { draft = it },
+                        onFocusLost = {
+                            if (draft != motif) onEdit(motif, draft)
+                            draft = motif // revert; an accepted edit recreates this row via key(motif)
+                        },
+                        modifier = Modifier.weight(1f).testTag(DayViewTestTags.PlannedObligationLabel),
+                    )
+                    Text(
+                        "✕",
+                        color = colors.muted,
+                        fontSize = 14.sp,
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(role = Role.Button, onClickLabel = removeLabel) { onRemove(motif) }
+                            .testTag(DayViewTestTags.PlannedObligationRemove)
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    FocusActionButton(
+                        label = stringResource(Res.string.planned_obligation_done_button),
+                        color = colors.mint,
+                        modifier = Modifier.testTag(DayViewTestTags.PlannedObligationDone),
+                        onClick = { onComplete(motif) },
+                    )
+                }
             }
         }
 
