@@ -94,7 +94,19 @@ class SyncEngine(
                 if (focusSync != null) {
                     merged = merged.copy(focusContributions = focusSync.reconcile(merged.focusContributions))
                 }
-                if (remoteDoc != null && merged == remoteDoc) return SyncResult.UpToDate
+                if (remoteDoc != null && merged == remoteDoc) {
+                    // The server already holds the merged document, so there is nothing to push.
+                    // But local preferences may still be behind it — e.g. another device set the
+                    // goal and this device has no local change of its own to trigger a push. Adopt
+                    // the document in that case instead of reporting UpToDate and dropping the
+                    // remote change; only skip the write when local already matches.
+                    val applied = applyDocument(merged, local)
+                    return if (applied == local) {
+                        SyncResult.UpToDate
+                    } else {
+                        SyncResult.Applied(applied, SyncState(remote?.revision, merged))
+                    }
+                }
                 val payload = codec.encrypt(merged.encodeToString())
                 when (val outcome = transport.push(payload, remote?.revision)) {
                     is PushOutcome.Applied ->

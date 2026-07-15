@@ -227,6 +227,28 @@ class SyncEngineTest {
     }
 
     @Test
+    fun adoptsRemoteChangeWhenLocalHasNothingToPush() = runTest {
+        // Converge once against an empty server so local prefs and the base document agree.
+        val firstTransport = FakeTransport(remote = null)
+        val first = SyncEngine(firstTransport, PlainCodec, deviceId = "b")
+            .sync(local, SyncState(null, null), now = 100)
+        assertIs<SyncResult.Applied>(first)
+        val base = first.state.baseDocument!!
+
+        // Another device sets a goal on the server; this device's local prefs are unchanged, so it
+        // has nothing to push. The merge equals the remote — but local must still ADOPT the goal
+        // instead of reporting UpToDate and silently dropping it.
+        val remoteDoc = base.copy(goal = Versioned(GoalDto("Ship", 2000L, 1500L), Stamp(150, "a")))
+        val transport = FakeTransport(remote = RemoteSnapshot(remoteDoc.encodeToString(), "r1"))
+        val result = SyncEngine(transport, PlainCodec, deviceId = "b")
+            .sync(local, SyncState("r1", base), now = 200)
+
+        assertIs<SyncResult.Applied>(result)
+        assertEquals("Ship", result.snapshot.goalTitle)
+        assertEquals(0, transport.pushes) // nothing to push; adoption is pull-only
+    }
+
+    @Test
     fun syncReconcilesHistoryAndPushesManifest() = runTest {
         val key = RawSyncKey(ByteArray(32) { it.toByte() })
         val store = InMemoryDayHistoryStore().apply {
