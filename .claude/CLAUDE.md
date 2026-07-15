@@ -28,22 +28,32 @@ business logic are shared through Compose Multiplatform. See [README.md](../READ
 Prerequisites: JDK 21 (the build uses `jvmToolchain(21)`; Robolectric needs 21 for
 compileSdk 36) and the Android SDK.
 
-On macOS, calendar access (TCC) is keyed to the code identity of the *responsible
-process*. To keep the permission across rebuilds of the **packaged app**, set a signing
-identity in `local.properties`:
+### macOS calendar (EventKit) access
 
-    dayview.macos.signingIdentity=Developer ID Application: Your Name (TEAMID)
+Calendar access runs **in-process**: `scripts/MacEventKitBridge.swift` compiles to
+`libdayview_eventkit.dylib`, which is bundled as a resource and loaded into the JVM via JNA
+(`CalendarSource.desktop.kt`). This makes `DayView.app` itself the requesting TCC client — a
+spawned CLI helper is never attributed to the app bundle and cannot present the permission
+prompt. Two things are non-obvious and required:
 
-Find installed identities with `security find-identity -v -p codesigning`. When the key
-is unset the packaged app is ad-hoc signed and macOS re-prompts on each build.
+- **The hardened-runtime calendar entitlement.** Developer ID signing enables the hardened
+  runtime, and under it EventKit is gated by `com.apple.security.personal-information.calendars`
+  in `composeApp/entitlements.plist`. Without it macOS blocks the request *before* it reaches
+  `tccd` — no prompt appears at all (the app is not sandboxed, but the entitlement is still
+  required under hardened runtime).
+- **A stable app-bundle identity**, so the grant survives reinstalls. Set a signing identity in
+  `local.properties`:
 
-The identity signs the EventKit helper **only for native distributable builds**
-(`packageDmg`, `createDistributable`, …), never for `./gradlew run`. Under `run` the
-responsible process is the terminal, and an unsigned helper is attributed up to it, so it
-inherits the terminal's grant; signing the helper there would make it responsible for
-itself and, as a bare CLI tool, it could neither inherit the grant nor prompt — silently
-locking Net Time. So setting the key never affects `run`; it only stabilises the packaged
-app's identity.
+      dayview.macos.signingIdentity=Developer ID Application: Your Name (TEAMID)
+
+  Find identities with `security find-identity -v -p codesigning`. When unset, the packaged app
+  is ad-hoc signed and macOS re-prompts on each build. `./gradlew run` needs neither (no
+  hardened runtime; it inherits the terminal's existing calendar grant).
+
+Debugging a "no prompt" regression: read `tccd`'s unified log from a **real** Terminal
+(`log show --last 60s --predicate 'process == "tccd"' --info --debug | grep -i calendar`). If
+tccd logs nothing for the app, the request was blocked client-side → a hardened-runtime
+entitlement is missing.
 
 ## Commit Messages and Pull Requests
 

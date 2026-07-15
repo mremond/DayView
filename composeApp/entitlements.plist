@@ -10,5 +10,10 @@
     <true/>
     <key>com.apple.security.cs.allow-dyld-environment-variables</key>
     <true/>
+    <!-- Hardened Runtime resource access: required for EventKit calendar access under the
+         hardened runtime that Developer ID signing enables. Without it the runtime blocks
+         the request before it reaches tccd, so no permission prompt is ever shown. -->
+    <key>com.apple.security.personal-information.calendars</key>
+    <true/>
 </dict>
 </plist>
