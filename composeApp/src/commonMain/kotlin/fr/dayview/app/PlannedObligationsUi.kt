@@ -53,7 +53,7 @@ internal fun PlannedObligationsDialog(
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
-    onEdit: (String, String) -> Unit = { _, _ -> },
+    onEdit: (String, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
