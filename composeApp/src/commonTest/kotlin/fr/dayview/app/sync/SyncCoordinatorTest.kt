@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 private class FakePrefs(initial: DayPreferencesSnapshot) : DayPreferences {
@@ -318,5 +319,68 @@ class SyncCoordinatorTest {
         )
         c.syncNow()
         assertEquals(listOf(42L), statePersistence.load().baseDocument?.historyDays)
+    }
+
+    @Test
+    fun backoffGrowsToFiveMinuteCap() = runTest {
+        val transport = FlakyTransport(failuresRemaining = Int.MAX_VALUE)
+        val c = coordinator(configuredKeyStore(), FakePrefs(DayPreferencesSnapshot()), transport, backgroundScope)
+
+        c.syncNow() // failure #1 schedules the first retry
+        var pulls = 1
+        assertEquals(pulls, transport.pulls)
+
+        val expectedDelays = listOf(15.seconds, 30.seconds, 1.minutes, 2.minutes, 5.minutes, 5.minutes, 5.minutes)
+        for (expected in expectedDelays) {
+            // Just before the deadline nothing has fired…
+            testScheduler.advanceTimeBy(expected - 1.seconds)
+            testScheduler.runCurrent()
+            assertEquals(pulls, transport.pulls)
+            // …and at the deadline exactly one retry runs.
+            testScheduler.advanceTimeBy(1.seconds)
+            testScheduler.runCurrent()
+            pulls++
+            assertEquals(pulls, transport.pulls)
+        }
+    }
+
+    @Test
+    fun successResetsBackoffProgression() = runTest {
+        val transport = FlakyTransport(failuresRemaining = 2)
+        val c = coordinator(configuredKeyStore(), FakePrefs(DayPreferencesSnapshot()), transport, backgroundScope)
+
+        c.syncNow() // failure #1
+        testScheduler.advanceTimeBy(15.seconds)
+        testScheduler.runCurrent() // failure #2 → next delay would be 30s
+        testScheduler.advanceTimeBy(30.seconds)
+        testScheduler.runCurrent() // success
+        assertEquals(SyncStatus.Ok, c.status.first())
+        assertEquals(3, transport.pulls)
+
+        // A fresh failure streak starts back at 15s, not at the next step.
+        transport.failuresRemaining = 1
+        c.syncNow() // failure
+        assertEquals(4, transport.pulls)
+        testScheduler.advanceTimeBy(15.seconds)
+        testScheduler.runCurrent() // retry succeeds
+        assertEquals(5, transport.pulls)
+        assertEquals(SyncStatus.Ok, c.status.first())
+    }
+
+    @Test
+    fun manualSyncReplacesPendingRetry() = runTest {
+        val transport = FlakyTransport(failuresRemaining = 1)
+        val c = coordinator(configuredKeyStore(), FakePrefs(DayPreferencesSnapshot()), transport, backgroundScope)
+
+        c.syncNow() // fails, retry pending at +15s
+        assertEquals(1, transport.pulls)
+
+        c.syncNow() // manual trigger succeeds and cancels the pending retry
+        assertEquals(2, transport.pulls)
+        assertEquals(SyncStatus.Ok, c.status.first())
+
+        testScheduler.advanceTimeBy(1.hours)
+        testScheduler.runCurrent()
+        assertEquals(2, transport.pulls) // the 15s retry never fired
     }
 }

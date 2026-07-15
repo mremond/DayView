@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.coroutineContext
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 enum class SyncStatus { Idle, Syncing, Ok, KeyError, Failed, NotConfigured, NeedsChoice }
@@ -62,6 +63,7 @@ class SyncCoordinator(
     // so no extra synchronization is needed.
     private var retryJob: Job? = null
     private var retryAttempt = 0
+    private val retryDelays = listOf(15.seconds, 30.seconds, 1.minutes, 2.minutes, 5.minutes)
 
     /**
      * Runs a sync and returns the resulting [SyncStatus], read while still holding [mutex]
@@ -169,7 +171,7 @@ class SyncCoordinator(
         val previous = retryJob
         if (previous != null && previous !== coroutineContext[Job]) previous.cancel()
         if (retryable) {
-            val backoff = 15.seconds
+            val backoff = retryDelays[minOf(retryAttempt, retryDelays.lastIndex)]
             retryAttempt++
             retryJob = scope.launch {
                 delay(backoff)
