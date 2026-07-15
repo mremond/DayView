@@ -16,6 +16,8 @@ import kotlinx.coroutines.yield
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.seconds
 
 private class FakePrefs(initial: DayPreferencesSnapshot) : DayPreferences {
     val state = MutableStateFlow(initial)
@@ -60,9 +62,38 @@ private class ExistingServerTransport(document: SyncDocument) : SyncTransport {
 }
 
 private class AuthenticationFailureTransport : SyncTransport {
-    override suspend fun pull(): RemoteSnapshot? = throw SyncAuthenticationException()
+    var pulls = 0
+
+    override suspend fun pull(): RemoteSnapshot? {
+        pulls++
+        throw SyncAuthenticationException()
+    }
 
     override suspend fun push(payload: String, expectedRevision: String?): PushOutcome = error("not reached")
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? = null
+}
+
+/** Fails the next [failuresRemaining] pulls with a connection-style error, then succeeds. */
+private class FlakyTransport(var failuresRemaining: Int) : SyncTransport {
+    var pulls = 0
+    private var pushes = 0
+
+    override suspend fun pull(): RemoteSnapshot? {
+        pulls++
+        if (failuresRemaining > 0) {
+            failuresRemaining--
+            throw IllegalStateException("connection refused")
+        }
+        return null
+    }
+
+    override suspend fun push(payload: String, expectedRevision: String?): PushOutcome {
+        pushes++
+        return PushOutcome.Applied("r$pushes")
+    }
 
     override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
 
@@ -129,6 +160,11 @@ class SyncCoordinatorTest {
         scope = scope,
         now = { 1000L },
     )
+
+    private fun configuredKeyStore() = InMemorySecureKeyStore().apply {
+        storeKey(RawSyncKey.generate())
+        storeConfig(SyncConfig("https://s", "u", "t"))
+    }
 
     @Test
     fun notConfiguredWhenNoKey() = runTest {
@@ -223,6 +259,40 @@ class SyncCoordinatorTest {
         List(5) { launch { c.syncNow() } }.joinAll()
         assertEquals(1, transport.observedMax)
         assertEquals(SyncStatus.Ok, c.status.first())
+    }
+
+    @Test
+    fun transientFailureSchedulesAutomaticRetry() = runTest {
+        val transport = FlakyTransport(failuresRemaining = 1)
+        val c = coordinator(configuredKeyStore(), FakePrefs(DayPreferencesSnapshot()), transport, backgroundScope)
+
+        c.syncNow()
+        assertEquals(SyncStatus.Failed, c.status.first())
+        assertEquals(1, transport.pulls)
+
+        // The retry fires 15s later and succeeds without any external trigger.
+        testScheduler.advanceTimeBy(15.seconds)
+        testScheduler.runCurrent()
+        assertEquals(2, transport.pulls)
+        assertEquals(SyncStatus.Ok, c.status.first())
+
+        // Once healthy, nothing else is scheduled.
+        testScheduler.advanceTimeBy(1.hours)
+        testScheduler.runCurrent()
+        assertEquals(2, transport.pulls)
+    }
+
+    @Test
+    fun authenticationFailureIsNotRetried() = runTest {
+        val transport = AuthenticationFailureTransport()
+        val c = coordinator(configuredKeyStore(), FakePrefs(DayPreferencesSnapshot()), transport, backgroundScope)
+
+        c.syncNow()
+        assertEquals(SyncStatus.Failed, c.status.first())
+
+        testScheduler.advanceTimeBy(1.hours)
+        testScheduler.runCurrent()
+        assertEquals(1, transport.pulls)
     }
 
     @Test

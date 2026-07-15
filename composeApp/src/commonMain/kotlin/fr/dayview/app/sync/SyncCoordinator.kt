@@ -4,12 +4,17 @@ import fr.dayview.app.DayHistoryStore
 import fr.dayview.app.DayPreferences
 import fr.dayview.app.FocusContributionStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.coroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 enum class SyncStatus { Idle, Syncing, Ok, KeyError, Failed, NotConfigured, NeedsChoice }
 
@@ -24,6 +29,9 @@ enum class SyncSetupResult { Success, NotConfigured, AuthenticationFailed, KeyMi
  * is cheap because [SyncEngine] short-circuits to [SyncResult.UpToDate] once the remote
  * already holds the merged document, and triggers are naturally rate-limited (debounced
  * preference writes plus app-resume), so this doesn't create unbounded pile-up.
+ * After a transient failure ([SyncResult.Failed] not caused by authentication), the
+ * coordinator retries on its own with exponential backoff, so sync recovers without
+ * an external trigger once the network returns.
  */
 class SyncCoordinator(
     private val deviceId: String,
@@ -32,7 +40,7 @@ class SyncCoordinator(
     private val preferences: DayPreferences,
     private val transportFactory: (SyncConfig) -> SyncTransport,
     private val codecFactory: (RawSyncKey) -> PayloadCodec,
-    // Reserved for wiring app-level sync triggers (debounced writes, resume) in a later task.
+    // Hosts the auto-retry loop that re-runs sync after transient failures.
     private val scope: CoroutineScope,
     private val now: () -> Long,
     private val historyStore: DayHistoryStore? = null,
@@ -49,6 +57,11 @@ class SyncCoordinator(
     val firstSyncChoicePending: StateFlow<Boolean> = _firstSyncChoicePending.asStateFlow()
 
     private val mutex = Mutex()
+
+    // Auto-retry state. Only mutated inside runOnce (which always holds [mutex]),
+    // so no extra synchronization is needed.
+    private var retryJob: Job? = null
+    private var retryAttempt = 0
 
     /**
      * Runs a sync and returns the resulting [SyncStatus], read while still holding [mutex]
@@ -111,6 +124,7 @@ class SyncCoordinator(
         val config = keyStore.loadConfig()
         if (key == null || config == null) {
             _status.value = SyncStatus.NotConfigured
+            updateRetrySchedule(result = null)
             return
         }
         _status.value = SyncStatus.Syncing
@@ -138,5 +152,32 @@ class SyncCoordinator(
                 SyncResult.FirstSyncChoiceNeeded -> SyncStatus.NeedsChoice
                 is SyncResult.Failed -> SyncStatus.Failed
             }
+        updateRetrySchedule(result)
+    }
+
+    /**
+     * Schedules or clears the automatic retry after a sync run. A [SyncResult.Failed]
+     * with any cause other than [SyncAuthenticationException] is treated as transient
+     * (network down, server error, exhausted push-conflict retries) and schedules a
+     * retry; every other outcome cancels the pending retry and resets the backoff —
+     * retrying a bad token or an unresolved first-sync choice cannot help. Runs only
+     * from [runOnce] (under [mutex]). When the currently running sync *is* the retry
+     * job, it is never self-cancelled — only replaced or cleared.
+     */
+    private suspend fun updateRetrySchedule(result: SyncResult?) {
+        val retryable = result is SyncResult.Failed && result.cause !is SyncAuthenticationException
+        val previous = retryJob
+        if (previous != null && previous !== coroutineContext[Job]) previous.cancel()
+        if (retryable) {
+            val backoff = 15.seconds
+            retryAttempt++
+            retryJob = scope.launch {
+                delay(backoff)
+                syncNow()
+            }
+        } else {
+            retryAttempt = 0
+            retryJob = null
+        }
     }
 }
