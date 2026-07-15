@@ -105,7 +105,6 @@ import fr.dayview.app.generated.resources.countdown_day_over
 import fr.dayview.app.generated.resources.countdown_time_left
 import fr.dayview.app.generated.resources.day_available_percent
 import fr.dayview.app.generated.resources.detour_section
-import fr.dayview.app.generated.resources.detour_time_range
 import fr.dayview.app.generated.resources.detours_today
 import fr.dayview.app.generated.resources.detours_today_off_window
 import fr.dayview.app.generated.resources.dialog_cancel
@@ -1464,23 +1463,8 @@ internal fun CountdownCircle(
                 }
 
                 hoveredDetour?.let { hovered ->
-                    val body = hovered.body
                     HoverTooltip(position = hovered.position, colors = colors) {
-                        Text(body.category, color = colors.cloud, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        if (body.description.isNotEmpty()) {
-                            Text(body.description, color = colors.muted, fontSize = 11.sp)
-                        }
-                        Text(
-                            stringResource(
-                                Res.string.detour_time_range,
-                                formatClockHm(body.start, use24Hour = uses24Hour),
-                                formatClockHm(body.end, use24Hour = uses24Hour),
-                                formatDurationHm(body.end - body.start),
-                            ),
-                            color = colors.muted,
-                            fontSize = 11.sp,
-                            letterSpacing = .5.sp,
-                        )
+                        DetourReadoutDetails(hovered.body, categoryColor = colors.cloud)
                     }
                 }
 
@@ -1524,6 +1508,7 @@ private fun RingScrubReadout(
     val colors = LocalDayViewColors.current
     Box(
         modifier = modifier
+            .widthIn(max = 280.dp)
             .background(colors.panel, RoundedCornerShape(10.dp))
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
@@ -1556,16 +1541,9 @@ private fun RingScrubReadout(
                 )
             }
             readout.detour?.let { body ->
-                Text(
-                    stringResource(
-                        Res.string.detour_time_range,
-                        formatClockHm(body.start, use24Hour = uses24Hour),
-                        formatClockHm(body.end, use24Hour = uses24Hour),
-                        formatDurationHm(body.end - body.start),
-                    ),
-                    color = colors.detours[body.colorIndex % colors.detours.size],
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
+                DetourReadoutDetails(
+                    body,
+                    categoryColor = colors.detours[body.colorIndex % colors.detours.size],
                 )
             }
             if (readout.focus) {
@@ -1579,6 +1557,29 @@ private fun RingScrubReadout(
             }
         }
     }
+}
+
+/**
+ * The shared body of a detour detail pop-up: category (the "nature", colored by the
+ * caller to match its surface), the optional description on a single ellipsized line,
+ * and how long the detour lasted. The absolute start/end clock time is intentionally
+ * omitted — it is only worth showing for an otherwise-empty tooltip, and a detour always
+ * has a category. Flows into the caller's Column so it inherits its alignment.
+ */
+@Composable
+internal fun ColumnScope.DetourReadoutDetails(body: DetourBody, categoryColor: Color) {
+    val colors = LocalDayViewColors.current
+    Text(body.category, color = categoryColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    if (body.description.isNotEmpty()) {
+        Text(
+            body.description,
+            color = colors.muted,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    Text(formatDurationHm(body.end - body.start), color = colors.muted, fontSize = 11.sp)
 }
 
 private data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
