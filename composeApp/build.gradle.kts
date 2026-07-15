@@ -42,29 +42,16 @@ val appPackageVersion: String =
 val isMacHost: Boolean =
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
 
-// macOS dev signing: reuse a stable code identity so the calendar (TCC) grant
-// survives rebuilds. Read from local.properties (per-machine, gitignored). When
-// unset, the EventKit helper is left unsigned and behaviour is unchanged.
+// macOS app-bundle signing: a stable Developer ID identity keeps the calendar (TCC) grant
+// alive across reinstalls, because calendar access is requested in-process and is therefore
+// attributed to this bundle's identity (see scripts/MacEventKitBridge.swift). Read from
+// local.properties (per-machine, gitignored); when unset the bundle is ad-hoc signed and the
+// grant resets on each build.
 val macosSigningIdentity: String? =
     Properties().apply {
         val file = rootProject.file("local.properties")
         if (file.exists()) file.inputStream().use { load(it) }
     }.getProperty("dayview.macos.signingIdentity")?.takeIf { it.isNotBlank() }
-
-// The EventKit helper is code-signed ONLY when building/running a native distributable,
-// never for `./gradlew run` or tests. Rationale: TCC keys the calendar grant to the
-// *responsible process*. For `run` the responsible process is the terminal, and an
-// unsigned helper is attributed up to it, inheriting its grant. Signing the helper gives
-// it its own Developer ID identity, so it becomes responsible for itself — and a bare CLI
-// tool can neither inherit the terminal's grant nor present a prompt, leaving Net Time
-// silently locked. The packaged .app is the opposite: its signed bundle (same team) is the
-// responsible process, so the signed helper inherits the bundle's grant and the permission
-// survives rebuilds. Detected from the requested task names (":module:packageDmg", etc.).
-val isNativeDistributableBuild: Boolean =
-    gradle.startParameter.taskNames.any { requested ->
-        val task = requested.substringAfterLast(':').lowercase()
-        task.contains("package") || task.contains("distributable")
-    }
 
 ktlint {
     filter {
@@ -233,10 +220,9 @@ compose.desktop {
             macOS {
                 bundleID = "fr.dayview.app"
                 iconFile.set(rootProject.layout.projectDirectory.file("artwork/dayview.icns"))
-                // DayView spawns the EventKit helper as a child process, so macOS attributes
-                // the calendar request to this app bundle. Without the usage description the
-                // system denies access silently (no prompt). Keep it in sync with
-                // scripts/MacEventKitHelper-Info.plist.
+                // Calendar access is requested in-process (see scripts/MacEventKitBridge.swift),
+                // so macOS attributes the request to this app bundle and reads its usage
+                // description here. Without it the system denies access silently (no prompt).
                 infoPlist {
                     extraKeysRawXml = """
                         <key>NSCalendarsFullAccessUsageDescription</key>
@@ -334,97 +320,33 @@ val compileMacFocusStatusHelper by tasks.registering(Exec::class) {
     )
 }
 
-val macEventKitHelperUnsignedOutput =
-    layout.buildDirectory.file("generated/macosEventKitHelperUnsigned/macos-eventkit-helper")
-val macEventKitHelperUnsignedFile = macEventKitHelperUnsignedOutput.get().asFile
-macEventKitHelperUnsignedFile.parentFile.mkdirs()
-val compileMacEventKitHelper by tasks.registering(Exec::class) {
+// The EventKit bridge is a dylib loaded into the DayView.app JVM process (via JNA), NOT a
+// spawned helper. Calendar access must be requested in-process so macOS attributes the TCC
+// prompt to the app bundle itself; see scripts/MacEventKitBridge.swift. It needs no embedded
+// usage plist (it inherits DayView.app's) and no separate signing (it is loaded in-process,
+// and the app bundle carries com.apple.security.cs.disable-library-validation).
+val macEventKitBridgeOutput =
+    layout.buildDirectory.file("generated/macosFocusStatusHelper/libdayview_eventkit.dylib")
+val compileMacEventKitBridge by tasks.registering(Exec::class) {
+    val bridgeFile = macEventKitBridgeOutput.get().asFile
     onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
-    inputs.file(rootProject.file("scripts/MacEventKitHelper.swift"))
-    // Embedding the usage-description plist changes the binary, so re-run when it changes.
-    inputs.file(rootProject.file("scripts/MacEventKitHelper-Info.plist"))
-    outputs.file(macEventKitHelperUnsignedOutput)
+    inputs.file(rootProject.file("scripts/MacEventKitBridge.swift"))
+    outputs.file(macEventKitBridgeOutput)
+    doFirst { bridgeFile.parentFile.mkdirs() }
     commandLine(
         "xcrun",
         "swiftc",
-        rootProject.file("scripts/MacEventKitHelper.swift").absolutePath,
+        "-emit-library",
+        rootProject.file("scripts/MacEventKitBridge.swift").absolutePath,
         "-O",
         "-framework",
         "EventKit",
-        // macOS 14+ refuses calendar access unless the requesting binary carries an
-        // NSCalendarsFullAccessUsageDescription. Embed an __info_plist section so the
-        // helper (extracted and run outside any app bundle) can trigger the TCC prompt.
-        "-Xlinker", "-sectcreate",
-        "-Xlinker", "__TEXT",
-        "-Xlinker", "__info_plist",
-        "-Xlinker", rootProject.file("scripts/MacEventKitHelper-Info.plist").absolutePath,
         "-o",
-        macEventKitHelperUnsignedFile.absolutePath,
+        bridgeFile.absolutePath,
     )
-}
-
-val macEventKitHelperResourceOutput =
-    layout.buildDirectory.file("generated/macosFocusStatusHelper/macos-eventkit-helper")
-
-abstract class PrepareEventKitHelper : DefaultTask() {
-    @get:org.gradle.api.tasks.InputFile
-    abstract val unsignedHelper: org.gradle.api.file.RegularFileProperty
-
-    @get:org.gradle.api.tasks.Input
-    @get:org.gradle.api.tasks.Optional
-    abstract val signingIdentity: org.gradle.api.provider.Property<String>
-
-    @get:org.gradle.api.tasks.OutputFile
-    abstract val signedHelper: org.gradle.api.file.RegularFileProperty
-
-    @get:javax.inject.Inject
-    abstract val execOps: org.gradle.process.ExecOperations
-
-    @org.gradle.api.tasks.TaskAction
-    fun prepare() {
-        val source = unsignedHelper.get().asFile
-        val target = signedHelper.get().asFile
-        target.parentFile.mkdirs()
-        source.copyTo(target, overwrite = true)
-        target.setExecutable(true, false)
-        val identity = signingIdentity.orNull
-        if (!identity.isNullOrBlank()) {
-            execOps.exec {
-                commandLine(
-                    "codesign",
-                    "--force",
-                    "--options", "runtime",
-                    "--identifier", "fr.dayview.app.eventkit-helper",
-                    "--sign", identity,
-                    target.absolutePath,
-                )
-            }
-        }
-    }
-}
-
-val prepareMacEventKitHelper by tasks.registering(PrepareEventKitHelper::class) {
-    onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
-    dependsOn(compileMacEventKitHelper)
-    unsignedHelper.set(macEventKitHelperUnsignedOutput)
-    signedHelper.set(macEventKitHelperResourceOutput)
-    if (macosSigningIdentity != null && isNativeDistributableBuild) {
-        signingIdentity.set(macosSigningIdentity)
-    } else if (isMacHost && macosSigningIdentity != null) {
-        logger.lifecycle(
-            "DayView: EventKit helper left unsigned for run/test; it is signed only when " +
-                "packaging a native distributable, so `run` keeps inheriting the terminal's " +
-                "calendar grant.",
-        )
-    } else if (isMacHost) {
-        logger.lifecycle(
-            "DayView: dayview.macos.signingIdentity is unset; EventKit helper left unsigned " +
-                "(the packaged app re-prompts for calendar access on each build).",
-        )
-    }
 }
 
 tasks.matching { it.name in setOf("desktopProcessResources", "desktopTestProcessResources") }.configureEach {
     dependsOn(compileMacFocusStatusHelper)
-    dependsOn(prepareMacEventKitHelper)
+    dependsOn(compileMacEventKitBridge)
 }
