@@ -41,6 +41,8 @@ internal object DayPreferenceKeys {
     const val DETOURS = "detours"
     const val FOCUS_SESSION_DAY = "focus_session_day"
     const val FOCUS_SESSION = "focus_session"
+    const val FOCUS_SESSION_RECORDS_DAY = "focus_session_records_day"
+    const val FOCUS_SESSION_RECORDS = "focus_session_records"
 
     // Keep the VALUE "detour_recent_motifs" for back-compat with stored data.
     const val DETOUR_RECENT_CATEGORIES = "detour_recent_motifs"
@@ -84,6 +86,8 @@ private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
 private val focusSessionDayPrefKey = longPreferencesKey(DayPreferenceKeys.FOCUS_SESSION_DAY)
 private val focusSessionKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_SESSION)
+private val focusSessionRecordsDayPrefKey = longPreferencesKey(DayPreferenceKeys.FOCUS_SESSION_RECORDS_DAY)
+private val focusSessionRecordsKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_SESSION_RECORDS)
 private val detourRecentCategoriesKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_CATEGORIES)
 private val plannedObligationsDayPrefKey = longPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS_DAY)
 private val plannedObligationsKey = stringPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS)
@@ -130,6 +134,8 @@ class DayPreferencesStore(
             prefs[detoursKey] = encodeDetours(snapshot.detours)
             prefs[focusSessionDayPrefKey] = snapshot.focusSessionDayKey
             prefs[focusSessionKey] = encodeFocusPresence(snapshot.focusSessionIntervals)
+            prefs[focusSessionRecordsDayPrefKey] = snapshot.focusSessionRecordsDayKey
+            prefs[focusSessionRecordsKey] = encodeFocusSessionRecords(snapshot.focusSessionRecords)
             prefs[detourRecentCategoriesKey] = encodeRecentDetourCategories(snapshot.recentDetourCategories)
             prefs[plannedObligationsDayPrefKey] = snapshot.plannedObligationsDayKey
             prefs[plannedObligationsKey] = encodePlannedObligations(snapshot.plannedObligations)
@@ -189,6 +195,8 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         detours = decodeDetours(this[detoursKey].orEmpty()),
         focusSessionDayKey = this[focusSessionDayPrefKey] ?: defaults.focusSessionDayKey,
         focusSessionIntervals = decodeFocusPresence(this[focusSessionKey].orEmpty()),
+        focusSessionRecordsDayKey = this[focusSessionRecordsDayPrefKey] ?: defaults.focusSessionRecordsDayKey,
+        focusSessionRecords = decodeFocusSessionRecords(this[focusSessionRecordsKey].orEmpty()),
         recentDetourCategories = decodeRecentDetourCategories(this[detourRecentCategoriesKey].orEmpty()),
         plannedObligationsDayKey = this[plannedObligationsDayPrefKey] ?: defaults.plannedObligationsDayKey,
         plannedObligations = decodePlannedObligations(this[plannedObligationsKey].orEmpty()),

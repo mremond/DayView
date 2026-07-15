@@ -218,4 +218,21 @@ class DayPreferencesStoreTest {
         assertEquals(20260L, read.focusSessionDayKey)
         assertEquals(intervals, read.focusSessionIntervals)
     }
+
+    @Test
+    fun persistsAndReloadsFocusSessionRecords() = runTest {
+        val store = newStore(FakeFileSystem())
+        val records = listOf(
+            FocusSessionRecord(
+                Instant.fromEpochMilliseconds(1_000),
+                Instant.fromEpochMilliseconds(2_000),
+                "ship it",
+                FocusClosureOutcome.COMPLETED,
+            ),
+        )
+        store.persist(DayPreferencesSnapshot(focusSessionRecords = records, focusSessionRecordsDayKey = 42L))
+        val reloaded = store.snapshots.first()
+        assertEquals(records, reloaded.focusSessionRecords)
+        assertEquals(42L, reloaded.focusSessionRecordsDayKey)
+    }
 }

@@ -28,6 +28,8 @@ data class DayPreferencesSnapshot(
     val detours: List<DetourEpisode> = emptyList(),
     val focusSessionDayKey: Long = -1L,
     val focusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
+    val focusSessionRecordsDayKey: Long = -1L,
+    val focusSessionRecords: List<FocusSessionRecord> = emptyList(),
     val recentDetourCategories: List<String> = emptyList(),
     val plannedObligationsDayKey: Long = -1L,
     val plannedObligations: List<String> = emptyList(),
