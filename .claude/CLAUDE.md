@@ -12,17 +12,17 @@ business logic are shared through Compose Multiplatform. See [README.md](../READ
 
 ```bash
 # Run the desktop app
-./gradlew :composeApp:run
+./gradlew :shared:run
 
 # Android (device build/install)
-./gradlew :composeApp:assembleDebug
-./gradlew :composeApp:installDebug
+./gradlew :androidApp:assembleDebug
+./gradlew :androidApp:installDebug
 
 # macOS packaging
-./gradlew :composeApp:packageDmg
+./gradlew :shared:packageDmg
 
 # Tests and lint (run before every commit)
-./gradlew ktlintCheck :core:jvmTest :composeApp:testDebugUnitTest :composeApp:desktopTest
+./gradlew ktlintCheck :core:jvmTest :shared:testAndroidHostTest :shared:desktopTest :androidApp:testDebugUnitTest
 ```
 
 Prerequisites: JDK 21 (the build uses `jvmToolchain(21)`; Robolectric needs 21 for
@@ -74,7 +74,7 @@ entitlement is missing.
   or anything under `docs/superpowers/`) in commit messages or pull requests. These are
   private planning artifacts; describe the change on its own terms.
 - Before committing, verify tests and lint pass without errors or stderr:
-  `./gradlew ktlintCheck :core:jvmTest :composeApp:testDebugUnitTest :composeApp:desktopTest`.
+  `./gradlew ktlintCheck :core:jvmTest :shared:testAndroidHostTest :shared:desktopTest :androidApp:testDebugUnitTest`.
 
 ## Release Process
 
