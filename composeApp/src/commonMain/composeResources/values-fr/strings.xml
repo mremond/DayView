@@ -37,6 +37,14 @@
     <string name="notice_sync_key_error">Clé de synchro incohérente — vérifiez-la sur les deux appareils.</string>
     <string name="notice_review_action">Ouvrir les réglages</string>
 
+    <!-- Toasts (transient feedback) -->
+    <string name="toast_detour_removed">Détour supprimé · %1$s</string>
+    <string name="toast_obligation_removed">Obligation supprimée · %1$s</string>
+    <string name="toast_synced">À jour.</string>
+    <string name="toast_sound_failed">Lecture du son impossible.</string>
+    <string name="toast_save_failed">Enregistrement impossible.</string>
+    <string name="toast_undo">ANNULER</string>
+
     <!-- Today screen — compact status line -->
     <string name="today_status_not_started">La journée n’a pas commencé.</string>
     <string name="today_status_finished">Le temps prévu est écoulé.</string>

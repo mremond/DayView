@@ -1,7 +1,11 @@
 package fr.dayview.app
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -14,9 +18,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import fr.dayview.app.sync.PairingClaimResult
 import fr.dayview.app.sync.RawSyncKey
 import fr.dayview.app.sync.RecoveryPhrase
@@ -111,6 +117,7 @@ internal fun DayViewApp(
                     // Buffered so a burst of local edits collapses into a single pending signal;
                     // the debounced collector below turns it into a single sync trigger.
                     val localWriteSignal = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
+                    val appEventBus = remember { AppEventBus() }
                     val controller = remember(preferences) {
                         DayViewController(
                             preferences,
@@ -120,9 +127,11 @@ internal fun DayViewApp(
                             initialFocusPresenceIntervals = focusPresenceIntervals,
                             initialFocusSessionIntervals = focusSessionIntervals,
                             onLocalWrite = { localWriteSignal.tryEmit(Unit) },
+                            appEventBus = appEventBus,
                         )
                     }
                     val state by controller.stateFlow.collectAsState()
+                    val toastHostState = remember { SnackbarHostState() }
                     // Recompute when the user opens Settings to edit the on-goal apps, rather
                     // than freezing the check at launch (when no target app may be running yet).
                     var hasRunningApps by remember { mutableStateOf(false) }
@@ -146,8 +155,9 @@ internal fun DayViewApp(
                     val syncStatus by (syncCoordinator?.status ?: fallbackSyncStatus).collectAsState()
 
                     // Sync I/O (network + keystore/state-file reads) must never run on the
-                    // Compose UI dispatcher; every syncNow() call — automatic or manual —
-                    // is routed through this helper. No-op when sync isn't configured.
+                    // Compose UI dispatcher. Automatic triggers are routed through this helper;
+                    // the manual Sync Now action dispatches directly so it can act on the
+                    // returned status. No-op when sync isn't configured.
                     fun launchSync() {
                         scope.launch(Dispatchers.IO) { syncCoordinator?.syncNow() }
                     }
@@ -202,7 +212,7 @@ internal fun DayViewApp(
                                     // silently reading as an empty busy layer.
                                     val intervalsResult = runCatching {
                                         calendarSource.busyIntervals(start, end, state.netTimeSettings.includedCalendarIds)
-                                    }
+                                    }.onFailure { logError("calendar", "busyIntervals read failed", it) }
                                     val available = runCatching { calendarSource.availableCalendars() }
                                         .getOrDefault(emptyList())
                                     NetTimeProbe(
@@ -303,244 +313,276 @@ internal fun DayViewApp(
                         }
                     }
 
-                    when (state.destination) {
-                        DayViewDestination.SETTINGS -> SettingsScreen(
-                            state = state,
-                            platformState = SettingsPlatformUiState(
-                                monochromeMenuBarIcon = monochromeMenuBarIcon,
-                                launchAtLogin = launchAtLogin,
-                                netTimeSupported = calendarSource.isSupported(),
-                                onGoalSupported = hasRunningApps,
-                                runningApps = runningApps,
-                                syncConfig = syncConfig,
-                                syncStatus = syncStatus,
-                                syncHasKey = syncKey != null,
-                                powerManagementSupported = onOpenPowerSettings != null,
-                            ),
-                            actions = SettingsScreenActions(
-                                changeStartTime = { controller.setStartMinutes(it) },
-                                changeEndTime = { controller.setEndMinutes(it) },
-                                changeShowSeconds = { controller.setShowSeconds(it) },
-                                changeMonochromeMenuBarIcon = onMonochromeMenuBarIconChange,
-                                changeLaunchAtLogin = onLaunchAtLoginChange,
-                                changeSoundSettings = { controller.setSoundSettings(it) },
-                                previewSound = { cue ->
-                                    soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
-                                },
-                                changeNetTimeSettings = {
-                                    controller.setNetTimeSettings(it)
-                                    calendarPermissionProbe++
-                                },
-                                requestCalendarPermission = onRequestCalendarAccess,
-                                changeOnGoalApps = { controller.setOnGoalApps(it) },
-                                changeThemeMode = { controller.setThemeMode(it) },
-                                changeFontScale = { controller.setFontScale(it) },
-                                openCategory = { controller.openSettingsCategory(it) },
-                                closeCategory = { controller.closeSettingsCategory() },
-                                changeSyncConfig = { cfg ->
-                                    // UI state updates synchronously on the main thread; the
-                                    // keystore write (disk I/O) is pushed off it.
-                                    val previous = syncConfig
-                                    syncConfig = cfg
-                                    scope.launch(Dispatchers.IO) { secureKeyStore?.storeConfig(cfg) }
-                                    // A different server/user must not reuse the old baseDocument
-                                    // as a merge base for the new endpoint.
-                                    if (previous != null &&
-                                        (previous.userId != cfg.userId || previous.baseUrl != cfg.baseUrl)
-                                    ) {
-                                        scope.launch(Dispatchers.IO) { syncCoordinator?.reset() }
-                                    }
-                                },
-                                generateSyncKey = {
-                                    // Key generation is cheap and stays synchronous so the
-                                    // recovery phrase can be returned immediately; only the
-                                    // keystore persistence goes to IO.
-                                    val key = RawSyncKey.generate()
-                                    syncKey = key
-                                    scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
-                                    RecoveryPhrase.encode(key).joinToString(" ")
-                                },
-                                pasteSyncKey = { phrase ->
-                                    val key = RecoveryPhrase.decodePhrase(phrase)
-                                    if (key != null) {
-                                        syncKey = key
-                                        scope.launch(Dispatchers.IO) { secureKeyStore?.storeKey(key) }
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                },
-                                syncNow = { launchSync() },
-                                testSyncSetup = {
-                                    val config = syncConfig
-                                    val key = syncKey
-                                    if (config == null || key == null || syncCoordinator == null || secureKeyStore == null) {
-                                        SyncSetupResult.NotConfigured
-                                    } else {
-                                        withContext(Dispatchers.IO) {
-                                            secureKeyStore.storeConfig(config)
-                                            secureKeyStore.storeKey(key)
-                                            syncCoordinator.verifyAndSync()
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        when (state.destination) {
+                            DayViewDestination.SETTINGS -> SettingsScreen(
+                                state = state,
+                                platformState = SettingsPlatformUiState(
+                                    monochromeMenuBarIcon = monochromeMenuBarIcon,
+                                    launchAtLogin = launchAtLogin,
+                                    netTimeSupported = calendarSource.isSupported(),
+                                    onGoalSupported = hasRunningApps,
+                                    runningApps = runningApps,
+                                    syncConfig = syncConfig,
+                                    syncStatus = syncStatus,
+                                    syncHasKey = syncKey != null,
+                                    powerManagementSupported = onOpenPowerSettings != null,
+                                ),
+                                actions = SettingsScreenActions(
+                                    changeStartTime = { controller.setStartMinutes(it) },
+                                    changeEndTime = { controller.setEndMinutes(it) },
+                                    changeShowSeconds = { controller.setShowSeconds(it) },
+                                    changeMonochromeMenuBarIcon = onMonochromeMenuBarIconChange,
+                                    changeLaunchAtLogin = onLaunchAtLoginChange,
+                                    changeSoundSettings = { controller.setSoundSettings(it) },
+                                    previewSound = { cue ->
+                                        runCatching {
+                                            soundPlayer.play(cue, controller.state.soundSettings.volumePercent / 100f)
+                                        }.onFailure {
+                                            appEventBus.reportTransient("sound", it, ToastKind.SoundPreviewFailed)
                                         }
-                                    }
-                                },
-                                createSyncPairing = {
-                                    val config = syncConfig
-                                    val key = syncKey
-                                    if (config == null || key == null) {
-                                        null
-                                    } else {
-                                        withContext(Dispatchers.IO) {
-                                            val client = createSyncHttpClient()
-                                            try {
-                                                SyncPairingClient(client).create(config)?.let { ticket ->
-                                                    val payload = SyncPairingPayload(
-                                                        baseUrl = config.baseUrl,
-                                                        userId = config.userId,
-                                                        key = key,
-                                                        enrollmentCode = ticket.code,
-                                                        expiresAtEpochSeconds = ticket.expiresAtEpochSeconds,
-                                                    )
-                                                    SyncPairingCode(payload.encode(), ticket.expiresAtEpochSeconds)
-                                                }
-                                            } finally {
-                                                client.close()
+                                    },
+                                    changeNetTimeSettings = {
+                                        controller.setNetTimeSettings(it)
+                                        calendarPermissionProbe++
+                                    },
+                                    requestCalendarPermission = onRequestCalendarAccess,
+                                    changeOnGoalApps = { controller.setOnGoalApps(it) },
+                                    changeThemeMode = { controller.setThemeMode(it) },
+                                    changeFontScale = { controller.setFontScale(it) },
+                                    openCategory = { controller.openSettingsCategory(it) },
+                                    closeCategory = { controller.closeSettingsCategory() },
+                                    changeSyncConfig = { cfg ->
+                                        // UI state updates synchronously on the main thread; the
+                                        // keystore write (disk I/O) is pushed off it.
+                                        val previous = syncConfig
+                                        syncConfig = cfg
+                                        scope.launch(Dispatchers.IO) {
+                                            runCatching { secureKeyStore?.storeConfig(cfg) }
+                                                .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
+                                        }
+                                        // A different server/user must not reuse the old baseDocument
+                                        // as a merge base for the new endpoint.
+                                        if (previous != null &&
+                                            (previous.userId != cfg.userId || previous.baseUrl != cfg.baseUrl)
+                                        ) {
+                                            scope.launch(Dispatchers.IO) { syncCoordinator?.reset() }
+                                        }
+                                    },
+                                    generateSyncKey = {
+                                        // Key generation is cheap and stays synchronous so the
+                                        // recovery phrase can be returned immediately; only the
+                                        // keystore persistence goes to IO.
+                                        val key = RawSyncKey.generate()
+                                        syncKey = key
+                                        scope.launch(Dispatchers.IO) {
+                                            runCatching { secureKeyStore?.storeKey(key) }
+                                                .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
+                                        }
+                                        RecoveryPhrase.encode(key).joinToString(" ")
+                                    },
+                                    pasteSyncKey = { phrase ->
+                                        val key = RecoveryPhrase.decodePhrase(phrase)
+                                        if (key != null) {
+                                            syncKey = key
+                                            scope.launch(Dispatchers.IO) {
+                                                runCatching { secureKeyStore?.storeKey(key) }
+                                                    .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
+                                            }
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    },
+                                    syncNow = {
+                                        scope.launch(Dispatchers.IO) {
+                                            if (syncCoordinator?.syncNow() == SyncStatus.Ok) {
+                                                appEventBus.post(AppEvent.Toast(ToastKind.SyncSucceeded))
                                             }
                                         }
-                                    }
-                                },
-                                importSyncPairing = { rawCode ->
-                                    val payload = decodeSyncPairingPayload(rawCode)
-                                    if (payload == null) {
-                                        SyncPairingImportResult.InvalidCode
-                                    } else if (
-                                        payload.expiresAtEpochSeconds <= Clock.System.now().toEpochMilliseconds() / 1_000L
-                                    ) {
-                                        SyncPairingImportResult.Expired
-                                    } else if (secureKeyStore == null || syncCoordinator == null) {
-                                        SyncPairingImportResult.ConnectionFailed
-                                    } else {
-                                        val imported = withContext(Dispatchers.IO) {
-                                            val client = createSyncHttpClient()
-                                            try {
-                                                when (
-                                                    val claim = SyncPairingClient(client).claim(
-                                                        payload.baseUrl,
-                                                        payload.enrollmentCode,
-                                                    )
-                                                ) {
-                                                    PairingClaimResult.Expired -> null to SyncPairingImportResult.Expired
-                                                    PairingClaimResult.Failed -> null to SyncPairingImportResult.ConnectionFailed
-                                                    is PairingClaimResult.Success -> {
-                                                        if (claim.userId != payload.userId) {
-                                                            null to SyncPairingImportResult.InvalidCode
-                                                        } else {
-                                                            val config = SyncConfig(payload.baseUrl, payload.userId, claim.token)
-                                                            secureKeyStore.storeConfig(config)
-                                                            secureKeyStore.storeKey(payload.key)
-                                                            syncCoordinator.reset()
-                                                            val setup = syncCoordinator.verifyAndSync()
-                                                            val result = if (setup == SyncSetupResult.Success) {
-                                                                SyncPairingImportResult.Success
+                                    },
+                                    testSyncSetup = {
+                                        val config = syncConfig
+                                        val key = syncKey
+                                        if (config == null || key == null || syncCoordinator == null || secureKeyStore == null) {
+                                            SyncSetupResult.NotConfigured
+                                        } else {
+                                            withContext(Dispatchers.IO) {
+                                                secureKeyStore.storeConfig(config)
+                                                secureKeyStore.storeKey(key)
+                                                syncCoordinator.verifyAndSync()
+                                            }
+                                        }
+                                    },
+                                    createSyncPairing = {
+                                        val config = syncConfig
+                                        val key = syncKey
+                                        if (config == null || key == null) {
+                                            null
+                                        } else {
+                                            withContext(Dispatchers.IO) {
+                                                val client = createSyncHttpClient()
+                                                try {
+                                                    SyncPairingClient(client).create(config)?.let { ticket ->
+                                                        val payload = SyncPairingPayload(
+                                                            baseUrl = config.baseUrl,
+                                                            userId = config.userId,
+                                                            key = key,
+                                                            enrollmentCode = ticket.code,
+                                                            expiresAtEpochSeconds = ticket.expiresAtEpochSeconds,
+                                                        )
+                                                        SyncPairingCode(payload.encode(), ticket.expiresAtEpochSeconds)
+                                                    }
+                                                } finally {
+                                                    client.close()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    importSyncPairing = { rawCode ->
+                                        val payload = decodeSyncPairingPayload(rawCode)
+                                        if (payload == null) {
+                                            SyncPairingImportResult.InvalidCode
+                                        } else if (
+                                            payload.expiresAtEpochSeconds <= Clock.System.now().toEpochMilliseconds() / 1_000L
+                                        ) {
+                                            SyncPairingImportResult.Expired
+                                        } else if (secureKeyStore == null || syncCoordinator == null) {
+                                            SyncPairingImportResult.ConnectionFailed
+                                        } else {
+                                            val imported = withContext(Dispatchers.IO) {
+                                                val client = createSyncHttpClient()
+                                                try {
+                                                    when (
+                                                        val claim = SyncPairingClient(client).claim(
+                                                            payload.baseUrl,
+                                                            payload.enrollmentCode,
+                                                        )
+                                                    ) {
+                                                        PairingClaimResult.Expired -> null to SyncPairingImportResult.Expired
+                                                        PairingClaimResult.Failed -> null to SyncPairingImportResult.ConnectionFailed
+                                                        is PairingClaimResult.Success -> {
+                                                            if (claim.userId != payload.userId) {
+                                                                null to SyncPairingImportResult.InvalidCode
                                                             } else {
-                                                                SyncPairingImportResult.ConnectionFailed
+                                                                val config = SyncConfig(payload.baseUrl, payload.userId, claim.token)
+                                                                secureKeyStore.storeConfig(config)
+                                                                secureKeyStore.storeKey(payload.key)
+                                                                syncCoordinator.reset()
+                                                                val setup = syncCoordinator.verifyAndSync()
+                                                                val result = if (setup == SyncSetupResult.Success) {
+                                                                    SyncPairingImportResult.Success
+                                                                } else {
+                                                                    SyncPairingImportResult.ConnectionFailed
+                                                                }
+                                                                config to result
                                                             }
-                                                            config to result
                                                         }
                                                     }
+                                                } finally {
+                                                    client.close()
                                                 }
-                                            } finally {
-                                                client.close()
                                             }
+                                            imported.first?.let {
+                                                syncConfig = it
+                                                syncKey = payload.key
+                                            }
+                                            imported.second
                                         }
-                                        imported.first?.let {
-                                            syncConfig = it
-                                            syncKey = payload.key
+                                    },
+                                    clearSyncKey = {
+                                        syncConfig = null
+                                        syncKey = null
+                                        scope.launch(Dispatchers.IO) {
+                                            runCatching { secureKeyStore?.clear() }
+                                                .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
+                                            syncCoordinator?.reset()
                                         }
-                                        imported.second
-                                    }
-                                },
-                                clearSyncKey = {
-                                    syncConfig = null
-                                    syncKey = null
-                                    scope.launch(Dispatchers.IO) {
-                                        secureKeyStore?.clear()
-                                        syncCoordinator?.reset()
-                                    }
-                                },
-                                openPowerSettings = onOpenPowerSettings ?: {},
-                                back = { controller.openToday() },
-                            ),
-                        )
-                        DayViewDestination.HISTORY -> {
-                            val selected = state.selectedHistoryDay
-                            val day = state.historyWeek.firstOrNull { it.dayKey == selected }
-                            val record = day?.record
-                            if (selected != null && record != null) {
-                                HistoryDayScreen(record = record, now = day.now, onBack = { controller.closeHistory() })
-                            } else {
-                                HistoryWeekScreen(
-                                    days = state.historyWeek,
-                                    onSelectDay = { controller.openHistoryDay(it) },
-                                    onBack = { controller.closeHistory() },
-                                )
+                                    },
+                                    openPowerSettings = onOpenPowerSettings ?: {},
+                                    back = { controller.openToday() },
+                                ),
+                            )
+                            DayViewDestination.HISTORY -> {
+                                val selected = state.selectedHistoryDay
+                                val day = state.historyWeek.firstOrNull { it.dayKey == selected }
+                                val record = day?.record
+                                if (selected != null && record != null) {
+                                    HistoryDayScreen(record = record, now = day.now, onBack = { controller.closeHistory() })
+                                } else {
+                                    HistoryWeekScreen(
+                                        days = state.historyWeek,
+                                        onSelectDay = { controller.openHistoryDay(it) },
+                                        onBack = { controller.closeHistory() },
+                                    )
+                                }
                             }
+                            DayViewDestination.TODAY -> DayViewScreen(
+                                state = state,
+                                actions = DayViewScreenActions(
+                                    openSettings = { controller.openSettings() },
+                                    onOpenHistory = { controller.openHistory() },
+                                    openMiniWindow = onOpenMiniWindow,
+                                    changeGoalTitle = { controller.setGoalTitle(it) },
+                                    changeGoalDeadline = { controller.setGoalDeadlineText(it) },
+                                    commitGoalDeadline = { controller.commitGoalDeadline() },
+                                    changeGoalStart = { controller.setGoalStartText(it) },
+                                    commitGoalStart = { controller.commitGoalStart() },
+                                    changeFocusIntention = { controller.setFocusIntention(it) },
+                                    changePomodoroDuration = { controller.changePomodoroDuration(it) },
+                                    startPomodoro = {
+                                        controller.startPomodoro()
+                                        controller.state.pomodoroEnd?.let {
+                                            onFocusAlarmChange(it, controller.state.focusIntention)
+                                        }
+                                    },
+                                    stopPomodoro = {
+                                        val intention = controller.state.focusIntention
+                                        controller.stopPomodoro()
+                                        onFocusAlarmChange(null, intention)
+                                    },
+                                    closePomodoro = { outcome ->
+                                        val intention = controller.state.focusIntention
+                                        controller.closePomodoro(outcome)
+                                        onFocusAlarmChange(null, intention)
+                                    },
+                                    addDetour = { category, durationMinutes, description -> controller.addDetour(category, durationMinutes, description) },
+                                    updateDetour = { index, episode -> controller.updateDetour(index, episode) },
+                                    removeDetour = { controller.removeDetour(it) },
+                                    addDetourEpisode = { controller.addDetourEpisode(it) },
+                                    startOpenDetour = { category, description -> controller.startOpenDetour(category, description) },
+                                    stopOpenDetour = { controller.stopOpenDetour() },
+                                    forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
+                                    addPlannedObligation = { controller.addPlannedObligation(it) },
+                                    removePlannedObligation = { controller.removePlannedObligation(it) },
+                                    completePlannedObligation = controller::completePlannedObligation,
+                                    openNetTimeSettings = {
+                                        controller.openSettings()
+                                        controller.openSettingsCategory(SettingsCategory.NET_TIME)
+                                    },
+                                    openSyncSettings = {
+                                        controller.openSettings()
+                                        controller.openSettingsCategory(SettingsCategory.SYNC)
+                                    },
+                                ),
+                                syncStatus = syncStatus,
+                                reminders = FocusReminderUiState(
+                                    showDriftReminder = showFocusDriftReminder,
+                                    dismissDriftReminder = onDismissFocusDriftReminder,
+                                    showResumeRitual = showFocusResumeRitual,
+                                    dismissResumeRitual = onDismissFocusResumeRitual,
+                                ),
+                            )
                         }
-                        DayViewDestination.TODAY -> DayViewScreen(
-                            state = state,
-                            actions = DayViewScreenActions(
-                                openSettings = { controller.openSettings() },
-                                onOpenHistory = { controller.openHistory() },
-                                openMiniWindow = onOpenMiniWindow,
-                                changeGoalTitle = { controller.setGoalTitle(it) },
-                                changeGoalDeadline = { controller.setGoalDeadlineText(it) },
-                                commitGoalDeadline = { controller.commitGoalDeadline() },
-                                changeGoalStart = { controller.setGoalStartText(it) },
-                                commitGoalStart = { controller.commitGoalStart() },
-                                changeFocusIntention = { controller.setFocusIntention(it) },
-                                changePomodoroDuration = { controller.changePomodoroDuration(it) },
-                                startPomodoro = {
-                                    controller.startPomodoro()
-                                    controller.state.pomodoroEnd?.let {
-                                        onFocusAlarmChange(it, controller.state.focusIntention)
-                                    }
-                                },
-                                stopPomodoro = {
-                                    val intention = controller.state.focusIntention
-                                    controller.stopPomodoro()
-                                    onFocusAlarmChange(null, intention)
-                                },
-                                closePomodoro = { outcome ->
-                                    val intention = controller.state.focusIntention
-                                    controller.closePomodoro(outcome)
-                                    onFocusAlarmChange(null, intention)
-                                },
-                                addDetour = { category, durationMinutes, description -> controller.addDetour(category, durationMinutes, description) },
-                                updateDetour = { index, episode -> controller.updateDetour(index, episode) },
-                                removeDetour = { controller.removeDetour(it) },
-                                addDetourEpisode = { controller.addDetourEpisode(it) },
-                                startOpenDetour = { category, description -> controller.startOpenDetour(category, description) },
-                                stopOpenDetour = { controller.stopOpenDetour() },
-                                forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
-                                addPlannedObligation = { controller.addPlannedObligation(it) },
-                                removePlannedObligation = { controller.removePlannedObligation(it) },
-                                completePlannedObligation = controller::completePlannedObligation,
-                                openNetTimeSettings = {
-                                    controller.openSettings()
-                                    controller.openSettingsCategory(SettingsCategory.NET_TIME)
-                                },
-                                openSyncSettings = {
-                                    controller.openSettings()
-                                    controller.openSettingsCategory(SettingsCategory.SYNC)
-                                },
-                            ),
-                            syncStatus = syncStatus,
-                            reminders = FocusReminderUiState(
-                                showDriftReminder = showFocusDriftReminder,
-                                dismissDriftReminder = onDismissFocusDriftReminder,
-                                showResumeRitual = showFocusResumeRitual,
-                                dismissResumeRitual = onDismissFocusResumeRitual,
-                            ),
+                        ToastEventHost(
+                            events = appEventBus.events,
+                            hostState = toastHostState,
+                            onUndoDetour = { controller.restoreLastRemovedDetour() },
+                            onUndoObligation = { controller.restoreLastRemovedObligation() },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .safeDrawingPadding()
+                                .padding(16.dp),
                         )
                     }
                 }
