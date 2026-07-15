@@ -48,6 +48,31 @@ fun markObligationCompleted(
     return remaining to (completed + matched)
 }
 
+/**
+ * Rename the active obligation matching [oldMotif] to [newLabel], preserving its position.
+ * Returns the new active list, or null when the edit must be rejected: [oldMotif] is absent,
+ * [newLabel] is blank after sanitize, the sanitized label is unchanged, or it case-insensitively
+ * duplicates another active entry or any completed entry (which would make the string-identity
+ * of two items collide). Completed items are never edited here.
+ */
+fun editPlannedObligation(
+    active: List<String>,
+    completed: List<String>,
+    oldMotif: String,
+    newLabel: String,
+): List<String>? {
+    val index = active.indexOfFirst { matchesPlannedObligation(it, oldMotif) }
+    if (index < 0) return null
+    val clean = sanitizeLabel(newLabel, 60)
+    if (clean.isEmpty()) return null
+    if (clean == active[index]) return null
+    val target = clean.lowercase()
+    val duplicatesAnotherActive = active.withIndex().any { (i, entry) -> i != index && entry.lowercase() == target }
+    val duplicatesCompleted = completed.any { it.lowercase() == target }
+    if (duplicatesAnotherActive || duplicatesCompleted) return null
+    return active.toMutableList().also { it[index] = clean }
+}
+
 /** One motif per line; motifs are single-line by construction. */
 fun encodePlannedObligations(obligations: List<String>): String = obligations.joinToString("\n")
 
