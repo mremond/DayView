@@ -47,6 +47,7 @@ class HistoryNavigationTest {
             dayKey = yesterdayKey, startMinutes = 480, endMinutes = 1080, focusIntention = "",
             busyIntervals = emptyList(), calendarNames = emptyMap(), netTimeSettings = NetTimeSettings(),
             focusPresenceIntervals = emptyList(), focusSessionIntervals = emptyList(),
+            focusSessionRecords = emptyList(),
             detours = emptyList(), cleanSessions = CleanSessionLedger(),
             pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
         )
@@ -93,7 +94,8 @@ class HistoryNavigationTest {
         val yesterday = DayHistoryRecord(
             dayKey = yesterdayKey, startMinutes = 480, endMinutes = 1080, focusIntention = "",
             busyIntervals = emptyList(), calendarNames = emptyMap(), netTimeSettings = NetTimeSettings(),
-            focusPresenceIntervals = emptyList(), focusSessionIntervals = emptyList(), detours = emptyList(),
+            focusPresenceIntervals = emptyList(), focusSessionIntervals = emptyList(),
+            focusSessionRecords = emptyList(), detours = emptyList(),
             cleanSessions = CleanSessionLedger(),
             pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
         )

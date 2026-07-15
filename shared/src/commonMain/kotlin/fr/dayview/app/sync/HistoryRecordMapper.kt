@@ -49,6 +49,9 @@ object HistoryRecordMapper {
         netTimeSettings = NetTimeSettings(enabled = d.netEnabled, includedCalendarIds = d.netCalendars.toSet()),
         focusPresenceIntervals = d.focusPresence.map { FocusPresenceInterval(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end)) },
         focusSessionIntervals = d.focusSession.map { FocusPresenceInterval(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end)) },
+        // Session records are not yet part of the sync DTO/schema (Task 4/5 wired only the
+        // local history codec); a synced record therefore reads back with no session records.
+        focusSessionRecords = emptyList(),
         detours = d.detours.map { DetourEpisode(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end), it.category, it.description) },
         cleanSessions = CleanSessionLedger(d.cleanSessions.dayKey, d.cleanSessions.cleanToday, d.cleanSessions.streakDays, d.cleanSessions.streakLastDayKey),
         pomodoroMinutes = d.pomodoroMinutes,

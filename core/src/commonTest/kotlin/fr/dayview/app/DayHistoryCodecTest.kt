@@ -29,6 +29,7 @@ class DayHistoryCodecTest {
         netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("cal-a", "cal-b")),
         focusPresenceIntervals = listOf(FocusPresenceInterval(Instant.fromEpochMilliseconds(3_000L), Instant.fromEpochMilliseconds(4_000L))),
         focusSessionIntervals = emptyList(),
+        focusSessionRecords = emptyList(),
         detours = listOf(DetourEpisode(Instant.fromEpochMilliseconds(5_000L), Instant.fromEpochMilliseconds(6_000L), "slack", "reading threads")),
         cleanSessions = CleanSessionLedger(dayKey = 20_000L, cleanToday = 3, streakDays = 5, streakLastDayKey = 20_000L),
         pomodoroMinutes = 25,
