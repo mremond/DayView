@@ -52,17 +52,18 @@ internal fun PlannedObligationsDialog(
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onEdit: (String, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        PlannedObligationsContent(obligations, completedObligations, onAdd, onComplete, onRemove, onDismiss)
+        PlannedObligationsContent(obligations, completedObligations, onAdd, onComplete, onRemove, onEdit, onDismiss)
     }
 }
 
 /**
- * Today's must-dos: at most [MAX_PLANNED_OBLIGATIONS], each completable via DONE/FAIT or
- * deletable via the ✕. The legacy function name mirrors persisted storage fields. Split out of
- * the Dialog so Compose UI tests can drive it.
+ * Today's must-dos: at most [MAX_PLANNED_OBLIGATIONS], each with an editable label, completable
+ * via DONE/FAIT, or deletable via the ✕. The legacy function name mirrors persisted storage
+ * fields. Split out of the Dialog so Compose UI tests can drive it.
  */
 @Composable
 internal fun PlannedObligationsContent(
@@ -71,6 +72,7 @@ internal fun PlannedObligationsContent(
     onAdd: (String) -> Unit,
     onComplete: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onEdit: (String, String) -> Unit = { _, _ -> },
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
@@ -107,13 +109,18 @@ internal fun PlannedObligationsContent(
         }
 
         obligations.forEach { motif ->
+            var draft by remember(motif) { mutableStateOf(motif) }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    motif,
-                    color = colors.cloud,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
+                GoalTextField(
+                    value = draft,
+                    semanticLabel = stringResource(Res.string.planned_obligation_motif_label),
+                    placeholder = stringResource(Res.string.planned_obligation_motif_placeholder),
+                    onValueChange = { draft = it },
+                    onFocusLost = {
+                        if (draft != motif) onEdit(motif, draft)
+                        draft = motif
+                    },
+                    modifier = Modifier.weight(1f).testTag(DayViewTestTags.PlannedObligationLabel),
                 )
                 Text(
                     "✕",

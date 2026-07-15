@@ -564,6 +564,9 @@ internal fun DayViewApp(
                                     addPlannedObligation = { controller.addPlannedObligation(it) },
                                     removePlannedObligation = { controller.removePlannedObligation(it) },
                                     completePlannedObligation = controller::completePlannedObligation,
+                                    editPlannedObligation = { oldMotif, newLabel ->
+                                        controller.editPlannedObligation(oldMotif, newLabel)
+                                    },
                                     openNetTimeSettings = {
                                         controller.openSettings()
                                         controller.openSettingsCategory(SettingsCategory.NET_TIME)

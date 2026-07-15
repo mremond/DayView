@@ -65,26 +65,28 @@ class AppEventAndUndoTest {
     }
 
     @Test
-    fun removeObligationRestoresAllCaseInsensitiveDuplicatesAtOriginalPositions() = runTest {
+    fun addObligationRejectsCaseInsensitiveDuplicate() = runTest {
         val bus = AppEventBus()
-        val received = mutableListOf<AppEvent>()
-        val job = launch { bus.events.collect { received.add(it) } }
-        runCurrent()
-
         val c = controller(bus)
         c.addPlannedObligation("Alpha")
+        c.addPlannedObligation("alpha") // case-insensitive duplicate, ignored
+        c.addPlannedObligation("Beta")
+        assertEquals(listOf("Alpha", "Beta"), c.state.plannedObligationsToday)
+    }
+
+    @Test
+    fun restoreObligationDropsAnEntryThatWouldDuplicateAnActiveLabel() = runTest {
+        val bus = AppEventBus()
+        val c = controller(bus)
         c.addPlannedObligation("Alpha")
         c.addPlannedObligation("Beta")
-        assertEquals(listOf("Alpha", "Alpha", "Beta"), c.state.plannedObligationsToday)
 
-        c.removePlannedObligation("Alpha")
+        c.removePlannedObligation("Alpha") // active ["Beta"], pending undo [(0,"Alpha")]
         runCurrent()
-        assertEquals(listOf("Beta"), c.state.plannedObligationsToday)
-        assertEquals(AppEvent.Toast(ToastKind.ObligationRemoved, "Alpha"), received.last())
+        c.editPlannedObligation("Beta", "Alpha") // active ["Alpha"] (accepted: not a dup)
+        c.restoreLastRemovedObligation() // would reinsert "Alpha" -> dropped as duplicate
 
-        c.restoreLastRemovedObligation()
-        assertEquals(listOf("Alpha", "Alpha", "Beta"), c.state.plannedObligationsToday)
-        job.cancel()
+        assertEquals(listOf("Alpha"), c.state.plannedObligationsToday)
     }
 
     @Test

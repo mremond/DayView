@@ -214,6 +214,7 @@ internal data class DayViewScreenActions(
     val addPlannedObligation: (String) -> Unit,
     val removePlannedObligation: (String) -> Unit,
     val completePlannedObligation: (String) -> Unit,
+    val editPlannedObligation: (String, String) -> Unit = { _, _ -> },
     val openNetTimeSettings: () -> Unit = {},
     val openSyncSettings: () -> Unit = {},
 )
@@ -438,6 +439,7 @@ internal fun DayViewScreen(
                 onAdd = actions.addPlannedObligation,
                 onComplete = actions.completePlannedObligation,
                 onRemove = actions.removePlannedObligation,
+                onEdit = actions.editPlannedObligation,
                 onDismiss = { showObligations = false },
             )
         }

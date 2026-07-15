@@ -1,10 +1,14 @@
 package fr.dayview.app
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
@@ -141,5 +145,62 @@ class PlannedObligationsUiTest {
         }
         onNodeWithTag(DayViewTestTags.PlannedObligationsActiveSection).assertExists()
         onNodeWithTag(DayViewTestTags.PlannedObligationsCompletedSection).assertExists()
+    }
+
+    @Test
+    fun editingAnActiveLabelReportsOldAndNew() = runComposeUiTest {
+        var edited: Pair<String, String>? = null
+        setContent {
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("Appel client"),
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = {},
+                    onEdit = { old, new -> edited = old to new },
+                    onDismiss = {},
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationLabel).performTextReplacement("Appel fournisseur")
+        onNodeWithTag(DayViewTestTags.PlannedObligationLabel).performImeAction() // Done clears focus -> onFocusLost
+        assertEquals("Appel client" to "Appel fournisseur", edited)
+    }
+
+    @Test
+    fun clearingAnActiveLabelRevertsToTheOldValue() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = listOf("Appel client"),
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = {},
+                    onEdit = { _, _ -> },
+                    onDismiss = {},
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationLabel).performTextReplacement("")
+        onNodeWithTag(DayViewTestTags.PlannedObligationLabel).performImeAction()
+        onNodeWithTag(DayViewTestTags.PlannedObligationLabel).assert(hasText("Appel client"))
+    }
+
+    @Test
+    fun completedObligationsAreNotEditable() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                PlannedObligationsContent(
+                    obligations = emptyList(),
+                    completedObligations = listOf("Appel client"),
+                    onAdd = {},
+                    onComplete = {},
+                    onRemove = {},
+                    onEdit = { _, _ -> },
+                    onDismiss = {},
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.PlannedObligationLabel).assertDoesNotExist()
     }
 }
