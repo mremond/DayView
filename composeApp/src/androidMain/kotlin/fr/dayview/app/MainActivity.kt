@@ -21,6 +21,7 @@ import fr.dayview.app.sync.createSyncHttpClient
 import fr.dayview.app.sync.deviceIdOrCreate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -30,6 +31,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var preferences: DayPreferences
     private lateinit var focusAlarmScheduler: FocusAlarmScheduler
     private var requestExactAfterNotificationPermission = false
+
+    // Owns the SyncCoordinator's background work (auto-retry jobs); cancelled in
+    // onDestroy so a recreated Activity never leaves an orphaned retry loop running.
+    private val syncScope = CoroutineScope(Dispatchers.Default)
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -70,7 +75,7 @@ class MainActivity : ComponentActivity() {
             preferences = preferences,
             transportFactory = { HttpSyncTransport(createSyncHttpClient(), it.baseUrl, it.userId, it.token) },
             codecFactory = { Aes256GcmCodec(it) },
-            scope = CoroutineScope(Dispatchers.Default),
+            scope = syncScope,
             now = { Clock.System.now().toEpochMilliseconds() },
             historyStore = DayViewPreferences.history(),
             focusContributionStore = DayViewPreferences.focusContributions(),
@@ -107,6 +112,11 @@ class MainActivity : ComponentActivity() {
         if (::focusAlarmScheduler.isInitialized) {
             restoreActiveFocusAlarm()
         }
+    }
+
+    override fun onDestroy() {
+        syncScope.cancel()
+        super.onDestroy()
     }
 
     private fun restoreActiveFocusAlarm() {
