@@ -160,3 +160,29 @@ Stay in `:shared` (`commonMain/composeResources`; generated `fr.dayview.app.gene
   `:shared`; only genuine app-component tests move. Misplacing one surfaces as a compile error.
 - **App-version wiring** — `versionCode`/`versionName` derivation currently lives in
   `:composeApp`; it must move to (or be shared with) `:androidApp` without drifting.
+
+## Implementation amendment (post-execution)
+
+The spec's premise was incomplete: the bypass flags (`android.builtInKotlin`/`android.newDsl`)
+were propping up **`com.android.library` + KMP** as well, not only `com.android.application` +
+KMP. Removing them (a hard requirement of #18) therefore breaks `:core` and `:shared` too. The
+flag-free fix is AGP's modern path — migrate the KMP-library modules to
+**`com.android.kotlin.multiplatform.library`**. So the delivered structure is:
+
+- **`:core` and `:shared`** both use `com.android.kotlin.multiplatform.library` (NOT
+  `com.android.library`); their `android { }` config moves inside the `kotlin { }` block. `:core`
+  was therefore touched (the spec said unchanged) — plugin/DSL only, no behaviour or dependency
+  change. Version catalog gains an `androidKmpLibrary` alias.
+- **`:androidApp`** uses AGP's **built-in Kotlin** (the standalone `org.jetbrains.kotlin.android`
+  plugin is rejected under AGP 9 built-in Kotlin), so no `kotlinAndroid` alias.
+- **`:shared`'s Android unit-test task is `testAndroidHostTest`** (source set `androidHostTest`),
+  not `testDebugUnitTest` — the project-wide gate/CI/CLAUDE.md commands use the new name.
+- **`:shared` namespace is `fr.dayview.shared`** (namespaces must be unique now that `:androidApp`
+  owns `fr.dayview.app`); a `robolectric.properties` `sdk=36` replaces the lost library `targetSdk`.
+- The `DayViewPreferences` → `DayViewWidget` reference (an illegal `:shared` → `:androidApp`
+  dependency after the widget moved) is inverted into a `snapshotListener` hook registered in
+  `DayViewApplication.onCreate` — behaviour-preserving (verified: `Application.onCreate` runs
+  before any component, so every preference write still redraws the widget).
+
+Everything else in this spec holds. This is the official AGP-9 KMP-library migration, a cleaner
+fix than the original `com.android.library` plan.

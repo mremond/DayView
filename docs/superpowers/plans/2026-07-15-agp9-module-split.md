@@ -311,7 +311,7 @@ Point every external `:composeApp` reference at the new module layout. Deliverab
 - [ ] **Step 1: Update `ci.yml`**
 
 Replace the `:composeApp` references:
-- `./gradlew :core:jvmTest :composeApp:testDebugUnitTest` → `./gradlew :core:jvmTest :shared:testDebugUnitTest :androidApp:testDebugUnitTest`
+- `./gradlew :core:jvmTest :composeApp:testDebugUnitTest` → `./gradlew :core:jvmTest :shared:testAndroidHostTest :androidApp:testDebugUnitTest` (Task 2 migrated `:shared` to `com.android.kotlin.multiplatform.library`, whose Android unit-test task is `testAndroidHostTest`, not `testDebugUnitTest`)
 - `./gradlew :composeApp:desktopTest` → `./gradlew :shared:desktopTest` (both occurrences)
 - `path: composeApp/build/reports/visual-tests/*.png` → `path: shared/build/reports/visual-tests/*.png` (both occurrences)
 - `./gradlew :composeApp:assembleDebug :composeApp:assembleRelease` → `./gradlew :androidApp:assembleDebug :androidApp:assembleRelease`
@@ -332,7 +332,7 @@ Change the build commands: `./gradlew :composeApp:run` → `./gradlew :shared:ru
 
 - [ ] **Step 4: Update `CLAUDE.md`**
 
-In the Commands section: `./gradlew :composeApp:run` → `:shared:run`; `:composeApp:assembleDebug`/`installDebug` → `:androidApp:*`; `:composeApp:packageDmg` → `:shared:packageDmg`. In the test/lint gate line, replace `:composeApp:testDebugUnitTest :composeApp:desktopTest` with `:shared:testDebugUnitTest :shared:desktopTest :androidApp:testDebugUnitTest`.
+In the Commands section: `./gradlew :composeApp:run` → `:shared:run`; `:composeApp:assembleDebug`/`installDebug` → `:androidApp:*`; `:composeApp:packageDmg` → `:shared:packageDmg`. In the test/lint gate line, replace `:composeApp:testDebugUnitTest :composeApp:desktopTest` with `:shared:testAndroidHostTest :shared:desktopTest :androidApp:testDebugUnitTest` (`:shared`'s Android unit-test task is `testAndroidHostTest` after the KMP-library-plugin migration).
 
 - [ ] **Step 5: Update `.claude/launch.json` if present**
 
