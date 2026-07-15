@@ -52,6 +52,11 @@ class PlannedObligationsTest {
     }
 
     @Test
+    fun addRejectsCaseInsensitiveDuplicate() {
+        assertEquals(listOf("Appel"), addPlannedObligation(listOf("Appel"), "  appel "))
+    }
+
+    @Test
     fun markCompletedMovesMotifAndSanitizes() {
         val (active, completed) = markObligationCompleted(listOf("Appel", "Facture"), emptyList(), "  appel ")
         assertEquals(listOf("Facture"), active)

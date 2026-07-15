@@ -656,8 +656,9 @@ class DayViewController(
      * original index (ascending order, so earlier inserts don't shift later indices out
      * of place). If new obligations filled the freed slots in the meantime, entries that
      * would push active+completed past [MAX_PLANNED_OBLIGATIONS] are dropped rather than
-     * re-inserted, so undo can never bypass the cap it would otherwise enforce; a fully
-     * dropped restore is a no-op.
+     * re-inserted, so undo can never bypass the cap it would otherwise enforce; an entry
+     * that would case-insensitively duplicate a label already active (e.g. renamed in the
+     * meantime) is also dropped rather than reinserted. A fully dropped restore is a no-op.
      */
     fun restoreLastRemovedObligation() {
         val removed = lastRemovedObligation ?: return
@@ -666,7 +667,9 @@ class DayViewController(
         val original = state.plannedObligationsToday
         val active = original.toMutableList()
         removed.sortedBy { it.first }.forEach { (index, motif) ->
-            if (active.size + completedCount < MAX_PLANNED_OBLIGATIONS) {
+            if (active.size + completedCount < MAX_PLANNED_OBLIGATIONS &&
+                active.none { matchesPlannedObligation(it, motif) }
+            ) {
                 active.add(index.coerceIn(0, active.size), motif)
             }
         }
