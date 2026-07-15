@@ -166,6 +166,21 @@ class DetoursTest {
     }
 
     @Test
+    fun bodiesClipToTheWindowWhenTheEpisodeStartsBefore() {
+        val start = t(0L)
+        val end = t(36_000_000L) // 10 h window
+        // Starts 1 h before the window, ends 1 h in; midpoint is exactly windowStart (inside).
+        val body = detourBodies(
+            start,
+            end,
+            listOf(DetourEpisode(t(-3_600_000L), t(3_600_000L), "Slack")),
+        ).single()
+        // Clipped to [windowStart, clippedEnd]: fStart = 0 → -90°, fEnd = 0.1 → 36° sweep.
+        assertEquals(-90f, body.startAngleDegrees, absoluteTolerance = .01f)
+        assertEquals(36f, body.sweepDegrees, absoluteTolerance = .01f)
+    }
+
+    @Test
     fun shortDetoursGetAMinimumSweepCenteredOnTheMidpoint() {
         val start = t(0L)
         val end = t(86_400_000L) // 24 h window: 15°/h

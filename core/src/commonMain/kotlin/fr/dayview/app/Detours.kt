@@ -189,7 +189,7 @@ private const val DETOUR_ANGLE_TOLERANCE_DEGREES = 6f
  * Project episodes to arcs threaded on a lane outside the ring: start/sweep from the episode
  * bounds clipped to the window (same `-90° = window start` convention as [busyBlockArcs]).
  * Very short detours are floored to [MIN_DETOUR_SWEEP_DEGREES], the arc kept centred on the
- * episode midpoint. Episodes whose midpoint falls outside the window are dropped.
+ * midpoint of its in-window span. Episodes whose midpoint falls outside the window are dropped.
  */
 fun detourBodies(
     windowStart: Instant,
@@ -208,7 +208,7 @@ fun detourBodies(
         val fEnd = ((clippedEnd - windowStart) / total).toFloat()
         val rawSweep = (fEnd - fStart) * 360f
         val sweep = maxOf(rawSweep, MIN_DETOUR_SWEEP_DEGREES)
-        // Keep the arc centred on the real detour when the floor widens it.
+        // Keep the arc centred on its in-window midpoint when the floor widens it.
         val startAngle = -90f + fStart * 360f - (sweep - rawSweep) / 2f
         DetourBody(
             startAngleDegrees = startAngle,
