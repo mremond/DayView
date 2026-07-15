@@ -2,7 +2,7 @@ import SwiftUI
 import DayViewKit
 
 struct RingView: View {
-    @StateObject private var model = TodayModel()
+    @ObservedObject var model: TodayModel
     @State private var intention: String = ""
     @State private var goalTitle: String = ""
     @State private var deadline: Date = Date()
