@@ -1040,7 +1040,10 @@ internal fun CountdownCircle(
                     Modifier.fillMaxSize().semantics { contentDescription = ringDescription },
                 ) {
                     val strokeWidth = size.minDimension * .055f
-                    val inset = strokeWidth / 2 + 4.dp.toPx()
+                    // Reserve a concentric lane just outside the ring for detour arcs (mirror of
+                    // the calendar-busy lane inside it); the ring itself shrinks by that width.
+                    val detourLaneOutset = strokeWidth * .95f
+                    val inset = strokeWidth / 2 + 4.dp.toPx() + detourLaneOutset
                     val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
 
                     drawArc(
@@ -1211,26 +1214,31 @@ internal fun CountdownCircle(
                         )
                     }
 
+                    // Detours ride a concentric lane just OUTSIDE the ring — the mirror of the
+                    // calendar-busy lane inside it. Each episode is an arc across its real
+                    // duration (floored to a visible minimum), coloured per category. A wide
+                    // low-alpha pass gives the glow, a narrower bright pass the core.
+                    val detourInset = inset - detourLaneOutset
+                    val detourLaneSize = Size(size.width - detourInset * 2, size.height - detourInset * 2)
                     detourBodies.forEach { body ->
-                        val angleRadians = Math.toRadians(body.angleDegrees.toDouble())
-                        // Offset each body off the orbit by its weight: light detours drift just
-                        // outside the ring, heavy ones sink inside, mid-size ones ride the line.
-                        val bodyRadius = arcSize.width / 2f + strokeWidth * (.6f - 1.2f * body.sizeFraction)
-                        val center = Offset(size.width / 2f, size.height / 2f)
-                        val bodyCenter = center + Offset(
-                            x = (kotlin.math.cos(angleRadians) * bodyRadius).toFloat(),
-                            y = (kotlin.math.sin(angleRadians) * bodyRadius).toFloat(),
+                        val col = colors.detours[body.colorIndex % colors.detours.size]
+                        drawArc(
+                            color = col.copy(alpha = .16f),
+                            startAngle = body.startAngleDegrees,
+                            sweepAngle = body.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(detourInset, detourInset),
+                            size = detourLaneSize,
+                            style = Stroke(strokeWidth * .7f, cap = StrokeCap.Round),
                         )
-                        val color = colors.detours[body.colorIndex % colors.detours.size]
-                        // Keep a visible floor size so short detours still read, especially when
-                        // they land next to the moment marker right after being added.
-                        val radius = strokeWidth * (.42f + .32f * body.sizeFraction)
-                        drawCircle(color = color.copy(alpha = .28f), radius = radius * 1.5f, center = bodyCenter)
-                        drawCircle(color = color, radius = radius, center = bodyCenter)
-                        drawCircle(
-                            color = Color.White.copy(alpha = .5f),
-                            radius = radius * .28f,
-                            center = bodyCenter - Offset(radius * .3f, radius * .3f),
+                        drawArc(
+                            color = col.copy(alpha = .92f),
+                            startAngle = body.startAngleDegrees,
+                            sweepAngle = body.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(detourInset, detourInset),
+                            size = detourLaneSize,
+                            style = Stroke(strokeWidth * .42f, cap = StrokeCap.Round),
                         )
                     }
 
