@@ -618,6 +618,34 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun editPlannedObligationRenamesInPlaceAndPersists() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L
+        val controller = testController(preferences, now)
+        controller.addPlannedObligation("Appel")
+        controller.addPlannedObligation("Facture")
+
+        controller.editPlannedObligation(oldMotif = "Appel", newLabel = "Appel client")
+
+        assertEquals(listOf("Appel client", "Facture"), controller.state.plannedObligationsToday)
+        assertEquals(listOf("Appel client", "Facture"), preferences.current.plannedObligations)
+    }
+
+    @Test
+    fun editPlannedObligationIgnoresRejectedEdits() {
+        val preferences = InMemoryDayPreferences()
+        val now = 1_800_000_000_000L
+        val controller = testController(preferences, now)
+        controller.addPlannedObligation("Appel")
+        controller.addPlannedObligation("Facture")
+
+        controller.editPlannedObligation(oldMotif = "Appel", newLabel = "  ") // blank
+        controller.editPlannedObligation(oldMotif = "Appel", newLabel = "facture") // duplicate
+
+        assertEquals(listOf("Appel", "Facture"), controller.state.plannedObligationsToday)
+    }
+
+    @Test
     fun openingSettingsStartsOnTheCategoryList() {
         val controller = testController(InMemoryDayPreferences(), 1_000L)
         controller.openSettingsCategory(SettingsCategory.SOUNDS)

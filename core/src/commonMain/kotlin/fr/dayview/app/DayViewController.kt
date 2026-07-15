@@ -684,6 +684,16 @@ class DayViewController(
         commitPlannedObligations(active, completed)
     }
 
+    fun editPlannedObligation(oldMotif: String, newLabel: String) {
+        val updated = editPlannedObligation(
+            active = state.plannedObligationsToday,
+            completed = state.plannedObligationsCompletedToday,
+            oldMotif = oldMotif,
+            newLabel = newLabel,
+        ) ?: return
+        commitPlannedObligations(updated, state.plannedObligationsCompletedToday)
+    }
+
     private fun commitPlannedObligations(active: List<String>, completed: List<String>) {
         state = state.copy(
             plannedObligationsDayKey = dayKeyOf(state.now),
