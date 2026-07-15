@@ -10,11 +10,20 @@ private class WidgetRefreshingPreferences(
     override val snapshots = delegate.snapshots
     override suspend fun persist(snapshot: DayPreferencesSnapshot) {
         delegate.persist(snapshot)
-        DayViewWidget.render(appContext, snapshot)
+        DayViewPreferences.snapshotListener?.invoke(appContext, snapshot)
     }
 }
 
 object DayViewPreferences {
+    /**
+     * Side effect run after each snapshot persists. `:androidApp` registers the home-screen
+     * widget refresh here (`DayViewWidget` is a manifest component living in `:androidApp`, so
+     * `:shared` cannot reference it directly). Left null on desktop and in tests, where there is
+     * no widget to redraw.
+     */
+    @Volatile
+    var snapshotListener: ((Context, DayPreferencesSnapshot) -> Unit)? = null
+
     @Volatile
     private var instance: DayPreferences? = null
 
@@ -36,7 +45,7 @@ object DayViewPreferences {
      * must have run first (it sets the app context [createHistoryFileSystem] reads from);
      * `MainActivity.onCreate` guarantees this ordering.
      */
-    internal fun history(): DayHistoryStore = historyStoreInstance ?: synchronized(this) {
+    fun history(): DayHistoryStore = historyStoreInstance ?: synchronized(this) {
         historyStoreInstance ?: createDayHistoryStore().also { historyStoreInstance = it }
     }
 
@@ -44,7 +53,7 @@ object DayViewPreferences {
      * Process-wide focus contribution store, mirroring [history]'s lazy singleton and the same
      * app-context ordering requirement.
      */
-    internal fun focusContributions(): FocusContributionStore = focusStoreInstance ?: synchronized(this) {
+    fun focusContributions(): FocusContributionStore = focusStoreInstance ?: synchronized(this) {
         focusStoreInstance ?: createFocusContributionStore().also { focusStoreInstance = it }
     }
 
@@ -54,7 +63,7 @@ object DayViewPreferences {
      * from the real DataStore and from each other.
      */
     @VisibleForTesting
-    internal fun setForTest(preferences: DayPreferences) {
+    fun setForTest(preferences: DayPreferences) {
         synchronized(this) { instance = preferences }
     }
 
@@ -63,7 +72,7 @@ object DayViewPreferences {
      * `@After` hook; the following [get] rebuilds (or a fresh [setForTest] replaces) it.
      */
     @VisibleForTesting
-    internal fun resetForTest() {
+    fun resetForTest() {
         synchronized(this) {
             instance = null
             historyStoreInstance = null

@@ -64,7 +64,7 @@ private data class NetTimeProbe(
 
 @OptIn(FlowPreview::class)
 @Composable
-internal fun DayViewApp(
+fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
     history: DayHistoryStore = InMemoryDayHistoryStore(),
     focusContributions: FocusContributionStore? = null,

@@ -7,37 +7,16 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.kotlinSerialization)
 }
 
-// Single source of truth for the app version: Android versionName/versionCode,
-// the desktop package version, and the DMG customization task all derive from it.
-// Overridable at release time via -Pappversion=<tag> (see .github/workflows/release.yml).
-val appVersion: String =
-    (findProperty("appversion") as String?)?.takeIf { it.isNotBlank() } ?: "1.0.0"
-
-// Android requires a monotonic integer; derive it from the semver core.
-fun deriveVersionCode(version: String): Int {
-    val core = version.substringBefore('-').substringBefore('+')
-    val parts = core.split('.')
-    val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
-    val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
-    val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
-    return (major * 10_000 + minor * 100 + patch).coerceAtLeast(1)
-}
-val appVersionCode: Int = deriveVersionCode(appVersion)
-
-// jpackage (dmg/deb/rpm) requires a strictly numeric X.Y.Z whose first component
-// is >= 1; map any pre-release suffix or major-0 version to a valid numeric version.
-val appPackageVersion: String =
-    appVersion.substringBefore('-').substringBefore('+').let { core ->
-        val major = core.substringBefore('.').toIntOrNull() ?: 0
-        if (major < 1) "1.0.0" else core
-    }
+// jpackage (dmg/deb/rpm) requires a strictly numeric X.Y.Z; the value is derived once
+// at the root and shared via extra so :androidApp and :shared stay in sync.
+val appPackageVersion: String = rootProject.extra["appPackageVersion"] as String
 
 val isMacHost: Boolean =
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
@@ -63,7 +42,18 @@ kotlin {
     // Robolectric requires Java 21 to emulate the current compile SDK.
     jvmToolchain(21)
 
-    androidTarget()
+    android {
+        // Distinct from :androidApp's namespace (fr.dayview.app); AGP requires a unique
+        // namespace per module. :shared ships no Android resources, so this only names the
+        // library's (empty) R/BuildConfig and never collides with the app's package.
+        namespace = "fr.dayview.shared"
+        compileSdk = 37
+        minSdk = 24
+        withHostTest {
+            // Robolectric-backed unit tests need Android resources merged in.
+            isIncludeAndroidResources = true
+        }
+    }
     jvm("desktop")
 
     sourceSets {
@@ -107,7 +97,7 @@ kotlin {
                 implementation(libs.androidx.fragment)
             }
         }
-        val androidUnitTest by getting {
+        val androidHostTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.robolectric)
@@ -140,38 +130,6 @@ tasks.named<Test>("desktopTest") {
         "dayview.visualOutputDir",
         layout.buildDirectory.dir("reports/visual-tests").get().asFile.absolutePath,
     )
-}
-
-android {
-    namespace = "fr.dayview.app"
-    compileSdk = 37
-
-    defaultConfig {
-        applicationId = "fr.dayview.app"
-        minSdk = 24
-        targetSdk = 36
-        versionCode = appVersionCode
-        versionName = appVersion
-    }
-
-    buildTypes {
-        release {
-            // TEMPORARY: sign with the debug key so the release APK installs via
-            // sideload from a GitHub Release. Replace with a real upload keystore
-            // (GitHub secrets) before any Play distribution.
-            signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-        }
-    }
-
-    testOptions {
-        unitTests.isIncludeAndroidResources = true
-    }
 }
 
 compose.desktop {

@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.ktlint)
 }
 
@@ -10,7 +10,11 @@ kotlin {
     applyDefaultHierarchyTemplate()
     jvmToolchain(21)
 
-    androidTarget()
+    android {
+        namespace = "fr.dayview.core"
+        compileSdk = 37
+        minSdk = 24
+    }
     jvm()
     val xcf = XCFramework("DayViewKit")
     listOf(macosArm64(), macosX64()).forEach { target ->
@@ -44,15 +48,6 @@ kotlin {
                 implementation(libs.okio.fakefilesystem)
             }
         }
-    }
-}
-
-android {
-    namespace = "fr.dayview.core"
-    compileSdk = 37
-
-    defaultConfig {
-        minSdk = 24
     }
 }
 

@@ -38,7 +38,7 @@ class DayViewApplicationTest {
         // A preference that changed while the screen was off, with no app foreground and no
         // system time-change broadcast to redraw the widget on its own.
         DayViewPreferences.setForTest(
-            InMemoryDayPreferences(DayPreferencesSnapshot(goalTitle = "Wake refresh works")),
+            FakeDayPreferences(DayPreferencesSnapshot(goalTitle = "Wake refresh works")),
         )
 
         context.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))

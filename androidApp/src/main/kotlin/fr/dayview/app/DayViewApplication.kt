@@ -25,6 +25,11 @@ class DayViewApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // The widget is a manifest component in this module, so :shared can't redraw it after a
+        // preferences write directly; register the refresh side effect here instead.
+        DayViewPreferences.snapshotListener = { context, snapshot ->
+            DayViewWidget.render(context, snapshot)
+        }
         // ACTION_USER_PRESENT is a protected system broadcast, so no exported flag is needed.
         registerReceiver(userPresentReceiver, IntentFilter(Intent.ACTION_USER_PRESENT))
     }
