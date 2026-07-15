@@ -24,3 +24,8 @@ targets:
         SWIFT_VERSION: "5.9"
         CODE_SIGN_STYLE: Automatic
         CODE_SIGNING_ALLOWED: NO
+      configs:
+        # Debug (native dev) build uses a distinct id so it can coexist with the shipping
+        # fr.dayview.app (Compose) without confusing LaunchServices/TCC or `open -a DayView`.
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: fr.dayview.app.debug
