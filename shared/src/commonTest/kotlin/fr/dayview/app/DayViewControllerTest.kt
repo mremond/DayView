@@ -197,6 +197,25 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun closingASessionRecordsItWithThePreClosureIntention() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 10_000L)
+        controller.setFocusIntention("write the plan")
+        controller.startPomodoro()
+        // Advance a few minutes into the session so its recorded window has positive
+        // duration (recordClosingSession drops zero-length sessions).
+        controller.tick(t(10_000L + 5 * 60_000L))
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        val records = controller.state.focusSessionRecordsToday
+        assertEquals(1, records.size)
+        assertEquals("write the plan", records[0].intention)
+        assertEquals(FocusClosureOutcome.COMPLETED, records[0].outcome)
+        // COMPLETED clears the live intention but the record keeps it.
+        assertEquals("", controller.state.focusIntention)
+    }
+
+    @Test
     fun onPreferencesChangedAdoptsExternalPersistedFields() {
         val preferences = InMemoryDayPreferences()
         val controller = testController(preferences, 10_000L)
