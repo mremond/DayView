@@ -94,6 +94,11 @@
     <string name="busy_time_range">%1$s – %2$s</string>
     <string name="scrub_now">Now</string>
     <string name="day_available_percent">%1$s% of the day available</string>
+    <string name="focus_session_intention_empty">No focus intention set</string>
+    <string name="focus_session_engaged">Engaged %1$s</string>
+    <string name="focus_session_deep_focus">Deep focus %1$s</string>
+    <string name="focus_session_outcome_completed">Completed</string>
+    <string name="focus_session_outcome_stopped">Stopped early</string>
 
     <!-- Long-term goal -->
     <string name="goal_section_title">LONG-TERM GOAL</string>

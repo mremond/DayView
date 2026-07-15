@@ -133,6 +133,11 @@ import fr.dayview.app.generated.resources.focus_resume
 import fr.dayview.app.generated.resources.focus_resume_point
 import fr.dayview.app.generated.resources.focus_resume_time_left
 import fr.dayview.app.generated.resources.focus_section
+import fr.dayview.app.generated.resources.focus_session_deep_focus
+import fr.dayview.app.generated.resources.focus_session_engaged
+import fr.dayview.app.generated.resources.focus_session_intention_empty
+import fr.dayview.app.generated.resources.focus_session_outcome_completed
+import fr.dayview.app.generated.resources.focus_session_outcome_stopped
 import fr.dayview.app.generated.resources.focus_single_thing
 import fr.dayview.app.generated.resources.focus_start_button
 import fr.dayview.app.generated.resources.focus_start_full_button
@@ -949,6 +954,9 @@ internal fun CountdownCircle(
     detoursTotal: Duration = Duration.ZERO,
     detoursOffWindow: Duration = Duration.ZERO,
     busyBlockArcs: List<BusyBlockArc> = emptyList(),
+    focusSessionBands: List<FocusSessionBand> = emptyList(),
+    focusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
+    focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     cleanSessionsToday: Int = 0,
     streakDays: Int = 0,
     hasGoal: Boolean = false,
@@ -967,6 +975,7 @@ internal fun CountdownCircle(
     )
     var hoveredBusy by remember { mutableStateOf<HoveredBusyArc?>(null) }
     var hoveredDetour by remember { mutableStateOf<HoveredDetourBody?>(null) }
+    var hoveredSession by remember { mutableStateOf<HoveredFocusSession?>(null) }
     var scrubAngle by remember { mutableStateOf<Float?>(null) }
     val haptic = LocalHapticFeedback.current
 
@@ -980,10 +989,10 @@ internal fun CountdownCircle(
             // proportion: they shrink in the mini and compact windows and grow to fill a
             // large dial on Supernote / a maximized desktop window.
             val counterScale = countdownCounterScale(circleSize)
-            val circleModifier = if (busyBlockArcs.isEmpty() && detourBodies.isEmpty()) {
+            val circleModifier = if (busyBlockArcs.isEmpty() && detourBodies.isEmpty() && focusSessionBands.isEmpty()) {
                 Modifier.size(circleSize)
             } else {
-                Modifier.size(circleSize).pointerInput(busyBlockArcs, detourBodies) {
+                Modifier.size(circleSize).pointerInput(busyBlockArcs, detourBodies, focusSessionBands) {
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -991,6 +1000,7 @@ internal fun CountdownCircle(
                             if (event.type == PointerEventType.Exit || position == null) {
                                 hoveredBusy = null
                                 hoveredDetour = null
+                                hoveredSession = null
                             } else if (
                                 (
                                     event.type == PointerEventType.Move ||
@@ -1006,6 +1016,23 @@ internal fun CountdownCircle(
                                     hitTestBusyArc(position, size.width, size.height, busyBlockArcs)
                                         ?.let { HoveredBusyArc(it, position) }
                                 }
+                                hoveredSession = if (body != null || hoveredBusy != null) {
+                                    null
+                                } else {
+                                    val bandAngle = normalizeRingAngle(
+                                        Math.toDegrees(
+                                            atan2((position.y - size.height / 2f).toDouble(), (position.x - size.width / 2f).toDouble()),
+                                        ).toFloat(),
+                                    )
+                                    focusSessionBandAtAngle(focusSessionBands, bandAngle)?.let {
+                                        HoveredFocusSession(
+                                            it.record,
+                                            engagedTimeForSession(it.record, focusSessionIntervals),
+                                            deepFocusTimeForSession(it.record, focusPresenceIntervals),
+                                            position,
+                                        )
+                                    }
+                                }
                             } else if (event.type == PointerEventType.Press) {
                                 if (event.changes.firstOrNull()?.type == PointerType.Mouse &&
                                     hitTestDetourBody(position.x, position.y, size.width, size.height, detourBodies) != null
@@ -1017,7 +1044,7 @@ internal fun CountdownCircle(
                     }
                 }
             }
-            val scrubModifier = circleModifier.pointerInput(busyBlockArcs, detourBodies, focusArcs) {
+            val scrubModifier = circleModifier.pointerInput(busyBlockArcs, detourBodies, focusArcs, focusSessionBands) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (down.type != PointerType.Touch) return@awaitEachGesture
@@ -1099,6 +1126,20 @@ internal fun CountdownCircle(
                             ),
                             radius = size.minDimension * .30f,
                             center = center,
+                        )
+                    }
+
+                    // Focus sessions get a faint mint band across their whole window, drawn
+                    // before the bright focus arcs so those sit on top and stay legible.
+                    focusSessionBands.forEach { band ->
+                        drawArc(
+                            color = colors.mint.copy(alpha = .18f),
+                            startAngle = band.startAngleDegrees,
+                            sweepAngle = band.sweepDegrees,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = arcSize,
+                            style = Stroke(strokeWidth * .5f, cap = StrokeCap.Round),
                         )
                     }
 
@@ -1502,6 +1543,12 @@ internal fun CountdownCircle(
                     }
                 }
 
+                hoveredSession?.let { hovered ->
+                    HoverTooltip(position = hovered.position, colors = colors) {
+                        FocusSessionReadoutDetails(hovered.record, hovered.engaged, hovered.deepFocus, uses24Hour)
+                    }
+                }
+
                 scrubAngle?.let { angle ->
                     val momentAngle = if (progress.hasStarted && !progress.isFinished) {
                         currentMomentAngleDegrees(animatedRemaining)
@@ -1515,7 +1562,7 @@ internal fun CountdownCircle(
                         busyBlockArcs,
                         detourBodies,
                         focusArcs,
-                        emptyList(), // focusSessionBands: wired in a later task
+                        focusSessionBands,
                         momentAngle,
                     )
                     RingScrubReadout(
@@ -1590,6 +1637,14 @@ private fun RingScrubReadout(
                     letterSpacing = 1.sp,
                 )
             }
+            readout.session?.let { record ->
+                Text(
+                    if (record.intention.isBlank()) stringResource(Res.string.focus_session_intention_empty) else record.intention.trim(),
+                    color = colors.mint,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
     }
 }
@@ -1616,6 +1671,72 @@ internal fun ColumnScope.DetourReadoutDetails(body: DetourBody, categoryColor: C
     }
     Text(formatDurationHm(body.end - body.start), color = colors.muted, fontSize = 11.sp)
 }
+
+/**
+ * Body of a focus-session detail pop-up: the intention (mint, or a muted placeholder when
+ * blank), the clock range, engaged time, deep-focus time (hidden when zero, e.g. a day with
+ * no presence tracking), and how the session closed. Flows into the caller's Column.
+ */
+@Composable
+internal fun ColumnScope.FocusSessionReadoutDetails(
+    record: FocusSessionRecord,
+    engaged: Duration,
+    deepFocus: Duration,
+    uses24Hour: Boolean,
+) {
+    val colors = LocalDayViewColors.current
+    val intention = record.intention.trim()
+    Text(
+        if (intention.isEmpty()) stringResource(Res.string.focus_session_intention_empty) else intention,
+        color = if (intention.isEmpty()) colors.muted else colors.mint,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+    )
+    Text(
+        stringResource(
+            Res.string.busy_time_range,
+            formatClockHm(record.start, use24Hour = uses24Hour),
+            formatClockHm(record.end, use24Hour = uses24Hour),
+        ),
+        color = colors.muted,
+        fontSize = 11.sp,
+    )
+    Text(stringResource(Res.string.focus_session_engaged, formatDurationHm(engaged)), color = colors.muted, fontSize = 11.sp)
+    if (deepFocus > Duration.ZERO) {
+        Text(stringResource(Res.string.focus_session_deep_focus, formatDurationHm(deepFocus)), color = colors.muted, fontSize = 11.sp)
+    }
+    Text(
+        stringResource(
+            if (record.outcome == FocusClosureOutcome.COMPLETED) {
+                Res.string.focus_session_outcome_completed
+            } else {
+                Res.string.focus_session_outcome_stopped
+            },
+        ),
+        color = colors.muted,
+        fontSize = 11.sp,
+    )
+}
+
+/** Test-only host that renders [FocusSessionReadoutDetails] inside a tagged box. */
+@Composable
+internal fun FocusSessionReadoutHost(
+    record: FocusSessionRecord,
+    engaged: Duration,
+    deepFocus: Duration,
+    uses24Hour: Boolean,
+) {
+    Box(Modifier.testTag(DayViewTestTags.FocusSessionPopup)) {
+        Column { FocusSessionReadoutDetails(record, engaged, deepFocus, uses24Hour) }
+    }
+}
+
+internal data class HoveredFocusSession(
+    val record: FocusSessionRecord,
+    val engaged: Duration,
+    val deepFocus: Duration,
+    val position: Offset,
+)
 
 internal data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
 
