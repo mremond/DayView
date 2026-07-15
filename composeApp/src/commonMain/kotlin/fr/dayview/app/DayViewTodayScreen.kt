@@ -1713,6 +1713,26 @@ private fun SidePanel(
 ) {
     val colors = LocalDayViewColors.current
     Column(modifier = modifier.widthIn(max = 430.dp)) {
+        if (openDetour != null) {
+            OpenDetourPanel(openDetour, onStopOpenDetour)
+        } else {
+            FocusPanel(
+                progress = pomodoro,
+                intention = focusIntention,
+                lastClosure = lastFocusClosure,
+                onIntentionChange = onFocusIntentionChange,
+                showDriftReminder = showFocusDriftReminder,
+                onDismissDriftReminder = onDismissFocusDriftReminder,
+                showResumeRitual = showFocusResumeRitual,
+                onDismissResumeRitual = onDismissFocusResumeRitual,
+                onDurationChange = onPomodoroDurationChange,
+                onStart = onPomodoroStart,
+                onStop = onPomodoroStop,
+                onClose = onPomodoroClose,
+            )
+        }
+        Spacer(Modifier.height(22.dp))
+
         val heroSlot = when {
             !progress.hasStarted -> HeroQuoteSlot.NOT_STARTED
             progress.isFinished -> HeroQuoteSlot.FINISHED
@@ -1741,26 +1761,6 @@ private fun SidePanel(
             source = heroSources.getOrElse(heroIndex) { "" },
             color = colors.cloud,
         )
-        Spacer(Modifier.height(22.dp))
-
-        if (openDetour != null) {
-            OpenDetourPanel(openDetour, onStopOpenDetour)
-        } else {
-            FocusPanel(
-                progress = pomodoro,
-                intention = focusIntention,
-                lastClosure = lastFocusClosure,
-                onIntentionChange = onFocusIntentionChange,
-                showDriftReminder = showFocusDriftReminder,
-                onDismissDriftReminder = onDismissFocusDriftReminder,
-                showResumeRitual = showFocusResumeRitual,
-                onDismissResumeRitual = onDismissFocusResumeRitual,
-                onDurationChange = onPomodoroDurationChange,
-                onStart = onPomodoroStart,
-                onStop = onPomodoroStop,
-                onClose = onPomodoroClose,
-            )
-        }
         Spacer(Modifier.height(18.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
