@@ -91,6 +91,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
@@ -1634,10 +1635,37 @@ internal fun nextHoveredBusyOnTap(
 
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 
+/** Gap between the pointer and the near edge of a [HoverTooltip], in px. */
+private const val HOVER_TOOLTIP_GAP_PX = 14
+
+/**
+ * Where to place a hover tooltip of [tooltipSize] anchored at [pointer] inside [bounds].
+ * Prefers below-right of the pointer, flips above / to the left when that side would
+ * overflow, and finally clamps inside the bounds — content below the ring (the action
+ * row) is drawn after the ring box and would paint over anything that escapes it.
+ */
+internal fun hoverTooltipOffset(
+    pointer: Offset,
+    tooltipSize: IntSize,
+    bounds: IntSize,
+): IntOffset {
+    fun place(position: Int, extent: Int, limit: Int): Int {
+        val after = position + HOVER_TOOLTIP_GAP_PX
+        val chosen = if (after + extent <= limit) after else position - HOVER_TOOLTIP_GAP_PX - extent
+        return chosen.coerceIn(0, maxOf(0, limit - extent))
+    }
+    return IntOffset(
+        place(pointer.x.roundToInt(), tooltipSize.width, bounds.width),
+        place(pointer.y.roundToInt(), tooltipSize.height, bounds.height),
+    )
+}
+
 /**
  * A hover tooltip anchored just past the pointer. It rides on the opaque [DayViewColors.panel]
  * surface, but a drop shadow plus a hairline border lift it off the ring so it never reads as a
- * faint, washed-out patch against the dark background.
+ * faint, washed-out patch against the dark background. Placement is size-aware: it flips to the
+ * opposite side of the pointer rather than overflow the ring box, where later siblings (the
+ * action row) would cover it.
  */
 @Composable
 private fun BoxScope.HoverTooltip(
@@ -1649,11 +1677,16 @@ private fun BoxScope.HoverTooltip(
     Box(
         modifier = Modifier
             .align(Alignment.TopStart)
-            .offset {
-                IntOffset(
-                    position.x.roundToInt() + 14,
-                    position.y.roundToInt() + 14,
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                val offset = hoverTooltipOffset(
+                    pointer = position,
+                    tooltipSize = IntSize(placeable.width, placeable.height),
+                    bounds = IntSize(constraints.maxWidth, constraints.maxHeight),
                 )
+                layout(placeable.width, placeable.height) {
+                    placeable.place(offset.x, offset.y)
+                }
             }
             .shadow(12.dp, shape)
             .background(colors.panel, shape)
