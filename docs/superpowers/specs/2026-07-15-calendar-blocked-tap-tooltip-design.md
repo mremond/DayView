@@ -44,31 +44,34 @@ from it. Merge tap and long-press detection into the single `awaitEachGesture`:
 awaitEachGesture {
     val down = awaitFirstDown(requireUnconsumed = false)
     if (down.type != PointerType.Touch) return@awaitEachGesture
+    var longPress = false
     val up = try {
         withTimeout(viewConfiguration.longPressTimeoutMillis) {
             waitForUpOrCancellation()
         }
     } catch (_: PointerEventTimeoutCancellationException) {
-        null   // timed out -> long press
+        longPress = true   // timed out -> long press
+        null
     }
-    if (up == null && <timed out>) {
-        // long press -> existing scrub loop, unchanged
-    } else if (up != null) {
-        // tap -> resolve arc and update hoveredBusy
-        val tapped = hitTestBusyArc(up.position, size.width, size.height, busyBlockArcs)
-        hoveredBusy = nextHoveredBusyOnTap(hoveredBusy, tapped, up.position)
-        up.consume()
+    when {
+        longPress -> {
+            // existing scrub loop, unchanged
+        }
+        up != null -> {
+            // tap -> resolve arc and update hoveredBusy
+            val tapped = hitTestBusyArc(up.position, size.width, size.height, busyBlockArcs)
+            hoveredBusy = nextHoveredBusyOnTap(hoveredBusy, tapped, up.position)
+            up.consume()
+        }
+        // else: waitForUpOrCancellation returned null (cancelled) -> nothing
     }
-    // cancelled -> nothing
 }
 ```
 
-Note the timeout path and the cancellation path both surface as a thrown
-`PointerEventTimeoutCancellationException` vs. a `null` return from
-`waitForUpOrCancellation`. The implementation distinguishes them with a local flag so a
-genuine timeout runs the scrub while a plain cancel does nothing. This is the standard
-Compose pattern for "tap vs long press"; the existing scrub loop moves verbatim into the
-long-press branch.
+The timeout path and the plain-cancel path both leave `up == null`; the `longPress` flag
+set in the `catch` distinguishes them, so a genuine long-press timeout runs the scrub while
+a cancel does nothing. This is the standard Compose pattern for "tap vs long press"; the
+existing scrub loop moves verbatim into the long-press branch.
 
 ### Close behaviour ("tap to close")
 
