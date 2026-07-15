@@ -205,4 +205,17 @@ class DayPreferencesStoreTest {
         val loaded = store.snapshots.first()
         assertEquals(listOf("a"), loaded.plannedObligationsCompleted)
     }
+
+    @Test
+    fun focusSessionIntervalsRoundTripThroughTheStore() = runTest {
+        val store = newStore(FakeFileSystem())
+        val intervals = listOf(
+            FocusPresenceInterval(Instant.fromEpochMilliseconds(1_000), Instant.fromEpochMilliseconds(2_000)),
+            FocusPresenceInterval(Instant.fromEpochMilliseconds(3_000), Instant.fromEpochMilliseconds(4_000)),
+        )
+        store.persist(DayPreferencesSnapshot(focusSessionDayKey = 20260, focusSessionIntervals = intervals))
+        val read = store.snapshots.first()
+        assertEquals(20260L, read.focusSessionDayKey)
+        assertEquals(intervals, read.focusSessionIntervals)
+    }
 }

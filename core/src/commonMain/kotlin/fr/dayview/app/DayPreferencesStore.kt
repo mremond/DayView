@@ -39,6 +39,8 @@ internal object DayPreferenceKeys {
     const val ON_GOAL_APPS = "on_goal_apps"
     const val DETOURS_DAY = "detours_day"
     const val DETOURS = "detours"
+    const val FOCUS_SESSION_DAY = "focus_session_day"
+    const val FOCUS_SESSION = "focus_session"
 
     // Keep the VALUE "detour_recent_motifs" for back-compat with stored data.
     const val DETOUR_RECENT_CATEGORIES = "detour_recent_motifs"
@@ -80,6 +82,8 @@ private val availableCalendarsKey = stringPreferencesKey(DayPreferenceKeys.AVAIL
 private val onGoalAppsKey = stringPreferencesKey(DayPreferenceKeys.ON_GOAL_APPS)
 private val detoursDayPrefKey = longPreferencesKey(DayPreferenceKeys.DETOURS_DAY)
 private val detoursKey = stringPreferencesKey(DayPreferenceKeys.DETOURS)
+private val focusSessionDayPrefKey = longPreferencesKey(DayPreferenceKeys.FOCUS_SESSION_DAY)
+private val focusSessionKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_SESSION)
 private val detourRecentCategoriesKey = stringPreferencesKey(DayPreferenceKeys.DETOUR_RECENT_CATEGORIES)
 private val plannedObligationsDayPrefKey = longPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS_DAY)
 private val plannedObligationsKey = stringPreferencesKey(DayPreferenceKeys.PLANNED_OBLIGATIONS)
@@ -124,6 +128,8 @@ class DayPreferencesStore(
             prefs[onGoalAppsKey] = encodeAppRefs(snapshot.onGoalApps)
             prefs[detoursDayPrefKey] = snapshot.detoursDayKey
             prefs[detoursKey] = encodeDetours(snapshot.detours)
+            prefs[focusSessionDayPrefKey] = snapshot.focusSessionDayKey
+            prefs[focusSessionKey] = encodeFocusPresence(snapshot.focusSessionIntervals)
             prefs[detourRecentCategoriesKey] = encodeRecentDetourCategories(snapshot.recentDetourCategories)
             prefs[plannedObligationsDayPrefKey] = snapshot.plannedObligationsDayKey
             prefs[plannedObligationsKey] = encodePlannedObligations(snapshot.plannedObligations)
@@ -181,6 +187,8 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         onGoalApps = decodeAppRefs(this[onGoalAppsKey].orEmpty()),
         detoursDayKey = this[detoursDayPrefKey] ?: defaults.detoursDayKey,
         detours = decodeDetours(this[detoursKey].orEmpty()),
+        focusSessionDayKey = this[focusSessionDayPrefKey] ?: defaults.focusSessionDayKey,
+        focusSessionIntervals = decodeFocusPresence(this[focusSessionKey].orEmpty()),
         recentDetourCategories = decodeRecentDetourCategories(this[detourRecentCategoriesKey].orEmpty()),
         plannedObligationsDayKey = this[plannedObligationsDayPrefKey] ?: defaults.plannedObligationsDayKey,
         plannedObligations = decodePlannedObligations(this[plannedObligationsKey].orEmpty()),

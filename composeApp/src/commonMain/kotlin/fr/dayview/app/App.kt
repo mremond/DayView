@@ -67,6 +67,8 @@ private data class NetTimeProbe(
 internal fun DayViewApp(
     preferences: DayPreferences = DefaultDayPreferences,
     history: DayHistoryStore = InMemoryDayHistoryStore(),
+    focusContributions: FocusContributionStore? = null,
+    deviceId: String? = null,
     monochromeMenuBarIcon: Boolean? = null,
     onMonochromeMenuBarIconChange: ((Boolean) -> Unit)? = null,
     launchAtLogin: Boolean? = null,
@@ -83,6 +85,7 @@ internal fun DayViewApp(
     runningApps: () -> List<AppRef> = { emptyList() },
     focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     focusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
+    derivesEngagedFromSessions: Boolean = false,
     sessionOffGoal: Duration = Duration.ZERO,
     secureKeyStore: SecureKeyStore? = null,
     syncCoordinator: SyncCoordinator? = null,
@@ -126,6 +129,9 @@ internal fun DayViewApp(
                             history = history,
                             initialFocusPresenceIntervals = focusPresenceIntervals,
                             initialFocusSessionIntervals = focusSessionIntervals,
+                            derivesEngagedFromSessions = derivesEngagedFromSessions,
+                            focusContributions = focusContributions,
+                            deviceId = deviceId,
                             onLocalWrite = { localWriteSignal.tryEmit(Unit) },
                             appEventBus = appEventBus,
                         )
@@ -183,8 +189,10 @@ internal fun DayViewApp(
                         controller.setFocusPresenceIntervals(focusPresenceIntervals)
                     }
 
-                    LaunchedEffect(focusSessionIntervals) {
-                        controller.setFocusSessionIntervals(focusSessionIntervals)
+                    LaunchedEffect(focusSessionIntervals, derivesEngagedFromSessions) {
+                        if (!derivesEngagedFromSessions) {
+                            controller.setFocusSessionIntervals(focusSessionIntervals)
+                        }
                     }
 
                     LaunchedEffect(sessionOffGoal) {

@@ -53,6 +53,7 @@ data class SyncDocument(
     val recentDetourMotifs: List<SyncItem<String>>,
     val cleanSessions: Versioned<CleanDto>,
     val historyDays: List<Long> = emptyList(),
+    val focusContributions: List<String> = emptyList(),
 )
 
 val SyncJson: Json = Json {

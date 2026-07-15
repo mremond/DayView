@@ -117,4 +117,11 @@ class SyncMergeTest {
         // commutative + deduped + sorted
         assertEquals(a.merge(b).historyDays, b.merge(a).historyDays)
     }
+
+    @Test
+    fun focusContributionsMergeByUnion() {
+        val a = sampleDocument().copy(focusContributions = listOf("20260:aaa"))
+        val b = sampleDocument().copy(focusContributions = listOf("20260:bbb", "20260:aaa"))
+        assertEquals(listOf("20260:aaa", "20260:bbb"), a.merge(b).focusContributions)
+    }
 }

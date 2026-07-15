@@ -68,6 +68,7 @@ data class DayViewUiState(
     val settingsCategory: SettingsCategory? = null,
     val selectedHistoryDay: Long? = null,
     val historyWeek: List<HistoryWeekDay> = emptyList(),
+    val focusSessionDayKey: Long = -1L,
 ) {
     private val dayNow: Instant
         get() = if (showSeconds) now else now - (now.toEpochMilliseconds() % 60_000L).milliseconds
@@ -183,8 +184,11 @@ class DayViewController(
     initialSnapshot: DayPreferencesSnapshot,
     initialNow: Instant = Clock.System.now(),
     private val history: DayHistoryStore = InMemoryDayHistoryStore(),
+    private val focusContributions: FocusContributionStore? = null,
+    private val deviceId: String? = null,
     initialFocusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     initialFocusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
+    private val derivesEngagedFromSessions: Boolean = false,
     private val onLocalWrite: () -> Unit = {},
     private val appEventBus: AppEventBus = AppEventBus(),
 ) {
@@ -193,10 +197,16 @@ class DayViewController(
     // synchronous init archival below captures the previous day's presence too; the live
     // ticker overwrites it via setFocusPresenceIntervals once composition starts.
     private val _stateFlow = MutableStateFlow(
-        initialSnapshot.toUiState(initialNow).copy(
-            focusPresenceIntervals = initialFocusPresenceIntervals,
-            focusSessionIntervals = initialFocusSessionIntervals,
-        ),
+        initialSnapshot.toUiState(initialNow).let { base ->
+            base.copy(
+                focusPresenceIntervals = initialFocusPresenceIntervals,
+                focusSessionIntervals = if (derivesEngagedFromSessions) {
+                    base.focusSessionIntervals
+                } else {
+                    initialFocusSessionIntervals
+                },
+            )
+        },
     )
     val stateFlow: StateFlow<DayViewUiState> = _stateFlow.asStateFlow()
     var state: DayViewUiState
@@ -250,7 +260,8 @@ class DayViewController(
     }
 
     /** The day the persisted day-scoped fields (detours, clean-session ledger, calendar busy) belong to. */
-    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(state.detoursDayKey, state.cleanSessions.dayKey, state.busyDayKey).filter { it != -1L }.maxOrNull()
+    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(state.detoursDayKey, state.cleanSessions.dayKey, state.busyDayKey, state.focusSessionDayKey)
+        .filter { it != -1L }.maxOrNull()
 
     /**
      * Archives the previous day's ring before its day-scoped data is discarded on
@@ -261,7 +272,16 @@ class DayViewController(
         val key = persistedDayKey(state) ?: return
         if (key == dayKeyOf(state.now)) return
         val record = state.toHistoryRecord(key)
-        scope.launch { history.write(record) }
+        val self = deviceId
+        val contributions = focusContributions
+        scope.launch {
+            history.write(record)
+            if (self != null && contributions != null) {
+                contributions.write(
+                    FocusContribution(key, self, record.focusPresenceIntervals, record.focusSessionIntervals),
+                )
+            }
+        }
     }
 
     fun tick(now: Instant) {
@@ -297,10 +317,13 @@ class DayViewController(
             // stored cell is always null. Build it from the live state so today renders a real,
             // clickable ring instead of a greyed placeholder.
             val todayRecord = state.toHistoryRecord(todayKey)
+            val contributions = focusContributions
             val days = keys.map { key ->
                 val record = when {
                     key == todayKey -> todayRecord
-                    key in present -> history.read(key)
+                    key in present -> history.read(key)?.let { r ->
+                        if (contributions != null) r.withMergedFocus(contributions.listForDay(key)) else r
+                    }
                     else -> null
                 }
                 HistoryWeekDay(key, record, now = if (key == todayKey) state.now else null)
@@ -425,8 +448,29 @@ class DayViewController(
     }
 
     fun stopPomodoro() {
+        appendEngagedSession(state.now)
         state = state.copy(pomodoroEnd = null)
         persistState()
+    }
+
+    /**
+     * Android path: derive this session's engaged intervals from its window and append
+     * them (coalesced) to the day's list. `effectiveEnd` caps overtime at pomodoroEnd
+     * and honours an early stop. No-op when the platform feeds engaged time per-tick.
+     */
+    private fun appendEngagedSession(stopInstant: Instant) {
+        if (!derivesEngagedFromSessions) return
+        val end = state.pomodoroEnd ?: return
+        val start = end - state.pomodoroMinutes.minutes
+        val effectiveEnd = minOf(stopInstant, end)
+        val derived = deriveEngagedIntervals(start, effectiveEnd, state.detoursToday)
+        if (derived.isEmpty()) return
+        val today = dayKeyOf(state.now)
+        val existing = if (state.focusSessionDayKey == today) state.focusSessionIntervals else emptyList()
+        state = state.copy(
+            focusSessionIntervals = mergeIntervals(existing + derived),
+            focusSessionDayKey = today,
+        )
     }
 
     fun startOpenDetour(
@@ -462,6 +506,7 @@ class DayViewController(
     }
 
     fun closePomodoro(outcome: FocusClosureOutcome) {
+        appendEngagedSession(state.now)
         val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
         val ledger = closedFocusLedger(
             cleanSessions = state.cleanSessions,
@@ -715,6 +760,8 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     themeMode = themeMode,
     cleanSessions = cleanSessions,
     fontScale = fontScale,
+    focusSessionDayKey = focusSessionDayKey,
+    focusSessionIntervals = focusSessionIntervals,
 ).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
@@ -778,6 +825,8 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,
+        focusSessionDayKey = safe.focusSessionDayKey,
+        focusSessionIntervals = safe.focusSessionIntervals,
     )
 }
 

@@ -73,8 +73,10 @@ fun main() {
 private fun runApplication() = application {
     val preferences = remember { desktopDayPreferences() }
     val history = remember { createDayHistoryStore() }
+    val focusStore = remember { createFocusContributionStore() }
     val scope = rememberCoroutineScope()
     val syncKeyStore = remember { desktopSecureKeyStore() }
+    val deviceId = remember { syncKeyStore.deviceIdOrCreate { CryptographyRandom.nextBytes(16).toHexString() } }
     val syncCoordinator = remember {
         val stateFile = File(System.getProperty("user.home"), ".dayview/sync-state.json")
         val statePersistence = FileSyncStatePersistence(
@@ -84,7 +86,6 @@ private fun runApplication() = application {
                 stateFile.writeText(it)
             },
         )
-        val deviceId = syncKeyStore.deviceIdOrCreate { CryptographyRandom.nextBytes(16).toHexString() }
         SyncCoordinator(
             deviceId = deviceId,
             keyStore = syncKeyStore,
@@ -95,6 +96,7 @@ private fun runApplication() = application {
             scope = CoroutineScope(Dispatchers.Default),
             now = { Clock.System.now().toEpochMilliseconds() },
             historyStore = history,
+            focusContributionStore = focusStore,
         )
     }
     val loginLauncher = remember { MacLoginLauncher() }
@@ -378,6 +380,8 @@ private fun runApplication() = application {
             DayViewApp(
                 preferences = preferences,
                 history = history,
+                focusContributions = focusStore,
+                deviceId = deviceId,
                 monochromeMenuBarIcon = monochromeMenuBarIcon,
                 onMonochromeMenuBarIconChange = { monochrome ->
                     monochromeMenuBarIcon = monochrome
