@@ -156,32 +156,28 @@ class DetoursTest {
     }
 
     @Test
-    fun bodiesSitAtTheEpisodeMidpointAngle() {
+    fun bodiesFormArcsAcrossTheirDuration() {
         val start = t(0L)
         val end = t(36_000_000L) // 10 h window
-        // 0 → 1 h episode: midpoint 30 min = 5 % of the window → -90° + 18°.
+        // 0 → 1 h episode: starts at the window start (-90°), spans 1/10 of the window (36°).
         val body = detourBodies(start, end, listOf(DetourEpisode(t(0L), t(3_600_000L), "Slack"))).single()
-        assertEquals(-72f, body.angleDegrees, absoluteTolerance = .01f)
+        assertEquals(-90f, body.startAngleDegrees, absoluteTolerance = .01f)
+        assertEquals(36f, body.sweepDegrees, absoluteTolerance = .01f)
     }
 
     @Test
-    fun bodySizeFractionScalesBySqrtUpToThreeHours() {
+    fun shortDetoursGetAMinimumSweepCenteredOnTheMidpoint() {
         val start = t(0L)
-        val end = t(36_000_000L) // 10 h window
-        fun sizeOf(minutes: Long): Float = detourBodies(
+        val end = t(86_400_000L) // 24 h window: 15°/h
+        // 6 h → 6 h 04 min: raw sweep 1° is floored to 3.5°, kept centred on the 06:02 midpoint.
+        val body = detourBodies(
             start,
             end,
-            listOf(DetourEpisode(t(7_200_000L), t(7_200_000L + minutes * 60_000L), "x")),
-        ).single().sizeFraction
-        assertEquals(0f, sizeOf(5)) // floor: 5 min → 0
-        assertEquals(1f, sizeOf(180)) // ceiling: 3 h → 1
-        assertEquals(1f, sizeOf(240)) // clamped past the 3 h cap
-        // Square-root growth: steep early, gentle late. A 60 min body no longer saturates.
-        assertEquals(.5606f, sizeOf(60), absoluteTolerance = .001f) // sqrt((60-5)/175)
-        assertEquals(.6969f, sizeOf(90), absoluteTolerance = .001f) // sqrt((90-5)/175)
-        assertTrue(sizeOf(30) < sizeOf(60))
-        assertTrue(sizeOf(60) < sizeOf(90))
-        assertTrue(sizeOf(90) < sizeOf(120))
+            listOf(DetourEpisode(t(21_600_000L), t(21_840_000L), "x")),
+        ).single()
+        assertEquals(3.5f, body.sweepDegrees, absoluteTolerance = .01f)
+        // Midpoint fraction .251388 → angle 0.5°; arc centre = start + sweep/2.
+        assertEquals(0.5f, body.startAngleDegrees + body.sweepDegrees / 2f, absoluteTolerance = .05f)
     }
 
     @Test
@@ -193,22 +189,24 @@ class DetoursTest {
     }
 
     @Test
-    fun hitTestFindsTheBodyUnderThePointer() {
+    fun hitTestFindsTheArcUnderThePointer() {
         val body = DetourBody(
-            angleDegrees = -90f,
-            sizeFraction = 1f,
+            startAngleDegrees = -100f,
+            sweepDegrees = 20f, // covers -100°..-80°, i.e. the top of the dial
             colorIndex = 0,
             category = "Slack",
             description = "",
             start = t(0L),
             end = t(1L),
         )
-        // Top of a 400×400 dial, on the ring radius.
-        assertEquals(body, hitTestDetourBody(200f, 25f, 400, 400, listOf(body)))
-        // Center of the dial: not on the ring.
+        // Top of a 400×400 dial, on the outer detour lane (radiusFraction .925): found.
+        assertEquals(body, hitTestDetourBody(200f, 15f, 400, 400, listOf(body)))
+        // Center of the dial: not on the lane.
         assertEquals(null, hitTestDetourBody(200f, 200f, 400, 400, listOf(body)))
-        // Bottom of the dial: on the ring but 180° away.
-        assertEquals(null, hitTestDetourBody(200f, 378f, 400, 400, listOf(body)))
+        // Bottom of the dial: on the lane but 180° away.
+        assertEquals(null, hitTestDetourBody(200f, 385f, 400, 400, listOf(body)))
+        // Inner band (radiusFraction .80), where the old beads lived: no longer a hit.
+        assertEquals(null, hitTestDetourBody(200f, 40f, 400, 400, listOf(body)))
     }
 
     @Test
@@ -309,16 +307,16 @@ class DetoursTest {
     }
 
     @Test
-    fun detourBodyAtAngleFindsBodyNearItsMidpointAngle() {
+    fun detourBodyAtAngleFindsBodyWithinItsArc() {
         val windowStart = t(0L)
-        val windowEnd = t(24L * 60 * 60 * 1000) // 24 h window: 15°/h, midpoint drives the angle
-        // A 60-min detour centred at 06:00 -> midpoint fraction .25 -> angle -90 + 90 = 0°.
+        val windowEnd = t(24L * 60 * 60 * 1000) // 24 h window: 15°/h
+        // A 5 h → 7 h detour: arc from -15° to 15°.
         val episodes = listOf(DetourEpisode(t(5L * 3_600_000), t(7L * 3_600_000), "Slack"))
         val bodies = detourBodies(windowStart, windowEnd, episodes)
         assertEquals(1, bodies.size)
         val body = bodies.first()
-        // At the exact midpoint angle it is found; far away (180° across) it is not.
-        assertEquals(body, detourBodyAtAngle(bodies, body.angleDegrees))
-        assertNull(detourBodyAtAngle(bodies, body.angleDegrees + 180f))
+        // Inside the arc it is found; far away (180° across) it is not.
+        assertEquals(body, detourBodyAtAngle(bodies, 0f))
+        assertNull(detourBodyAtAngle(bodies, 180f))
     }
 }

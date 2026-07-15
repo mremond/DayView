@@ -7,7 +7,6 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.hypot
-import kotlin.math.sqrt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -169,10 +168,10 @@ fun offWindowDetoursTotal(
     if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) acc + episode.duration else acc
 }
 
-/** A detour episode projected on the ring, ready to draw. */
+/** A detour episode projected on the ring as an arc, ready to draw. */
 data class DetourBody(
-    val angleDegrees: Float,
-    val sizeFraction: Float,
+    val startAngleDegrees: Float,
+    val sweepDegrees: Float,
     val colorIndex: Int,
     val category: String,
     val description: String,
@@ -180,14 +179,17 @@ data class DetourBody(
     val end: Instant,
 )
 
-private val MIN_BODY_DURATION = 5.minutes
-private val MAX_BODY_DURATION = 180.minutes
+/** Floor sweep so a very short detour still reads as a visible arc. */
+private const val MIN_DETOUR_SWEEP_DEGREES = 3.5f
+
+/** Angular tolerance around a detour arc for hover / scrub picking. */
+private const val DETOUR_ANGLE_TOLERANCE_DEGREES = 6f
 
 /**
- * Project episodes to bodies threaded on the ring: angle at the episode midpoint
- * (same `-90° = window start` convention as [busyBlockArcs]), size fraction 0..1 from the
- * duration over [5 min, 3 h] on a square-root scale (steep early, gentle late).
- * Episodes whose midpoint falls outside the window are dropped.
+ * Project episodes to arcs threaded on a lane outside the ring: start/sweep from the episode
+ * bounds clipped to the window (same `-90° = window start` convention as [busyBlockArcs]).
+ * Very short detours are floored to [MIN_DETOUR_SWEEP_DEGREES], the arc kept centred on the
+ * episode midpoint. Episodes whose midpoint falls outside the window are dropped.
  */
 fun detourBodies(
     windowStart: Instant,
@@ -199,15 +201,18 @@ fun detourBodies(
     val colorBySource = detourSources(episodes).associate { sourceKey(it.label) to it.colorIndex }
     return episodes.sortedBy { it.start }.mapNotNull { episode ->
         val colorIndex = colorBySource[sourceKey(episode.category)] ?: return@mapNotNull null
-        val midpoint = episode.start + episode.duration / 2
         if (detourMidpointOutsideWindow(episode, windowStart, windowEnd)) return@mapNotNull null
-        val fraction = ((midpoint - windowStart) / total).toFloat()
-        val linearFraction = ((episode.duration - MIN_BODY_DURATION) / (MAX_BODY_DURATION - MIN_BODY_DURATION))
-            .toFloat().coerceIn(0f, 1f)
-        val sizeFraction = sqrt(linearFraction)
+        val clippedStart = episode.start.coerceIn(windowStart, windowEnd)
+        val clippedEnd = episode.end.coerceIn(windowStart, windowEnd)
+        val fStart = ((clippedStart - windowStart) / total).toFloat()
+        val fEnd = ((clippedEnd - windowStart) / total).toFloat()
+        val rawSweep = (fEnd - fStart) * 360f
+        val sweep = maxOf(rawSweep, MIN_DETOUR_SWEEP_DEGREES)
+        // Keep the arc centred on the real detour when the floor widens it.
+        val startAngle = -90f + fStart * 360f - (sweep - rawSweep) / 2f
         DetourBody(
-            angleDegrees = -90f + fraction * 360f,
-            sizeFraction = sizeFraction,
+            startAngleDegrees = startAngle,
+            sweepDegrees = sweep,
             colorIndex = colorIndex,
             category = sanitizeDetourCategory(episode.category),
             description = sanitizeDetourDescription(episode.description),
@@ -217,15 +222,10 @@ fun detourBodies(
     }
 }
 
-private fun angularDistance(a: Float, b: Float): Float {
-    val d = (((a - b) % 360f) + 360f) % 360f
-    return minOf(d, 360f - d)
-}
-
 /**
- * The body under the pointer, or null. Bodies straddle the ring by weight (light ones
- * just outside, heavy ones inside); the radial band spans that offset orbit, and the
- * angular tolerance grows with the body size so small bodies stay hoverable.
+ * The detour arc under the pointer, or null. Detours ride a lane just outside the ring, so the
+ * radial band is the outer region; the angular pick uses arc containment (with a small
+ * tolerance so thin arcs stay reachable), the same test as the scrub readout.
  */
 fun hitTestDetourBody(
     x: Float,
@@ -237,21 +237,20 @@ fun hitTestDetourBody(
     val dx = x - width / 2f
     val dy = y - height / 2f
     val radiusFraction = hypot(dx, dy) / (minOf(width, height) / 2f)
-    if (radiusFraction !in 0.70f..1.02f) return null
+    if (radiusFraction !in 0.90f..1.06f) return null
     val angle = (atan2(dy.toDouble(), dx.toDouble()) * 180.0 / PI).toFloat()
-    return bodies
-        .minByOrNull { angularDistance(it.angleDegrees, angle) }
-        ?.takeIf { angularDistance(it.angleDegrees, angle) <= 7f + 5f * it.sizeFraction }
+    return detourBodyAtAngle(bodies, angle)
 }
 
 /**
- * The detour body whose angular position is closest to [angleDegrees], within the same
- * size-scaled tolerance as [hitTestDetourBody] but with no radius constraint — for the
- * radius-independent touch scrub. Null if none is close enough.
+ * The detour arc containing [angleDegrees] (or nearest within tolerance), radius-independent —
+ * for the touch scrub and, via [hitTestDetourBody], the mouse hover. Null if none is close.
  */
 fun detourBodyAtAngle(bodies: List<DetourBody>, angleDegrees: Float): DetourBody? = bodies
-    .minByOrNull { angularDistance(it.angleDegrees, angleDegrees) }
-    ?.takeIf { angularDistance(it.angleDegrees, angleDegrees) <= 7f + 5f * it.sizeFraction }
+    .minByOrNull { angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angleDegrees) }
+    ?.takeIf {
+        angularDistanceToArc(it.startAngleDegrees, it.sweepDegrees, angleDegrees) <= DETOUR_ANGLE_TOLERANCE_DEGREES
+    }
 
 /**
  * Minutes-of-day for the "ends now" default start shown in the quick-capture dialog:
