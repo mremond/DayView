@@ -272,8 +272,13 @@ class DayViewController(
     }
 
     /** The day the persisted day-scoped fields (detours, clean-session ledger, calendar busy) belong to. */
-    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(state.detoursDayKey, state.cleanSessions.dayKey, state.busyDayKey, state.focusSessionDayKey)
-        .filter { it != -1L }.maxOrNull()
+    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(
+        state.detoursDayKey,
+        state.cleanSessions.dayKey,
+        state.busyDayKey,
+        state.focusSessionDayKey,
+        state.focusSessionRecordsDayKey,
+    ).filter { it != -1L }.maxOrNull()
 
     /**
      * Archives the previous day's ring before its day-scoped data is discarded on

@@ -75,6 +75,9 @@ fun DayHistoryRecord.toFrozenUiState(
     focusPresenceIntervals = focusPresenceIntervals,
     focusSessionIntervals = focusSessionIntervals,
     focusSessionRecords = focusSessionRecords,
+    // The frozen `now` sits at this day's end, so the day-key gate on
+    // focusSessionRecordsToday / focusSessionBandsState matches and history renders the bands.
+    focusSessionRecordsDayKey = dayKey,
     detoursDayKey = dayKey,
     detours = detours,
     cleanSessions = cleanSessions,
