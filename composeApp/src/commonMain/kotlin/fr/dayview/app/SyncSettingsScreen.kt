@@ -22,6 +22,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.dialog_cancel
+import fr.dayview.app.generated.resources.sync_first_sync_adopt_server
+import fr.dayview.app.generated.resources.sync_first_sync_merge
+import fr.dayview.app.generated.resources.sync_first_sync_message
+import fr.dayview.app.generated.resources.sync_first_sync_push_local
+import fr.dayview.app.generated.resources.sync_first_sync_title
 import fr.dayview.app.generated.resources.sync_settings_generated_phrase_prompt
 import fr.dayview.app.generated.resources.sync_settings_phrase_accepted
 import fr.dayview.app.generated.resources.sync_settings_phrase_invalid
@@ -96,6 +101,69 @@ internal fun PhraseEntry(
             fontSize = 11.sp,
             modifier = Modifier.testTag(DayViewTestTags.SyncSettingsPhraseAccepted),
         )
+    }
+}
+
+/**
+ * First-sync reconciliation dialog: this device has never synced and the server already
+ * holds a document. Offers the three [FirstSyncStrategy] choices plus cancel.
+ */
+@Composable
+internal fun FirstSyncChoiceDialog(
+    onMerge: () -> Unit,
+    onAdoptServer: () -> Unit,
+    onPushLocal: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalDayViewColors.current
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.widthIn(max = 340.dp).fillMaxWidth()
+                .testTag(DayViewTestTags.SyncFirstChoiceDialog)
+                .dismissOnEscape(onDismiss)
+                .background(colors.panel, RoundedCornerShape(18.dp))
+                .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                .padding(20.dp),
+        ) {
+            Text(
+                stringResource(Res.string.sync_first_sync_title),
+                color = colors.cloud,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(Res.string.sync_first_sync_message),
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+            Spacer(Modifier.height(16.dp))
+            SettingsAccentButton(
+                text = stringResource(Res.string.sync_first_sync_merge),
+                onClick = onMerge,
+                modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SyncFirstChoiceMerge),
+            )
+            Spacer(Modifier.height(8.dp))
+            SettingsAccentButton(
+                text = stringResource(Res.string.sync_first_sync_adopt_server),
+                onClick = onAdoptServer,
+                modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SyncFirstChoiceAdoptServer),
+            )
+            Spacer(Modifier.height(8.dp))
+            SettingsAccentButton(
+                text = stringResource(Res.string.sync_first_sync_push_local),
+                onClick = onPushLocal,
+                modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SyncFirstChoicePushLocal),
+            )
+            Spacer(Modifier.height(12.dp))
+            FocusActionButton(
+                stringResource(Res.string.dialog_cancel),
+                colors.muted,
+                modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.SyncConfirmDialogCancel),
+                onClick = onDismiss,
+            )
+        }
     }
 }
 

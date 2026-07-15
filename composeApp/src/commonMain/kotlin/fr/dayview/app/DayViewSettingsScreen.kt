@@ -168,6 +168,8 @@ private fun SettingsCategoryDetail(
             onCreatePairing = actions.createSyncPairing,
             onImportPairing = actions.importSyncPairing,
             onClear = actions.clearSyncKey,
+            firstSyncChoicePending = platformState.firstSyncChoicePending,
+            onResolveFirstSync = actions.resolveFirstSync,
         )
         SettingsCategory.SYSTEM -> SystemSettingsScreen(onOpenPowerSettings = actions.openPowerSettings)
     }

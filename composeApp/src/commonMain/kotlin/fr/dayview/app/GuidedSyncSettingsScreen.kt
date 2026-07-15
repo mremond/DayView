@@ -83,6 +83,7 @@ import fr.dayview.app.generated.resources.sync_setup_test_connection_error
 import fr.dayview.app.generated.resources.sync_setup_test_description
 import fr.dayview.app.generated.resources.sync_setup_test_key_error
 import fr.dayview.app.generated.resources.sync_setup_test_title
+import fr.dayview.app.sync.FirstSyncStrategy
 import fr.dayview.app.sync.SyncConfig
 import fr.dayview.app.sync.SyncPairingCode
 import fr.dayview.app.sync.SyncPairingImportResult
@@ -115,6 +116,8 @@ internal fun SyncSettingsScreen(
     onCreatePairing: suspend () -> SyncPairingCode? = { null },
     onImportPairing: suspend (String) -> SyncPairingImportResult = { SyncPairingImportResult.InvalidCode },
     onClear: () -> Unit,
+    firstSyncChoicePending: Boolean = false,
+    onResolveFirstSync: (FirstSyncStrategy) -> Unit = {},
 ) {
     val colors = LocalDayViewColors.current
     val scope = rememberCoroutineScope()
@@ -133,6 +136,7 @@ internal fun SyncSettingsScreen(
     var pairingCode by remember { mutableStateOf<SyncPairingCode?>(null) }
     var pairingFailed by remember { mutableStateOf(false) }
     var confirmErase by remember { mutableStateOf(false) }
+    var firstSyncChoiceDismissed by remember { mutableStateOf(false) }
 
     fun importCode(raw: String) {
         importInProgress = true
@@ -441,6 +445,18 @@ internal fun SyncSettingsScreen(
                 confirmErase = false
             },
             onDismiss = { confirmErase = false },
+        )
+    }
+
+    // Cancel hides the dialog without resolving; the choice stays pending until the user picks a
+    // strategy, so re-entering the screen (while still pending) surfaces it again.
+    LaunchedEffect(firstSyncChoicePending) { if (!firstSyncChoicePending) firstSyncChoiceDismissed = false }
+    if (firstSyncChoicePending && !firstSyncChoiceDismissed) {
+        FirstSyncChoiceDialog(
+            onMerge = { onResolveFirstSync(FirstSyncStrategy.Merge) },
+            onAdoptServer = { onResolveFirstSync(FirstSyncStrategy.AdoptServer) },
+            onPushLocal = { onResolveFirstSync(FirstSyncStrategy.PushLocal) },
+            onDismiss = { firstSyncChoiceDismissed = true },
         )
     }
 }

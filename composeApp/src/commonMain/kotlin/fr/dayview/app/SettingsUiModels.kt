@@ -1,5 +1,6 @@
 package fr.dayview.app
 
+import fr.dayview.app.sync.FirstSyncStrategy
 import fr.dayview.app.sync.SyncConfig
 import fr.dayview.app.sync.SyncPairingCode
 import fr.dayview.app.sync.SyncPairingImportResult
@@ -15,6 +16,7 @@ internal data class SettingsPlatformUiState(
     val syncConfig: SyncConfig? = null,
     val syncStatus: SyncStatus = SyncStatus.Idle,
     val syncHasKey: Boolean = false,
+    val firstSyncChoicePending: Boolean = false,
     val powerManagementSupported: Boolean = false,
 )
 
@@ -41,6 +43,7 @@ internal data class SettingsScreenActions(
     val createSyncPairing: suspend () -> SyncPairingCode? = { null },
     val importSyncPairing: suspend (String) -> SyncPairingImportResult = { SyncPairingImportResult.InvalidCode },
     val clearSyncKey: () -> Unit = {},
+    val resolveFirstSync: (FirstSyncStrategy) -> Unit = {},
     val openPowerSettings: () -> Unit = {},
     val back: () -> Unit,
 )

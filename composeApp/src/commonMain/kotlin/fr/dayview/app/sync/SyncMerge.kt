@@ -7,7 +7,7 @@ fun SyncDocument.merge(remote: SyncDocument?): SyncDocument {
         dayWindow = pick(dayWindow, remote.dayWindow),
         showSeconds = pick(showSeconds, remote.showSeconds),
         sound = pick(sound, remote.sound),
-        goal = pick(goal, remote.goal),
+        goal = pickGoal(goal, remote.goal),
         pomodoro = pick(pomodoro, remote.pomodoro),
         openDetour = pick(openDetour, remote.openDetour),
         focusIntention = pick(focusIntention, remote.focusIntention),
@@ -24,6 +24,21 @@ fun SyncDocument.merge(remote: SyncDocument?): SyncDocument {
 }
 
 private fun <T> pick(a: Versioned<T>, b: Versioned<T>): Versioned<T> = if (b.stamp.wins(a.stamp)) b else a
+
+/**
+ * Last-writer-wins for the goal, except a goal with content always beats an empty one — unless the
+ * empty side is a voluntary clear ([GoalDto.cleared]) that is strictly newer. This stops a
+ * never-set default (e.g. a freshly paired device) from wiping a real goal on another device while
+ * still letting a deliberate deletion propagate. Symmetric, so [merge] stays commutative.
+ */
+private fun pickGoal(a: Versioned<GoalDto>, b: Versioned<GoalDto>): Versioned<GoalDto> {
+    val aHas = a.value.hasContent()
+    val bHas = b.value.hasContent()
+    if (aHas == bHas) return pick(a, b)
+    val content = if (aHas) a else b
+    val empty = if (aHas) b else a
+    return if (empty.value.cleared && empty.stamp.wins(content.stamp)) empty else content
+}
 
 private fun <T> mergeDayScoped(a: DayScoped<T>, b: DayScoped<T>): DayScoped<T> = when {
     a.dayKey > b.dayKey -> a
