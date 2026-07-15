@@ -575,6 +575,20 @@ class DayViewControllerTest {
     }
 
     @Test
+    fun loadingSnapshotDedupesCaseInsensitiveDuplicateObligations() {
+        val now = 1_800_000_000_000L
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(
+                plannedObligationsDayKey = dayKeyOf(t(now)),
+                plannedObligations = listOf("Appel", "appel", "Facture"),
+            ),
+        )
+        val controller = testController(preferences, now)
+
+        assertEquals(listOf("Appel", "Facture"), controller.state.plannedObligationsToday)
+    }
+
+    @Test
     fun completePlannedObligationMarksItDoneWithoutLoggingADetour() {
         val preferences = InMemoryDayPreferences()
         val now = 1_800_000_000_000L

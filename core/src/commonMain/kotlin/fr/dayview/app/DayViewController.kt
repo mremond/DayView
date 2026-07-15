@@ -793,9 +793,11 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         recentDetourCategories = recentDetourCategories.take(MAX_RECENT_DETOUR_CATEGORIES),
         plannedObligations = plannedObligations.map { sanitizeLabel(it, 60) }
             .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
             .take(MAX_PLANNED_OBLIGATIONS),
         plannedObligationsCompleted = plannedObligationsCompleted.map { sanitizeLabel(it, 60) }
             .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
             .take(MAX_PLANNED_OBLIGATIONS),
         cleanSessions = cleanSessions.copy(
             cleanToday = cleanSessions.cleanToday.coerceAtLeast(0),
