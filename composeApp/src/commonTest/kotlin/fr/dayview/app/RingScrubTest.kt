@@ -60,7 +60,7 @@ class RingScrubTest {
         val bodies = detourBodies(windowStart, windowEnd, episodes)
         val body = bodies.first()
         val r = ringReadoutAt(
-            body.angleDegrees,
+            0f, // inside the detour arc (-15°..15°)
             windowStart,
             windowEnd,
             busyBlockArcs = emptyList(),
