@@ -21,6 +21,7 @@ internal object DayViewTestTags {
     const val ToastAction = "toastAction"
     const val MiniWindow = "miniWindowButton"
     const val MiniFocusRelaunch = "miniFocusRelaunchButton"
+    const val MiniFocusStart = "miniFocusStartButton"
     const val OpenMainWindow = "openMainWindowButton"
     const val MiniGoal = "miniGoal"
     const val FocusEntry = "focusEntry"
@@ -106,6 +107,7 @@ internal object DayViewTestTags {
     const val SyncConfirmDialogCancel = "syncConfirmDialogCancel"
     const val MiniRing = "historyMiniRing"
     const val HistoryIcon = "historyIcon"
+    const val SettingsIcon = "settingsIcon"
     const val HistoryBack = "historyBack"
 
     fun focusOutcome(outcome: FocusClosureOutcome): String = "focusOutcome_${outcome.name}"

@@ -217,6 +217,7 @@ private fun MiniFocusStart(onClick: () -> Unit) {
     val colors = LocalDayViewColors.current
     Row(
         modifier = Modifier.fillMaxWidth()
+            .testTag(DayViewTestTags.MiniFocusStart)
             .background(colors.amber.copy(alpha = .1f), RoundedCornerShape(15.dp))
             .border(1.dp, colors.amber.copy(alpha = .25f), RoundedCornerShape(15.dp))
             .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.mini_start_focus_label), onClick = onClick)

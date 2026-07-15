@@ -36,6 +36,15 @@ jobs:
       - name: Desktop tests
         run: ./gradlew :composeApp:desktopTest
 
+      - name: Upload responsive visual captures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dayview-visual-tests-linux
+          path: composeApp/build/reports/visual-tests/*.png
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Assemble Android APKs (debug + minified release)
         run: ./gradlew :composeApp:assembleDebug :composeApp:assembleRelease
 
@@ -56,6 +65,15 @@ jobs:
 
       - name: Desktop tests (compiles the Swift focus helper)
         run: ./gradlew :composeApp:desktopTest
+
+      - name: Upload responsive visual captures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dayview-visual-tests-macos
+          path: composeApp/build/reports/visual-tests/*.png
+          if-no-files-found: error
+          retention-days: 14
 
   server:
     name: Sync server tests (Go)

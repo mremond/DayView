@@ -837,6 +837,8 @@ private fun Header(onOpenSettings: () -> Unit, onOpenHistory: () -> Unit, onOpen
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.4.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .testTag(DayViewTestTags.HistoryIcon)
                 .minimumInteractiveComponentSize()
@@ -850,7 +852,11 @@ private fun Header(onOpenSettings: () -> Unit, onOpenHistory: () -> Unit, onOpen
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.4.sp,
-            modifier = Modifier.minimumInteractiveComponentSize()
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .testTag(DayViewTestTags.SettingsIcon)
+                .minimumInteractiveComponentSize()
                 .clickable(role = Role.Button, onClick = onOpenSettings)
                 .padding(vertical = 10.dp, horizontal = 4.dp),
         )

@@ -40,6 +40,20 @@ Prerequisites: JDK 17 or later to run Gradle, and Android SDK 36. The build uses
 ./gradlew :composeApp:run
 ```
 
+### Tests and responsive visual captures
+
+The desktop Compose suite includes functional visual scenarios for the 420 px
+desktop minimum width, a low-height window, 130–150% text, long French copy, the
+200 × 300 mini-window and a compact 360 × 640 Android-sized viewport. Run it with:
+
+```bash
+./gradlew :composeApp:desktopTest :composeApp:testDebugUnitTest
+```
+
+Rendered PNGs are written to `composeApp/build/reports/visual-tests/`. CI uploads
+the Linux and macOS captures as separate artifacts so layout failures can be
+inspected without relying on platform-sensitive pixel-perfect golden files.
+
 ### Android on a physical device
 
 Enable **Developer options** and then **USB debugging** on the device. Connect it, accept the authorization request, and verify that it appears with the `device` status:

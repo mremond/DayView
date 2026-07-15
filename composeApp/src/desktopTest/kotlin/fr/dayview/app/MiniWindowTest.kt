@@ -1,9 +1,7 @@
 package fr.dayview.app
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -110,10 +108,10 @@ class MiniWindowTest {
     }
 
     @Test
-    fun shortMiniWindowKeepsPrimaryControlsAndHidesGoal() = runComposeUiTest {
+    fun minimumMiniWindowKeepsPrimaryControlsAndHidesGoalAtLargeText() = runComposeUiTest {
         val now = midWindowNow()
         setContent {
-            Box(Modifier.requiredSize(width = 360.dp, height = 300.dp)) {
+            VisualViewport(width = 200.dp, height = 300.dp) {
                 DayViewMiniApp(
                     progress = calculateDayProgress(now, 8 * 60, 18 * 60),
                     showSeconds = false,
@@ -131,7 +129,9 @@ class MiniWindowTest {
             }
         }
 
+        captureVisual("mini-window-minimum-200x300-font150")
         onNodeWithTag(DayViewTestTags.MiniGoal).assertDoesNotExist()
-        onNodeWithTag(DayViewTestTags.OpenMainWindow).assertExists()
+        onNodeWithTag(DayViewTestTags.OpenMainWindow).assertIsDisplayed().assertInsideVisualViewport(this)
+        onNodeWithTag(DayViewTestTags.MiniFocusStart).assertIsDisplayed().assertInsideVisualViewport(this)
     }
 }

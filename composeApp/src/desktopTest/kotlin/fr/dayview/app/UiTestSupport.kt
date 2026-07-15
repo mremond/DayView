@@ -1,9 +1,22 @@
+@file:OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+
 package fr.dayview.app
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import fr.dayview.app.sync.SyncStatus
 import kotlinx.coroutines.CoroutineScope
@@ -12,8 +25,83 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Instant
+
+internal const val VISUAL_VIEWPORT_TAG = "visualViewport"
+
+/**
+ * A clipped, tagged viewport used by responsive UI tests. Only text scaling is
+ * overridden: physical dp sizing stays deterministic on Linux and macOS.
+ */
+@Composable
+internal fun VisualViewport(
+    width: Dp,
+    height: Dp,
+    fontScale: Float = 1f,
+    content: @Composable () -> Unit,
+) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(density.density, density.fontScale * fontScale),
+        LocalPreferenceFontScale provides fontScale,
+    ) {
+        Box(
+            Modifier
+                .requiredSize(width, height)
+                .clipToBounds()
+                .testTag(VISUAL_VIEWPORT_TAG),
+        ) {
+            content()
+        }
+    }
+}
+
+/** Saves an actual rendered PNG and rejects empty/monochrome captures. */
+internal fun ComposeUiTest.captureVisual(name: String): File {
+    waitForIdle()
+    val image = onNodeWithTag(VISUAL_VIEWPORT_TAG, useUnmergedTree = true).captureToImage()
+    val pixels = image.readArgbPixels()
+    val distinctColors = pixels.asSequence().distinct().take(17).count()
+    assertTrue(distinctColors >= 8, "Visual capture $name contains too little rendered content")
+
+    val outputDirectory = File(
+        System.getProperty("dayview.visualOutputDir", "build/reports/visual-tests"),
+    ).apply { mkdirs() }
+    val output = outputDirectory.resolve("${name.replace(Regex("[^a-zA-Z0-9._-]"), "-")}.png")
+    val buffered = BufferedImage(image.width, image.height, BufferedImage.TYPE_INT_ARGB)
+    buffered.setRGB(0, 0, image.width, image.height, pixels, 0, image.width)
+    assertTrue(ImageIO.write(buffered, "png", output), "PNG writer unavailable")
+    assertTrue(output.length() > 0L, "Visual capture $name was not written")
+    return output
+}
+
+/** Ensures a critical control has a non-empty visible rectangle inside the viewport. */
+internal fun SemanticsNodeInteraction.assertInsideVisualViewport(test: ComposeUiTest): SemanticsNodeInteraction {
+    val viewport = test.onNodeWithTag(VISUAL_VIEWPORT_TAG, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+    val node = fetchSemanticsNode()
+    val bounds = node.boundsInRoot
+    val tolerance = 1f
+    assertTrue(bounds.width > 0f && bounds.height > 0f, "Node has an empty visual bounds: $bounds")
+    assertTrue(
+        bounds.width >= node.size.width - tolerance && bounds.height >= node.size.height - tolerance,
+        "Node is only partially visible: measured=${node.size}, visible=$bounds",
+    )
+    assertTrue(
+        bounds.left >= viewport.left - tolerance &&
+            bounds.right <= viewport.right + tolerance &&
+            bounds.top >= viewport.top - tolerance &&
+            bounds.bottom <= viewport.bottom + tolerance,
+        "Node $bounds is clipped by viewport $viewport",
+    )
+    return this
+}
+
+private fun ImageBitmap.readArgbPixels(): IntArray = IntArray(width * height).also { readPixels(it) }
 
 /**
  * A "now" that always falls inside the default 08:00–18:00 day window,

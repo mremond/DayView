@@ -1,6 +1,7 @@
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
+import org.gradle.api.tasks.testing.Test
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import java.util.Properties
 
@@ -130,6 +131,13 @@ kotlin {
 
 compose.resources {
     packageOfResClass = "fr.dayview.app.generated.resources"
+}
+
+tasks.named<Test>("desktopTest") {
+    systemProperty(
+        "dayview.visualOutputDir",
+        layout.buildDirectory.dir("reports/visual-tests").get().asFile.absolutePath,
+    )
 }
 
 android {
