@@ -61,10 +61,11 @@ that succeeds flips it to `Ok` on its own.
 
 ## Lifecycle note
 
-Retries run on the coordinator's injected scope, so on Android they may fire while the
-app is backgrounded as long as the process is alive. This mirrors the existing behavior
-of that scope (the debounced-write trigger already does this) and deliberately avoids
-WorkManager.
+Retries run on the coordinator's injected scope. On Android that scope is owned by
+`MainActivity` and cancelled in `onDestroy`, so retries fire while the app is merely
+backgrounded (`onStop` without `onDestroy`) but stop once the Activity is destroyed —
+this avoids an orphaned retry loop surviving a configuration change. This deliberately
+avoids WorkManager.
 
 ## Testing
 
