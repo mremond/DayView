@@ -210,7 +210,7 @@ compose.desktop {
             // module. jlink doesn't detect that dependency either, so without this the
             // packaged app crashes the moment it syncs (NoClassDefFoundError:
             // java/net/http/HttpClient$Version). It only shows in the packaged build;
-            // `./gradlew :composeApp:run` uses the full JDK.
+            // `./gradlew :shared:run` uses the full JDK.
             modules("jdk.unsupported", "java.net.http")
             targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "DayView"
@@ -243,10 +243,10 @@ compose.desktop {
                 // the JVM from JIT and from loading JNA/Skia native libraries. These
                 // entitlements restore what a JVM app needs. App is not sandboxed.
                 entitlementsFile.set(
-                    rootProject.layout.projectDirectory.file("composeApp/entitlements.plist"),
+                    rootProject.layout.projectDirectory.file("shared/entitlements.plist"),
                 )
                 runtimeEntitlementsFile.set(
-                    rootProject.layout.projectDirectory.file("composeApp/runtime-entitlements.plist"),
+                    rootProject.layout.projectDirectory.file("shared/runtime-entitlements.plist"),
                 )
             }
         }
