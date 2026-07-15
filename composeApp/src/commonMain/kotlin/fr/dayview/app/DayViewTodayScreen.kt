@@ -9,8 +9,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -1007,26 +1008,46 @@ internal fun CountdownCircle(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (down.type != PointerType.Touch) return@awaitEachGesture
-                    val pressed = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
                     fun angleOf(pos: Offset): Float {
                         val dx = pos.x - size.width / 2f
                         val dy = pos.y - size.height / 2f
                         val raw = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
                         return normalizeRingAngle(raw)
                     }
-                    try {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        scrubAngle = angleOf(pressed.position)
-                        pressed.consume()
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            if (!change.pressed) break
-                            scrubAngle = angleOf(change.position)
-                            change.consume()
+                    // A quick release before the long-press timeout is a tap; the timeout firing
+                    // (PointerEventTimeoutCancellationException) is a long press → ring scrub.
+                    var longPress = false
+                    val up = try {
+                        withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                            waitForUpOrCancellation()
                         }
-                    } finally {
-                        scrubAngle = null
+                    } catch (_: PointerEventTimeoutCancellationException) {
+                        longPress = true
+                        null
+                    }
+                    when {
+                        longPress -> {
+                            try {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                scrubAngle = angleOf(down.position)
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!change.pressed) break
+                                    scrubAngle = angleOf(change.position)
+                                    change.consume()
+                                }
+                            } finally {
+                                scrubAngle = null
+                            }
+                        }
+                        up != null -> {
+                            // Tap: reveal / switch / dismiss the busy-label tooltip.
+                            val tapped = hitTestBusyArc(up.position, size.width, size.height, busyBlockArcs)
+                            hoveredBusy = nextHoveredBusyOnTap(hoveredBusy, tapped, up.position)
+                            up.consume()
+                        }
+                        // else: waitForUpOrCancellation returned null (gesture cancelled) → do nothing.
                     }
                 }
             }
