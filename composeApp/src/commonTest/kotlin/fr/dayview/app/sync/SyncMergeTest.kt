@@ -20,6 +20,36 @@ class SyncMergeTest {
         assertEquals("new", b.merge(a).goal.value.title) // commutative
     }
 
+    private fun goalDoc(deviceId: String, at: Long, value: GoalDto): SyncDocument = sampleDocument(deviceId, at).let { it.copy(goal = Versioned(value, Stamp(at, deviceId))) }
+
+    private val emptyDefaultGoal = GoalDto(title = "", deadline = -1L, start = -1L, cleared = false)
+    private val emptyClearedGoal = GoalDto(title = "", deadline = -1L, start = -1L, cleared = true)
+    private val contentGoal = GoalDto(title = "Ship", deadline = 2000L, start = 1500L)
+
+    @Test
+    fun defaultEmptyGoalNeverOverwritesContentEvenWhenNewer() {
+        val content = goalDoc("a", at = 100, contentGoal)
+        val freshDefault = goalDoc("b", at = 999, emptyDefaultGoal) // newer, but never-set
+        assertEquals("Ship", content.merge(freshDefault).goal.value.title)
+        assertEquals("Ship", freshDefault.merge(content).goal.value.title) // commutative
+    }
+
+    @Test
+    fun voluntaryClearWinsWhenNewer() {
+        val content = goalDoc("a", at = 100, contentGoal)
+        val cleared = goalDoc("b", at = 200, emptyClearedGoal) // user deleted it, newer
+        assertTrue(content.merge(cleared).goal.value.title.isEmpty())
+        assertTrue(content.merge(cleared).goal.value.cleared)
+        assertEquals(content.merge(cleared), cleared.merge(content)) // commutative
+    }
+
+    @Test
+    fun reSettingGoalAfterClearRestoresIt() {
+        val cleared = goalDoc("a", at = 100, emptyClearedGoal) // older deletion
+        val content = goalDoc("b", at = 200, contentGoal) // re-set later
+        assertEquals("Ship", cleared.merge(content).goal.value.title)
+    }
+
     @Test
     fun sameDayDetoursUnionByKey() {
         val s = Stamp(100, "a")

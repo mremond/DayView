@@ -91,6 +91,76 @@ class SyncEngineTest {
     }
 
     @Test
+    fun firstSyncWithExistingRemoteAsksForChoice() = runTest {
+        // Never synced on this device (baseDocument == null) and the server already holds data:
+        // the engine must stop and ask, not silently let local `now`-stamped scalars win.
+        val remoteDoc = sampleDocument(deviceId = "other", at = 50)
+        val transport = FakeTransport(remote = RemoteSnapshot(remoteDoc.encodeToString(), "r1"))
+        val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
+
+        val result = engine.sync(local, SyncState(null, null), now = 100, strategy = null)
+
+        assertIs<SyncResult.FirstSyncChoiceNeeded>(result)
+        assertEquals(0, transport.pushes)
+    }
+
+    @Test
+    fun firstSyncAdoptServerYieldsRemoteDocumentWithoutPushing() = runTest {
+        val remoteDoc = sampleDocument(deviceId = "other", at = 50)
+        val transport = FakeTransport(remote = RemoteSnapshot(remoteDoc.encodeToString(), "r1"))
+        val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
+
+        val result = engine.sync(local, SyncState(null, null), now = 100, strategy = FirstSyncStrategy.AdoptServer)
+
+        assertIs<SyncResult.Applied>(result)
+        assertEquals(0, transport.pushes)
+        // Server's goal is retrieved instead of the fresh device's empty default.
+        assertEquals("Ship", result.snapshot.goalTitle)
+        assertEquals(480, result.snapshot.startMinutes)
+        assertEquals("r1", result.state.baseRevision)
+        assertEquals(remoteDoc, result.state.baseDocument)
+    }
+
+    @Test
+    fun firstSyncPushLocalOverwritesServerWithLocalDocument() = runTest {
+        val remoteDoc = sampleDocument(deviceId = "other", at = 50)
+        var recordedExpectedRevision: String? = "not-recorded"
+        val transport = object : SyncTransport {
+            override suspend fun pull() = RemoteSnapshot(remoteDoc.encodeToString(), "r1")
+            override suspend fun push(payload: String, expectedRevision: String?): PushOutcome {
+                recordedExpectedRevision = expectedRevision
+                return PushOutcome.Applied("r2")
+            }
+            override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+            override suspend fun getHistoryDay(opaqueKey: String): String? = null
+        }
+        val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
+
+        val result = engine.sync(local, SyncState(null, null), now = 100, strategy = FirstSyncStrategy.PushLocal)
+
+        assertIs<SyncResult.Applied>(result)
+        // Compare-and-swap against the freshly pulled revision, not an unconditional PUT.
+        assertEquals("r1", recordedExpectedRevision)
+        assertEquals(500, result.snapshot.startMinutes) // local wins
+        assertEquals("r2", result.state.baseRevision)
+        assertEquals(500, result.state.baseDocument?.dayWindow?.value?.start)
+    }
+
+    @Test
+    fun firstSyncMergeUnionsAndLetsLocalScalarsWin() = runTest {
+        val remoteDoc = sampleDocument(deviceId = "other", at = 50)
+        val transport = FakeTransport(remote = RemoteSnapshot(remoteDoc.encodeToString(), "r1"))
+        val engine = SyncEngine(transport, PlainCodec, deviceId = "a")
+
+        val result = engine.sync(local, SyncState(null, null), now = 100, strategy = FirstSyncStrategy.Merge)
+
+        assertIs<SyncResult.Applied>(result)
+        assertEquals(1, transport.pushes)
+        // Merge keeps the current local-scalars-win quirk: local start (fresh now-stamp) beats remote.
+        assertEquals(500, result.snapshot.startMinutes)
+    }
+
+    @Test
     fun decryptFailureReturnsKeyError() = runTest {
         val transport = FakeTransport(remote = RemoteSnapshot("cipher", "r1"))
         val engine = SyncEngine(transport, FailKeyCodec, deviceId = "a")

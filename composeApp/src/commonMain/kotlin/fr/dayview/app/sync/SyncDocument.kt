@@ -18,7 +18,12 @@ data class SoundDto(
     val volumePercent: Int,
 )
 
-@Serializable data class GoalDto(val title: String, val deadline: Long, val start: Long)
+/**
+ * [cleared] is a tombstone marker: `true` means the user voluntarily removed the goal, so the
+ * empty value should propagate. An empty goal with `cleared == false` is a never-set default and
+ * must never overwrite a real goal on another device (see `pickGoal`).
+ */
+@Serializable data class GoalDto(val title: String, val deadline: Long, val start: Long, val cleared: Boolean = false)
 
 @Serializable data class PomodoroDto(val minutes: Int, val end: Long)
 

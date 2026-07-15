@@ -162,6 +162,7 @@ import fr.dayview.app.generated.resources.notice_calendar_permission
 import fr.dayview.app.generated.resources.notice_review_action
 import fr.dayview.app.generated.resources.notice_sync_failed
 import fr.dayview.app.generated.resources.notice_sync_key_error
+import fr.dayview.app.generated.resources.notice_sync_needs_choice
 import fr.dayview.app.generated.resources.open_detour_status
 import fr.dayview.app.generated.resources.scrub_now
 import fr.dayview.app.generated.resources.seconds_remaining
@@ -784,6 +785,15 @@ private fun TodayNotices(
                     NoticeSpec(
                         stringResource(Res.string.notice_sync_key_error),
                         colors.red,
+                        DayViewTestTags.SyncNotice,
+                        onOpenSyncSettings,
+                    ),
+                )
+            SyncStatus.NeedsChoice ->
+                add(
+                    NoticeSpec(
+                        stringResource(Res.string.notice_sync_needs_choice),
+                        colors.amber,
                         DayViewTestTags.SyncNotice,
                         onOpenSyncSettings,
                     ),

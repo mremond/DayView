@@ -104,6 +104,34 @@ class SyncMapperTest {
     }
 
     @Test
+    fun buildLeavesNeverSetGoalUnmarked() {
+        val doc = buildDocument(base, base = null, deviceId = "a", now = 100)
+        assertTrue(doc.goal.value.title.isEmpty())
+        assertEquals(false, doc.goal.value.cleared) // default empty is not a deletion
+    }
+
+    @Test
+    fun buildMarksGoalClearedWhenUserRemovesRealGoal() {
+        val withGoal = base.copy(goalTitle = "Ship", goalDeadline = Instant.fromEpochMilliseconds(2000))
+        val first = buildDocument(withGoal, base = null, deviceId = "a", now = 100)
+        val cleared = base.copy(goalTitle = "", goalDeadline = null)
+        val second = buildDocument(cleared, base = first, deviceId = "a", now = 200)
+        assertEquals(true, second.goal.value.cleared)
+        assertEquals(Stamp(200, "a"), second.goal.stamp) // fresh stamp so the deletion propagates
+    }
+
+    @Test
+    fun buildCarriesGoalTombstoneForwardOnNoOpRebuild() {
+        val withGoal = base.copy(goalTitle = "Ship", goalDeadline = Instant.fromEpochMilliseconds(2000))
+        val cleared = base.copy(goalTitle = "", goalDeadline = null)
+        val first = buildDocument(withGoal, base = null, deviceId = "a", now = 100)
+        val second = buildDocument(cleared, base = first, deviceId = "a", now = 200)
+        val third = buildDocument(cleared, base = second, deviceId = "a", now = 300)
+        assertEquals(true, third.goal.value.cleared)
+        assertEquals(Stamp(200, "a"), third.goal.stamp) // tombstone stamp kept, not re-stamped to 300
+    }
+
+    @Test
     fun applyDocumentPreservesOnGoalApps() {
         val onGoalApps = setOf(AppRef("com.example.focus", "Focus App"))
         val local = base.copy(onGoalApps = onGoalApps)

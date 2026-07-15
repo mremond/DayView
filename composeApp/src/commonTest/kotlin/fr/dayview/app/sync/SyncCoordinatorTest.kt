@@ -41,6 +41,24 @@ private class OneShotTransport : SyncTransport {
     override suspend fun getHistoryDay(opaqueKey: String): String? = null
 }
 
+/** A server that already holds [document]; the first pull returns it so first-sync triggers. */
+private class ExistingServerTransport(document: SyncDocument) : SyncTransport {
+    var remote: RemoteSnapshot? = RemoteSnapshot(document.encodeToString(), "r1")
+    var pushes = 0
+
+    override suspend fun pull(): RemoteSnapshot? = remote
+
+    override suspend fun push(payload: String, expectedRevision: String?): PushOutcome {
+        pushes++
+        remote = RemoteSnapshot(payload, "r${pushes + 1}")
+        return PushOutcome.Applied("r${pushes + 1}")
+    }
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? = null
+}
+
 private class AuthenticationFailureTransport : SyncTransport {
     override suspend fun pull(): RemoteSnapshot? = throw SyncAuthenticationException()
 
@@ -157,6 +175,40 @@ class SyncCoordinatorTest {
 
         assertEquals(SyncSetupResult.AuthenticationFailed, c.verifyAndSync())
         assertEquals(SyncStatus.Failed, c.status.first())
+    }
+
+    @Test
+    fun firstSyncAgainstExistingServerStopsForChoice() = runTest {
+        val ks = InMemorySecureKeyStore().apply {
+            storeKey(RawSyncKey.generate())
+            storeConfig(SyncConfig("https://s", "u", "t"))
+        }
+        val transport = ExistingServerTransport(sampleDocument(deviceId = "other", at = 50))
+        val c = coordinator(ks, FakePrefs(DayPreferencesSnapshot()), transport, this)
+
+        c.syncNow()
+
+        assertEquals(SyncStatus.NeedsChoice, c.status.first())
+        assertEquals(true, c.firstSyncChoicePending.first())
+        assertEquals(0, transport.pushes)
+    }
+
+    @Test
+    fun resolveFirstSyncAdoptServerAppliesRemoteAndClearsPending() = runTest {
+        val ks = InMemorySecureKeyStore().apply {
+            storeKey(RawSyncKey.generate())
+            storeConfig(SyncConfig("https://s", "u", "t"))
+        }
+        val prefs = FakePrefs(DayPreferencesSnapshot())
+        val transport = ExistingServerTransport(sampleDocument(deviceId = "other", at = 50))
+        val c = coordinator(ks, prefs, transport, this)
+        c.syncNow()
+
+        c.resolveFirstSync(FirstSyncStrategy.AdoptServer)
+
+        assertEquals(SyncStatus.Ok, c.status.first())
+        assertEquals(false, c.firstSyncChoicePending.first())
+        assertEquals("Ship", prefs.state.value.goalTitle) // server goal retrieved
     }
 
     @Test

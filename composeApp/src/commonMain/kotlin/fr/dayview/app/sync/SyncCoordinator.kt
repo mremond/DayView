@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-enum class SyncStatus { Idle, Syncing, Ok, KeyError, Failed, NotConfigured }
+enum class SyncStatus { Idle, Syncing, Ok, KeyError, Failed, NotConfigured, NeedsChoice }
 
 enum class SyncSetupResult { Success, NotConfigured, AuthenticationFailed, KeyMismatch, ConnectionFailed }
 
@@ -41,6 +41,13 @@ class SyncCoordinator(
     private val _status = MutableStateFlow(SyncStatus.Idle)
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
 
+    /**
+     * True when the last sync stopped on a first-sync reconciliation choice and the user
+     * has not resolved it yet. The UI observes this to show the merge/replace dialog.
+     */
+    private val _firstSyncChoicePending = MutableStateFlow(false)
+    val firstSyncChoicePending: StateFlow<Boolean> = _firstSyncChoicePending.asStateFlow()
+
     private val mutex = Mutex()
 
     /**
@@ -49,6 +56,15 @@ class SyncCoordinator(
      */
     suspend fun syncNow(): SyncStatus = mutex.withLock {
         runOnce()
+        _status.value
+    }
+
+    /**
+     * Resolves a pending first-sync choice by re-running the sync with an explicit
+     * [strategy]. Returns the resulting status, read under [mutex] like [syncNow].
+     */
+    suspend fun resolveFirstSync(strategy: FirstSyncStrategy): SyncStatus = mutex.withLock {
+        runOnce(strategy)
         _status.value
     }
 
@@ -66,7 +82,9 @@ class SyncCoordinator(
             if (remote != null) codecFactory(key).decrypt(remote.payload)
             syncNow()
             when (_status.value) {
-                SyncStatus.Ok -> SyncSetupResult.Success
+                // A pending first-sync choice means auth + key succeeded; the device is
+                // connected. The choice is surfaced separately via [firstSyncChoicePending].
+                SyncStatus.Ok, SyncStatus.NeedsChoice -> SyncSetupResult.Success
                 SyncStatus.KeyError -> SyncSetupResult.KeyMismatch
                 SyncStatus.NotConfigured -> SyncSetupResult.NotConfigured
                 else -> SyncSetupResult.ConnectionFailed
@@ -88,7 +106,7 @@ class SyncCoordinator(
         mutex.withLock { statePersistence.clear() }
     }
 
-    private suspend fun runOnce() {
+    private suspend fun runOnce(strategy: FirstSyncStrategy? = null) {
         val key = keyStore.loadKey()
         val config = keyStore.loadConfig()
         if (key == null || config == null) {
@@ -106,8 +124,10 @@ class SyncCoordinator(
         val engine = SyncEngine(transport, codecFactory(key), deviceId, historySync = historySync, focusSync = focusSync)
         val local = preferences.snapshots.first()
         val state = statePersistence.load()
+        val result = engine.sync(local, state, now(), strategy)
+        _firstSyncChoicePending.value = result is SyncResult.FirstSyncChoiceNeeded
         _status.value =
-            when (val result = engine.sync(local, state, now())) {
+            when (result) {
                 is SyncResult.Applied -> {
                     preferences.persist(result.snapshot)
                     statePersistence.save(result.state)
@@ -115,6 +135,7 @@ class SyncCoordinator(
                 }
                 SyncResult.UpToDate -> SyncStatus.Ok
                 SyncResult.KeyError -> SyncStatus.KeyError
+                SyncResult.FirstSyncChoiceNeeded -> SyncStatus.NeedsChoice
                 is SyncResult.Failed -> SyncStatus.Failed
             }
     }

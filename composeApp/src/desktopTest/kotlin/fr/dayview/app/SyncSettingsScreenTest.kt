@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
+import fr.dayview.app.sync.FirstSyncStrategy
 import fr.dayview.app.sync.SyncConfig
 import fr.dayview.app.sync.SyncPairingCode
 import fr.dayview.app.sync.SyncSetupResult
@@ -157,6 +158,52 @@ class SyncSettingsScreenTest {
         onNodeWithTag(DayViewTestTags.SyncSetupCreatePairing).performClick()
         waitForIdle()
         onNodeWithTag(DayViewTestTags.SyncSetupQrCode).assertExists()
+    }
+
+    @Test
+    fun firstSyncChoiceDialogResolvesWithSelectedStrategy() = runComposeUiTest {
+        var chosen: FirstSyncStrategy? = null
+        setContent {
+            DayViewTheme {
+                SyncSettingsScreen(
+                    config = configured,
+                    status = SyncStatus.NeedsChoice,
+                    hasKey = true,
+                    onConfigChange = {},
+                    onGenerateKey = { "" },
+                    onPasteKey = { false },
+                    onSyncNow = {},
+                    onClear = {},
+                    firstSyncChoicePending = true,
+                    onResolveFirstSync = { chosen = it },
+                )
+            }
+        }
+
+        onNodeWithTag(DayViewTestTags.SyncFirstChoiceDialog).assertExists()
+        onNodeWithTag(DayViewTestTags.SyncFirstChoiceAdoptServer).performClick()
+        assertEquals(FirstSyncStrategy.AdoptServer, chosen)
+    }
+
+    @Test
+    fun firstSyncChoiceDialogHiddenWhenNotPending() = runComposeUiTest {
+        setContent {
+            DayViewTheme {
+                SyncSettingsScreen(
+                    config = configured,
+                    status = SyncStatus.Ok,
+                    hasKey = true,
+                    onConfigChange = {},
+                    onGenerateKey = { "" },
+                    onPasteKey = { false },
+                    onSyncNow = {},
+                    onClear = {},
+                    firstSyncChoicePending = false,
+                )
+            }
+        }
+
+        onNodeWithTag(DayViewTestTags.SyncFirstChoiceDialog).assertDoesNotExist()
     }
 
     @Test

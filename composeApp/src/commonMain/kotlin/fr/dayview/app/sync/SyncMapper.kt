@@ -15,6 +15,36 @@ fun detourKey(e: DetourDto): String = "${e.start}|${e.end}|${e.motif}"
 private fun Instant?.toMillisOrAbsent(): Long = this?.toEpochMilliseconds() ?: NO_INSTANT
 private fun Long.toInstantOrNull(): Instant? = if (this == NO_INSTANT) null else Instant.fromEpochMilliseconds(this)
 
+/** A goal is meaningful when it has a title or a deadline; an empty one is either default or cleared. */
+internal fun GoalDto.hasContent(): Boolean = title.isNotBlank() || deadline != NO_INSTANT
+
+/**
+ * Builds the goal field, marking it [GoalDto.cleared] only when the user removed a real goal since
+ * the last sync (base had content, local is now empty). A never-set default stays uncleared so it
+ * can never overwrite another device's goal; an existing tombstone is carried forward unchanged.
+ */
+private fun buildGoal(
+    snapshot: DayPreferencesSnapshot,
+    base: Versioned<GoalDto>?,
+    now: Long,
+    deviceId: String,
+): Versioned<GoalDto> {
+    val hasContent = snapshot.goalTitle.isNotBlank() || snapshot.goalDeadline != null
+    val cleared = when {
+        hasContent -> false
+        base != null && base.value.hasContent() -> true // user removed a real goal
+        base != null && base.value.cleared -> true // preserve an existing tombstone
+        else -> false // never set / default empty
+    }
+    val value = GoalDto(
+        title = snapshot.goalTitle,
+        deadline = snapshot.goalDeadline.toMillisOrAbsent(),
+        start = snapshot.goalStart.toMillisOrAbsent(),
+        cleared = cleared,
+    )
+    return restamp(value, base, now, deviceId)
+}
+
 /** Keep [current]'s stamp if the value is unchanged from [base]; otherwise stamp with [now]. */
 private fun <T> restamp(current: T, base: Versioned<T>?, now: Long, by: String): Versioned<T> = if (base != null && base.value == current) base else Versioned(current, Stamp(now, by))
 
@@ -30,12 +60,7 @@ fun buildDocument(
         dayWindow = restamp(DayWindow(snapshot.startMinutes, snapshot.endMinutes), base?.dayWindow, now, deviceId),
         showSeconds = restamp(snapshot.showSeconds, base?.showSeconds, now, deviceId),
         sound = restamp(snapshot.soundSettings.toDto(), base?.sound, now, deviceId),
-        goal = restamp(
-            GoalDto(snapshot.goalTitle, snapshot.goalDeadline.toMillisOrAbsent(), snapshot.goalStart.toMillisOrAbsent()),
-            base?.goal,
-            now,
-            deviceId,
-        ),
+        goal = buildGoal(snapshot, base?.goal, now, deviceId),
         pomodoro = restamp(PomodoroDto(snapshot.pomodoroMinutes, snapshot.pomodoroEnd.toMillisOrAbsent()), base?.pomodoro, now, deviceId),
         openDetour = restamp(
             OpenDetourDto(snapshot.openDetourStart.toMillisOrAbsent(), snapshot.openDetourCategory, snapshot.openDetourDescription),

@@ -5,10 +5,34 @@ import kotlin.coroutines.cancellation.CancellationException
 
 data class SyncState(val baseRevision: String?, val baseDocument: SyncDocument?)
 
+/**
+ * How a device's *first* sync should reconcile with a server that already holds a document.
+ * Only consulted when this device has never synced before ([SyncState.baseDocument] == null)
+ * and the server is non-empty; otherwise the ordinary last-writer-wins merge runs unconditionally.
+ */
+enum class FirstSyncStrategy {
+    /** Union lists and resolve scalars by last-write-wins (the ordinary merge). */
+    Merge,
+
+    /** Force-pull: adopt the server's document verbatim, discarding local values. */
+    AdoptServer,
+
+    /** Force-push: overwrite the server with this device's document. */
+    PushLocal,
+}
+
 sealed interface SyncResult {
     data object UpToDate : SyncResult
     data class Applied(val snapshot: DayPreferencesSnapshot, val state: SyncState) : SyncResult
     data object KeyError : SyncResult
+
+    /**
+     * This device has never synced before and the server already holds a document, so the
+     * engine stops rather than silently merging (local scalars, freshly stamped with *now*,
+     * would otherwise win over existing server values). The caller must re-run with an explicit
+     * [FirstSyncStrategy].
+     */
+    data object FirstSyncChoiceNeeded : SyncResult
     data class Failed(val cause: Throwable) : SyncResult
 }
 
@@ -20,16 +44,47 @@ class SyncEngine(
     private val historySync: HistorySync? = null,
     private val focusSync: FocusContributionSync? = null,
 ) {
-    suspend fun sync(local: DayPreferencesSnapshot, state: SyncState, now: Long): SyncResult {
+    suspend fun sync(
+        local: DayPreferencesSnapshot,
+        state: SyncState,
+        now: Long,
+        strategy: FirstSyncStrategy? = null,
+    ): SyncResult {
         val localDoc = buildDocument(local, state.baseDocument, deviceId, now)
+        val neverSynced = state.baseDocument == null
         try {
-            repeat(maxRetries) {
+            repeat(maxRetries) { attempt ->
                 val remote = transport.pull()
                 val remoteDoc = remote?.let {
                     try {
                         decodeSyncDocument(codec.decrypt(it.payload))
                     } catch (e: SyncKeyMismatchException) {
                         return SyncResult.KeyError
+                    }
+                }
+                // First-sync reconciliation: decided by the *initial* pull only. A non-null remote
+                // that first appears on a later retry is a concurrent writer to merge against, not a
+                // pre-existing server the user must choose how to adopt.
+                if (attempt == 0 && neverSynced && remoteDoc != null) {
+                    when (strategy) {
+                        null -> return SyncResult.FirstSyncChoiceNeeded
+                        FirstSyncStrategy.AdoptServer ->
+                            return SyncResult.Applied(
+                                snapshot = applyDocument(remoteDoc, local),
+                                state = SyncState(remote.revision, remoteDoc),
+                            )
+                        FirstSyncStrategy.PushLocal -> {
+                            val payload = codec.encrypt(localDoc.encodeToString())
+                            when (val outcome = transport.push(payload, remote.revision)) {
+                                is PushOutcome.Applied ->
+                                    return SyncResult.Applied(
+                                        snapshot = applyDocument(localDoc, local),
+                                        state = SyncState(outcome.revision, localDoc),
+                                    )
+                                is PushOutcome.Rejected -> return@repeat
+                            }
+                        }
+                        FirstSyncStrategy.Merge -> Unit // fall through to the ordinary merge
                     }
                 }
                 var merged = localDoc.merge(remoteDoc)

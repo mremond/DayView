@@ -393,4 +393,11 @@
     <string name="sync_status_key_error">Erreur de clé — vérifiez la clé sur les deux appareils.</string>
     <string name="sync_status_failed">Échec de la synchronisation.</string>
     <string name="sync_status_not_configured">Pas encore configuré.</string>
+    <string name="sync_status_needs_choice">Choisissez comment synchroniser.</string>
+    <string name="notice_sync_needs_choice">Le serveur contient déjà des données — choisissez comment synchroniser cet appareil.</string>
+    <string name="sync_first_sync_title">Des données existent déjà sur le serveur</string>
+    <string name="sync_first_sync_message">Cet appareil ne s\'est jamais synchronisé avec ce serveur, qui contient déjà des réglages enregistrés. Choisissez comment les réconcilier.</string>
+    <string name="sync_first_sync_merge">FUSIONNER</string>
+    <string name="sync_first_sync_adopt_server">PRENDRE LE SERVEUR</string>
+    <string name="sync_first_sync_push_local">ENVOYER CET APPAREIL</string>
 </resources>

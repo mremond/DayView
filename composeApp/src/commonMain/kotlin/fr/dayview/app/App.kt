@@ -159,6 +159,9 @@ internal fun DayViewApp(
                     var syncKey by remember { mutableStateOf(secureKeyStore?.loadKey()) }
                     val fallbackSyncStatus = remember { MutableStateFlow(SyncStatus.Idle) }
                     val syncStatus by (syncCoordinator?.status ?: fallbackSyncStatus).collectAsState()
+                    val fallbackFirstSyncPending = remember { MutableStateFlow(false) }
+                    val firstSyncChoicePending by
+                        (syncCoordinator?.firstSyncChoicePending ?: fallbackFirstSyncPending).collectAsState()
 
                     // Sync I/O (network + keystore/state-file reads) must never run on the
                     // Compose UI dispatcher. Automatic triggers are routed through this helper;
@@ -334,6 +337,7 @@ internal fun DayViewApp(
                                     syncConfig = syncConfig,
                                     syncStatus = syncStatus,
                                     syncHasKey = syncKey != null,
+                                    firstSyncChoicePending = firstSyncChoicePending,
                                     powerManagementSupported = onOpenPowerSettings != null,
                                 ),
                                 actions = SettingsScreenActions(
@@ -505,6 +509,13 @@ internal fun DayViewApp(
                                             runCatching { secureKeyStore?.clear() }
                                                 .onFailure { appEventBus.reportTransient("storage", it, ToastKind.SaveFailed) }
                                             syncCoordinator?.reset()
+                                        }
+                                    },
+                                    resolveFirstSync = { strategy ->
+                                        scope.launch(Dispatchers.IO) {
+                                            if (syncCoordinator?.resolveFirstSync(strategy) == SyncStatus.Ok) {
+                                                appEventBus.post(AppEvent.Toast(ToastKind.SyncSucceeded))
+                                            }
                                         }
                                     },
                                     openPowerSettings = onOpenPowerSettings ?: {},

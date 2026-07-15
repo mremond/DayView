@@ -394,4 +394,11 @@
     <string name="sync_status_key_error">Key error — check the key on both devices.</string>
     <string name="sync_status_failed">Sync failed.</string>
     <string name="sync_status_not_configured">Not configured yet.</string>
+    <string name="sync_status_needs_choice">Choose how to sync.</string>
+    <string name="notice_sync_needs_choice">The server already has data — choose how to sync this device.</string>
+    <string name="sync_first_sync_title">Data already exists on the server</string>
+    <string name="sync_first_sync_message">This device has never synced with this server, which already holds saved settings. Choose how to reconcile them.</string>
+    <string name="sync_first_sync_merge">MERGE</string>
+    <string name="sync_first_sync_adopt_server">USE SERVER</string>
+    <string name="sync_first_sync_push_local">USE THIS DEVICE</string>
 </resources>
