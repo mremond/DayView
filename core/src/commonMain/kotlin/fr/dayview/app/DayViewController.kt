@@ -295,7 +295,13 @@ class DayViewController(
             history.write(record)
             if (self != null && contributions != null) {
                 contributions.write(
-                    FocusContribution(key, self, record.focusPresenceIntervals, record.focusSessionIntervals),
+                    FocusContribution(
+                        key,
+                        self,
+                        record.focusPresenceIntervals,
+                        record.focusSessionIntervals,
+                        record.focusSessionRecords,
+                    ),
                 )
             }
         }

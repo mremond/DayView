@@ -18,6 +18,16 @@ class FocusContributionStoreTest {
         pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
     )
 
+    /** A full, valid record; individual fields are overridden per-test via `.copy(...)`. */
+    private fun sampleRecord() = DayHistoryRecord(
+        dayKey = 20260, startMinutes = 480, endMinutes = 1080, focusIntention = "",
+        busyIntervals = emptyList(), calendarNames = emptyMap(), netTimeSettings = NetTimeSettings(),
+        focusPresenceIntervals = emptyList(), focusSessionIntervals = emptyList(),
+        focusSessionRecords = emptyList(),
+        detours = emptyList(), cleanSessions = CleanSessionLedger(),
+        pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
+    )
+
     @Test
     fun storeKeepsContributionsPerDeviceAndListsThem() = runTest {
         val store = InMemoryFocusContributionStore()
@@ -35,5 +45,23 @@ class FocusContributionStoreTest {
         )
         // 0-10 (own) unions with 5-30 (foreign) -> 0-30.
         assertEquals(listOf(iv(0, 30)), merged.focusSessionIntervals)
+    }
+
+    @Test
+    fun withMergedFocusUnionsSessionRecordsFromContributions() {
+        val base = sampleRecord().copy(
+            focusSessionRecords = listOf(
+                FocusSessionRecord(at(1_000), at(2_000), "local", FocusClosureOutcome.COMPLETED),
+            ),
+        )
+        val other = FocusContribution(
+            dayKey = base.dayKey,
+            deviceId = "other",
+            presence = emptyList(),
+            session = emptyList(),
+            records = listOf(FocusSessionRecord(at(5_000), at(6_000), "remote", FocusClosureOutcome.COMPLETED)),
+        )
+        val merged = base.withMergedFocus(listOf(other))
+        assertEquals(listOf("local", "remote"), merged.focusSessionRecords.map { it.intention })
     }
 }
