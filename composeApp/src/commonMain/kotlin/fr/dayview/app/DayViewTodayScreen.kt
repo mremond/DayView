@@ -1581,6 +1581,29 @@ private fun RingScrubReadout(
     }
 }
 
+/**
+ * The shared body of a detour detail pop-up: category (the "nature", colored by the
+ * caller to match its surface), the optional description on a single ellipsized line,
+ * and how long the detour lasted. The absolute start/end clock time is intentionally
+ * omitted — it is only worth showing for an otherwise-empty tooltip, and a detour always
+ * has a category. Flows into the caller's Column so it inherits its alignment.
+ */
+@Composable
+internal fun ColumnScope.DetourReadoutDetails(body: DetourBody, categoryColor: Color) {
+    val colors = LocalDayViewColors.current
+    Text(body.category, color = categoryColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    if (body.description.isNotEmpty()) {
+        Text(
+            body.description,
+            color = colors.muted,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    Text(formatDurationHm(body.end - body.start), color = colors.muted, fontSize = 11.sp)
+}
+
 private data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 
