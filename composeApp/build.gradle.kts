@@ -99,6 +99,9 @@ kotlin {
                 implementation(libs.androidx.datastore.preferences)
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.androidx.security.crypto)
+                implementation(libs.zxing.core)
+                implementation(libs.google.code.scanner)
+                implementation(libs.androidx.fragment)
             }
         }
         val androidUnitTest by getting {
@@ -114,6 +117,7 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.jna)
                 implementation(libs.ktor.client.java)
+                implementation(libs.zxing.core)
             }
         }
         val desktopTest by getting {

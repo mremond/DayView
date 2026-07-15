@@ -79,9 +79,9 @@ struct RingView: View {
     }
 
     private var goalSection: some View {
-        GroupBox("Goal") {
+        GroupBox("Long-term goal") {
             VStack(alignment: .leading, spacing: 12) {
-                TextField("Goal title", text: $goalTitle)
+                TextField("Long-term goal", text: $goalTitle)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { model.setGoalTitle(goalTitle) }
                 HStack {

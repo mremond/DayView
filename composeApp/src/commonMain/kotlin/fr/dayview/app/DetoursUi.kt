@@ -59,9 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import fr.dayview.app.generated.resources.Res
-import fr.dayview.app.generated.resources.detour_add_button
 import fr.dayview.app.generated.resources.detour_cancel_button
-import fr.dayview.app.generated.resources.detour_capture_open_label
 import fr.dayview.app.generated.resources.detour_capture_prompt
 import fr.dayview.app.generated.resources.detour_category_label
 import fr.dayview.app.generated.resources.detour_category_placeholder
@@ -82,18 +80,16 @@ import fr.dayview.app.generated.resources.detour_forget_prompt
 import fr.dayview.app.generated.resources.detour_forget_row_label
 import fr.dayview.app.generated.resources.detour_list_add_button
 import fr.dayview.app.generated.resources.detour_list_empty
-import fr.dayview.app.generated.resources.detour_list_open_label
 import fr.dayview.app.generated.resources.detour_list_title
 import fr.dayview.app.generated.resources.detour_minutes_chip
 import fr.dayview.app.generated.resources.detour_off_window_tag
-import fr.dayview.app.generated.resources.detour_overflow
 import fr.dayview.app.generated.resources.detour_save_button
 import fr.dayview.app.generated.resources.detour_section
-import fr.dayview.app.generated.resources.detour_source_total
 import fr.dayview.app.generated.resources.detour_start_adjust
 import fr.dayview.app.generated.resources.detour_start_decrease
 import fr.dayview.app.generated.resources.detour_start_edit_label
 import fr.dayview.app.generated.resources.detour_start_increase
+import fr.dayview.app.generated.resources.detour_start_open_button
 import fr.dayview.app.generated.resources.detour_start_section
 import fr.dayview.app.generated.resources.detour_start_value
 import fr.dayview.app.generated.resources.detour_time_range
@@ -101,65 +97,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
-
-/** Per-source tally under the dial plus the capture affordance. */
-@Composable
-internal fun DetourRow(
-    sources: List<DetourSource>,
-    onOpenList: () -> Unit,
-    onCapture: () -> Unit,
-) {
-    val colors = LocalDayViewColors.current
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (sources.isNotEmpty()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_list_open_label), onClick = onOpenList)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-            ) {
-                sources.take(3).forEachIndexed { index, source ->
-                    if (index > 0) Spacer(Modifier.width(10.dp))
-                    Box(
-                        Modifier.size(7.dp)
-                            .background(colors.detours[source.colorIndex % colors.detours.size], CircleShape),
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        stringResource(Res.string.detour_source_total, source.label, formatDurationHm(source.total)),
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 140.dp),
-                    )
-                }
-                if (sources.size > 3) {
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(Res.string.detour_overflow, (sources.size - 3).toString()),
-                        color = colors.muted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-        }
-        Text(
-            stringResource(Res.string.detour_add_button),
-            color = colors.muted,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp,
-            modifier = Modifier.minimumInteractiveComponentSize()
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.detour_capture_open_label), onClick = onCapture)
-                .padding(vertical = 8.dp, horizontal = 6.dp),
-        )
-    }
-}
 
 /**
  * Small selectable pill used for suggestions and duration picks. A non-null [onLongClick]
@@ -230,9 +167,10 @@ internal fun DetourCaptureDialog(
     onDismiss: () -> Unit,
     initialCategory: String = "",
     initialDescription: String = "",
+    onStart: ((category: String, description: String) -> Unit)? = null,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        DetourCaptureContent(recentCategories, now, onConfirm, onForget, onDismiss, initialCategory, initialDescription)
+        DetourCaptureContent(recentCategories, now, onConfirm, onForget, onDismiss, initialCategory, initialDescription, onStart)
     }
 }
 
@@ -249,6 +187,7 @@ internal fun DetourCaptureContent(
     onDismiss: () -> Unit,
     initialCategory: String = "",
     initialDescription: String = "",
+    onStart: ((category: String, description: String) -> Unit)? = null,
 ) {
     val colors = LocalDayViewColors.current
     val uses24Hour = LocalUses24HourClock.current
@@ -265,6 +204,7 @@ internal fun DetourCaptureContent(
     val startMinutes = if (startPinned) pinnedStartMinutes else detourDefaultStartMinutes(now, durationMinutes, timeZone)
     Column(
         modifier = Modifier.widthIn(max = 380.dp).fillMaxWidth()
+            .dismissOnEscape(onDismiss)
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
             .verticalScroll(rememberScrollState())
@@ -389,6 +329,15 @@ internal fun DetourCaptureContent(
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             FocusActionButton(stringResource(Res.string.detour_cancel_button), colors.muted, modifier = Modifier.weight(1f), onClick = onDismiss)
+            if (onStart != null) {
+                FocusActionButton(
+                    stringResource(Res.string.detour_start_open_button),
+                    colors.amber,
+                    modifier = Modifier.weight(1f).testTag(DayViewTestTags.DetourStartOpen),
+                    enabled = category.isNotBlank(),
+                    onClick = { onStart(category, description) },
+                )
+            }
             FocusActionButton(
                 stringResource(Res.string.detour_confirm_button),
                 colors.amber,
@@ -423,6 +372,7 @@ private fun DetourForgetConfirmDialog(
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth()
+                .dismissOnEscape(onDismiss)
                 .background(colors.panel, RoundedCornerShape(18.dp))
                 .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
                 .padding(20.dp),
@@ -500,6 +450,7 @@ internal fun DetourListContent(
     }
     Column(
         modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
+            .dismissOnEscape(onDismiss)
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
             .padding(20.dp),
@@ -711,7 +662,21 @@ private fun DetourDurationStepper(
     fieldTag: String,
     increaseTag: String,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.adjustDurationWithArrowKeys(
+            onDecrease = {
+                if (durationMinutes > 5) {
+                    onDurationChange(snapToFive(durationMinutes, -1).coerceIn(5, 12 * 60))
+                }
+            },
+            onIncrease = {
+                if (durationMinutes < 12 * 60) {
+                    onDurationChange(snapToFive(durationMinutes, +1).coerceIn(5, 12 * 60))
+                }
+            },
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         TimeButton(
             label = "−",
             enabled = durationMinutes > 5,

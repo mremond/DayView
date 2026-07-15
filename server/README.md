@@ -19,6 +19,25 @@ concurrent writes with a revision token. It never sees plaintext.
 Missing/invalid Bearer token → `401`. A `PUT` with neither precondition → `428`.
 Revisions are an opaque per-user monotonic counter (string).
 
+### Add a device
+
+The app uses a short-lived enrollment code so the QR code never contains a
+long-lived access token:
+
+| Request | Authorization | Success |
+|---|---|---|
+| `POST /pairing` with `{"userId":"…"}` | Existing admin or device Bearer token | `201 {"code":"…","expiresAtEpochSeconds":…}` |
+| `POST /pairing/claim` with `{"code":"…"}` | The single-use code itself | `200 {"userId":"…","token":"…"}` |
+
+Enrollment codes expire after two minutes, live only in server memory, and are
+deleted on their first claim attempt. The resulting token is bound to one user;
+only its SHA-256 hash is persisted. `SYNC_TOKEN` remains the administrator/
+bootstrap credential and can create the first device enrollment.
+
+Pairing must be exposed over HTTPS: the claim response contains the new device
+credential. The synchronized document remains end-to-end encrypted and the
+server never receives the encryption key (it travels directly in the QR code).
+
 ## Build
 
 Requires Go (build host only — the resulting binary needs nothing at runtime).
@@ -47,12 +66,13 @@ static binary itself, natively for the NAS's amd64 architecture.
 3. Container Manager → **Project** → **Create** → point it at this folder → Build
    & Run. It listens on `http://<nas-host>:8787` and restarts automatically.
 
-Over a trusted/VPN-only network the plain-HTTP endpoint is fine: the transport is
-already private and the payload is end-to-end encrypted, so TLS is largely
-redundant. The app's Sync settings then use `baseUrl = http://<nas-host>:8787`,
-the same `SYNC_TOKEN`, and any `userId`. (Note: Android blocks cleartext HTTP by
-default, so an `http://` endpoint needs a scoped `network_security_config` entry
-for that host in the app.)
+Plain HTTP is acceptable only when a trusted VPN already encrypts the complete
+transport, including pairing credentials. Otherwise expose the endpoint over
+HTTPS: although synchronized data is end-to-end encrypted, authentication
+tokens are not. The app's Sync settings then use the endpoint URL, the same
+`SYNC_TOKEN`, and any `userId`. (Android blocks cleartext HTTP by default, so a
+direct `http://` endpoint needs a scoped `network_security_config` entry for
+that host in the app.)
 
 ## Deploy (generic Linux, systemd)
 
@@ -76,6 +96,10 @@ systemctl daemon-reload && systemctl enable --now dayview-sync
 Config via environment: `SYNC_TOKEN` (bearer token, default `dev-token`),
 `SYNC_STORE` (JSON persistence file, default `./sync-store.json`), `SYNC_PORT`
 (or first CLI arg, default `8787`).
+
+The persistence loader automatically accepts the legacy flat `sync-store.json`
+format and rewrites it to the version that also contains hashed device tokens on
+the next successful write.
 
 ## Run locally
 

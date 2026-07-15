@@ -27,6 +27,9 @@ internal object DayPreferenceKeys {
     const val GOAL_START = "goal_start"
     const val POMODORO_MINUTES = "pomodoro_minutes"
     const val POMODORO_END = "pomodoro_end"
+    const val OPEN_DETOUR_START = "detour_open_start"
+    const val OPEN_DETOUR_CATEGORY = "detour_open_category"
+    const val OPEN_DETOUR_DESCRIPTION = "detour_open_description"
     const val FOCUS_INTENTION = "focus_intention"
     const val NET_TIME_ENABLED = "net_time_enabled"
     const val NET_TIME_CALENDARS = "net_time_calendars"
@@ -67,6 +70,9 @@ private val goalDeadlineKey = longPreferencesKey(DayPreferenceKeys.GOAL_DEADLINE
 private val goalStartKey = longPreferencesKey(DayPreferenceKeys.GOAL_START)
 private val pomodoroMinutesKey = intPreferencesKey(DayPreferenceKeys.POMODORO_MINUTES)
 private val pomodoroEndKey = longPreferencesKey(DayPreferenceKeys.POMODORO_END)
+private val openDetourStartKey = longPreferencesKey(DayPreferenceKeys.OPEN_DETOUR_START)
+private val openDetourCategoryKey = stringPreferencesKey(DayPreferenceKeys.OPEN_DETOUR_CATEGORY)
+private val openDetourDescriptionKey = stringPreferencesKey(DayPreferenceKeys.OPEN_DETOUR_DESCRIPTION)
 private val focusIntentionKey = stringPreferencesKey(DayPreferenceKeys.FOCUS_INTENTION)
 private val netTimeEnabledKey = booleanPreferencesKey(DayPreferenceKeys.NET_TIME_ENABLED)
 private val netTimeCalendarsKey = stringPreferencesKey(DayPreferenceKeys.NET_TIME_CALENDARS)
@@ -110,6 +116,9 @@ class DayPreferencesStore(
             prefs[goalStartKey] = snapshot.goalStart?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
             prefs[pomodoroMinutesKey] = snapshot.pomodoroMinutes
             prefs[pomodoroEndKey] = snapshot.pomodoroEnd?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
+            prefs[openDetourStartKey] = snapshot.openDetourStart?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
+            prefs[openDetourCategoryKey] = snapshot.openDetourCategory
+            prefs[openDetourDescriptionKey] = snapshot.openDetourDescription
             prefs[focusIntentionKey] = snapshot.focusIntention
             prefs[netTimeEnabledKey] = snapshot.netTimeSettings.enabled
             prefs[netTimeCalendarsKey] = snapshot.netTimeSettings.includedCalendarIds.joinToString("\n")
@@ -160,6 +169,11 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         pomodoroEnd = this[pomodoroEndKey]
             ?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE }
             ?.let(Instant::fromEpochMilliseconds),
+        openDetourStart = this[openDetourStartKey]
+            ?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE }
+            ?.let(Instant::fromEpochMilliseconds),
+        openDetourCategory = this[openDetourCategoryKey] ?: defaults.openDetourCategory,
+        openDetourDescription = this[openDetourDescriptionKey] ?: defaults.openDetourDescription,
         focusIntention = this[focusIntentionKey] ?: defaults.focusIntention,
         netTimeSettings = NetTimeSettings(
             enabled = this[netTimeEnabledKey] ?: false,

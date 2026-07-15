@@ -1,19 +1,44 @@
 package fr.dayview.app
 
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
 @OptIn(ExperimentalTestApi::class)
 class DetourCaptureTest {
+    @Test
+    fun escapeDismissesCapture() = runComposeUiTest {
+        var dismissed = false
+        setContent {
+            DayViewTheme {
+                DetourCaptureContent(
+                    recentCategories = emptyList(),
+                    now = midWindowNow(),
+                    onConfirm = { _, _, _, _ -> },
+                    onForget = {},
+                    onDismiss = { dismissed = true },
+                )
+            }
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).requestFocus().performKeyInput {
+            pressKey(Key.Escape)
+        }
+        assertTrue(dismissed)
+    }
+
     @Test
     fun confirmsWithNullStartWhenNotAdjusted() = runComposeUiTest {
         var category: String? = null
@@ -248,5 +273,23 @@ class DetourCaptureTest {
             )
         }
         onNodeWithTag(DayViewTestTags.DetourDescriptionText, useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun startButtonFiresOnStartWithCategoryAndDescription() = runComposeUiTest {
+        var started: Pair<String, String>? = null
+        setContent {
+            DetourCaptureContent(
+                recentCategories = emptyList(),
+                now = midWindowNow(),
+                onConfirm = { _, _, _, _ -> },
+                onForget = {},
+                onDismiss = {},
+                onStart = { category, description -> started = category to description },
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("Réunion")
+        onNodeWithTag(DayViewTestTags.DetourStartOpen).performClick()
+        assertEquals("Réunion" to "", started)
     }
 }

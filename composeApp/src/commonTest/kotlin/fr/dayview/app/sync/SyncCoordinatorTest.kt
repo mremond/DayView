@@ -41,6 +41,16 @@ private class OneShotTransport : SyncTransport {
     override suspend fun getHistoryDay(opaqueKey: String): String? = null
 }
 
+private class AuthenticationFailureTransport : SyncTransport {
+    override suspend fun pull(): RemoteSnapshot? = throw SyncAuthenticationException()
+
+    override suspend fun push(payload: String, expectedRevision: String?): PushOutcome = error("not reached")
+
+    override suspend fun putHistoryDay(opaqueKey: String, payload: String) = Unit
+
+    override suspend fun getHistoryDay(opaqueKey: String): String? = null
+}
+
 /** Wraps a transport and records the maximum number of overlapping [push] calls it observed. */
 private class ConcurrencyTrackingTransport(private val inner: SyncTransport = OneShotTransport()) : SyncTransport {
     private val inFlight = AtomicInteger(0)
@@ -121,6 +131,32 @@ class SyncCoordinatorTest {
         c.syncNow()
         assertEquals(SyncStatus.Ok, c.status.first())
         assertEquals(1, transport.pushes)
+    }
+
+    @Test
+    fun verifyPerformsFirstSyncOnlyAfterReadProbeSucceeds() = runTest {
+        val ks = InMemorySecureKeyStore().apply {
+            storeKey(RawSyncKey.generate())
+            storeConfig(SyncConfig("https://s", "u", "t"))
+        }
+        val transport = OneShotTransport()
+        val c = coordinator(ks, FakePrefs(DayPreferencesSnapshot()), transport, this)
+
+        assertEquals(SyncSetupResult.Success, c.verifyAndSync())
+        assertEquals(1, transport.pushes)
+        assertEquals(SyncStatus.Ok, c.status.first())
+    }
+
+    @Test
+    fun verifyReportsAuthenticationSeparately() = runTest {
+        val ks = InMemorySecureKeyStore().apply {
+            storeKey(RawSyncKey.generate())
+            storeConfig(SyncConfig("https://s", "u", "bad"))
+        }
+        val c = coordinator(ks, FakePrefs(DayPreferencesSnapshot()), AuthenticationFailureTransport(), this)
+
+        assertEquals(SyncSetupResult.AuthenticationFailed, c.verifyAndSync())
+        assertEquals(SyncStatus.Failed, c.status.first())
     }
 
     @Test

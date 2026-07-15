@@ -11,10 +11,26 @@ DayView makes the time remaining before the end of the day visible. The circle i
 
 The interface and business logic are shared using Kotlin Multiplatform and Compose Multiplatform.
 The light or dark appearance automatically follows the system theme on Android and macOS.
-On Android, a resizable widget displays the ring and remaining time without opening the application. It also shows the global goal and, during a Focus session, the intention and live countdown. A persistent notification tracks the Focus and its pause, with actions to stop or resume the sequence. A “DayView Focus” tile, which can be added from Quick Settings, lets you start the last configured Focus, resume after a pause, or open the active session.
+On Android, a resizable widget displays the ring and remaining time without opening the application. It also shows the long-term goal and, during a Focus session, the intention and live countdown. A persistent notification tracks the Focus and its pause, with actions to stop or resume the sequence. A “DayView Focus” tile, which can be added from Quick Settings, lets you start the last configured Focus, resume after a pause, or open the active session.
 On macOS, DayView remains accessible from the menu bar. Closing its window hides it without stopping the countdown; the menu lets you reopen it or quit the application completely.
 
-Mini-window mode, accessible from the header or menu bar, keeps a compact view of the ring and the day’s countdown above other applications. It also shows the global goal and automatically adds the remaining time and intention while a Focus is in progress.
+Mini-window mode, accessible from the header or menu bar, keeps a compact view of the ring and the day’s countdown above other applications. It also shows the long-term goal and automatically adds the remaining time and intention while a Focus is in progress.
+
+## Product vocabulary
+
+DayView uses four concepts consistently across its interface and documentation:
+
+| Scope | English | French |
+| --- | --- | --- |
+| Longer-term direction | **Long-term goal** | **Cap** |
+| Commitment for one Focus | **Focus intention** | **Intention** |
+| At most three commitments for today | **Must-dos** | **Incontournables** |
+| Unplanned work or interruptions | **Detours** | **Détours** |
+
+Some persisted fields and sync payloads still use the historical identifiers `goal` and
+`plannedObligations`. They map respectively to **Long-term goal / Cap** and
+**Must-dos / Incontournables**; retaining those identifiers preserves compatibility with
+existing local data and other devices.
 
 ## Running the project
 
@@ -82,7 +98,7 @@ copy in `/Applications`:
 A native SwiftUI version of DayView is in progress. It keeps the business logic in Kotlin —
 exposed to Swift as a Kotlin/Native `DayViewKit` XCFramework — and reimplements only the UI
 natively. It currently draws the live countdown ring and supports editing the Focus
-intention and duration and the global goal, with preferences persisted under
+intention and duration and the long-term goal, with preferences persisted under
 `~/Library/Application Support/DayView/`. The Compose/JVM `.dmg` above remains the complete
 application; this native app is not yet feature-complete.
 
@@ -131,9 +147,15 @@ A light `.icns` can be produced from the light SVG by passing source and output 
 ./scripts/generate_macos_icon.sh artwork/dayview-icon-reference-light.svg artwork/dayview-light.icns
 ```
 
-## Global goal
+## Long-term goal
 
 A longer-term goal can be entered with a deadline in `DD/MM/YYYY HH:MM` format. Its title and deadline are saved locally, like the day’s start and end times. Its countdown is expressed in working hours and includes only the periods between the daily start and end times.
+
+## Must-dos
+
+Up to three must-dos can be recorded for the current day. They are deliberately separate
+from the long-term goal: completing one marks it done for today, while removing one frees
+its slot. In French, these are labelled **Incontournables**.
 
 ## Net time
 
@@ -141,23 +163,23 @@ Net time, disabled by default, is configured on the Settings screen. Once enable
 
 ## Detours
 
-Detours make visible what pulled you off the path, without losing sight of the goal. A
+Detours make visible what pulled you off the path, without losing sight of the long-term goal. A
 detour is declared by hand — a motif (“unexpected call”) and an approximate duration —
 from the **+ Détour** affordance under the dial; recent motifs are suggested as one-tap
 chips. Each episode is drawn as a small colored body threaded on the ring at the time it
 happened (size reflects duration, one color per source), with a per-source tally under
 the dial and a daily total below the countdown. Hovering a body shows its motif and
 times; tapping the tally opens the day’s list, where episodes can be renamed, adjusted,
-deleted, or added after the fact. When a goal is set, a soft halo at the center of the
+deleted, or added after the fact. When a long-term goal is set, a soft halo at the center of the
 dial keeps it framed as the fixed point of the day. Detours are purely informational —
 they never change the countdown or the net time — and are stored locally for the current
 day only.
 
 ## Focus
 
-The Focus timer lets you commit to a 25-minute block by default, adjustable in five-minute increments. A concrete intention must be entered before starting and remains visible throughout the session. Its deadline and intention are stored locally: the countdown continues when the window is hidden or the application is relaunched. On Android, a system alarm triggers an audible notification at the end even when the application is no longer in the foreground. On macOS, the remaining time is also visible in the menu bar.
+The Focus timer lets you commit to a 25-minute block by default, adjustable in five-minute increments. A concrete intention must be entered before starting and remains visible throughout the session. Its deadline and intention are stored locally: the countdown continues when the window is hidden or the application is relaunched. On desktop, `⌘↩` starts a ready Focus, `←`/`→` adjust a focused duration control, and `Esc` closes a dialog. On Android, a system alarm triggers an audible notification at the end even when the application is no longer in the foreground. On macOS, the remaining time is also visible in the menu bar.
 
-During a Focus on macOS, DayView observes only the identifier of the application in the foreground. Four application switches in less than 45 seconds trigger a reminder of the intention. You can also list, on the Settings screen, the applications that count as working toward the goal; while a Focus is active, staying in an application outside that list for more than two minutes triggers the same reminder—catching quiet drift that rapid switching alone would miss. A 30-second grace period and a five-minute interval between reminders prevent repeated interruptions. This detection remains local and never reads window contents.
+During a Focus on macOS, DayView observes only the identifier of the application in the foreground. Four application switches in less than 45 seconds trigger a reminder of the intention. You can also list, on the Settings screen, the applications that count as working toward the long-term goal; while a Focus is active, staying in an application outside that list for more than two minutes triggers the same reminder—catching quiet drift that rapid switching alone would miss. A 30-second grace period and a five-minute interval between reminders prevent repeated interruptions. This detection remains local and never reads window contents.
 
 When on-goal applications are configured, DayView also records the stretches spent in them during a Focus and draws them as accent arcs on the circle, with a “Focus H h MM” total below the countdown. These stretches come purely from the foreground application—brief interruptions under 30 seconds are bridged, and runs shorter than two minutes are ignored—and are stored locally per day, so the arcs survive a relaunch.
 

@@ -40,34 +40,9 @@ import fr.dayview.app.generated.resources.planned_obligation_motif_placeholder
 import fr.dayview.app.generated.resources.planned_obligation_remove_label
 import fr.dayview.app.generated.resources.planned_obligations_active_section
 import fr.dayview.app.generated.resources.planned_obligations_cap_reached
-import fr.dayview.app.generated.resources.planned_obligations_chip
 import fr.dayview.app.generated.resources.planned_obligations_completed_section
-import fr.dayview.app.generated.resources.planned_obligations_open_label
 import fr.dayview.app.generated.resources.planned_obligations_title
 import org.jetbrains.compose.resources.stringResource
-
-/** Compact main-screen entry point that opens the obligations modal; always visible. */
-@Composable
-internal fun PlannedObligationsChip(
-    activeCount: Int,
-    completedCount: Int,
-    onOpen: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalDayViewColors.current
-    Text(
-        stringResource(Res.string.planned_obligations_chip, activeCount, completedCount),
-        color = colors.muted,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Medium,
-        modifier = modifier
-            .minimumInteractiveComponentSize()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.planned_obligations_open_label), onClick = onOpen)
-            .testTag(DayViewTestTags.PlannedObligationsChip)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-    )
-}
 
 /** Modal wrapper around [PlannedObligationsContent] (untestable Dialog window; test the content). */
 @Composable
@@ -85,8 +60,9 @@ internal fun PlannedObligationsDialog(
 }
 
 /**
- * The day's must-do obligations: at most [MAX_PLANNED_OBLIGATIONS], each completable via
- * FAIT or deletable via the ✕. Split out of the Dialog so Compose UI tests can drive it.
+ * Today's must-dos: at most [MAX_PLANNED_OBLIGATIONS], each completable via DONE/FAIT or
+ * deletable via the ✕. The legacy function name mirrors persisted storage fields. Split out of
+ * the Dialog so Compose UI tests can drive it.
  */
 @Composable
 internal fun PlannedObligationsContent(
@@ -104,6 +80,7 @@ internal fun PlannedObligationsContent(
 
     Column(
         modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()
+            .dismissOnEscape(onDismiss)
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
             .verticalScroll(rememberScrollState())

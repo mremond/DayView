@@ -60,12 +60,14 @@ fun formatPomodoroCompactMinutes(progress: PomodoroProgress): String {
     return "${roundedMinutes}m"
 }
 
-fun formatBreakClock(progress: PomodoroProgress): String {
-    val elapsedMinutes = progress.breakElapsed.inWholeMinutes
-    val elapsedSeconds = progress.breakElapsed.inWholeSeconds % 60L
+fun formatElapsedClock(elapsed: Duration): String {
+    val elapsedMinutes = elapsed.inWholeMinutes
+    val elapsedSeconds = elapsed.inWholeSeconds % 60L
     return "${elapsedMinutes.toString().padStart(2, '0')}:" +
         elapsedSeconds.toString().padStart(2, '0')
 }
+
+fun formatBreakClock(progress: PomodoroProgress): String = formatElapsedClock(progress.breakElapsed)
 
 class BreakReminderScheduler {
     private var previous: Instant? = null

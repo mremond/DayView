@@ -120,7 +120,9 @@ private fun runApplication() = application {
     var launchAtLogin by remember { mutableStateOf(loginLauncher.isEnabled()) }
     val initialFocusPresence = remember { runBlocking { preferences.loadFocusPresence() } }
     val presenceAccumulator = remember {
-        PresenceAccumulator().also {
+        // Strict (quality) focus: only ON_GOAL foreground counts, but tolerate a brief
+        // off-goal glance (up to `bridge`) without severing the run.
+        PresenceAccumulator(bridge = 60.seconds).also {
             val (day, intervals) = initialFocusPresence
             if (day >= 0) it.restore(intervals, day)
         }
@@ -143,6 +145,7 @@ private fun runApplication() = application {
     var lastSessionSave by remember { mutableStateOf(Instant.DISTANT_PAST) }
     var wasFocusActive by remember { mutableStateOf(false) }
     val cleanlinessTracker = remember { SessionCleanlinessTracker() }
+    val tickDiagnostics = remember { FocusTickDiagnostics() }
     var sessionOffGoal by remember { mutableStateOf(Duration.ZERO) }
 
     LaunchedEffect(preferences) {
@@ -210,6 +213,18 @@ private fun runApplication() = application {
                 .date.toEpochDays()
             val classification = classifyFrontmost(frontmostBundleId, onGoalBundleIds)
             sessionOffGoal = cleanlinessTracker.observe(currentNow, currentPomodoroEnd, classification)
+            // Diagnostic: measure classification mix and actual tick cadence per session, so
+            // we can tell App Nap sampling gaps apart from on-goal misclassification.
+            if (focusIsActive) {
+                tickDiagnostics.record(currentNow, classification)
+            } else if (wasFocusActive) {
+                tickDiagnostics.summarize()?.let { s ->
+                    println(
+                        "[focus-diag] ticks=${s.ticks} on-goal=${s.onGoal} neutral=${s.neutral} " +
+                            "off-goal=${s.offGoal} meanGap=${s.meanGap} maxGap=${s.maxGap}",
+                    )
+                }
+            }
             val updatedIntervals = when {
                 focusIsActive -> presenceAccumulator.observe(currentNow, classification, dayKey)
                 wasFocusActive -> presenceAccumulator.endSession() // session just ended: close the run

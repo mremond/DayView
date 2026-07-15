@@ -164,6 +164,9 @@ private fun SettingsCategoryDetail(
             onGenerateKey = actions.generateSyncKey,
             onPasteKey = actions.pasteSyncKey,
             onSyncNow = actions.syncNow,
+            onTestSetup = actions.testSyncSetup,
+            onCreatePairing = actions.createSyncPairing,
+            onImportPairing = actions.importSyncPairing,
             onClear = actions.clearSyncKey,
         )
         SettingsCategory.SYSTEM -> SystemSettingsScreen(onOpenPowerSettings = actions.openPowerSettings)

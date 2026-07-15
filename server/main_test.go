@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,15 +24,77 @@ func init() {
 }
 
 func req(t *testing.T, method, path, body string, headers map[string]string) *httptest.ResponseRecorder {
+	return reqWithToken(t, method, path, body, token, headers)
+}
+
+func reqWithToken(t *testing.T, method, path, body, bearer string, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
-	r.Header.Set("Authorization", "Bearer "+token)
+	if bearer != "" {
+		r.Header.Set("Authorization", "Bearer "+bearer)
+	}
 	for k, v := range headers {
 		r.Header.Set(k, v)
 	}
 	w := httptest.NewRecorder()
 	handle(w, r)
 	return w
+}
+
+func resetState() {
+	store = map[string]entry{}
+	deviceTokens = map[string]string{}
+	pairings = map[string]pairingSession{}
+}
+
+func TestPairingCreatesSingleUseDeviceCredential(t *testing.T) {
+	resetState()
+	created := req(t, http.MethodPost, "/pairing", `{"userId":"u1"}`, nil)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create pairing want 201, got %d %s", created.Code, created.Body.String())
+	}
+	var ticket struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &ticket); err != nil || ticket.Code == "" {
+		t.Fatalf("invalid ticket: %v %s", err, created.Body.String())
+	}
+
+	claimed := reqWithToken(t, http.MethodPost, "/pairing/claim", `{"code":"`+ticket.Code+`"}`, "", nil)
+	if claimed.Code != http.StatusOK {
+		t.Fatalf("claim want 200, got %d %s", claimed.Code, claimed.Body.String())
+	}
+	var credential struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(claimed.Body.Bytes(), &credential); err != nil || credential.Token == "" {
+		t.Fatalf("invalid credential: %v %s", err, claimed.Body.String())
+	}
+	persisted, err := os.ReadFile(storePath)
+	if err != nil || bytes.Contains(persisted, []byte(credential.Token)) {
+		t.Fatalf("raw device token must never be persisted: err=%v", err)
+	}
+
+	allowed := reqWithToken(t, http.MethodGet, "/sync/u1", "", credential.Token, nil)
+	if allowed.Code != http.StatusNoContent {
+		t.Fatalf("device token should access its user, got %d", allowed.Code)
+	}
+	denied := reqWithToken(t, http.MethodGet, "/sync/u2", "", credential.Token, nil)
+	if denied.Code != http.StatusUnauthorized {
+		t.Fatalf("device token must not access another user, got %d", denied.Code)
+	}
+	secondClaim := reqWithToken(t, http.MethodPost, "/pairing/claim", `{"code":"`+ticket.Code+`"}`, "", nil)
+	if secondClaim.Code != http.StatusGone {
+		t.Fatalf("second claim want 410, got %d", secondClaim.Code)
+	}
+}
+
+func TestPairingRequiresExistingUserCredential(t *testing.T) {
+	resetState()
+	created := reqWithToken(t, http.MethodPost, "/pairing", `{"userId":"u1"}`, "wrong", nil)
+	if created.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401, got %d", created.Code)
+	}
 }
 
 func TestHistoryPutThenGet(t *testing.T) {

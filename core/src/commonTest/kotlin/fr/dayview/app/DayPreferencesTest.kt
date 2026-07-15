@@ -29,6 +29,9 @@ class DayPreferencesTest {
             pomodoroMinutes = 50,
             pomodoroEnd = Instant.fromEpochMilliseconds(123L),
             focusIntention = "Terminer le test",
+            openDetourStart = Instant.fromEpochMilliseconds(456L),
+            openDetourCategory = "Réunion",
+            openDetourDescription = "point équipe",
             netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("travail")),
         )
 

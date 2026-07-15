@@ -22,6 +22,8 @@ data class SoundDto(
 
 @Serializable data class PomodoroDto(val minutes: Int, val end: Long)
 
+@Serializable data class OpenDetourDto(val start: Long, val category: String, val description: String)
+
 // `motif` carries the detour category (renamed upstream); `description` is the free-text note.
 @Serializable data class DetourDto(val start: Long, val end: Long, val motif: String, val description: String = "")
 
@@ -41,6 +43,7 @@ data class SyncDocument(
     val sound: Versioned<SoundDto>,
     val goal: Versioned<GoalDto>,
     val pomodoro: Versioned<PomodoroDto>,
+    val openDetour: Versioned<OpenDetourDto> = Versioned(OpenDetourDto(-1L, "", ""), Stamp(0L, "")),
     val focusIntention: Versioned<String>,
     val themeMode: Versioned<String>,
     val netTimeEnabled: Versioned<Boolean>,

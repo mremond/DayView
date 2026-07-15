@@ -1,9 +1,12 @@
 package fr.dayview.app
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -97,15 +100,29 @@ class PlannedObligationsUiTest {
     }
 
     @Test
-    fun chipShowsOpenAndDoneCountsAndOpens() = runComposeUiTest {
-        var opened = false
+    fun quickActionsExposeLargeTargetsAndInvokeBothActions() = runComposeUiTest {
+        var detoursAdded = 0
+        var obligationsOpened = 0
         setContent {
             DayViewTheme {
-                PlannedObligationsChip(activeCount = 2, completedCount = 1, onOpen = { opened = true })
+                TodayQuickActions(
+                    activeObligationCount = 2,
+                    onAddDetour = { detoursAdded++ },
+                    onOpenObligations = { obligationsOpened++ },
+                )
             }
         }
-        onNodeWithTag(DayViewTestTags.PlannedObligationsChip).performClick()
-        assertEquals(true, opened)
+        onNodeWithTag(DayViewTestTags.TodayQuickActions).assertExists()
+        onNodeWithTag(DayViewTestTags.AddDetourQuickAction)
+            .assertHasClickAction()
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
+        onNodeWithTag(DayViewTestTags.OpenObligationsQuickAction)
+            .assertHasClickAction()
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
+        assertEquals(1, detoursAdded)
+        assertEquals(1, obligationsOpened)
     }
 
     @Test
