@@ -1515,6 +1515,7 @@ internal fun CountdownCircle(
                         busyBlockArcs,
                         detourBodies,
                         focusArcs,
+                        emptyList(), // focusSessionBands: wired in a later task
                         momentAngle,
                     )
                     RingScrubReadout(
