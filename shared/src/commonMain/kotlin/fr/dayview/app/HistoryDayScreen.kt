@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.history_title
+import fr.dayview.app.generated.resources.settings_back
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
 
@@ -40,6 +41,7 @@ internal fun HistoryDayScreen(
     ) {
         ScreenTopBar(
             title = stringResource(Res.string.history_title),
+            backLabel = stringResource(Res.string.settings_back),
             backTestTag = DayViewTestTags.HistoryBack,
             onBack = onBack,
         )

@@ -37,6 +37,7 @@ import fr.dayview.app.generated.resources.history_day_no_activity_a11y
 import fr.dayview.app.generated.resources.history_day_no_data_a11y
 import fr.dayview.app.generated.resources.history_open_day
 import fr.dayview.app.generated.resources.history_title
+import fr.dayview.app.generated.resources.settings_back
 import fr.dayview.app.generated.resources.today_status_not_started
 import fr.dayview.app.generated.resources.weekday_fri
 import fr.dayview.app.generated.resources.weekday_mon
@@ -196,6 +197,7 @@ internal fun HistoryWeekScreen(
     ) {
         ScreenTopBar(
             title = stringResource(Res.string.history_title),
+            backLabel = stringResource(Res.string.settings_back),
             backTestTag = DayViewTestTags.HistoryBack,
             onBack = onBack,
         )

@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.settings_autosave_note
+import fr.dayview.app.generated.resources.settings_back
+import fr.dayview.app.generated.resources.settings_back_to_settings
 import fr.dayview.app.generated.resources.settings_day_description
 import fr.dayview.app.generated.resources.settings_display_description
 import fr.dayview.app.generated.resources.settings_net_time_description
@@ -54,6 +56,7 @@ import fr.dayview.app.generated.resources.settings_summary_system
 import fr.dayview.app.generated.resources.settings_system_description
 import fr.dayview.app.generated.resources.settings_title
 import fr.dayview.app.generated.resources.sync_settings_description
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -82,8 +85,10 @@ internal fun SettingsScreen(
             // supported (e.g. the last on-goal target app closed), so we never
             // render a stranded sub-screen for an unavailable category.
             val category = state.settingsCategory?.takeIf { it in settingsCategoriesFor(platformState) }
+            val atRoot = category == null
             SettingsTopBar(
-                onBack = if (category == null) actions.back else actions.closeCategory,
+                atRoot = atRoot,
+                onBack = if (atRoot) actions.back else actions.closeCategory,
             )
 
             Spacer(Modifier.height(48.dp))
@@ -99,13 +104,21 @@ internal fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsTopBar(onBack: () -> Unit) {
+private fun SettingsTopBar(atRoot: Boolean, onBack: () -> Unit) {
     ScreenTopBar(
         title = stringResource(Res.string.settings_title),
+        backLabel = stringResource(settingsBackLabel(atRoot)),
         backTestTag = DayViewTestTags.SettingsBack,
         onBack = onBack,
     )
 }
+
+/**
+ * Label for the settings back control. The control navigates up one level, so it names its
+ * destination: Today at the settings root, Settings from within a sub-category. This mirrors
+ * the [SettingsScreen] `onBack` routing so the two never drift apart.
+ */
+internal fun settingsBackLabel(atRoot: Boolean): StringResource = if (atRoot) Res.string.settings_back else Res.string.settings_back_to_settings
 
 @Composable
 private fun SettingsCategoryList(

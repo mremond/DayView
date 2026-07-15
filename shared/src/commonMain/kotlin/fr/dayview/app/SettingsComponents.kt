@@ -30,20 +30,20 @@ import androidx.compose.ui.unit.sp
 import fr.dayview.app.generated.resources.Res
 import fr.dayview.app.generated.resources.modify
 import fr.dayview.app.generated.resources.modify_label
-import fr.dayview.app.generated.resources.settings_back
 import fr.dayview.app.generated.resources.sound_preview
 import org.jetbrains.compose.resources.stringResource
 
 private val PanelShape = RoundedCornerShape(18.dp)
 
 /**
- * Shared top bar for the full-screen destinations reached from Today: a "‹ TODAY" back
- * control on the left and a right-aligned screen [title]. Settings and History use this so
- * their headers stay identical in colour, type, and spacing.
+ * Shared top bar for the full-screen destinations reached from Today: a [backLabel] back
+ * control on the left (naming where it returns to) and a right-aligned screen [title].
+ * Settings and History use this so their headers stay identical in colour, type, and spacing.
  */
 @Composable
 internal fun ScreenTopBar(
     title: String,
+    backLabel: String,
     backTestTag: String,
     onBack: () -> Unit,
 ) {
@@ -53,7 +53,7 @@ internal fun ScreenTopBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            stringResource(Res.string.settings_back),
+            backLabel,
             color = colors.muted,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,

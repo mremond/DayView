@@ -157,6 +157,7 @@
 
     <!-- Settings — day window -->
     <string name="settings_back">‹  TODAY</string>
+    <string name="settings_back_to_settings">‹  SETTINGS</string>
     <string name="settings_section_day">DAY</string>
     <string name="settings_day_description">Set the range used to represent the available time each day.</string>
     <string name="day_start">DAY START</string>

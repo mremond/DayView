@@ -156,6 +156,7 @@
 
     <!-- Settings — day window -->
     <string name="settings_back">‹  AUJOURD’HUI</string>
+    <string name="settings_back_to_settings">‹  RÉGLAGES</string>
     <string name="settings_section_day">JOURNÉE</string>
     <string name="settings_day_description">Définissez la plage utilisée pour représenter le temps disponible chaque jour.</string>
     <string name="day_start">DÉBUT DE JOURNÉE</string>
