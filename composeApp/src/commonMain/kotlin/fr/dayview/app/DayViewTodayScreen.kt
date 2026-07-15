@@ -1582,7 +1582,23 @@ internal fun ColumnScope.DetourReadoutDetails(body: DetourBody, categoryColor: C
     Text(formatDurationHm(body.end - body.start), color = colors.muted, fontSize = 11.sp)
 }
 
-private data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
+internal data class HoveredBusyArc(val arc: BusyBlockArc, val position: Offset)
+
+/**
+ * Next [HoveredBusyArc] state after a touch tap on the ring. Tapping another zone switches to
+ * it, tapping the shown zone or an empty part of the ring closes the tooltip. Kept pure so the
+ * tap/close rules are unit-testable without driving a gesture.
+ */
+internal fun nextHoveredBusyOnTap(
+    current: HoveredBusyArc?,
+    tapped: BusyBlockArc?,
+    position: Offset,
+): HoveredBusyArc? = when {
+    tapped == null -> null
+    current?.arc == tapped -> null
+    else -> HoveredBusyArc(tapped, position)
+}
+
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 
 /**
