@@ -31,22 +31,22 @@ jobs:
         run: ./gradlew ktlintCheck
 
       - name: Core, common & Android unit tests
-        run: ./gradlew :core:jvmTest :composeApp:testDebugUnitTest
+        run: ./gradlew :core:jvmTest :shared:testAndroidHostTest :androidApp:testDebugUnitTest
 
       - name: Desktop tests
-        run: ./gradlew :composeApp:desktopTest
+        run: ./gradlew :shared:desktopTest
 
       - name: Upload responsive visual captures
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: dayview-visual-tests-linux
-          path: composeApp/build/reports/visual-tests/*.png
+          path: shared/build/reports/visual-tests/*.png
           if-no-files-found: error
           retention-days: 14
 
       - name: Assemble Android APKs (debug + minified release)
-        run: ./gradlew :composeApp:assembleDebug :composeApp:assembleRelease
+        run: ./gradlew :androidApp:assembleDebug :androidApp:assembleRelease
 
   desktop-macos:
     name: Desktop tests (macOS)
@@ -64,14 +64,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Desktop tests (compiles the Swift focus helper)
-        run: ./gradlew :composeApp:desktopTest
+        run: ./gradlew :shared:desktopTest
 
       - name: Upload responsive visual captures
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: dayview-visual-tests-macos
-          path: composeApp/build/reports/visual-tests/*.png
+          path: shared/build/reports/visual-tests/*.png
           if-no-files-found: error
           retention-days: 14
 

@@ -37,7 +37,7 @@ existing local data and other devices.
 Prerequisites: JDK 17 or later to run Gradle, and Android SDK 36. The build uses a JDK 21 toolchain, which is downloaded automatically when necessary.
 
 ```bash
-./gradlew :composeApp:run
+./gradlew :shared:run
 ```
 
 ### Tests and responsive visual captures
@@ -47,10 +47,10 @@ desktop minimum width, a low-height window, 130–150% text, long French copy, t
 200 × 300 mini-window and a compact 360 × 640 Android-sized viewport. Run it with:
 
 ```bash
-./gradlew :composeApp:desktopTest :composeApp:testDebugUnitTest
+./gradlew :shared:desktopTest :androidApp:testDebugUnitTest
 ```
 
-Rendered PNGs are written to `composeApp/build/reports/visual-tests/`. CI uploads
+Rendered PNGs are written to `shared/build/reports/visual-tests/`. CI uploads
 the Linux and macOS captures as separate artifacts so layout failures can be
 inspected without relying on platform-sensitive pixel-perfect golden files.
 
@@ -65,7 +65,7 @@ adb devices
 To build and directly install the debug version:
 
 ```bash
-./gradlew :composeApp:installDebug
+./gradlew :androidApp:installDebug
 ```
 
 The application can then be launched from the device or the command line:
@@ -77,25 +77,25 @@ adb shell am start -n fr.dayview.app/.MainActivity
 To produce the APK without installing it:
 
 ```bash
-./gradlew :composeApp:assembleDebug
+./gradlew :androidApp:assembleDebug
 ```
 
-The APK is generated at `composeApp/build/outputs/apk/debug/composeApp-debug.apk`. It can be installed or updated manually with:
+The APK is generated at `androidApp/build/outputs/apk/debug/androidApp-debug.apk`. It can be installed or updated manually with:
 
 ```bash
-adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
+adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
 ```
 
 When a Focus is started for the first time, Android requests permission to send notifications and, depending on the system version, access to **Alarms & reminders**. Both permissions are required to receive a precisely timed audible notification when DayView is no longer in the foreground.
 
-You can also open the project in Android Studio and run the `composeApp` configuration.
+You can also open the project in Android Studio and run the `androidApp` configuration.
 
 ### macOS
 
 To generate the macOS disk image:
 
 ```bash
-./gradlew :composeApp:packageDmg
+./gradlew :shared:packageDmg
 ```
 
 The generated volume uses the DayView icon and displays the application next to a shortcut to `/Applications`, allowing it to be installed by drag and drop.
@@ -104,7 +104,7 @@ To build the disk image and install it locally in one step, overwriting any prev
 copy in `/Applications`:
 
 ```bash
-./gradlew :composeApp:installMac
+./gradlew :shared:installMac
 ```
 
 ### Native macOS app (SwiftUI, experimental)

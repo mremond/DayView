@@ -3,7 +3,7 @@
 ## Problem
 
 The center of the countdown ring (`CountdownCircle` in
-[`DayViewTodayScreen.kt`](../composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt))
+[`DayViewTodayScreen.kt`](../shared/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt))
 stacks up to seven rows of content. The header and the big numerals scale with the ring
 (`countdownCounterScale`), but every row below the numerals — Net / busy / Focus / Détours /
 clean-session pips — uses **fixed font sizes and fixed spacers**. On a small ring
@@ -76,8 +76,8 @@ stays correct across phone, mini window, compact desktop, and Supernote without 
 
 ## Affected code
 
-- [`DayViewTodayScreen.kt`](../composeApp/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt)
+- [`DayViewTodayScreen.kt`](../shared/src/commonMain/kotlin/fr/dayview/app/DayViewTodayScreen.kt)
   — the center `Column` in `CountdownCircle` (rows 4–7 currently fixed-size).
-- [`CountdownScaling.kt`](../composeApp/src/commonMain/kotlin/fr/dayview/app/CountdownScaling.kt)
+- [`CountdownScaling.kt`](../shared/src/commonMain/kotlin/fr/dayview/app/CountdownScaling.kt)
   — home for the height-budget / row-fit helper, kept pure and unit-testable alongside
   `countdownCounterScale`.
