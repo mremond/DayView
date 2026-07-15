@@ -51,6 +51,21 @@ val macosSigningIdentity: String? =
         if (file.exists()) file.inputStream().use { load(it) }
     }.getProperty("dayview.macos.signingIdentity")?.takeIf { it.isNotBlank() }
 
+// The EventKit helper is code-signed ONLY when building/running a native distributable,
+// never for `./gradlew run` or tests. Rationale: TCC keys the calendar grant to the
+// *responsible process*. For `run` the responsible process is the terminal, and an
+// unsigned helper is attributed up to it, inheriting its grant. Signing the helper gives
+// it its own Developer ID identity, so it becomes responsible for itself — and a bare CLI
+// tool can neither inherit the terminal's grant nor present a prompt, leaving Net Time
+// silently locked. The packaged .app is the opposite: its signed bundle (same team) is the
+// responsible process, so the signed helper inherits the bundle's grant and the permission
+// survives rebuilds. Detected from the requested task names (":module:packageDmg", etc.).
+val isNativeDistributableBuild: Boolean =
+    gradle.startParameter.taskNames.any { requested ->
+        val task = requested.substringAfterLast(':').lowercase()
+        task.contains("package") || task.contains("distributable")
+    }
+
 ktlint {
     filter {
         exclude { it.file.path.contains("/build/generated/") }
@@ -393,12 +408,18 @@ val prepareMacEventKitHelper by tasks.registering(PrepareEventKitHelper::class) 
     dependsOn(compileMacEventKitHelper)
     unsignedHelper.set(macEventKitHelperUnsignedOutput)
     signedHelper.set(macEventKitHelperResourceOutput)
-    if (macosSigningIdentity != null) {
+    if (macosSigningIdentity != null && isNativeDistributableBuild) {
         signingIdentity.set(macosSigningIdentity)
+    } else if (isMacHost && macosSigningIdentity != null) {
+        logger.lifecycle(
+            "DayView: EventKit helper left unsigned for run/test; it is signed only when " +
+                "packaging a native distributable, so `run` keeps inheriting the terminal's " +
+                "calendar grant.",
+        )
     } else if (isMacHost) {
         logger.lifecycle(
-            "DayView: dayview.macos.signingIdentity is unset; " +
-                "EventKit helper left unsigned (calendar permission will reset on rebuild).",
+            "DayView: dayview.macos.signingIdentity is unset; EventKit helper left unsigned " +
+                "(the packaged app re-prompts for calendar access on each build).",
         )
     }
 }

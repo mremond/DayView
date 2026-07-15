@@ -28,13 +28,22 @@ business logic are shared through Compose Multiplatform. See [README.md](../READ
 Prerequisites: JDK 21 (the build uses `jvmToolchain(21)`; Robolectric needs 21 for
 compileSdk 36) and the Android SDK.
 
-On macOS, calendar access is granted by the system to a stable code identity. To keep
-the permission across rebuilds, set a signing identity in `local.properties`:
+On macOS, calendar access (TCC) is keyed to the code identity of the *responsible
+process*. To keep the permission across rebuilds of the **packaged app**, set a signing
+identity in `local.properties`:
 
     dayview.macos.signingIdentity=Developer ID Application: Your Name (TEAMID)
 
 Find installed identities with `security find-identity -v -p codesigning`. When the key
-is unset the EventKit helper is left unsigned and macOS re-prompts on each rebuild.
+is unset the packaged app is ad-hoc signed and macOS re-prompts on each build.
+
+The identity signs the EventKit helper **only for native distributable builds**
+(`packageDmg`, `createDistributable`, …), never for `./gradlew run`. Under `run` the
+responsible process is the terminal, and an unsigned helper is attributed up to it, so it
+inherits the terminal's grant; signing the helper there would make it responsible for
+itself and, as a bare CLI tool, it could neither inherit the grant nor prompt — silently
+locking Net Time. So setting the key never affects `run`; it only stabilises the packaged
+app's identity.
 
 ## Commit Messages and Pull Requests
 
