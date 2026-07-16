@@ -36,6 +36,18 @@ Keep everything else:
 - **No attendee status** (personal event with no invitees, solo time-block) → keep —
   there is no "you" to have declined
 
+Two edge cases can produce minor platform divergence and are accepted; both err toward
+the safe pre-feature behavior of *keeping* the event, never over-hiding:
+
+- **An event you organize and then decline / mark "Maybe."** Android's
+  `SELF_ATTENDEE_STATUS` reflects your response even as organizer, so it is hidden. On
+  macOS, whether you appear in `event.attendees` for an event you organize is
+  provider-dependent; if you don't, `isCurrentUser` finds no match and the event is kept.
+- **macOS `isCurrentUser` detection.** For some account setups (e.g. an attendee email
+  that differs from the device account) `isCurrentUser` matches no participant, so a
+  genuinely declined event is kept. Perfect macOS/Android parity is therefore not
+  guaranteed.
+
 ## Approach
 
 Filter platform-side, in the same fetch loops that already drop all-day and non-busy
