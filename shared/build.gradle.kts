@@ -1,3 +1,5 @@
+import org.gradle.api.file.Directory
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
@@ -123,6 +125,26 @@ kotlin {
 
 compose.resources {
     packageOfResClass = "fr.dayview.app.generated.resources"
+}
+
+// Compose Multiplatform 1.11.1 does not wire its "copy Android compose resources into
+// assets" task when the module uses AGP 9's com.android.kotlin.multiplatform.library
+// plugin: the task's outputDirectory is left unset, so it never runs and the APK ships
+// without any composeResources. That makes the Android app crash on the first
+// stringResource() call. Give the task an explicit output directory here; :androidApp adds
+// this directory as an assets source (see androidApp/build.gradle.kts) so the resources are
+// bundled into the APK. CopyResourcesToAndroidAssetsTask is internal to the CMP plugin, so
+// the outputDirectory property is set reflectively.
+val androidComposeResourcesDir: Provider<Directory> =
+    layout.buildDirectory.dir("dayviewAndroidComposeResources")
+// The task is registered lazily by the Compose plugin (after this script is evaluated), so
+// configure it via matching{}.configureEach{} rather than tasks.named{}.
+tasks.matching { it.name == "copyAndroidMainComposeResourcesToAndroidAssets" }.configureEach {
+    val outputDirectory =
+        this::class.java.methods
+            .first { it.name == "getOutputDirectory" }
+            .invoke(this) as DirectoryProperty
+    outputDirectory.set(androidComposeResourcesDir)
 }
 
 tasks.named<Test>("desktopTest") {
