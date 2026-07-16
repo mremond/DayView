@@ -91,12 +91,34 @@ public func dv_calendar_calendars() -> UnsafeMutablePointer<CChar>? {
     return strdup(out)
 }
 
+// EventKit has no public API for an event's travel time; it is only reachable through
+// the private KVC key "travelTime" (seconds). The responds(to:) guard makes an OS
+// release that removes the accessor degrade to "no travel" instead of raising an
+// Objective-C exception, and the clamp keeps a corrupt value from swallowing the day.
+// The same constant widens the fetch window in dv_calendar_busy so an event starting
+// after the requested end, whose travel time overlaps the window, is still seen.
+private let maxTravelSeconds: TimeInterval = 3 * 60 * 60
+
+private func travelSeconds(_ event: EKEvent) -> TimeInterval {
+    guard event.responds(to: NSSelectorFromString("travelTime")),
+          let travel = (event.value(forKey: "travelTime") as? NSNumber)?.doubleValue
+    else { return 0 }
+    return min(max(travel, 0), maxTravelSeconds)
+}
+
 @_cdecl("dv_calendar_busy")
 public func dv_calendar_busy(_ startMillis: Int64, _ endMillis: Int64) -> UnsafeMutablePointer<CChar>? {
     primeAccessIfNeeded()
     let start = Date(timeIntervalSince1970: Double(startMillis) / 1000.0)
     let end = Date(timeIntervalSince1970: Double(endMillis) / 1000.0)
-    let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+    // Fetch up to maxTravelSeconds past the requested end so an event starting after
+    // the window whose travel time overlaps it is still seen. Only extended intervals
+    // overlapping [start, end] are emitted, so the function's contract is unchanged.
+    let predicate = store.predicateForEvents(
+        withStart: start,
+        end: end.addingTimeInterval(maxTravelSeconds),
+        calendars: nil
+    )
     var out = ""
     for event in store.events(matching: predicate) {
         if event.isAllDay { continue }
@@ -105,7 +127,12 @@ public func dv_calendar_busy(_ startMillis: Int64, _ endMillis: Int64) -> Unsafe
            me.participantStatus == .declined || me.participantStatus == .tentative {
             continue
         }
-        let s = Int64(event.startDate.timeIntervalSince1970 * 1000.0)
+        // Travel time blocks the stretch before the event: extend the busy interval
+        // upstream. Events pulled in only by the widened fetch that still don't reach
+        // back into the requested window are dropped here.
+        let busyStart = event.startDate.addingTimeInterval(-travelSeconds(event))
+        if busyStart >= end { continue }
+        let s = Int64(busyStart.timeIntervalSince1970 * 1000.0)
         let e = Int64(event.endDate.timeIntervalSince1970 * 1000.0)
         let calId = event.calendar?.calendarIdentifier ?? ""
         let title = (event.title ?? "").replacingOccurrences(of: "\t", with: " ")
