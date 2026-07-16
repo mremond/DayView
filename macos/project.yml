@@ -12,6 +12,13 @@ targets:
     platform: macOS
     sources:
       - path: DayView
+      # Same app icon as the shared (Compose/JVM) macOS build.
+      - path: ../artwork/dayview.icns
+        buildPhase: resources
+    info:
+      path: DayView/Info.plist
+      properties:
+        CFBundleIconFile: dayview
     dependencies:
       - package: DayViewKit
         product: DayViewKit

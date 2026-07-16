@@ -11,6 +11,7 @@ hs_err_pid*.log
 # macOS native (generated / synced artifacts)
 macos/Packages/DayViewKit/DayViewKit.xcframework/
 macos/DayView.xcodeproj/
+macos/DayView/Info.plist
 macos/.build/
 macos/Packages/DayViewKit/.build/
 
