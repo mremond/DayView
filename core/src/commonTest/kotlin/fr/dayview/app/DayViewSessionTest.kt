@@ -148,4 +148,98 @@ class DayViewSessionTest {
 
         assertEquals(20.minutes, controller.stateFlow.value.sessionFocusedToday)
     }
+
+    @Test
+    fun closeFocusCompletedEndsSessionAndClearsIntention() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.startFocus("Ship it")
+        runCurrent()
+        assertEquals("ACTIVE", seen.last().pomodoroStatus)
+
+        session.closeFocus("COMPLETED")
+        runCurrent()
+        assertEquals("IDLE", seen.last().pomodoroStatus)
+        assertEquals("", seen.last().focusIntention)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun closeFocusToResumeKeepsIntention() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.startFocus("Ship it")
+        runCurrent()
+        session.closeFocus("TO_RESUME")
+        runCurrent()
+        assertEquals("IDLE", seen.last().pomodoroStatus)
+        assertEquals("Ship it", seen.last().focusIntention)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun closeFocusUnknownOutcomeDefaultsToCompleted() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.startFocus("Ship it")
+        runCurrent()
+        session.closeFocus("garbage")
+        runCurrent()
+        // COMPLETED semantics: session ends, intention cleared.
+        assertEquals("IDLE", seen.last().pomodoroStatus)
+        assertEquals("", seen.last().focusIntention)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun closeFocusProgressedRecordsProgressedOutcome() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.startFocus("Ship it")
+        runCurrent()
+        session.closeFocus("PROGRESSED")
+        runCurrent()
+        assertEquals("IDLE", seen.last().pomodoroStatus)
+        assertEquals("", seen.last().focusIntention)
+        // PROGRESSED and COMPLETED are indistinguishable at snapshot level (both clear
+        // the intention), so pin the mapping via the recorded closure outcome.
+        assertEquals(FocusClosureOutcome.PROGRESSED, controller.stateFlow.value.lastFocusClosure)
+
+        sub.cancel()
+    }
 }

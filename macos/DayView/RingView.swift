@@ -7,6 +7,7 @@ struct RingView: View {
     @State private var goalTitle: String = ""
     @State private var deadline: Date = Date()
     @State private var seeded = false
+    @State private var lastPomodoroStatus = "IDLE"
 
     var body: some View {
         ScrollView {
@@ -27,6 +28,14 @@ struct RingView: View {
                 }
                 seeded = true
             }
+            // A session just ended (closure or stop): the persisted intention is the
+            // source of truth — Completed/Progressed cleared it, Resume later kept it —
+            // so re-sync the field. Scoped to the non-IDLE -> IDLE transition so it
+            // never clobbers mid-typing edits during normal ticks.
+            if lastPomodoroStatus != "IDLE" && snap.pomodoroStatus == "IDLE" {
+                intention = snap.focusIntention
+            }
+            lastPomodoroStatus = snap.pomodoroStatus
         }
     }
 
@@ -64,16 +73,44 @@ struct RingView: View {
                             onDecrement: { model.changePomodoroDuration(-5) })
                         .disabled(model.snapshot.pomodoroStatus != "IDLE")
                     Spacer()
-                    if model.snapshot.pomodoroStatus == "IDLE" {
+                    switch model.snapshot.pomodoroStatus {
+                    case "IDLE":
                         Button("Start focus") {
                             model.startFocus(intention: intention)
                         }
                         .disabled(intention.isEmpty)
-                    } else {
+                    case "BREAK":
+                        // Relaunch the next session of the sequence, keeping the intention.
+                        Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
+                        Button("Stop focus") { model.stopFocus() }
+                    default: // "ACTIVE"
                         Button("Stop focus") { model.stopFocus() }
                     }
                 }
                 Text(focusText).foregroundStyle(.secondary)
+                if model.snapshot.pomodoroStatus == "BREAK" {
+                    closureSection
+                }
+            }
+        }
+    }
+
+    // The closure ritual: name how the sequence ends so the session record and
+    // clean-session ledger stay honest. Break-only; Stop stays an outcome-less abort.
+    private var closureSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Close this focus")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Button("Completed") { model.closeFocus("COMPLETED") }
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                Button("Progressed") { model.closeFocus("PROGRESSED") }
+                    .buttonStyle(.bordered)
+                    .tint(.orange)
+                Button("Resume later") { model.closeFocus("TO_RESUME") }
+                    .buttonStyle(.bordered)
             }
         }
     }

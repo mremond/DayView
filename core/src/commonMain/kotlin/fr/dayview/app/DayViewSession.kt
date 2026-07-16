@@ -43,6 +43,22 @@ class DayViewSession internal constructor(
 
     fun stopFocus() = controller.stopPomodoro()
 
+    /**
+     * Ends the session through the closure ritual. [outcome] is one of "COMPLETED",
+     * "PROGRESSED", "TO_RESUME" (string-typed for the primitives-only Swift facade,
+     * symmetric with TodaySnapshot.pomodoroStatus); anything else degrades to
+     * COMPLETED rather than throwing across the FFI boundary.
+     */
+    fun closeFocus(outcome: String) {
+        controller.closePomodoro(
+            when (outcome) {
+                "PROGRESSED" -> FocusClosureOutcome.PROGRESSED
+                "TO_RESUME" -> FocusClosureOutcome.TO_RESUME
+                else -> FocusClosureOutcome.COMPLETED
+            },
+        )
+    }
+
     fun changePomodoroDuration(deltaMinutes: Int) = controller.changePomodoroDuration(deltaMinutes)
 
     fun setGoalTitle(title: String) = controller.setGoalTitle(title)
