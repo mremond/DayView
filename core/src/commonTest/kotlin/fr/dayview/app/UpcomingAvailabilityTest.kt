@@ -14,14 +14,11 @@ class UpcomingAvailabilityTest {
     private val tz = TimeZone.UTC
     private val from = LocalDate(2026, 1, 15)
 
-    private fun at(day: Int, hour: Int, minute: Int = 0): Instant =
-        LocalDateTime(2026, 1, day, hour, minute).toInstant(tz)
+    private fun at(day: Int, hour: Int, minute: Int = 0): Instant = LocalDateTime(2026, 1, day, hour, minute).toInstant(tz)
 
-    private fun busy(startDay: Int, startHour: Int, endDay: Int, endHour: Int, vararg titles: String) =
-        BusyInterval(at(startDay, startHour), at(endDay, endHour), titles.toList())
+    private fun busy(startDay: Int, startHour: Int, endDay: Int, endHour: Int, vararg titles: String) = BusyInterval(at(startDay, startHour), at(endDay, endHour), titles.toList())
 
-    private fun compute(busy: List<BusyInterval>) =
-        calculateUpcomingAvailability(from, 3, 8 * 60, 18 * 60, busy, tz)
+    private fun compute(busy: List<BusyInterval>) = calculateUpcomingAvailability(from, 3, 8 * 60, 18 * 60, busy, tz)
 
     @Test
     fun noBusyMeansNetEqualsFullWindow() {
