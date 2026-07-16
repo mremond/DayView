@@ -49,15 +49,21 @@ private const val INTERIOR_CONTENT_HEIGHT_FRACTION = 0.64f
 // At or below this counter scale the "Net" label is dropped so the value stays on one line.
 private const val NET_COMPACT_SCALE_THRESHOLD = 0.8f
 
+// Below this counter scale (dials under ~144.dp, where the 0.72 floor relaxes) secondary
+// rows would render under ~9.sp — unreadable — so the interior keeps only the numerals.
+private const val MIN_SECONDARY_ROWS_SCALE = 0.7f
+
 // Unscaled row-height estimates (dp). Numerals block reserved first, then secondary rows.
-private const val RESERVE_HEADER = 16f
+// Each row is its 6.dp spacer plus the explicit lineHeight its Text pins in
+// DayViewTodayScreen (both scale with counterScale); keep the two in step.
+private const val RESERVE_HEADER = 15f
 private const val RESERVE_HEADER_SPACER = 8f
-private const val RESERVE_NUMERALS = 92f
-private const val RESERVE_SECONDS = 18f
-private const val ROW_NET = 13f
-private const val ROW_DETOURS = 13f
-private const val ROW_FOCUS = 19f
-private const val ROW_BUSY = 17f
+private const val RESERVE_NUMERALS = 61f
+private const val RESERVE_SECONDS = 16f
+private const val ROW_NET = 25f
+private const val ROW_DETOURS = 24f
+private const val ROW_FOCUS = 24f
+private const val ROW_BUSY = 15f
 private const val ROW_ACCOLADES = 34f
 
 internal fun countdownInterior(
@@ -80,7 +86,8 @@ internal fun countdownInterior(
     // lower-priority row is dropped too, even one that is individually smaller. This keeps
     // the cull monotonic in priority (a higher-priority row never disappears while a
     // lower-priority detail survives). An absent row is skipped without spending the budget.
-    var budgetExhausted = false
+    // Below the readability floor the budget starts exhausted: numerals only.
+    var budgetExhausted = counterScale < MIN_SECONDARY_ROWS_SCALE
 
     fun take(present: Boolean, base: Float): Boolean {
         if (!present) return false
