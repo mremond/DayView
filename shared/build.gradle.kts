@@ -154,6 +154,11 @@ tasks.named<Test>("desktopTest") {
     )
 }
 
+// Run each JVM test task's classes across multiple forked JVMs.
+tasks.withType<Test>().configureEach {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+}
+
 compose.desktop {
     application {
         mainClass = "fr.dayview.app.MainKt"
