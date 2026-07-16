@@ -72,6 +72,10 @@ public func dv_calendar_busy(_ startMillis: Int64, _ endMillis: Int64) -> Unsafe
     for event in store.events(matching: predicate) {
         if event.isAllDay { continue }
         if event.availability != .busy { continue }
+        if let me = event.attendees?.first(where: { $0.isCurrentUser }),
+           me.participantStatus == .declined || me.participantStatus == .tentative {
+            continue
+        }
         let s = Int64(event.startDate.timeIntervalSince1970 * 1000.0)
         let e = Int64(event.endDate.timeIntervalSince1970 * 1000.0)
         let calId = event.calendar?.calendarIdentifier ?? ""

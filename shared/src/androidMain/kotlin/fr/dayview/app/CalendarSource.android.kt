@@ -62,6 +62,7 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
             CalendarContract.Instances.ALL_DAY,
             CalendarContract.Instances.AVAILABILITY,
             CalendarContract.Instances.CALENDAR_ID,
+            CalendarContract.Instances.SELF_ATTENDEE_STATUS,
         )
         val out = mutableListOf<BusyInterval>()
         context.contentResolver.query(uri, projection, null, null, null)?.use { c ->
@@ -69,8 +70,14 @@ private class AndroidCalendarSource(private val context: Context) : CalendarSour
                 val allDay = c.getInt(3) == 1
                 val availability = c.getInt(4) // 0 = BUSY
                 val calId = c.getLong(5).toString()
+                val selfStatus = c.getInt(6)
                 if (allDay) continue
                 if (availability != CalendarContract.Instances.AVAILABILITY_BUSY) continue
+                if (selfStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED ||
+                    selfStatus == CalendarContract.Attendees.ATTENDEE_STATUS_TENTATIVE
+                ) {
+                    continue
+                }
                 if (includedCalendarIds.isNotEmpty() && calId !in includedCalendarIds) continue
                 out += BusyInterval(
                     Instant.fromEpochMilliseconds(c.getLong(0)),
