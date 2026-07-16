@@ -37,15 +37,7 @@ fun calculateUpcomingAvailability(
         val date = LocalDate.fromEpochDays((fromEpoch + offset).toInt())
         val (start, end) = dayWindowFor(date, startMinutes, endMinutes, timeZone)
         val window = (end - start).coerceAtLeast(Duration.ZERO)
-        val clipped = mergeBusyIntervals(
-            busy.map {
-                it.copy(
-                    start = it.start.coerceIn(start, end),
-                    end = it.end.coerceIn(start, end),
-                )
-            },
-        )
-        val busyTotal = clipped.fold(Duration.ZERO) { acc, interval -> acc + (interval.end - interval.start) }
+        val busyTotal = busyWithinWindow(busy, start, end)
         UpcomingDayAvailability(
             date = date,
             window = window,

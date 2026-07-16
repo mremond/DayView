@@ -217,6 +217,32 @@ fun dayWindow(
 
 private fun overlap(start: Instant, end: Instant, from: Instant, to: Instant): Duration = (minOf(end, to) - maxOf(start, from)).coerceAtLeast(Duration.ZERO)
 
+/**
+ * Clip every busy interval to `[windowStart, windowEnd]` and merge overlaps into a union, so
+ * the caller sees each busy minute exactly once. Shared by every "busy time in a window"
+ * computation (net time, upcoming availability, history).
+ */
+fun busyIntervalsWithinWindow(
+    busy: List<BusyInterval>,
+    windowStart: Instant,
+    windowEnd: Instant,
+): List<BusyInterval> = mergeBusyIntervals(
+    busy.map {
+        it.copy(
+            start = it.start.coerceIn(windowStart, windowEnd),
+            end = it.end.coerceIn(windowStart, windowEnd),
+        )
+    },
+)
+
+/** Total busy duration within `[windowStart, windowEnd]`, overlaps merged so nothing is double-counted. */
+fun busyWithinWindow(
+    busy: List<BusyInterval>,
+    windowStart: Instant,
+    windowEnd: Instant,
+): Duration = busyIntervalsWithinWindow(busy, windowStart, windowEnd)
+    .fold(Duration.ZERO) { acc, it -> acc + (it.end - it.start) }
+
 fun calculateNetTime(
     progress: DayProgress,
     now: Instant,
@@ -224,14 +250,7 @@ fun calculateNetTime(
     windowEnd: Instant,
     busy: List<BusyInterval>,
 ): NetTime {
-    val clipped = mergeBusyIntervals(
-        busy.map {
-            it.copy(
-                start = it.start.coerceIn(windowStart, windowEnd),
-                end = it.end.coerceIn(windowStart, windowEnd),
-            )
-        },
-    )
+    val clipped = busyIntervalsWithinWindow(busy, windowStart, windowEnd)
     val totalBusy = clipped.fold(Duration.ZERO) { acc, it -> acc + (it.end - it.start) }
     val aheadFrom = now.coerceIn(windowStart, windowEnd)
     val busyRemaining = clipped.fold(Duration.ZERO) { acc, it -> acc + overlap(it.start, it.end, aheadFrom, windowEnd) }

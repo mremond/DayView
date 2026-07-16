@@ -48,6 +48,39 @@ class CalendarNetTimeTest {
     }
 
     @Test
+    fun busyWithinWindowClipsToBounds() {
+        // 08:00-15:00 déborde à droite de la fenêtre [10:00, 12:00] -> seules 2 h comptent.
+        val total = busyWithinWindow(listOf(interval(0, 15 * 60 * 60 * 1000L)), t(10 * 60 * 60 * 1000L), t(12 * 60 * 60 * 1000L))
+        assertEquals(2.hours, total)
+    }
+
+    @Test
+    fun busyWithinWindowMergesOverlapsWithoutDoubleCounting() {
+        // [10:00-11:00] et [10:30-11:30] se chevauchent -> union 10:00-11:30 = 1 h 30, pas 2 h.
+        val total = busyWithinWindow(
+            listOf(
+                interval(10 * 60 * 60 * 1000L, 11 * 60 * 60 * 1000L),
+                interval(10 * 60 * 60 * 1000L + 30 * 60 * 1000L, 11 * 60 * 60 * 1000L + 30 * 60 * 1000L),
+            ),
+            t(0),
+            t(24 * 60 * 60 * 1000L),
+        )
+        assertEquals(1.hours + 30.minutes, total)
+    }
+
+    @Test
+    fun busyWithinWindowExcludesIntervalsOutsideWindow() {
+        // Créneau entièrement après la fenêtre -> aucune contribution.
+        val total = busyWithinWindow(listOf(interval(20 * 60 * 60 * 1000L, 21 * 60 * 60 * 1000L)), t(0), t(12 * 60 * 60 * 1000L))
+        assertEquals(Duration.ZERO, total)
+    }
+
+    @Test
+    fun busyWithinWindowIsZeroForEmptyInput() {
+        assertEquals(Duration.ZERO, busyWithinWindow(emptyList(), t(0), t(12 * 60 * 60 * 1000L)))
+    }
+
+    @Test
     fun dayWindowReturnsAbsoluteBounds() {
         val zone = TimeZone.of("Europe/Paris")
         val noon = LocalDateTime(2026, 7, 11, 12, 0).toInstant(zone)

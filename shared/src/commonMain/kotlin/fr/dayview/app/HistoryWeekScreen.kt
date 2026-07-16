@@ -87,15 +87,7 @@ private fun historyDate(dayKey: Long): String {
 private fun historyBusyDuration(state: DayViewUiState): Duration {
     if (!state.netTimeSettings.enabled) return Duration.ZERO
     val (windowStart, windowEnd) = state.dayWindow
-    val clipped = state.busyIntervalsToday.map {
-        it.copy(
-            start = it.start.coerceIn(windowStart, windowEnd),
-            end = it.end.coerceIn(windowStart, windowEnd),
-        )
-    }
-    return mergeBusyIntervals(clipped).fold(Duration.ZERO) { total, interval ->
-        total + (interval.end - interval.start).coerceAtLeast(Duration.ZERO)
-    }
+    return busyWithinWindow(state.busyIntervalsToday, windowStart, windowEnd)
 }
 
 @Composable
