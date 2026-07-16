@@ -2,6 +2,8 @@ package fr.dayview.app
 
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -593,6 +595,128 @@ class DayViewSessionTest {
         assertEquals(true, seen.last().calendarReadError)
         // The calendar list still arrives even when the busy read fails.
         assertEquals(listOf(CalendarChoice("c1", "Work", included = true)), seen.last().calendars)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun busyArcsCarryAnglesColorAndHoverLabel() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L) // midday UTC fixture
+        val source = FakeCalendarSource(
+            calendars = listOf(CalendarInfo("c1", "Work")),
+            busy = listOf(BusyInterval(now, now + 1.hours, titles = listOf("Standup"), calendarId = "c1")),
+        )
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        val arc = seen.last().busyArcs.single()
+        assertEquals(0L, arc.colorIndex)
+        assertTrue(arc.sweepDegrees > 0.0)
+        assertTrue(arc.startAngleDegrees >= -90.0 && arc.startAngleDegrees < 270.0)
+        // Expected label built from the fixture's own local conversion — host-TZ-portable,
+        // pins the joining and format wiring (formatWallClock has its own tests).
+        val zone = TimeZone.currentSystemDefault()
+        val s = now.toLocalDateTime(zone)
+        val e = (now + 1.hours).toLocalDateTime(zone)
+        assertEquals(
+            "Standup · ${formatWallClock(s.hour, s.minute, true)}–${formatWallClock(e.hour, e.minute, true)}",
+            arc.hoverLabel,
+        )
+
+        sub.cancel()
+    }
+
+    @Test
+    fun untitledBusyArcFallsBackToTheCalendarName() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val source = FakeCalendarSource(
+            calendars = listOf(CalendarInfo("c1", "Work")),
+            busy = listOf(BusyInterval(now, now + 1.hours, titles = emptyList(), calendarId = "c1")),
+        )
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertTrue(seen.last().busyArcs.single().hoverLabel.startsWith("Work · "))
+
+        sub.cancel()
+    }
+
+    @Test
+    fun twelveHourSessionFormatsHoverTimesInTwelveHourClock() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val source = FakeCalendarSource(
+            calendars = listOf(CalendarInfo("c1", "Work")),
+            busy = listOf(BusyInterval(now, now + 1.hours, titles = listOf("Standup"), calendarId = "c1")),
+        )
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope, source, use24Hour = false)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        val zone = TimeZone.currentSystemDefault()
+        val s = now.toLocalDateTime(zone)
+        val e = (now + 1.hours).toLocalDateTime(zone)
+        assertEquals(
+            "Standup · ${formatWallClock(s.hour, s.minute, false)}–${formatWallClock(e.hour, e.minute, false)}",
+            seen.last().busyArcs.single().hoverLabel,
+        )
+
+        sub.cancel()
+    }
+
+    @Test
+    fun busyArcsEmptyWhenNetTimeDisabled() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val source = FakeCalendarSource(
+            calendars = listOf(CalendarInfo("c1", "Work")),
+            busy = listOf(BusyInterval(now, now + 1.hours, titles = listOf("Standup"), calendarId = "c1")),
+        )
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertTrue(seen.last().busyArcs.isEmpty())
 
         sub.cancel()
     }

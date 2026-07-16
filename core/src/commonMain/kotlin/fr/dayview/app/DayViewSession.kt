@@ -23,17 +23,18 @@ class DayViewSession internal constructor(
     private val controller: DayViewController,
     private val scope: CoroutineScope,
     private val calendarSource: CalendarSource = NoopCalendarSource,
+    private val use24Hour: Boolean = true,
 ) {
     private var ticksSinceCalendarRefresh = 0
 
     init {
         refreshCalendar()
     }
-    fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot()
+    fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot(use24Hour)
 
     fun subscribe(onEach: (TodaySnapshot) -> Unit): DayViewSubscription {
         val job = scope.launch {
-            controller.stateFlow.collect { onEach(it.toTodaySnapshot()) }
+            controller.stateFlow.collect { onEach(it.toTodaySnapshot(use24Hour)) }
         }
         return object : DayViewSubscription {
             override fun cancel() = job.cancel()
