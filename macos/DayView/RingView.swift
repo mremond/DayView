@@ -46,6 +46,12 @@ struct RingView: View {
             Text(model.snapshot.dayStatus)
                 .font(.system(size: 40, weight: .semibold, design: .rounded))
                 .monospacedDigit()
+            if !model.snapshot.secondsLabel.isEmpty {
+                Text(model.snapshot.secondsLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
         }
     }
 
@@ -75,7 +81,8 @@ struct RingView: View {
                         Button("Stop focus") { model.stopFocus() }
                     }
                 }
-                Text(focusText).foregroundStyle(.secondary)
+                Text(model.snapshot.focusLine.isEmpty ? "Idle" : model.snapshot.focusLine)
+                    .foregroundStyle(.secondary)
                 if model.snapshot.pomodoroStatus == "BREAK" {
                     closureSection
                 }
@@ -90,16 +97,7 @@ struct RingView: View {
             Text("Close this focus")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            HStack(spacing: 8) {
-                Button("Completed") { model.closeFocus("COMPLETED") }
-                    .buttonStyle(.bordered)
-                    .tint(.green)
-                Button("Progressed") { model.closeFocus("PROGRESSED") }
-                    .buttonStyle(.bordered)
-                    .tint(.orange)
-                Button("Resume later") { model.closeFocus("TO_RESUME") }
-                    .buttonStyle(.bordered)
-            }
+            FocusClosureButtons(model: model)
         }
     }
 
@@ -132,12 +130,4 @@ struct RingView: View {
         }
     }
 
-    private var focusText: String {
-        let s = model.snapshot
-        switch s.pomodoroStatus {
-        case "ACTIVE": return "Focus · \(s.focusIntention) · \(s.pomodoroClock)"
-        case "BREAK": return "Break · \(s.pomodoroClock)"
-        default: return "Idle"
-        }
-    }
 }

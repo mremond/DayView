@@ -59,6 +59,27 @@ class DayViewSession internal constructor(
         )
     }
 
+    fun setDayStart(minutes: Int) = controller.setStartMinutes(minutes)
+
+    fun setDayEnd(minutes: Int) = controller.setEndMinutes(minutes)
+
+    fun setShowSeconds(enabled: Boolean) = controller.setShowSeconds(enabled)
+
+    /**
+     * [mode] is "SYSTEM"/"LIGHT"/"DARK" (string-typed for the primitives-only Swift
+     * facade); anything else degrades to SYSTEM rather than throwing across the FFI
+     * boundary.
+     */
+    fun setThemeMode(mode: String) {
+        controller.setThemeMode(
+            when (mode) {
+                "LIGHT" -> ThemeMode.LIGHT
+                "DARK" -> ThemeMode.DARK
+                else -> ThemeMode.SYSTEM
+            },
+        )
+    }
+
     fun changePomodoroDuration(deltaMinutes: Int) = controller.changePomodoroDuration(deltaMinutes)
 
     fun setGoalTitle(title: String) = controller.setGoalTitle(title)

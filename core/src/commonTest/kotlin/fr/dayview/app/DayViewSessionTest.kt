@@ -4,6 +4,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -239,6 +240,162 @@ class DayViewSessionTest {
         // PROGRESSED and COMPLETED are indistinguishable at snapshot level (both clear
         // the intention), so pin the mapping via the recorded closure outcome.
         assertEquals(FocusClosureOutcome.PROGRESSED, controller.stateFlow.value.lastFocusClosure)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun dayWindowSettersRoundTripAndClamp() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 540, endMinutes = 1080),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.setDayStart(600)
+        runCurrent()
+        assertEquals(600L, seen.last().startMinutes)
+
+        session.setDayEnd(1200)
+        runCurrent()
+        assertEquals(1200L, seen.last().endMinutes)
+
+        // Controller clamping is the validation story: start is coerced to end - 30.
+        session.setDayStart(1439)
+        runCurrent()
+        assertEquals(1170L, seen.last().startMinutes)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun showSecondsDrivesSecondsLabel() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            // Full-day window so the day is running at any host time zone.
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertEquals(true, seen.last().showSeconds)
+        assertTrue(Regex("^\\d{2}s$").matches(seen.last().secondsLabel))
+
+        session.setShowSeconds(false)
+        runCurrent()
+        assertEquals(false, seen.last().showSeconds)
+        assertEquals("", seen.last().secondsLabel)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun themeModeSetterMapsAndDefaults() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertEquals("SYSTEM", seen.last().themeMode)
+
+        session.setThemeMode("DARK")
+        runCurrent()
+        assertEquals("DARK", seen.last().themeMode)
+
+        session.setThemeMode("garbage")
+        runCurrent()
+        assertEquals("SYSTEM", seen.last().themeMode)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun presentationLabelsFollowFocusState() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertEquals("", seen.last().focusLine)
+        assertEquals(seen.last().dayStatus, seen.last().menuBarTitle)
+
+        session.startFocus("Ship it")
+        runCurrent()
+        assertTrue(seen.last().focusLine.startsWith("Focus · Ship it · "))
+        assertEquals(seen.last().pomodoroClock, seen.last().menuBarTitle)
+
+        session.stopFocus()
+        runCurrent()
+        assertEquals("", seen.last().focusLine)
+        assertEquals(seen.last().dayStatus, seen.last().menuBarTitle)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun presentationLabelsDuringBreak() = runTest {
+        // Midday UTC start so a 26-minute tick cannot cross local midnight in any zone.
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = start,
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.startFocus("Ship it")
+        controller.tick(start + 26.minutes) // past the default 25-minute session: BREAK
+        runCurrent()
+        assertEquals("BREAK", seen.last().pomodoroStatus)
+        assertTrue(seen.last().focusLine.startsWith("Break · "))
+        // During the break the menu bar shows the break clock, not the day headline.
+        assertEquals(seen.last().pomodoroClock, seen.last().menuBarTitle)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun secondsLabelEmptyWhenDayIsOver() = runTest {
+        // Window 00:00-00:30: the fixture instant falls after 00:30 local in any zone,
+        // so the day is finished and the isFinished gate must blank the label even
+        // though showSeconds is on.
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 30),
+            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertEquals(true, seen.last().isFinished)
+        assertEquals(true, seen.last().showSeconds)
+        assertEquals("", seen.last().secondsLabel)
 
         sub.cancel()
     }

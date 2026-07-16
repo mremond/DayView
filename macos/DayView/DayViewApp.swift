@@ -9,7 +9,7 @@ struct DayViewApp: App {
         Window("DayView", id: "main") {
             MainWindowRoot(model: model, windows: windows)
         }
-        MenuBarExtra(menuBarTitle) {
+        MenuBarExtra(model.snapshot.menuBarTitle) {
             MenuBarContent(model: model, windows: windows)
         }
         Window("DayView Mini", id: "mini") {
@@ -17,20 +17,15 @@ struct DayViewApp: App {
                 .frame(minWidth: 200, minHeight: 300)
                 .onAppear { windows.isMiniOpen = true }
                 .onDisappear { windows.isMiniOpen = false }
+                .preferredColorScheme(preferredScheme(for: model.snapshot.themeMode))
         }
         .windowLevel(.floating)
         .defaultSize(width: 360, height: 520)
         // Keep the mini out of the Window menu: opening it from there would bypass the
         // open-one-dismiss-the-other swaps and leave both windows open.
         .commandsRemoved()
-    }
-
-    // Live menu-bar readout: the focus countdown during a session, otherwise the day's
-    // remaining-time headline. Recomputed whenever the model's snapshot ticks.
-    private var menuBarTitle: String {
-        switch model.snapshot.pomodoroStatus {
-        case "ACTIVE", "BREAK": return model.snapshot.pomodoroClock
-        default: return model.snapshot.dayStatus
+        Settings {
+            SettingsView(model: model)
         }
     }
 }
@@ -59,5 +54,6 @@ private struct MainWindowRoot: View {
         .frame(minWidth: 420, minHeight: 680)
         .onAppear { windows.isMainOpen = true }
         .onDisappear { windows.isMainOpen = false }
+        .preferredColorScheme(preferredScheme(for: model.snapshot.themeMode))
     }
 }

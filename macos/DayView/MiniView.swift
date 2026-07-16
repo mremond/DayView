@@ -21,6 +21,12 @@ struct MiniView: View {
                         Text(model.snapshot.dayStatus)
                             .font(.system(size: 24, weight: .semibold, design: .rounded))
                             .monospacedDigit()
+                        if !model.snapshot.secondsLabel.isEmpty {
+                            Text(model.snapshot.secondsLabel)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
                     }
                     // Height-gated like the JVM mini (showGoalInMiniWindow: 400 at font scale 1).
                     if proxy.size.height >= 400 {
@@ -82,16 +88,7 @@ struct MiniView: View {
                     Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
                     Button("Stop") { model.stopFocus() }
                 }
-                HStack(spacing: 8) {
-                    Button("Completed") { model.closeFocus("COMPLETED") }
-                        .buttonStyle(.bordered)
-                        .tint(.green)
-                    Button("Progressed") { model.closeFocus("PROGRESSED") }
-                        .buttonStyle(.bordered)
-                        .tint(.orange)
-                    Button("Resume later") { model.closeFocus("TO_RESUME") }
-                        .buttonStyle(.bordered)
-                }
+                FocusClosureButtons(model: model)
             default: // "IDLE"
                 Button("Start focus") {
                     draftIntention = model.snapshot.focusIntention
