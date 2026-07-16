@@ -136,6 +136,7 @@ private fun historyRecord(dayKey: Long) = DayHistoryRecord(
     netTimeSettings = NetTimeSettings(),
     focusPresenceIntervals = emptyList(),
     focusSessionIntervals = emptyList(),
+    focusSessionRecords = emptyList(),
     detours = emptyList(),
     cleanSessions = CleanSessionLedger(),
     pomodoroMinutes = 0,

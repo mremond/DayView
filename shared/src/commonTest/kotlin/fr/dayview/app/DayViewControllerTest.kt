@@ -3,11 +3,13 @@ package fr.dayview.app
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -194,6 +196,59 @@ class DayViewControllerTest {
         controller.closePomodoro(FocusClosureOutcome.COMPLETED)
         assertEquals("", controller.state.focusIntention)
         assertEquals("", preferences.current.focusIntention)
+    }
+
+    @Test
+    fun closingASessionRecordsItWithThePreClosureIntention() {
+        val preferences = InMemoryDayPreferences()
+        val controller = testController(preferences, 10_000L)
+        controller.setFocusIntention("write the plan")
+        controller.startPomodoro()
+        // Advance a few minutes into the session so its recorded window has positive
+        // duration (recordClosingSession drops zero-length sessions).
+        controller.tick(t(10_000L + 5 * 60_000L))
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        val records = controller.state.focusSessionRecordsToday
+        assertEquals(1, records.size)
+        assertEquals("write the plan", records[0].intention)
+        assertEquals(FocusClosureOutcome.COMPLETED, records[0].outcome)
+        // COMPLETED clears the live intention but the record keeps it.
+        assertEquals("", controller.state.focusIntention)
+    }
+
+    @Test
+    fun aDesktopSessionOnlyDayArchivesItsFocusSessionRecords() = runTest {
+        // Models a desktop day whose ONLY activity is a stopped pomodoro: no calendar busy layer,
+        // no detours, derivesEngagedFromSessions=false, and stopPomodoro never touches the
+        // clean-session ledger. The session records are then the only thing making the day worth
+        // archiving, so they must be reachable by persistedDayKey or they are lost at rollover.
+        val history = InMemoryDayHistoryStore()
+        // Full-day window so the archived clip keeps the session regardless of the host timezone.
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(startMinutes = 0, endMinutes = 23 * 60 + 59),
+        )
+        val day1 = Instant.parse("2026-05-04T12:00:00Z")
+        val controller = DayViewController(
+            preferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = preferences.current,
+            initialNow = day1,
+            history = history,
+            derivesEngagedFromSessions = false,
+        )
+
+        controller.setFocusIntention("write the plan")
+        controller.startPomodoro()
+        controller.tick(day1 + 5.minutes)
+        controller.stopPomodoro()
+        // Cross into the next day to trigger archival of day1.
+        controller.tick(Instant.parse("2026-05-05T12:00:00Z"))
+
+        val archived = history.read(dayKeyOf(day1))
+        assertNotNull(archived)
+        assertEquals(1, archived.focusSessionRecords.size)
+        assertEquals("write the plan", archived.focusSessionRecords.first().intention)
     }
 
     @Test

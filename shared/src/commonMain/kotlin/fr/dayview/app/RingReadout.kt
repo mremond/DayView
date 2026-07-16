@@ -12,6 +12,7 @@ data class RingReadout(
     val busy: BusyBlockArc?,
     val detour: DetourBody?,
     val focus: Boolean,
+    val session: FocusSessionRecord?,
 )
 
 private const val NOW_TOLERANCE_DEGREES = 3f
@@ -31,7 +32,8 @@ fun normalizeRingAngle(degrees: Float): Float {
  * Read every ring layer present at [angleDegrees] (drawArc convention, -90° = window start).
  * [momentAngleDegrees] is null before the day starts / after it ends. Busy and detour use
  * the same tolerances as the mouse hover hit-tests so thin arcs and small bodies stay
- * reachable; focus is a plain containment test.
+ * reachable; focus is a plain containment test; the focus session under the angle uses
+ * [focusSessionBandAtAngle]'s own tolerance.
  */
 fun ringReadoutAt(
     angleDegrees: Float,
@@ -40,6 +42,7 @@ fun ringReadoutAt(
     busyBlockArcs: List<BusyBlockArc>,
     detourBodies: List<DetourBody>,
     focusArcs: List<FocusArc>,
+    focusSessionBands: List<FocusSessionBand>,
     momentAngleDegrees: Float?,
 ): RingReadout {
     val busy = busyBlockArcs
@@ -49,6 +52,7 @@ fun ringReadoutAt(
         }
     val detour = detourBodyAtAngle(detourBodies, angleDegrees)
     val focus = focusArcs.any { arcContainsAngle(it.startAngleDegrees, it.sweepDegrees, angleDegrees) }
+    val session = focusSessionBandAtAngle(focusSessionBands, angleDegrees)?.record
     val isNow = momentAngleDegrees != null &&
         angularDistanceToArc(momentAngleDegrees, 0f, angleDegrees) <= NOW_TOLERANCE_DEGREES
     return RingReadout(
@@ -57,5 +61,6 @@ fun ringReadoutAt(
         busy = busy,
         detour = detour,
         focus = focus,
+        session = session,
     )
 }

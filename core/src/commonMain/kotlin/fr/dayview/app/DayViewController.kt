@@ -69,6 +69,8 @@ data class DayViewUiState(
     val selectedHistoryDay: Long? = null,
     val historyWeek: List<HistoryWeekDay> = emptyList(),
     val focusSessionDayKey: Long = -1L,
+    val focusSessionRecordsDayKey: Long = -1L,
+    val focusSessionRecords: List<FocusSessionRecord> = emptyList(),
 ) {
     private val dayNow: Instant
         get() = if (showSeconds) now else now - (now.toEpochMilliseconds() % 60_000L).milliseconds
@@ -135,6 +137,16 @@ data class DayViewUiState(
         get() {
             val (start, end) = dayWindow
             return focusedTime(start, end, focusSessionIntervals)
+        }
+
+    /** Session records of the current local day; stale storage from a previous day reads as empty. */
+    val focusSessionRecordsToday: List<FocusSessionRecord>
+        get() = if (focusSessionRecordsDayKey == dayKeyOf(dayNow)) focusSessionRecords else emptyList()
+
+    val focusSessionBandsState: List<FocusSessionBand>
+        get() {
+            val (start, end) = dayWindow
+            return focusSessionBands(start, end, focusSessionRecordsToday)
         }
 
     /** Episodes of the current local day; stale storage from a previous day reads as empty. */
@@ -260,8 +272,13 @@ class DayViewController(
     }
 
     /** The day the persisted day-scoped fields (detours, clean-session ledger, calendar busy) belong to. */
-    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(state.detoursDayKey, state.cleanSessions.dayKey, state.busyDayKey, state.focusSessionDayKey)
-        .filter { it != -1L }.maxOrNull()
+    private fun persistedDayKey(state: DayViewUiState): Long? = listOf(
+        state.detoursDayKey,
+        state.cleanSessions.dayKey,
+        state.busyDayKey,
+        state.focusSessionDayKey,
+        state.focusSessionRecordsDayKey,
+    ).filter { it != -1L }.maxOrNull()
 
     /**
      * Archives the previous day's ring before its day-scoped data is discarded on
@@ -278,7 +295,13 @@ class DayViewController(
             history.write(record)
             if (self != null && contributions != null) {
                 contributions.write(
-                    FocusContribution(key, self, record.focusPresenceIntervals, record.focusSessionIntervals),
+                    FocusContribution(
+                        key,
+                        self,
+                        record.focusPresenceIntervals,
+                        record.focusSessionIntervals,
+                        record.focusSessionRecords,
+                    ),
                 )
             }
         }
@@ -449,6 +472,8 @@ class DayViewController(
 
     fun stopPomodoro() {
         appendEngagedSession(state.now)
+        // The Stop button is an early abort with no closure choice, so the record carries no outcome.
+        recordClosingSession(state.now, null)
         state = state.copy(pomodoroEnd = null)
         persistState()
     }
@@ -470,6 +495,21 @@ class DayViewController(
         state = state.copy(
             focusSessionIntervals = mergeIntervals(existing + derived),
             focusSessionDayKey = today,
+        )
+    }
+
+    /** Append a record for the closing session, keyed to today; resets the list on day rollover. */
+    private fun recordClosingSession(stopInstant: Instant, outcome: FocusClosureOutcome?) {
+        val end = state.pomodoroEnd ?: return
+        val start = end - state.pomodoroMinutes.minutes
+        val effectiveEnd = minOf(stopInstant, end)
+        if (effectiveEnd <= start) return
+        val today = dayKeyOf(state.now)
+        val existing = if (state.focusSessionRecordsDayKey == today) state.focusSessionRecords else emptyList()
+        val record = FocusSessionRecord(start, effectiveEnd, state.focusIntention, outcome)
+        state = state.copy(
+            focusSessionRecords = existing + record,
+            focusSessionRecordsDayKey = today,
         )
     }
 
@@ -507,6 +547,7 @@ class DayViewController(
 
     fun closePomodoro(outcome: FocusClosureOutcome) {
         appendEngagedSession(state.now)
+        recordClosingSession(state.now, outcome)
         val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
         val ledger = closedFocusLedger(
             cleanSessions = state.cleanSessions,
@@ -775,6 +816,8 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     fontScale = fontScale,
     focusSessionDayKey = focusSessionDayKey,
     focusSessionIntervals = focusSessionIntervals,
+    focusSessionRecordsDayKey = focusSessionRecordsDayKey,
+    focusSessionRecords = focusSessionRecords,
 ).coerced()
 
 private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
@@ -842,6 +885,8 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         fontScale = safe.fontScale,
         focusSessionDayKey = safe.focusSessionDayKey,
         focusSessionIntervals = safe.focusSessionIntervals,
+        focusSessionRecordsDayKey = safe.focusSessionRecordsDayKey,
+        focusSessionRecords = safe.focusSessionRecords,
     )
 }
 
@@ -872,6 +917,8 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         themeMode = safe.themeMode,
         cleanSessions = safe.cleanSessions,
         fontScale = safe.fontScale,
+        focusSessionRecordsDayKey = safe.focusSessionRecordsDayKey,
+        focusSessionRecords = safe.focusSessionRecords,
         // Transient fields deliberately preserved: now, goalDeadlineText,
         // goalStartText, lastFocusClosure, sessionOffGoal, destination, and
         // calendar read results.

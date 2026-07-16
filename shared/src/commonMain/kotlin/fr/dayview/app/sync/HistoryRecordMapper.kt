@@ -4,7 +4,9 @@ import fr.dayview.app.BusyInterval
 import fr.dayview.app.CleanSessionLedger
 import fr.dayview.app.DayHistoryRecord
 import fr.dayview.app.DetourEpisode
+import fr.dayview.app.FocusClosureOutcome
 import fr.dayview.app.FocusPresenceInterval
+import fr.dayview.app.FocusSessionRecord
 import fr.dayview.app.NetTimeSettings
 import kotlin.time.Instant
 
@@ -28,6 +30,9 @@ object HistoryRecordMapper {
         netCalendars = r.netTimeSettings.includedCalendarIds.toList(),
         focusPresence = r.focusPresenceIntervals.map { PresenceDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds()) },
         focusSession = r.focusSessionIntervals.map { PresenceDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds()) },
+        focusSessionRecords = r.focusSessionRecords.map {
+            FocusSessionRecordDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.intention, it.outcome?.name ?: "")
+        },
         detours = r.detours.map { DetourEpisodeDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.category, it.description) },
         cleanSessions = CleanDto(r.cleanSessions.dayKey, r.cleanSessions.cleanToday, r.cleanSessions.streakDays, r.cleanSessions.streakLastDayKey),
         pomodoroMinutes = r.pomodoroMinutes,
@@ -49,6 +54,17 @@ object HistoryRecordMapper {
         netTimeSettings = NetTimeSettings(enabled = d.netEnabled, includedCalendarIds = d.netCalendars.toSet()),
         focusPresenceIntervals = d.focusPresence.map { FocusPresenceInterval(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end)) },
         focusSessionIntervals = d.focusSession.map { FocusPresenceInterval(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end)) },
+        focusSessionRecords = d.focusSessionRecords.mapNotNull { dto ->
+            // An empty outcome means the session was aborted (no closure choice). A non-empty but
+            // unrecognized outcome name (e.g. decoded from a newer peer) drops the record rather
+            // than failing the whole sync payload.
+            val outcome = if (dto.outcome.isEmpty()) {
+                null
+            } else {
+                FocusClosureOutcome.entries.firstOrNull { it.name == dto.outcome } ?: return@mapNotNull null
+            }
+            FocusSessionRecord(Instant.fromEpochMilliseconds(dto.start), Instant.fromEpochMilliseconds(dto.end), dto.intention, outcome)
+        },
         detours = d.detours.map { DetourEpisode(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end), it.category, it.description) },
         cleanSessions = CleanSessionLedger(d.cleanSessions.dayKey, d.cleanSessions.cleanToday, d.cleanSessions.streakDays, d.cleanSessions.streakLastDayKey),
         pomodoroMinutes = d.pomodoroMinutes,

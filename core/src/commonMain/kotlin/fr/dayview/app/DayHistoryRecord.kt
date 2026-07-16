@@ -22,6 +22,7 @@ data class DayHistoryRecord(
     val netTimeSettings: NetTimeSettings,
     val focusPresenceIntervals: List<FocusPresenceInterval>,
     val focusSessionIntervals: List<FocusPresenceInterval>,
+    val focusSessionRecords: List<FocusSessionRecord>,
     val detours: List<DetourEpisode>,
     val cleanSessions: CleanSessionLedger,
     val pomodoroMinutes: Int,
@@ -73,6 +74,10 @@ fun DayHistoryRecord.toFrozenUiState(
     busyIntervals = busyIntervals,
     focusPresenceIntervals = focusPresenceIntervals,
     focusSessionIntervals = focusSessionIntervals,
+    focusSessionRecords = focusSessionRecords,
+    // The frozen `now` sits at this day's end, so the day-key gate on
+    // focusSessionRecordsToday / focusSessionBandsState matches and history renders the bands.
+    focusSessionRecordsDayKey = dayKey,
     detoursDayKey = dayKey,
     detours = detours,
     cleanSessions = cleanSessions,
@@ -99,6 +104,7 @@ internal fun DayViewUiState.toHistoryRecord(
         netTimeSettings = netTimeSettings,
         focusPresenceIntervals = focusPresenceIntervals.filter { it.end > windowStart && it.start < windowEnd },
         focusSessionIntervals = focusSessionIntervals.filter { it.end > windowStart && it.start < windowEnd },
+        focusSessionRecords = focusSessionRecords.filter { it.end > windowStart && it.start < windowEnd },
         detours = detours,
         cleanSessions = cleanSessions,
         pomodoroMinutes = pomodoroMinutes,

@@ -22,6 +22,7 @@ class RingScrubTest {
             busyBlockArcs = emptyList(),
             detourBodies = emptyList(),
             focusArcs = emptyList(),
+            focusSessionBands = emptyList(),
             momentAngleDegrees = null,
         )
         assertEquals(ms(6L * 3_600_000), r.time)
@@ -49,6 +50,7 @@ class RingScrubTest {
             busyBlockArcs = listOf(arc),
             detourBodies = emptyList(),
             focusArcs = emptyList(),
+            focusSessionBands = emptyList(),
             momentAngleDegrees = null,
         )
         assertEquals(arc, r.busy)
@@ -66,6 +68,7 @@ class RingScrubTest {
             busyBlockArcs = emptyList(),
             detourBodies = bodies,
             focusArcs = emptyList(),
+            focusSessionBands = emptyList(),
             momentAngleDegrees = null,
         )
         assertEquals(body, r.detour)
@@ -81,6 +84,7 @@ class RingScrubTest {
             busyBlockArcs = emptyList(),
             detourBodies = emptyList(),
             focusArcs = listOf(focus),
+            focusSessionBands = emptyList(),
             momentAngleDegrees = null,
         )
         assertTrue(r.focus)
@@ -95,6 +99,7 @@ class RingScrubTest {
             emptyList(),
             emptyList(),
             emptyList(),
+            emptyList(),
             momentAngleDegrees = 1f,
         )
         assertTrue(near.isNow)
@@ -102,6 +107,7 @@ class RingScrubTest {
             0f,
             windowStart,
             windowEnd,
+            emptyList(),
             emptyList(),
             emptyList(),
             emptyList(),
@@ -123,6 +129,7 @@ class RingScrubTest {
             busyBlockArcs = listOf(arc),
             detourBodies = bodies,
             focusArcs = listOf(focus),
+            focusSessionBands = emptyList(),
             momentAngleDegrees = 0f,
         )
         assertEquals(arc, r.busy)
@@ -151,6 +158,7 @@ class RingScrubTest {
             busyBlockArcs = emptyList(),
             detourBodies = emptyList(),
             focusArcs = emptyList(),
+            focusSessionBands = emptyList(),
             momentAngleDegrees = null,
         )
         assertEquals(ms(21L * 3_600_000), r.time)

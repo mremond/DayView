@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -150,5 +151,19 @@ class CleanFocusSessionsTest {
         assertEquals(3, displayedStreak(ledger, dayKey = 101L))
         // A day was missed with nothing yet today: shown as 0.
         assertEquals(0, displayedStreak(ledger, dayKey = 102L))
+    }
+
+    @Test
+    fun closeFocusSnapshotRecordsTheSession() {
+        val now = Instant.fromEpochMilliseconds(100_000_000)
+        val snapshot = DayPreferencesSnapshot(
+            pomodoroMinutes = 25,
+            pomodoroEnd = now, // ends at now → window [now-25m, now]
+            focusIntention = "mini window work",
+        )
+        val closed = closeFocusSnapshot(snapshot, now, Duration.ZERO, FocusClosureOutcome.COMPLETED)
+        assertEquals(1, closed.focusSessionRecords.size)
+        assertEquals("mini window work", closed.focusSessionRecords[0].intention)
+        assertEquals(dayKeyOf(now), closed.focusSessionRecordsDayKey)
     }
 }

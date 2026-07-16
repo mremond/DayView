@@ -6,6 +6,7 @@ data class FocusContribution(
     val deviceId: String,
     val presence: List<FocusPresenceInterval>,
     val session: List<FocusPresenceInterval>,
+    val records: List<FocusSessionRecord> = emptyList(),
 )
 
 /**
@@ -37,9 +38,11 @@ class InMemoryFocusContributionStore : FocusContributionStore {
 /**
  * Display record whose focus intervals are the coalesced union of the record's own intervals
  * and every contribution for that day. Legacy days / no-sync setups (no contributions) render
- * unchanged, since the union of the record with an empty set is the record itself.
+ * unchanged, since the union of the record with an empty set is the record itself. Session
+ * records are concatenated rather than coalesced, since per-device session windows are disjoint.
  */
 fun DayHistoryRecord.withMergedFocus(contributions: List<FocusContribution>): DayHistoryRecord = copy(
     focusPresenceIntervals = mergeIntervals(focusPresenceIntervals + contributions.flatMap { it.presence }),
     focusSessionIntervals = mergeIntervals(focusSessionIntervals + contributions.flatMap { it.session }),
+    focusSessionRecords = (focusSessionRecords + contributions.flatMap { it.records }).sortedBy { it.start },
 )

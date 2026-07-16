@@ -21,6 +21,27 @@ class DayHistoryRecordTest {
 
     private fun instantAt(hour: Int, minute: Int): Instant = LocalDate.fromEpochDays(dayKey.toInt()).atTime(LocalTime(hour, minute)).toInstant(tz)
 
+    /** A full, valid record; individual fields are overridden per-test via `.copy(...)`. */
+    private fun sampleRecord() = DayHistoryRecord(
+        dayKey = dayKey,
+        startMinutes = 9 * 60,
+        endMinutes = 17 * 60,
+        focusIntention = "Focus",
+        busyIntervals = emptyList(),
+        calendarNames = emptyMap(),
+        netTimeSettings = NetTimeSettings(),
+        focusPresenceIntervals = emptyList(),
+        focusSessionIntervals = emptyList(),
+        focusSessionRecords = emptyList(),
+        detours = emptyList(),
+        cleanSessions = CleanSessionLedger(dayKey = dayKey, cleanToday = 1),
+        pomodoroMinutes = 30,
+        pomodoroEnd = null,
+        goalTitle = "Deliver",
+        goalDeadline = instantAt(17, 0),
+        goalStart = instantAt(9, 0),
+    )
+
     @Test
     fun frozenStateReprojectsBusyArcsOnTheRecordedDay() {
         val record = DayHistoryRecord(
@@ -35,6 +56,7 @@ class DayHistoryRecordTest {
             netTimeSettings = NetTimeSettings(enabled = true, includedCalendarIds = setOf("cal-a")),
             focusPresenceIntervals = emptyList(),
             focusSessionIntervals = emptyList(),
+            focusSessionRecords = emptyList(),
             detours = emptyList(),
             cleanSessions = CleanSessionLedger(dayKey = dayKey, cleanToday = 2),
             pomodoroMinutes = 25,
@@ -67,6 +89,7 @@ class DayHistoryRecordTest {
             netTimeSettings = NetTimeSettings(),
             focusPresenceIntervals = emptyList(),
             focusSessionIntervals = emptyList(),
+            focusSessionRecords = emptyList(),
             detours = emptyList(),
             cleanSessions = CleanSessionLedger(),
             pomodoroMinutes = 25,
@@ -97,6 +120,7 @@ class DayHistoryRecordTest {
             netTimeSettings = NetTimeSettings(),
             focusPresenceIntervals = listOf(FocusPresenceInterval(instantAt(9, 0), instantAt(9, 30))),
             focusSessionIntervals = listOf(FocusPresenceInterval(instantAt(9, 0), instantAt(9, 45))),
+            focusSessionRecords = emptyList(),
             detours = listOf(DetourEpisode(instantAt(11, 0), instantAt(11, 15), "slack", "reading threads")),
             cleanSessions = CleanSessionLedger(dayKey = dayKey, cleanToday = 1),
             pomodoroMinutes = 30,
@@ -109,5 +133,29 @@ class DayHistoryRecordTest {
         val back = record.toFrozenUiState(tz).toHistoryRecord(dayKey, tz)
 
         assertEquals(record, back)
+    }
+
+    @Test
+    fun codecRoundTripsFocusSessionRecords() {
+        val record = sampleRecord().copy(
+            focusSessionRecords = listOf(
+                FocusSessionRecord(
+                    Instant.fromEpochMilliseconds(10),
+                    Instant.fromEpochMilliseconds(20),
+                    "do the thing",
+                    FocusClosureOutcome.COMPLETED,
+                ),
+            ),
+        )
+        val decoded = DayHistoryCodec.decode(DayHistoryCodec.encode(record))
+        assertEquals(record.focusSessionRecords, decoded?.focusSessionRecords)
+    }
+
+    @Test
+    fun decodesLegacyBlobWithoutSessionRecordsAsEmpty() {
+        // Encode a record, then strip the new line to simulate an older-format blob.
+        val encoded = DayHistoryCodec.encode(sampleRecord())
+        val legacy = encoded.lineSequence().filterNot { it.startsWith("sessionRecords=") }.joinToString("\n")
+        assertEquals(emptyList(), DayHistoryCodec.decode(legacy)?.focusSessionRecords)
     }
 }

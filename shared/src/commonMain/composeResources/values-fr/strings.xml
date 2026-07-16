@@ -89,6 +89,10 @@
     <string name="busy_remaining">%1$s occupé</string>
     <string name="focused_today">Focus %1$s</string>
     <string name="engaged_today">Engagé %1$s</string>
+    <string name="focus_session_intention_empty">Aucune intention de focus définie</string>
+    <string name="focus_session_engaged">Engagé %1$s</string>
+    <string name="focus_session_deep_focus">Focus profond %1$s</string>
+    <string name="focus_session_outcome_stopped">Interrompu</string>
     <string name="busy_generic">Occupé</string>
     <string name="busy_time_range">%1$s – %2$s</string>
     <string name="scrub_now">Maintenant</string>

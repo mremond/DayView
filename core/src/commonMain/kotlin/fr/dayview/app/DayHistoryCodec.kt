@@ -31,6 +31,7 @@ object DayHistoryCodec {
         appendLine("calNames=${enc(encodeCalendarNames(record.calendarNames))}")
         appendLine("presence=${enc(encodeFocusPresence(record.focusPresenceIntervals))}")
         appendLine("session=${enc(encodeFocusPresence(record.focusSessionIntervals))}")
+        appendLine("sessionRecords=${enc(encodeFocusSessionRecords(record.focusSessionRecords))}")
         appendLine("detours=${enc(encodeDetours(record.detours))}")
         appendLine("cleanDay=${record.cleanSessions.dayKey}")
         appendLine("cleanToday=${record.cleanSessions.cleanToday}")
@@ -69,6 +70,7 @@ object DayHistoryCodec {
                 ),
                 focusPresenceIntervals = decodeFocusPresence(dec(req("presence"))),
                 focusSessionIntervals = map["session"]?.let { decodeFocusPresence(dec(it)) } ?: emptyList(),
+                focusSessionRecords = map["sessionRecords"]?.let { decodeFocusSessionRecords(dec(it)) } ?: emptyList(),
                 detours = decodeDetours(dec(req("detours"))),
                 cleanSessions = CleanSessionLedger(
                     dayKey = req("cleanDay").toLong(),

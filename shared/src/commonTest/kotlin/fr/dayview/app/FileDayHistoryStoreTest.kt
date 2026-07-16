@@ -19,6 +19,7 @@ class FileDayHistoryStoreTest {
         dayKey = dayKey, startMinutes = 480, endMinutes = 1080, focusIntention = "",
         busyIntervals = emptyList(), calendarNames = emptyMap(), netTimeSettings = NetTimeSettings(),
         focusPresenceIntervals = emptyList(), focusSessionIntervals = emptyList(),
+        focusSessionRecords = emptyList(),
         detours = emptyList(), cleanSessions = CleanSessionLedger(),
         pomodoroMinutes = 25, pomodoroEnd = null, goalTitle = "", goalDeadline = null, goalStart = null,
     )

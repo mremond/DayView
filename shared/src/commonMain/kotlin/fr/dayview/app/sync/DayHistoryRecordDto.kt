@@ -16,6 +16,9 @@ data class BusyIntervalDto(
 data class DetourEpisodeDto(val start: Long, val end: Long, val category: String, val description: String = "")
 
 @Serializable
+data class FocusSessionRecordDto(val start: Long, val end: Long, val intention: String, val outcome: String)
+
+@Serializable
 data class DayHistoryRecordDto(
     val schemaVersion: Int,
     val dayKey: Long,
@@ -28,6 +31,7 @@ data class DayHistoryRecordDto(
     val netCalendars: List<String>,
     val focusPresence: List<PresenceDto>,
     val focusSession: List<PresenceDto> = emptyList(),
+    val focusSessionRecords: List<FocusSessionRecordDto> = emptyList(),
     val detours: List<DetourEpisodeDto>,
     val cleanSessions: CleanDto,
     val pomodoroMinutes: Int,
