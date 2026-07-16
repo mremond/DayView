@@ -10,6 +10,7 @@ package fr.dayview.app
 @Suppress("ktlint:standard:property-naming")
 internal object DayViewTestTags {
     const val Countdown = "dayViewCountdown"
+    const val UpcomingDays = "upcomingDays"
     const val CleanSessions = "cleanSessions"
     const val FocusRecap = "focusRecap"
     const val EngagedRecap = "engagedRecap"

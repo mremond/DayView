@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -50,6 +51,8 @@ data class DayViewUiState(
     val busyDayKey: Long = -1L,
     val availableCalendars: List<CalendarInfo> = emptyList(),
     val busyIntervals: List<BusyInterval> = emptyList(),
+    val upcomingBusyIntervals: List<BusyInterval> = emptyList(),
+    val upcomingFromDayKey: Long = -1L,
     val onGoalApps: Set<AppRef> = emptySet(),
     val focusPresenceIntervals: List<FocusPresenceInterval> = emptyList(),
     val focusSessionIntervals: List<FocusPresenceInterval> = emptyList(),
@@ -119,6 +122,26 @@ data class DayViewUiState(
             calculateNetTime(dayProgress, dayNow, start, end, busyIntervalsToday.filterNot { it.isFocusBlock() })
         } else {
             null
+        }
+
+    /**
+     * Net availability for the next [UPCOMING_DAY_COUNT] days, shown once the day is over.
+     * Empty unless net time is enabled, today is finished, and a future busy layer for
+     * tomorrow has been fetched (a stale key from a previous day reads as empty).
+     */
+    val upcomingDays: List<UpcomingDayAvailability>
+        get() {
+            if (!netTimeSettings.enabled || !dayProgress.isFinished) return emptyList()
+            val tomorrowKey = dayKeyOf(dayNow) + 1
+            if (upcomingFromDayKey != tomorrowKey) return emptyList()
+            val fromDate = LocalDate.fromEpochDays(tomorrowKey.toInt())
+            return calculateUpcomingAvailability(
+                fromDate = fromDate,
+                dayCount = UPCOMING_DAY_COUNT,
+                startMinutes = startMinutes,
+                endMinutes = endMinutes,
+                busy = upcomingBusyIntervals.filterNot { it.isFocusBlock() },
+            )
         }
 
     val focusArcsState: List<FocusArc>
@@ -775,6 +798,22 @@ class DayViewController(
             availableCalendars = availableCalendars,
         )
         if (changed) persistState()
+    }
+
+    /**
+     * Injects the future busy layer for the upcoming-days summary (off the UI thread).
+     * Transient: never persisted (it is future data, irrelevant to history). Pass
+     * [fromDayKey] = -1 with an empty list to clear (net time off, no permission, or read error).
+     */
+    fun updateUpcomingData(
+        fromDayKey: Long,
+        busyIntervals: List<BusyInterval>,
+    ) {
+        if (state.upcomingFromDayKey == fromDayKey && state.upcomingBusyIntervals == busyIntervals) return
+        state = state.copy(
+            upcomingFromDayKey = fromDayKey,
+            upcomingBusyIntervals = busyIntervals,
+        )
     }
 
     fun onPreferencesChanged(snapshot: DayPreferencesSnapshot) {

@@ -31,6 +31,10 @@
     <string name="weekday_sat">Sat</string>
     <string name="weekday_sun">Sun</string>
 
+    <!-- Day-over screen — upcoming days availability -->
+    <string name="upcoming_title">Next 3 days</string>
+    <string name="upcoming_tomorrow">Tomorrow</string>
+
     <!-- Today screen — notices (surfaced when a background feature can't run) -->
     <string name="notice_calendar_permission">Calendar access is off — Net Time is paused.</string>
     <string name="notice_calendar_error">Couldn’t read your calendar — Net Time may be out of date.</string>

@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -251,6 +252,49 @@ fun DayViewApp(
                             null
                         }
                         onDispose { handle?.let { runCatching { it.close() } } }
+                    }
+
+                    // Once the day is over (and net time is on with permission), fetch the busy
+                    // layer for the next few days so the day-over screen can show net availability.
+                    // Keyed on the finished flag — which flips once at end-of-day — plus settings
+                    // and the permission/change probes, so it does not re-run every minute tick.
+                    val dayFinished = state.dayProgress.isFinished
+                    LaunchedEffect(
+                        dayFinished,
+                        state.netTimeSettings,
+                        state.startMinutes,
+                        state.endMinutes,
+                        calendarPermissionProbe,
+                        calendarChangeProbe,
+                    ) {
+                        if (!dayFinished || !state.netTimeSettings.enabled) {
+                            controller.updateUpcomingData(-1L, emptyList())
+                            return@LaunchedEffect
+                        }
+                        val tomorrowKey = dayKeyOf(state.now) + 1
+                        val busy = withContext(Dispatchers.Default) {
+                            val granted = runCatching { calendarSource.hasPermission() }.getOrDefault(false)
+                            if (!granted) {
+                                null
+                            } else {
+                                val fromDate = LocalDate.fromEpochDays(tomorrowKey.toInt())
+                                val (start, end) = upcomingUnionWindow(
+                                    fromDate,
+                                    UPCOMING_DAY_COUNT,
+                                    state.startMinutes,
+                                    state.endMinutes,
+                                )
+                                runCatching {
+                                    calendarSource.busyIntervals(start, end, state.netTimeSettings.includedCalendarIds)
+                                }.onFailure { logError("calendar", "upcoming busyIntervals read failed", it) }
+                                    .getOrNull()
+                            }
+                        }
+                        if (busy == null) {
+                            controller.updateUpcomingData(-1L, emptyList())
+                        } else {
+                            controller.updateUpcomingData(tomorrowKey, busy)
+                        }
                     }
 
                     val onRequestCalendarAccess: () -> Unit = {

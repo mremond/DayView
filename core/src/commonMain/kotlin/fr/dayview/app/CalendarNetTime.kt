@@ -2,6 +2,7 @@
 
 package fr.dayview.app
 
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -184,24 +185,35 @@ data class NetTime(
     val busyRemaining: Duration,
 )
 
-fun dayWindow(
-    now: Instant,
+fun dayWindowFor(
+    date: LocalDate,
     startMinutesOfDay: Int,
     endMinutesOfDay: Int,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ): Pair<Instant, Instant> {
     val safeStart = startMinutesOfDay.coerceIn(0, 23 * 60 + 29)
     val safeEnd = endMinutesOfDay.coerceIn(safeStart + 30, 23 * 60 + 59)
-    val localNow = now.toLocalDateTime(timeZone)
     fun at(minutes: Int) = LocalDateTime(
-        year = localNow.year,
-        month = localNow.month,
-        day = localNow.day,
+        year = date.year,
+        month = date.month,
+        day = date.day,
         hour = minutes / 60,
         minute = minutes % 60,
     ).toInstant(timeZone)
     return at(safeStart) to at(safeEnd)
 }
+
+fun dayWindow(
+    now: Instant,
+    startMinutesOfDay: Int,
+    endMinutesOfDay: Int,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Pair<Instant, Instant> = dayWindowFor(
+    now.toLocalDateTime(timeZone).date,
+    startMinutesOfDay,
+    endMinutesOfDay,
+    timeZone,
+)
 
 private fun overlap(start: Instant, end: Instant, from: Instant, to: Instant): Duration = (minOf(end, to) - maxOf(start, from)).coerceAtLeast(Duration.ZERO)
 

@@ -30,6 +30,10 @@
     <string name="weekday_sat">Sam</string>
     <string name="weekday_sun">Dim</string>
 
+    <!-- Jour terminé — disponibilité des prochains jours -->
+    <string name="upcoming_title">Les 3 prochains jours</string>
+    <string name="upcoming_tomorrow">Demain</string>
+
     <!-- Today screen — notices (surfaced when a background feature can't run) -->
     <string name="notice_calendar_permission">Accès au calendrier désactivé — le temps net est en pause.</string>
     <string name="notice_calendar_error">Lecture du calendrier impossible — le temps net peut être obsolète.</string>
