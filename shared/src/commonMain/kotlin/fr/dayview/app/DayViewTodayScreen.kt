@@ -1869,7 +1869,22 @@ internal fun nextHoveredSessionOnTap(
     else -> HoveredFocusSession(tappedRecord, engaged, deepFocus, position)
 }
 
-private data class HoveredDetourBody(val body: DetourBody, val position: Offset)
+/**
+ * Next [HoveredDetourBody] state after a touch tap on the detour lane. Tapping another detour
+ * switches to it, tapping the shown detour or an empty part of the lane closes the pop-up.
+ * Kept pure so the tap/close rules are unit-testable without driving a gesture.
+ */
+internal fun nextHoveredDetourOnTap(
+    current: HoveredDetourBody?,
+    tapped: DetourBody?,
+    position: Offset,
+): HoveredDetourBody? = when {
+    tapped == null -> null
+    current?.body == tapped -> null
+    else -> HoveredDetourBody(tapped, position)
+}
+
+internal data class HoveredDetourBody(val body: DetourBody, val position: Offset)
 
 /** Gap between the pointer and the near edge of a [HoverTooltip], in px. */
 private const val HOVER_TOOLTIP_GAP_PX = 14

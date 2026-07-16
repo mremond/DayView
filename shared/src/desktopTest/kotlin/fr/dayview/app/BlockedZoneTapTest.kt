@@ -46,3 +46,44 @@ class BlockedZoneTapTest {
         assertEquals(HoveredBusyArc(gym, Offset(40f, 40f)), next)
     }
 }
+
+private fun detourBody(category: String, colorIndex: Int = 0): DetourBody = DetourBody(
+    startAngleDegrees = 0f,
+    sweepDegrees = 20f,
+    colorIndex = colorIndex,
+    category = category,
+    description = "",
+    start = Instant.fromEpochMilliseconds(0L),
+    end = Instant.fromEpochMilliseconds(1_800_000L),
+)
+
+class DetourTapTest {
+    @Test
+    fun tappingEmptyLaneClosesThePopup() {
+        val current = HoveredDetourBody(detourBody("Email"), Offset(10f, 10f))
+        assertNull(nextHoveredDetourOnTap(current, tapped = null, position = Offset(5f, 5f)))
+    }
+
+    @Test
+    fun tappingTheShownDetourClosesThePopup() {
+        val email = detourBody("Email")
+        val current = HoveredDetourBody(email, Offset(10f, 10f))
+        assertNull(nextHoveredDetourOnTap(current, tapped = email, position = Offset(12f, 12f)))
+    }
+
+    @Test
+    fun tappingAnotherDetourSwitchesThePopup() {
+        val email = detourBody("Email", colorIndex = 0)
+        val chat = detourBody("Chat", colorIndex = 1)
+        val current = HoveredDetourBody(email, Offset(10f, 10f))
+        val next = nextHoveredDetourOnTap(current, tapped = chat, position = Offset(40f, 40f))
+        assertEquals(HoveredDetourBody(chat, Offset(40f, 40f)), next)
+    }
+
+    @Test
+    fun tappingADetourWithNothingShownOpensThePopup() {
+        val chat = detourBody("Chat")
+        val next = nextHoveredDetourOnTap(current = null, tapped = chat, position = Offset(40f, 40f))
+        assertEquals(HoveredDetourBody(chat, Offset(40f, 40f)), next)
+    }
+}
