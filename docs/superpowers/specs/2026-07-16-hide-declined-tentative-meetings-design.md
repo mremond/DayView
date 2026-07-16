@@ -51,16 +51,18 @@ both platforms. Not worth it for an always-on filter.
 ### macOS — `scripts/MacEventKitBridge.swift`
 
 In `dv_calendar_busy`, after the existing all-day and `availability != .busy` checks,
-inspect the current user's participation status:
+inspect the local user's participation status. `EKEvent` has no `currentUser` property;
+the local user is found by scanning `attendees` for `isCurrentUser`:
 
 ```swift
-if let status = event.currentUser?.participantStatus,
-   status == .declined || status == .tentative {
+if let me = event.attendees?.first(where: { $0.isCurrentUser }),
+   me.participantStatus == .declined || me.participantStatus == .tentative {
     continue
 }
 ```
 
-- `event.currentUser` is `nil` for events with no invitees (personal events) → kept.
+- `event.attendees` is `nil` (or has no `isCurrentUser` participant) for events with no
+  invitees (personal events) → kept.
 - Only `.declined` and `.tentative` are dropped; `.accepted`, `.pending`, `.unknown`,
   etc. are kept.
 

@@ -25,7 +25,7 @@
 - Modify: `scripts/MacEventKitBridge.swift:72-74` (the filter block inside `dv_calendar_busy`)
 
 **Interfaces:**
-- Consumes: `EKEvent.currentUser` (an `EKParticipant?`) and `EKParticipant.participantStatus` (`EKParticipantStatus`) from the EventKit framework already imported at the top of the file.
+- Consumes: `EKEvent.attendees` (an `[EKParticipant]?`), `EKParticipant.isCurrentUser` (`Bool`), and `EKParticipant.participantStatus` (`EKParticipantStatus`) from the EventKit framework already imported at the top of the file. (Note: `EKEvent` has no `currentUser` property; the local user is found by scanning `attendees` for `isCurrentUser`.)
 - Produces: no new symbols; the emitted tab-delimited line format (`start\tend\tcalId\ttitle`) is unchanged.
 
 - [ ] **Step 1: Add the RSVP filter after the existing all-day/availability checks**
@@ -44,13 +44,13 @@ Insert the participant-status check immediately after the `availability` line:
     for event in store.events(matching: predicate) {
         if event.isAllDay { continue }
         if event.availability != .busy { continue }
-        if let status = event.currentUser?.participantStatus,
-           status == .declined || status == .tentative {
+        if let me = event.attendees?.first(where: { $0.isCurrentUser }),
+           me.participantStatus == .declined || me.participantStatus == .tentative {
             continue
         }
 ```
 
-Rationale: `event.currentUser` is `nil` for events with no invitees (personal events), so those fall through and are kept. Only `.declined` and `.tentative` are dropped; `.accepted`, `.pending`, `.unknown`, `.delegated`, etc. are kept.
+Rationale: `event.attendees` is `nil` (or has no `isCurrentUser` participant) for events with no invitees (personal events), so `me` is `nil` and those events fall through and are kept. Only `.declined` and `.tentative` are dropped; `.accepted`, `.pending`, `.unknown`, `.delegated`, etc. are kept.
 
 - [ ] **Step 2: Verify the Swift file compiles**
 
@@ -188,4 +188,4 @@ Expected: clean tree; the macOS and Android commits from Tasks 1 and 2 present.
 
 **Placeholder scan:** No TBD/TODO/"handle edge cases"/vague steps. Every code step shows exact code.
 
-**Type consistency:** macOS uses `EKParticipantStatus` cases `.declined`/`.tentative` consistently. Android uses `ATTENDEE_STATUS_DECLINED`/`ATTENDEE_STATUS_TENTATIVE` and reads the appended column at index 6 consistently between Steps 1 and 2; existing indices 0–5 are preserved by appending.
+**Type consistency:** macOS reads the local user via `event.attendees?.first(where: { $0.isCurrentUser })` and checks `EKParticipantStatus` cases `.declined`/`.tentative` (there is no `EKEvent.currentUser`). Android uses `ATTENDEE_STATUS_DECLINED`/`ATTENDEE_STATUS_TENTATIVE` and reads the appended column at index 6 consistently between Steps 1 and 2; existing indices 0–5 are preserved by appending.
