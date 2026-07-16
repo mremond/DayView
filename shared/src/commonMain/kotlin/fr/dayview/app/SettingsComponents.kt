@@ -46,6 +46,7 @@ internal fun ScreenTopBar(
     backLabel: String,
     backTestTag: String,
     onBack: () -> Unit,
+    titleTestTag: String? = null,
 ) {
     val colors = LocalDayViewColors.current
     Row(
@@ -64,7 +65,14 @@ internal fun ScreenTopBar(
                 .padding(vertical = 10.dp, horizontal = 4.dp),
         )
         Spacer(Modifier.weight(1f))
-        Text(title, color = colors.cloud, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
+        Text(
+            title,
+            color = colors.cloud,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.2.sp,
+            modifier = if (titleTestTag != null) Modifier.testTag(titleTestTag) else Modifier,
+        )
     }
 }
 

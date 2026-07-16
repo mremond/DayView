@@ -117,6 +117,7 @@ internal object DayViewTestTags {
     const val HistoryIcon = "historyIcon"
     const val SettingsIcon = "settingsIcon"
     const val HistoryBack = "historyBack"
+    const val HistoryDayTitle = "historyDayTitle"
 
     fun focusOutcome(outcome: FocusClosureOutcome): String = "focusOutcome_${outcome.name}"
 
