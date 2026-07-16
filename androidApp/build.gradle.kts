@@ -6,6 +6,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.testing.Test
 import javax.inject.Inject
 
 plugins {
@@ -114,4 +115,9 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+}
+
+// Run each JVM test task's classes across multiple forked JVMs.
+tasks.withType<Test>().configureEach {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }

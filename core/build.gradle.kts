@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
@@ -49,6 +50,11 @@ kotlin {
             }
         }
     }
+}
+
+// Run each JVM test task's classes across multiple forked JVMs.
+tasks.withType<Test>().configureEach {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }
 
 val syncXCFramework by tasks.registering(Sync::class) {
