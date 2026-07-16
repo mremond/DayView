@@ -94,15 +94,17 @@ public func dv_calendar_calendars() -> UnsafeMutablePointer<CChar>? {
 // EventKit has no public API for an event's travel time; it is only reachable through
 // the private KVC key "travelTime" (seconds). The responds(to:) guard makes an OS
 // release that removes the accessor degrade to "no travel" instead of raising an
-// Objective-C exception, and the clamp keeps a corrupt value from swallowing the day.
-// The same constant widens the fetch window in dv_calendar_busy so an event starting
-// after the requested end, whose travel time overlaps the window, is still seen.
+// Objective-C exception, and the finite check + clamp keep a corrupt value from
+// trapping the process or swallowing the day. The same constant widens the fetch
+// window in dv_calendar_busy so an event starting after the requested end, whose
+// travel time overlaps the window, is still seen.
 private let maxTravelSeconds: TimeInterval = 3 * 60 * 60
 
 private func travelSeconds(_ event: EKEvent) -> TimeInterval {
     guard event.responds(to: NSSelectorFromString("travelTime")),
           let travel = (event.value(forKey: "travelTime") as? NSNumber)?.doubleValue
     else { return 0 }
+    guard travel.isFinite else { return 0 }
     return min(max(travel, 0), maxTravelSeconds)
 }
 
