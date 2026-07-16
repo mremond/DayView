@@ -180,6 +180,8 @@ import fr.dayview.app.generated.resources.today_status_ending
 import fr.dayview.app.generated.resources.today_status_finished
 import fr.dayview.app.generated.resources.today_status_not_started
 import fr.dayview.app.generated.resources.today_status_ongoing
+import fr.dayview.app.generated.resources.upcoming_title
+import fr.dayview.app.generated.resources.upcoming_tomorrow
 import fr.dayview.app.sync.SyncStatus
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
@@ -342,6 +344,10 @@ internal fun DayViewScreen(
                             onStartChange = actions.changeGoalStart,
                             onStartCommit = actions.commitGoalStart,
                         )
+                        if (state.upcomingDays.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            UpcomingDaysSection(state.upcomingDays)
+                        }
                     }
                     SidePanel(
                         progress = progress,
@@ -382,6 +388,10 @@ internal fun DayViewScreen(
                     hasGoal = state.goalTitle.isNotBlank() || state.goalDeadline != null,
                     onOpenDetourList = { showDetourList = true },
                 )
+                if (state.upcomingDays.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp))
+                    UpcomingDaysSection(state.upcomingDays)
+                }
                 Spacer(Modifier.height(6.dp))
                 TodayQuickActions(
                     activeObligationCount = state.plannedObligationsToday.size,
@@ -449,6 +459,50 @@ internal fun DayViewScreen(
 }
 
 private enum class CompactSheet { FOCUS, GOAL }
+
+@Composable
+internal fun UpcomingDaysSection(
+    days: List<UpcomingDayAvailability>,
+    modifier: Modifier = Modifier,
+) {
+    if (days.isEmpty()) return
+    val colors = LocalDayViewColors.current
+    Column(
+        modifier = modifier.testTag(DayViewTestTags.UpcomingDays),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(Res.string.upcoming_title),
+            color = colors.muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(8.dp))
+        days.forEachIndexed { index, day ->
+            Row(
+                modifier = Modifier.fillMaxWidth().widthIn(max = 280.dp).padding(vertical = 3.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (index == 0) {
+                        stringResource(Res.string.upcoming_tomorrow)
+                    } else {
+                        weekdayLabel(day.date.toEpochDays())
+                    },
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                )
+                Text(
+                    text = formatDurationHm(day.net),
+                    color = colors.mint,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
