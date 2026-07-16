@@ -2,7 +2,7 @@ name: DayView
 options:
   bundleIdPrefix: fr.dayview
   deploymentTarget:
-    macOS: "13.0"
+    macOS: "15.0"
 packages:
   DayViewKit:
     path: Packages/DayViewKit

@@ -41,20 +41,8 @@ struct RingView: View {
 
     private var ringSection: some View {
         VStack(spacing: 8) {
-            Canvas { context, size in
-                let inset: CGFloat = 40
-                let side = min(size.width, size.height) - inset * 2
-                let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                let radius = max(side / 2, 1)
-                let lineWidth: CGFloat = 18
-                var track = Path()
-                track.addArc(center: center, radius: radius, startAngle: .degrees(0), endAngle: .degrees(360), clockwise: false)
-                context.stroke(track, with: .color(.gray.opacity(0.2)), lineWidth: lineWidth)
-                var sweep = Path()
-                sweep.addArc(center: center, radius: radius, startAngle: .degrees(-90), endAngle: .degrees(model.snapshot.momentAngleDegrees), clockwise: false)
-                context.stroke(sweep, with: .color(.accentColor), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-            }
-            .frame(height: 260)
+            DayRingCanvas(momentAngleDegrees: model.snapshot.momentAngleDegrees)
+                .frame(height: 260)
             Text(model.snapshot.dayStatus)
                 .font(.system(size: 40, weight: .semibold, design: .rounded))
                 .monospacedDigit()

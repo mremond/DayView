@@ -115,6 +115,7 @@ natively. It currently draws the live countdown ring and supports editing the Fo
 intention and duration and the long-term goal, with preferences persisted under
 `~/Library/Application Support/DayView/`. The Compose/JVM `.dmg` above remains the complete
 application; this native app is not yet feature-complete.
+The native app requires macOS 15 or later; the Compose/JVM release above remains the macOS 13+ build.
 
 Prerequisites: Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`), in addition to the JDK used by Gradle.
