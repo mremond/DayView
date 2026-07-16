@@ -73,8 +73,8 @@ loop, and drop declined/tentative after the existing all-day/availability checks
 
 ```kotlin
 val selfStatus = cursor.getInt(selfStatusIndex)
-if (selfStatus == CalendarContract.Instances.ATTENDEE_STATUS_DECLINED ||
-    selfStatus == CalendarContract.Instances.ATTENDEE_STATUS_TENTATIVE
+if (selfStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED ||
+    selfStatus == CalendarContract.Attendees.ATTENDEE_STATUS_TENTATIVE
 ) {
     continue
 }

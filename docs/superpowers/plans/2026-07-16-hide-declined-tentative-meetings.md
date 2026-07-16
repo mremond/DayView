@@ -78,7 +78,7 @@ Run the desktop app with `./gradlew :shared:run` on a machine with calendar acce
 - Modify: `shared/src/androidMain/kotlin/fr/dayview/app/CalendarSource.android.kt:58-74` (projection + loop filter inside `busyIntervals`)
 
 **Interfaces:**
-- Consumes: `CalendarContract.Instances.SELF_ATTENDEE_STATUS`, `ATTENDEE_STATUS_DECLINED`, `ATTENDEE_STATUS_TENTATIVE` constants.
+- Consumes: `CalendarContract.Instances.SELF_ATTENDEE_STATUS` (the projection column) and the value constants `CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED` / `ATTENDEE_STATUS_TENTATIVE`. (Note: the `ATTENDEE_STATUS_*` value constants live on `CalendarContract.Attendees`, not `Instances`.)
 - Produces: no new symbols; `busyIntervals(...)` signature and `BusyInterval` output are unchanged.
 
 - [ ] **Step 1: Append `SELF_ATTENDEE_STATUS` to the projection**
@@ -134,8 +134,8 @@ Add the status read and its filter after the availability check (a null/absent c
                 val selfStatus = c.getInt(6)
                 if (allDay) continue
                 if (availability != CalendarContract.Instances.AVAILABILITY_BUSY) continue
-                if (selfStatus == CalendarContract.Instances.ATTENDEE_STATUS_DECLINED ||
-                    selfStatus == CalendarContract.Instances.ATTENDEE_STATUS_TENTATIVE
+                if (selfStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED ||
+                    selfStatus == CalendarContract.Attendees.ATTENDEE_STATUS_TENTATIVE
                 ) {
                     continue
                 }
