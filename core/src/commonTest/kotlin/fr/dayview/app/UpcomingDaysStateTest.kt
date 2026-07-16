@@ -77,4 +77,20 @@ class UpcomingDaysStateTest {
         controller.updateUpcomingData(dayKeyOf(now) + 5, emptyList()) // wrong day
         assertEquals(emptyList(), controller.state.upcomingDays)
     }
+
+    @Test
+    fun dayRolloverClearsUpcomingKeyedToOldTomorrow() = runTest {
+        val controller = controller(backgroundScope, enabled = true, endMinutes = 30)
+        val busy = BusyInterval(tomorrowStart() + 5.minutes, tomorrowStart() + 20.minutes)
+        controller.updateUpcomingData(dayKeyOf(now) + 1, listOf(busy))
+        assertEquals(UPCOMING_DAY_COUNT, controller.state.upcomingDays.size)
+
+        // Advance +24h: firmly into the next local day (DST-robust — a bare +12h would land on
+        // midnight, which is not finished and, on a fall-back day, would not even cross midnight),
+        // and still mid-window so the day stays finished. The stored upcomingFromDayKey now equals
+        // the new today, no longer today+1, so the summary reads as empty on the key alone.
+        controller.tick(now + 24.hours)
+        assertTrue(controller.state.dayProgress.isFinished)
+        assertEquals(emptyList(), controller.state.upcomingDays)
+    }
 }
