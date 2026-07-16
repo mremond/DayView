@@ -27,6 +27,12 @@ struct MiniView: View {
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
+                        if !model.snapshot.netTimeLabel.isEmpty {
+                            Text(model.snapshot.netTimeLabel)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
                     }
                     // Height-gated like the JVM mini (showGoalInMiniWindow: 400 at font scale 1).
                     if proxy.size.height >= 400 {

@@ -1,5 +1,12 @@
 package fr.dayview.app
 
+/** One row of the settings calendar checklist. [included] is the EFFECTIVE inclusion. */
+data class CalendarChoice(
+    val id: String,
+    val displayName: String,
+    val included: Boolean,
+)
+
 /** Primitives-only view of the today screen for native (Swift) callers. */
 data class TodaySnapshot(
     val remainingSeconds: Long,
@@ -29,6 +36,11 @@ data class TodaySnapshot(
     val secondsLabel: String, // e.g. "07s" when showSeconds && !isFinished, else ""
     val focusLine: String, // "Focus · <intention> · <clock>" / "Break · <clock>" / ""
     val menuBarTitle: String, // the clock during ACTIVE/BREAK, else dayStatus
+    val netTimeEnabled: Boolean,
+    val calendarPermission: Boolean,
+    val calendarReadError: Boolean,
+    val netTimeLabel: String, // "Net " + formatDurationHm(netRemaining), "" when off/no data
+    val calendars: List<CalendarChoice>, // raw available calendars (settings checklist)
 )
 
 internal fun DayViewUiState.toTodaySnapshot(): TodaySnapshot {
@@ -79,5 +91,17 @@ internal fun DayViewUiState.toTodaySnapshot(): TodaySnapshot {
             PomodoroStatus.IDLE -> ""
         },
         menuBarTitle = if (pomodoro.status == PomodoroStatus.IDLE) status else clock,
+        netTimeEnabled = netTimeSettings.enabled,
+        calendarPermission = netCalendarPermission,
+        calendarReadError = netCalendarError,
+        netTimeLabel = netTime?.let { "Net ${formatDurationHm(it.netRemaining)}" } ?: "",
+        calendars = availableCalendars.map { cal ->
+            CalendarChoice(
+                id = cal.id,
+                displayName = cal.displayName,
+                included = netTimeSettings.includedCalendarIds.isEmpty() ||
+                    cal.id in netTimeSettings.includedCalendarIds,
+            )
+        },
     )
 }

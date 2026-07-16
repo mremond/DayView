@@ -52,6 +52,12 @@ struct RingView: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
+            if !model.snapshot.netTimeLabel.isEmpty {
+                Text(model.snapshot.netTimeLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
         }
     }
 

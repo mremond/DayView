@@ -16,6 +16,11 @@ object DayViewNative {
             scope,
             initialSnapshot = runBlocking { preferences.snapshots.first() },
         )
-        return DayViewSession(controller, scope)
+        val source = EventKitCalendarSource()
+        val session = DayViewSession(controller, scope, source)
+        // After the user answers the access prompt, re-read immediately instead of
+        // waiting for the next minute tick.
+        source.onPermissionChange = { session.refreshCalendar() }
+        return session
     }
 }

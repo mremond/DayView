@@ -25,6 +25,9 @@ final class TodayModel: ObservableObject {
     func setDayEnd(minutes: Int32) { session.setDayEnd(minutes: minutes) }
     func setShowSeconds(_ enabled: Bool) { session.setShowSeconds(enabled: enabled) }
     func setThemeMode(_ mode: String) { session.setThemeMode(mode: mode) }
+    func setNetTimeEnabled(_ enabled: Bool) { session.setNetTimeEnabled(enabled: enabled) }
+    func setCalendarIncluded(id: String, included: Bool) { session.setCalendarIncluded(id: id, included: included) }
+    func requestCalendarAccess() { session.requestCalendarAccess() }
     func setFocusIntention(_ text: String) { session.setFocusIntention(intention: text) }
     func changePomodoroDuration(_ delta: Int32) { session.changePomodoroDuration(deltaMinutes: delta) }
     func startFocus(intention: String) { session.startFocus(intention: intention) }

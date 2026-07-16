@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
@@ -396,6 +397,202 @@ class DayViewSessionTest {
         assertEquals(true, seen.last().isFinished)
         assertEquals(true, seen.last().showSeconds)
         assertEquals("", seen.last().secondsLabel)
+
+        sub.cancel()
+    }
+
+    private class FakeCalendarSource(
+        var permission: Boolean = true,
+        var calendars: List<CalendarInfo> = emptyList(),
+        var busy: List<BusyInterval> = emptyList(),
+        var throwOnBusy: Boolean = false,
+    ) : CalendarSource {
+        var busyReads = 0
+
+        override fun isSupported() = true
+
+        override fun hasPermission() = permission
+
+        override fun requestPermission() = Unit
+
+        override fun availableCalendars(): List<CalendarInfo> = calendars
+
+        override fun busyIntervals(
+            windowStart: Instant,
+            windowEnd: Instant,
+            includedCalendarIds: Set<String>,
+        ): List<BusyInterval> {
+            busyReads++
+            if (throwOnBusy) error("boom")
+            return busy
+        }
+    }
+
+    @Test
+    fun creationProbesTheCalendarAndFillsTheSnapshot() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L) // midday UTC fixture
+        val source = FakeCalendarSource(
+            calendars = listOf(CalendarInfo("c1", "Work")),
+            busy = listOf(BusyInterval(now, now + 1.hours, titles = listOf("Standup"), calendarId = "c1")),
+        )
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertEquals(true, seen.last().netTimeEnabled)
+        assertEquals(true, seen.last().calendarPermission)
+        assertEquals(false, seen.last().calendarReadError)
+        assertTrue(Regex("^Net (\\d+ h \\d{2}|\\d+ min)$").matches(seen.last().netTimeLabel))
+        assertEquals(listOf(CalendarChoice("c1", "Work", included = true)), seen.last().calendars)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun tickRefreshesTheCalendarEverySixtiethTick() = runTest {
+        val source = FakeCalendarSource()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        runCurrent()
+        assertEquals(1, source.busyReads) // the creation probe
+
+        repeat(59) { session.tick() }
+        assertEquals(1, source.busyReads)
+
+        session.tick() // 60th
+        assertEquals(2, source.busyReads)
+    }
+
+    @Test
+    fun setNetTimeEnabledRefreshesImmediately() = runTest {
+        val source = FakeCalendarSource(calendars = listOf(CalendarInfo("c1", "Work")))
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+        assertEquals(false, seen.last().netTimeEnabled)
+        assertEquals(false, seen.last().calendarPermission) // disabled probe never asks
+
+        session.setNetTimeEnabled(true)
+        runCurrent()
+        assertEquals(true, seen.last().netTimeEnabled)
+        assertEquals(true, seen.last().calendarPermission)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun calendarInclusionRoundTripsTheEmptySetMeansAllRule() = runTest {
+        val source = FakeCalendarSource(
+            calendars = listOf(CalendarInfo("c1", "Work"), CalendarInfo("c2", "Home")),
+        )
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+        // Empty set = all included.
+        assertEquals(listOf(true, true), seen.last().calendars.map { it.included })
+
+        session.setCalendarIncluded("c2", included = false)
+        runCurrent()
+        assertEquals(
+            listOf(CalendarChoice("c1", "Work", true), CalendarChoice("c2", "Home", false)),
+            seen.last().calendars,
+        )
+
+        // Re-including everything renormalizes back to the empty set (= all).
+        session.setCalendarIncluded("c2", included = true)
+        runCurrent()
+        assertEquals(listOf(true, true), seen.last().calendars.map { it.included })
+
+        sub.cancel()
+    }
+
+    @Test
+    fun tickCadenceRepeatsAcrossCycles() = runTest {
+        val source = FakeCalendarSource()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        runCurrent()
+        assertEquals(1, source.busyReads)
+
+        repeat(60) { session.tick() }
+        assertEquals(2, source.busyReads)
+
+        // The counter resets: a second full cycle probes again on the 120th tick.
+        repeat(60) { session.tick() }
+        assertEquals(3, source.busyReads)
+    }
+
+    @Test
+    fun throwingCalendarReadSurfacesAsReadErrorInTheSnapshot() = runTest {
+        val source = FakeCalendarSource(
+            calendars = listOf(CalendarInfo("c1", "Work")),
+        ).apply { throwOnBusy = true }
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                netTimeSettings = NetTimeSettings(enabled = true),
+            ),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertEquals(true, seen.last().calendarPermission)
+        assertEquals(true, seen.last().calendarReadError)
+        // The calendar list still arrives even when the busy read fails.
+        assertEquals(listOf(CalendarChoice("c1", "Work", included = true)), seen.last().calendars)
 
         sub.cancel()
     }

@@ -22,7 +22,13 @@ interface DayViewSubscription {
 class DayViewSession internal constructor(
     private val controller: DayViewController,
     private val scope: CoroutineScope,
+    private val calendarSource: CalendarSource = NoopCalendarSource,
 ) {
+    private var ticksSinceCalendarRefresh = 0
+
+    init {
+        refreshCalendar()
+    }
     fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot()
 
     fun subscribe(onEach: (TodaySnapshot) -> Unit): DayViewSubscription {
@@ -34,7 +40,14 @@ class DayViewSession internal constructor(
         }
     }
 
-    fun tick() = controller.tick(Clock.System.now())
+    fun tick() {
+        controller.tick(Clock.System.now())
+        // JVM cadence: re-probe the calendar once a minute.
+        if (++ticksSinceCalendarRefresh >= 60) {
+            ticksSinceCalendarRefresh = 0
+            refreshCalendar()
+        }
+    }
 
     fun startFocus(intention: String) {
         controller.setFocusIntention(intention)
@@ -79,6 +92,40 @@ class DayViewSession internal constructor(
             },
         )
     }
+
+    /** Re-reads the busy layer and injects it. Public: the post-grant callback uses it. */
+    fun refreshCalendar() {
+        val state = controller.stateFlow.value
+        val (start, end) = dayWindow(state.now, state.startMinutes, state.endMinutes)
+        val probe = probeNetTime(
+            source = calendarSource,
+            enabled = state.netTimeSettings.enabled,
+            includedCalendarIds = state.netTimeSettings.includedCalendarIds,
+            windowStart = start,
+            windowEnd = end,
+        )
+        controller.updateNetTimeData(probe.permission, probe.busy, probe.calendars, probe.readError)
+    }
+
+    fun setNetTimeEnabled(enabled: Boolean) {
+        val settings = controller.stateFlow.value.netTimeSettings
+        controller.setNetTimeSettings(settings.copy(enabled = enabled))
+        refreshCalendar()
+    }
+
+    fun setCalendarIncluded(id: String, included: Boolean) {
+        val state = controller.stateFlow.value
+        val settings = state.netTimeSettings
+        val allIds = state.availableCalendars.map { it.id }
+        controller.setNetTimeSettings(
+            settings.copy(
+                includedCalendarIds = nextIncludedCalendars(allIds, settings.includedCalendarIds, id, included),
+            ),
+        )
+        refreshCalendar()
+    }
+
+    fun requestCalendarAccess() = calendarSource.requestPermission()
 
     fun changePomodoroDuration(deltaMinutes: Int) = controller.changePomodoroDuration(deltaMinutes)
 

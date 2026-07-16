@@ -41,6 +41,44 @@ struct SettingsView: View {
                     Text("Dark").tag("DARK")
                 }
             }
+            Section("Net time") {
+                Toggle(
+                    "Net time calculation",
+                    isOn: Binding(
+                        get: { model.snapshot.netTimeEnabled },
+                        set: { model.setNetTimeEnabled($0) }
+                    )
+                )
+                Text("Subtracts busy slots from your calendar and greys them out on the circle.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if model.snapshot.netTimeEnabled {
+                    if !model.snapshot.calendarPermission {
+                        Button("Grant calendar access") { model.requestCalendarAccess() }
+                        Text("macOS will ask you to allow DayView to read your calendars.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        if model.snapshot.calendarReadError {
+                            Text("Calendar could not be read.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        ForEach(model.snapshot.calendars, id: \.id) { calendar in
+                            Toggle(
+                                calendar.displayName,
+                                isOn: Binding(
+                                    get: { calendar.included },
+                                    set: { model.setCalendarIncluded(id: calendar.id, included: $0) }
+                                )
+                            )
+                        }
+                        Text("Only events marked busy (excluding all-day events) are subtracted.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .frame(width: 360)
