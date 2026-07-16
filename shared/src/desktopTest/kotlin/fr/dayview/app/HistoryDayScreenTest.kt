@@ -27,6 +27,14 @@ class HistoryDayScreenTest {
     }
 
     @Test
+    fun titleShowsTheViewedDayDate() = runComposeUiTest {
+        setContent { DayViewTheme { HistoryDayScreen(record = record, onBack = {}) } }
+        // Content (weekday + localized date) is guarded by LocalizedStringsTest; resource
+        // text is unresolved under runComposeUiTest on CI, so only presence is asserted.
+        onNodeWithTag(DayViewTestTags.HistoryDayTitle).assertExists()
+    }
+
+    @Test
     fun backControlInvokesCallback() = runComposeUiTest {
         var backed = false
         setContent { DayViewTheme { HistoryDayScreen(record = record, onBack = { backed = true }) } }

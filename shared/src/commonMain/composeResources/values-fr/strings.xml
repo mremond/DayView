@@ -12,6 +12,8 @@
     <string name="settings_title">RÉGLAGES</string>
     <string name="history_title">HISTORIQUE</string>
     <string name="history_date">%3$s/%2$s/%1$s</string>
+    <string name="history_back">‹  HISTORIQUE</string>
+    <string name="history_day_title">%1$s · %2$s</string>
     <string name="history_day_a11y">Historique du %1$s.</string>
     <string name="history_day_no_data_a11y">Aucun historique enregistré pour le %1$s.</string>
     <string name="history_day_no_activity_a11y">Aucun temps de Focus ni temps occupé enregistré.</string>

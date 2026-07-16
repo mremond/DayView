@@ -13,6 +13,8 @@
     <string name="settings_title">SETTINGS</string>
     <string name="history_title">HISTORY</string>
     <string name="history_date">%1$s-%2$s-%3$s</string>
+    <string name="history_back">‹  HISTORY</string>
+    <string name="history_day_title">%1$s · %2$s</string>
     <string name="history_day_a11y">History for %1$s.</string>
     <string name="history_day_no_data_a11y">No history recorded for %1$s.</string>
     <string name="history_day_no_activity_a11y">No focus or busy time recorded.</string>

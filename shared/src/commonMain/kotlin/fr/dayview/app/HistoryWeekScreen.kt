@@ -73,8 +73,9 @@ internal fun weekdayLabel(dayKey: Long): String {
     return stringResource(weekdayLabelResources[isoDay - 1])
 }
 
+/** The localized numeric date for [dayKey] (an epoch-day count), e.g. "2026-07-15" / "15/07/2026". */
 @Composable
-private fun historyDate(dayKey: Long): String {
+internal fun historyDate(dayKey: Long): String {
     val date = LocalDate.fromEpochDays(dayKey.toInt())
     return stringResource(
         Res.string.history_date,

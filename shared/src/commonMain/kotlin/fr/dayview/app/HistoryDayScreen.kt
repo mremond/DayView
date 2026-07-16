@@ -13,8 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import fr.dayview.app.generated.resources.Res
-import fr.dayview.app.generated.resources.history_title
-import fr.dayview.app.generated.resources.settings_back
+import fr.dayview.app.generated.resources.history_back
+import fr.dayview.app.generated.resources.history_day_title
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
 
@@ -40,10 +40,17 @@ internal fun HistoryDayScreen(
             .padding(horizontal = 24.dp, vertical = 28.dp),
     ) {
         ScreenTopBar(
-            title = stringResource(Res.string.history_title),
-            backLabel = stringResource(Res.string.settings_back),
+            // The title names what you are looking at (that day's date); the back label
+            // names where the control returns to (the History week overview).
+            title = stringResource(
+                Res.string.history_day_title,
+                weekdayLabel(record.dayKey).uppercase(),
+                historyDate(record.dayKey),
+            ),
+            backLabel = stringResource(Res.string.history_back),
             backTestTag = DayViewTestTags.HistoryBack,
             onBack = onBack,
+            titleTestTag = DayViewTestTags.HistoryDayTitle,
         )
         Spacer(Modifier.height(24.dp))
         CountdownCircle(

@@ -10,8 +10,10 @@ import fr.dayview.app.generated.resources.focus_intention_label
 import fr.dayview.app.generated.resources.goal_progress_percent
 import fr.dayview.app.generated.resources.goal_section_title
 import fr.dayview.app.generated.resources.goal_title_label
+import fr.dayview.app.generated.resources.history_back
 import fr.dayview.app.generated.resources.history_date
 import fr.dayview.app.generated.resources.history_day_no_data_a11y
+import fr.dayview.app.generated.resources.history_day_title
 import fr.dayview.app.generated.resources.planned_obligations_count_action
 import fr.dayview.app.generated.resources.planned_obligations_empty_action
 import fr.dayview.app.generated.resources.planned_obligations_one_action
@@ -52,6 +54,8 @@ class LocalizedStringsTest {
             assertEquals("TODAY’S DETOURS", getString(Res.string.detour_list_title))
             assertEquals("2026-07-14", getString(Res.string.history_date, "2026", "07", "14"))
             assertEquals("No history recorded for 2026-07-14.", getString(Res.string.history_day_no_data_a11y, "2026-07-14"))
+            assertEquals("‹  HISTORY", getString(Res.string.history_back))
+            assertEquals("TUE · 2026-07-14", getString(Res.string.history_day_title, "TUE", "2026-07-14"))
 
             Locale.setDefault(Locale.FRENCH)
             assertEquals("‹  AUJOURD’HUI", getString(Res.string.settings_back))
@@ -69,6 +73,8 @@ class LocalizedStringsTest {
             assertEquals("DÉTOURS DU JOUR", getString(Res.string.detour_list_title))
             assertEquals("14/07/2026", getString(Res.string.history_date, "2026", "07", "14"))
             assertEquals("Aucun historique enregistré pour le 14/07/2026.", getString(Res.string.history_day_no_data_a11y, "14/07/2026"))
+            assertEquals("‹  HISTORIQUE", getString(Res.string.history_back))
+            assertEquals("MAR · 14/07/2026", getString(Res.string.history_day_title, "MAR", "14/07/2026"))
         } finally {
             Locale.setDefault(previous)
         }
