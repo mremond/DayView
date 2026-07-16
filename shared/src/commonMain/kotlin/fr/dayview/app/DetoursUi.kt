@@ -220,6 +220,14 @@ internal fun DetourCaptureContent(
         )
         Spacer(Modifier.height(10.dp))
         GoalTextField(
+            value = description,
+            semanticLabel = stringResource(Res.string.detour_description_label),
+            placeholder = stringResource(Res.string.detour_description_placeholder),
+            onValueChange = { description = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
+        )
+        Spacer(Modifier.height(10.dp))
+        GoalTextField(
             value = category,
             semanticLabel = stringResource(Res.string.detour_category_label),
             placeholder = stringResource(Res.string.detour_category_placeholder),
@@ -240,14 +248,6 @@ internal fun DetourCaptureContent(
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        GoalTextField(
-            value = description,
-            semanticLabel = stringResource(Res.string.detour_description_label),
-            placeholder = stringResource(Res.string.detour_description_placeholder),
-            onValueChange = { description = it },
-            modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
-        )
         Spacer(Modifier.height(14.dp))
         Text(stringResource(Res.string.detour_duration_section), color = colors.muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Spacer(Modifier.height(8.dp))
@@ -572,18 +572,18 @@ internal fun DetourEditForm(
     }
     Column {
         GoalTextField(
-            value = category,
-            semanticLabel = stringResource(Res.string.detour_category_label),
-            placeholder = stringResource(Res.string.detour_category_placeholder),
-            onValueChange = { category = it },
-        )
-        Spacer(Modifier.height(12.dp))
-        GoalTextField(
             value = description,
             semanticLabel = stringResource(Res.string.detour_description_label),
             placeholder = stringResource(Res.string.detour_description_placeholder),
             onValueChange = { description = it },
             modifier = Modifier.testTag(DayViewTestTags.DetourDescriptionField),
+        )
+        Spacer(Modifier.height(12.dp))
+        GoalTextField(
+            value = category,
+            semanticLabel = stringResource(Res.string.detour_category_label),
+            placeholder = stringResource(Res.string.detour_category_placeholder),
+            onValueChange = { category = it },
         )
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
