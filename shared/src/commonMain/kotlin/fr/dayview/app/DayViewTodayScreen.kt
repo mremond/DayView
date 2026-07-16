@@ -1141,12 +1141,23 @@ internal fun CountdownCircle(
                             }
                         }
                         up != null -> {
-                            // A session band takes priority over a busy arc at the same angle —
-                            // bands are the primary affordance. On a band hit, toggle its detail
-                            // pop-up and clear any busy tooltip; otherwise fall through to the
-                            // busy-label tooltip (and dismiss any session pop-up).
-                            val tappedBand = focusSessionBandAtAngle(focusSessionBands, angleOf(up.position))
-                            if (tappedBand != null) {
+                            // Tap priority mirrors the mouse hover: the detour lane outside the
+                            // ring wins first (radius-aware hit-test), then a session band beats
+                            // a busy arc at the same angle — bands are the primary affordance.
+                            // Each hit toggles its own detail pop-up and clears the other two,
+                            // so a single pop-up shows at a time.
+                            val tappedDetour =
+                                hitTestDetourBody(up.position.x, up.position.y, size.width, size.height, detourBodies)
+                            val tappedBand = if (tappedDetour == null) {
+                                focusSessionBandAtAngle(focusSessionBands, angleOf(up.position))
+                            } else {
+                                null
+                            }
+                            if (tappedDetour != null) {
+                                hoveredDetour = nextHoveredDetourOnTap(hoveredDetour, tappedDetour, up.position)
+                                hoveredBusy = null
+                                hoveredSession = null
+                            } else if (tappedBand != null) {
                                 hoveredSession = nextHoveredSessionOnTap(
                                     hoveredSession,
                                     tappedBand.record,
@@ -1155,11 +1166,13 @@ internal fun CountdownCircle(
                                     up.position,
                                 )
                                 hoveredBusy = null
+                                hoveredDetour = null
                             } else {
                                 // Tap: reveal / switch / dismiss the busy-label tooltip.
                                 val tapped = hitTestBusyArc(up.position, size.width, size.height, busyBlockArcs)
                                 hoveredBusy = nextHoveredBusyOnTap(hoveredBusy, tapped, up.position)
                                 hoveredSession = null
+                                hoveredDetour = null
                             }
                             up.consume()
                         }
