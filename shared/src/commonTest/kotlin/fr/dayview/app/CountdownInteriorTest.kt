@@ -101,11 +101,36 @@ class CountdownInteriorTest {
     }
 
     @Test
+    fun midSizeDialKeepsAllRowsButDropsAccolades() {
+        // The fullest interior — seconds, Net + busy, strict focus + engaged, Détours —
+        // on a mid-size dial at the 0.72 scale floor: every text row must survive (the
+        // rendered rows are compact enough to fit the chord) with only the pips culled.
+        val interior = all(circleSize = 250f, scale = 0.72f, showSeconds = true, hasEngaged = true)
+        assertTrue(interior.showNet)
+        assertTrue(interior.showBusy)
+        assertTrue(interior.showFocus)
+        assertTrue(interior.showDetours)
+        assertFalse(interior.showAccolades)
+    }
+
+    @Test
+    fun tinyScaleKeepsOnlyNumeralsEvenWithRoom() {
+        // Below the readability floor the secondary rows are culled regardless of the
+        // geometric budget: a 0.6-scale row would render under 9.sp.
+        val interior = all(circleSize = 400f, scale = 0.6f)
+        assertFalse(interior.showNet)
+        assertFalse(interior.showBusy)
+        assertFalse(interior.showFocus)
+        assertFalse(interior.showDetours)
+        assertFalse(interior.showAccolades)
+    }
+
+    @Test
     fun cullIsMonotonicInPriority() {
         // In the size band where Focus (the taller row) fails to fit, the smaller busy
         // sub-line must not sneak in past it: once any present row is dropped for space,
         // every lower-priority row drops too. Regression for the take() short-circuit.
-        val interior = all(circleSize = 180f, scale = 0.72f)
+        val interior = all(circleSize = 172f, scale = 0.72f)
         assertTrue(interior.showNet)
         assertTrue(interior.showDetours)
         assertFalse(interior.showFocus)

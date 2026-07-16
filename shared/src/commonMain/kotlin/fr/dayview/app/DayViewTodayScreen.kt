@@ -1448,9 +1448,14 @@ internal fun CountdownCircle(
                                     stringResource(Res.string.seconds_remaining, progress.remainingSeconds.toString().padStart(2, '0')),
                                     color = colors.muted,
                                     fontSize = (12 * counterScale).sp,
+                                    lineHeight = (16 * counterScale).sp,
                                     letterSpacing = (.8f * counterScale).sp,
                                 )
                             }
+                            // Every secondary row pins an explicit lineHeight scaled with the ring:
+                            // the inherited bodyLarge leading (24sp) neither shrinks with counterScale
+                            // nor matches the row-height estimates in countdownInterior, so without it
+                            // the stack silently outgrows the budget and spills over the ring.
                             if (interior.showNet && netTime != null) {
                                 Spacer(Modifier.height(6.dp * counterScale))
                                 Text(
@@ -1461,6 +1466,7 @@ internal fun CountdownCircle(
                                     },
                                     color = colors.mint,
                                     fontSize = (14 * counterScale).sp,
+                                    lineHeight = (19 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
                                     letterSpacing = (.5f * counterScale).sp,
                                     modifier = Modifier.testTag(DayViewTestTags.NetRemaining),
@@ -1470,6 +1476,7 @@ internal fun CountdownCircle(
                                         stringResource(Res.string.busy_remaining, formatDurationHm(netTime.busyRemaining)),
                                         color = colors.muted,
                                         fontSize = (11 * counterScale).sp,
+                                        lineHeight = (15 * counterScale).sp,
                                         letterSpacing = (.5f * counterScale).sp,
                                     )
                                 }
@@ -1481,6 +1488,7 @@ internal fun CountdownCircle(
                                         stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
                                         color = colors.mint,
                                         fontSize = (13 * counterScale).sp,
+                                        lineHeight = (18 * counterScale).sp,
                                         fontWeight = FontWeight.Medium,
                                         letterSpacing = (.5f * counterScale).sp,
                                     )
@@ -1491,6 +1499,7 @@ internal fun CountdownCircle(
                                         stringResource(Res.string.engaged_today, formatDurationHm(sessionFocusedToday)),
                                         color = colors.mint,
                                         fontSize = (13 * counterScale).sp,
+                                        lineHeight = (18 * counterScale).sp,
                                         fontWeight = FontWeight.Medium,
                                         letterSpacing = (.5f * counterScale).sp,
                                     )
@@ -1510,6 +1519,7 @@ internal fun CountdownCircle(
                                     },
                                     color = colors.amber,
                                     fontSize = (13 * counterScale).sp,
+                                    lineHeight = (18 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
                                     letterSpacing = (.5f * counterScale).sp,
                                     modifier = Modifier.testTag(DayViewTestTags.Detours),
@@ -1522,6 +1532,7 @@ internal fun CountdownCircle(
                                     stringResource(Res.string.focused_today, formatDurationHm(focusedToday)),
                                     color = colors.mint,
                                     fontSize = (13 * counterScale).sp,
+                                    lineHeight = (18 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
                                     letterSpacing = (.5f * counterScale).sp,
                                     textAlign = TextAlign.Center,
@@ -1534,6 +1545,7 @@ internal fun CountdownCircle(
                                     stringResource(Res.string.engaged_today, formatDurationHm(sessionFocusedToday)),
                                     color = colors.mint,
                                     fontSize = (13 * counterScale).sp,
+                                    lineHeight = (18 * counterScale).sp,
                                     fontWeight = FontWeight.Medium,
                                     letterSpacing = (.5f * counterScale).sp,
                                     textAlign = TextAlign.Center,
@@ -1574,6 +1586,7 @@ internal fun CountdownCircle(
                                     label,
                                     color = colors.mint,
                                     fontSize = 13.sp,
+                                    lineHeight = 18.sp,
                                     fontWeight = FontWeight.Medium,
                                     letterSpacing = .5.sp,
                                 )
