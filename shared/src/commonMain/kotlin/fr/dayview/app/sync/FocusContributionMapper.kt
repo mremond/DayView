@@ -21,10 +21,15 @@ object FocusContributionMapper {
     private fun List<FocusPresenceInterval>.toDto() = map { PresenceDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds()) }
     private fun List<PresenceDto>.toIntervals() = map { FocusPresenceInterval(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end)) }
 
-    private fun List<FocusSessionRecord>.toRecordDtos() = map { FocusSessionRecordDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.intention, it.outcome.name) }
+    private fun List<FocusSessionRecord>.toRecordDtos() = map { FocusSessionRecordDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.intention, it.outcome?.name ?: "") }
 
     private fun List<FocusSessionRecordDto>.toRecords() = mapNotNull { dto ->
-        val outcome = FocusClosureOutcome.entries.firstOrNull { it.name == dto.outcome } ?: return@mapNotNull null
+        // Empty outcome = aborted session (null); a non-empty but unknown name drops the record.
+        val outcome = if (dto.outcome.isEmpty()) {
+            null
+        } else {
+            FocusClosureOutcome.entries.firstOrNull { it.name == dto.outcome } ?: return@mapNotNull null
+        }
         FocusSessionRecord(Instant.fromEpochMilliseconds(dto.start), Instant.fromEpochMilliseconds(dto.end), dto.intention, outcome)
     }
 

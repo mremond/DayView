@@ -111,6 +111,7 @@ internal object DayViewTestTags {
     const val SyncFirstChoiceAdoptServer = "syncFirstChoiceAdoptServer"
     const val SyncFirstChoicePushLocal = "syncFirstChoicePushLocal"
     const val FocusSessionPopup = "focusSessionPopup"
+    const val FocusSessionDeepFocus = "focusSessionDeepFocus"
     const val MiniRing = "historyMiniRing"
     const val HistoryIcon = "historyIcon"
     const val SettingsIcon = "settingsIcon"

@@ -24,6 +24,14 @@ class FocusSessionRecordTest {
     }
 
     @Test
+    fun roundTripsANullOutcomeAsNull() {
+        // A Stop-button abort records no outcome; it must survive encode -> decode as null.
+        val records = listOf(FocusSessionRecord(at(7_000), at(8_000), "aborted", null))
+        val decoded = decodeFocusSessionRecords(encodeFocusSessionRecords(records))
+        assertEquals(records, decoded)
+    }
+
+    @Test
     fun skipsMalformedAndUnknownOutcomeLines() {
         // 4 fields required; bad instant, then unknown outcome name, then a good line.
         val blob = "@1\nxxx,2,COMPLETED,hi\n1,2,NOPE,hi\n5,6,COMPLETED,b2s="

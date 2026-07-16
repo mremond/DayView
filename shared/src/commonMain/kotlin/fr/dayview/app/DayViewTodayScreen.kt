@@ -136,7 +136,6 @@ import fr.dayview.app.generated.resources.focus_section
 import fr.dayview.app.generated.resources.focus_session_deep_focus
 import fr.dayview.app.generated.resources.focus_session_engaged
 import fr.dayview.app.generated.resources.focus_session_intention_empty
-import fr.dayview.app.generated.resources.focus_session_outcome_completed
 import fr.dayview.app.generated.resources.focus_session_outcome_stopped
 import fr.dayview.app.generated.resources.focus_single_thing
 import fr.dayview.app.generated.resources.focus_start_button
@@ -1088,9 +1087,26 @@ internal fun CountdownCircle(
                             }
                         }
                         up != null -> {
-                            // Tap: reveal / switch / dismiss the busy-label tooltip.
-                            val tapped = hitTestBusyArc(up.position, size.width, size.height, busyBlockArcs)
-                            hoveredBusy = nextHoveredBusyOnTap(hoveredBusy, tapped, up.position)
+                            // A session band takes priority over a busy arc at the same angle —
+                            // bands are the primary affordance. On a band hit, toggle its detail
+                            // pop-up and clear any busy tooltip; otherwise fall through to the
+                            // busy-label tooltip (and dismiss any session pop-up).
+                            val tappedBand = focusSessionBandAtAngle(focusSessionBands, angleOf(up.position))
+                            if (tappedBand != null) {
+                                hoveredSession = nextHoveredSessionOnTap(
+                                    hoveredSession,
+                                    tappedBand.record,
+                                    engagedTimeForSession(tappedBand.record, focusSessionIntervals),
+                                    deepFocusTimeForSession(tappedBand.record, focusPresenceIntervals),
+                                    up.position,
+                                )
+                                hoveredBusy = null
+                            } else {
+                                // Tap: reveal / switch / dismiss the busy-label tooltip.
+                                val tapped = hitTestBusyArc(up.position, size.width, size.height, busyBlockArcs)
+                                hoveredBusy = nextHoveredBusyOnTap(hoveredBusy, tapped, up.position)
+                                hoveredSession = null
+                            }
                             up.consume()
                         }
                         // else: waitForUpOrCancellation returned null (gesture cancelled) → do nothing.
@@ -1709,14 +1725,22 @@ internal fun ColumnScope.FocusSessionReadoutDetails(
     )
     Text(stringResource(Res.string.focus_session_engaged, formatDurationHm(engaged)), color = colors.muted, fontSize = 11.sp)
     if (deepFocus > Duration.ZERO) {
-        Text(stringResource(Res.string.focus_session_deep_focus, formatDurationHm(deepFocus)), color = colors.muted, fontSize = 11.sp)
+        Text(
+            stringResource(Res.string.focus_session_deep_focus, formatDurationHm(deepFocus)),
+            color = colors.muted,
+            fontSize = 11.sp,
+            modifier = Modifier.testTag(DayViewTestTags.FocusSessionDeepFocus),
+        )
     }
+    // A non-null outcome reuses the app's three-way closure labels; a null outcome (Stop-button
+    // abort) shows "Stopped early".
     Text(
         stringResource(
-            if (record.outcome == FocusClosureOutcome.COMPLETED) {
-                Res.string.focus_session_outcome_completed
-            } else {
-                Res.string.focus_session_outcome_stopped
+            when (record.outcome) {
+                FocusClosureOutcome.COMPLETED -> Res.string.focus_outcome_completed
+                FocusClosureOutcome.PROGRESSED -> Res.string.focus_outcome_progressed
+                FocusClosureOutcome.TO_RESUME -> Res.string.focus_outcome_to_resume
+                null -> Res.string.focus_session_outcome_stopped
             },
         ),
         color = colors.muted,
@@ -1759,6 +1783,23 @@ internal fun nextHoveredBusyOnTap(
     tapped == null -> null
     current?.arc == tapped -> null
     else -> HoveredBusyArc(tapped, position)
+}
+
+/**
+ * Next [HoveredFocusSession] state after a touch tap on a session band. Tapping another band
+ * switches to it, tapping the shown band or empty ring closes the pop-up. Kept pure so the
+ * tap/close rules are unit-testable without driving a gesture.
+ */
+internal fun nextHoveredSessionOnTap(
+    current: HoveredFocusSession?,
+    tappedRecord: FocusSessionRecord?,
+    engaged: Duration,
+    deepFocus: Duration,
+    position: Offset,
+): HoveredFocusSession? = when {
+    tappedRecord == null -> null
+    current?.record == tappedRecord -> null
+    else -> HoveredFocusSession(tappedRecord, engaged, deepFocus, position)
 }
 
 private data class HoveredDetourBody(val body: DetourBody, val position: Offset)

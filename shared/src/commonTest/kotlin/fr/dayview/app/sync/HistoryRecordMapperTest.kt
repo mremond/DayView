@@ -60,6 +60,23 @@ class HistoryRecordMapperTest {
     }
 
     @Test
+    fun dropsSessionRecordWithUnknownOutcomeButKeepsTheRest() {
+        val withRecords = record.copy(
+            focusSessionRecords = listOf(
+                FocusSessionRecord(Instant.fromEpochMilliseconds(1), Instant.fromEpochMilliseconds(2), "keep", FocusClosureOutcome.COMPLETED),
+                FocusSessionRecord(Instant.fromEpochMilliseconds(3), Instant.fromEpochMilliseconds(4), "drop", FocusClosureOutcome.PROGRESSED),
+            ),
+        )
+        // Simulate a record from a newer peer: rewrite one outcome name to an unknown value.
+        val json = HistoryRecordMapper.serialize(withRecords).replace("PROGRESSED", "FUTURE_STATE")
+        val restored = HistoryRecordMapper.deserialize(json)
+        assertEquals(
+            listOf(FocusSessionRecord(Instant.fromEpochMilliseconds(1), Instant.fromEpochMilliseconds(2), "keep", FocusClosureOutcome.COMPLETED)),
+            restored?.focusSessionRecords,
+        )
+    }
+
+    @Test
     fun decodesPayloadMissingSessionRecordsAsEmpty() {
         val json = HistoryRecordMapper.serialize(record)
         // JSON without the key must still decode (ignoreUnknownKeys + default).

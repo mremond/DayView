@@ -97,7 +97,6 @@
     <string name="focus_session_intention_empty">No focus intention set</string>
     <string name="focus_session_engaged">Engaged %1$s</string>
     <string name="focus_session_deep_focus">Deep focus %1$s</string>
-    <string name="focus_session_outcome_completed">Completed</string>
     <string name="focus_session_outcome_stopped">Stopped early</string>
 
     <!-- Long-term goal -->

@@ -472,7 +472,8 @@ class DayViewController(
 
     fun stopPomodoro() {
         appendEngagedSession(state.now)
-        recordClosingSession(state.now, FocusClosureOutcome.COMPLETED)
+        // The Stop button is an early abort with no closure choice, so the record carries no outcome.
+        recordClosingSession(state.now, null)
         state = state.copy(pomodoroEnd = null)
         persistState()
     }
@@ -498,7 +499,7 @@ class DayViewController(
     }
 
     /** Append a record for the closing session, keyed to today; resets the list on day rollover. */
-    private fun recordClosingSession(stopInstant: Instant, outcome: FocusClosureOutcome) {
+    private fun recordClosingSession(stopInstant: Instant, outcome: FocusClosureOutcome?) {
         val end = state.pomodoroEnd ?: return
         val start = end - state.pomodoroMinutes.minutes
         val effectiveEnd = minOf(stopInstant, end)

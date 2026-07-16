@@ -31,7 +31,7 @@ object HistoryRecordMapper {
         focusPresence = r.focusPresenceIntervals.map { PresenceDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds()) },
         focusSession = r.focusSessionIntervals.map { PresenceDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds()) },
         focusSessionRecords = r.focusSessionRecords.map {
-            FocusSessionRecordDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.intention, it.outcome.name)
+            FocusSessionRecordDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.intention, it.outcome?.name ?: "")
         },
         detours = r.detours.map { DetourEpisodeDto(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds(), it.category, it.description) },
         cleanSessions = CleanDto(r.cleanSessions.dayKey, r.cleanSessions.cleanToday, r.cleanSessions.streakDays, r.cleanSessions.streakLastDayKey),
@@ -55,9 +55,14 @@ object HistoryRecordMapper {
         focusPresenceIntervals = d.focusPresence.map { FocusPresenceInterval(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end)) },
         focusSessionIntervals = d.focusSession.map { FocusPresenceInterval(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end)) },
         focusSessionRecords = d.focusSessionRecords.mapNotNull { dto ->
-            // Drop records whose outcome name is unrecognized (e.g. decoded from a newer peer)
-            // rather than fail the whole sync payload.
-            val outcome = FocusClosureOutcome.entries.firstOrNull { it.name == dto.outcome } ?: return@mapNotNull null
+            // An empty outcome means the session was aborted (no closure choice). A non-empty but
+            // unrecognized outcome name (e.g. decoded from a newer peer) drops the record rather
+            // than failing the whole sync payload.
+            val outcome = if (dto.outcome.isEmpty()) {
+                null
+            } else {
+                FocusClosureOutcome.entries.firstOrNull { it.name == dto.outcome } ?: return@mapNotNull null
+            }
             FocusSessionRecord(Instant.fromEpochMilliseconds(dto.start), Instant.fromEpochMilliseconds(dto.end), dto.intention, outcome)
         },
         detours = d.detours.map { DetourEpisode(Instant.fromEpochMilliseconds(it.start), Instant.fromEpochMilliseconds(it.end), it.category, it.description) },
