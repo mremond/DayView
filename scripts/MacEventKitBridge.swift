@@ -14,9 +14,18 @@ import Foundation
 // The C strings returned by the read functions are strdup'd; the caller must release them
 // with dv_calendar_free.
 
-// Retained for the lifetime of an in-flight permission request so ARC does not release the
-// store before the asynchronous completion fires.
-private let requestStore = EKEventStore()
+// A single EKEventStore is retained for the process lifetime and reused for every call.
+//
+// This matters on macOS 14+: a freshly created EKEventStore reports zero calendars and zero
+// events until requestFullAccessToEvents/requestAccess has been invoked on *that instance*
+// and its completion has fired — even when TCC already lists the app as authorized. Creating
+// a throwaway store per read (as an earlier version did) therefore returned an empty calendar
+// list on every already-granted launch, because the request flow only runs the first time the
+// user grants access. Reusing one store and priming its access once keeps reads populated.
+private let store = EKEventStore()
+
+private var accessPrimed = false
+private let primeLock = NSLock()
 
 private func authorizationStatusCode() -> Int32 {
     switch EKEventStore.authorizationStatus(for: .event) {
@@ -27,6 +36,26 @@ private func authorizationStatusCode() -> Int32 {
     default:
         return 2
     }
+}
+
+// Wakes the shared store's connection to the calendar database before a read. When the app is
+// already authorized this returns immediately with no dialog — the request simply primes the
+// store. Reads only run once authorized (the caller checks dv_calendar_authorization first),
+// so this never blocks on the TCC prompt; the timeout is a safeguard so a wedged request can
+// never hang the JVM read thread.
+private func primeAccessIfNeeded() {
+    primeLock.lock()
+    defer { primeLock.unlock() }
+    if accessPrimed { return }
+    let semaphore = DispatchSemaphore(value: 0)
+    let completion: (Bool, Error?) -> Void = { _, _ in semaphore.signal() }
+    if #available(macOS 14.0, *) {
+        store.requestFullAccessToEvents(completion: completion)
+    } else {
+        store.requestAccess(to: .event, completion: completion)
+    }
+    _ = semaphore.wait(timeout: .now() + 5)
+    accessPrimed = true
 }
 
 @_cdecl("dv_calendar_authorization")
@@ -45,16 +74,16 @@ public func dv_calendar_request() {
     DispatchQueue.main.async {
         let handler: (Bool, Error?) -> Void = { _, _ in }
         if #available(macOS 14.0, *) {
-            requestStore.requestFullAccessToEvents(completion: handler)
+            store.requestFullAccessToEvents(completion: handler)
         } else {
-            requestStore.requestAccess(to: .event, completion: handler)
+            store.requestAccess(to: .event, completion: handler)
         }
     }
 }
 
 @_cdecl("dv_calendar_calendars")
 public func dv_calendar_calendars() -> UnsafeMutablePointer<CChar>? {
-    let store = EKEventStore()
+    primeAccessIfNeeded()
     var out = ""
     for calendar in store.calendars(for: .event) {
         out += "\(calendar.calendarIdentifier)\t\(calendar.title)\n"
@@ -64,7 +93,7 @@ public func dv_calendar_calendars() -> UnsafeMutablePointer<CChar>? {
 
 @_cdecl("dv_calendar_busy")
 public func dv_calendar_busy(_ startMillis: Int64, _ endMillis: Int64) -> UnsafeMutablePointer<CChar>? {
-    let store = EKEventStore()
+    primeAccessIfNeeded()
     let start = Date(timeIntervalSince1970: Double(startMillis) / 1000.0)
     let end = Date(timeIntervalSince1970: Double(endMillis) / 1000.0)
     let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
