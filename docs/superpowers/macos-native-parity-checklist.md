@@ -31,13 +31,13 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Settings scene: day window, show-seconds, appearance | 6 |
 | Kotlin-computed presentation labels (`secondsLabel`/`focusLine`/`menuBarTitle`) | 6 |
 | Net time: K/N EventKit source (primed store, travel time), probe, settings section, `Net X h MM` readout | 7a |
+| Busy arcs on the main ring + hover labels (5° margin), 12/24-h clock plumbing | 7b |
 | App icon shared with the JVM build | (main, 89e4c6b) |
 
 ## Today screen
 
 | Item | Status | Notes |
 |---|---|---|
-| Busy arcs (grey lane) on the ring + hover event name/times | 🔜 **7b** | Data already flows since 7a; snapshot arc list from `busyBlockArcsState` |
 | Visual identity pass: DayView palette (ink/mint/amber), radial glow, gradient sweep, moment marker, ratio-based accent (mint→amber→red) | **PORT** | The native app is functionally ahead but visually plain vanilla SwiftUI; one dedicated phase |
 | Detours: declare (+ recent-motif chips), ring bodies, per-source tally, daily total, edit list, tap/hover pop-up, goal halo | **PORT** | Big; own phase. `:core` types/persistence exist |
 | Must-dos (up to 3 planned obligations, complete/free slot) | **PORT** | Small; `:core` logic exists |
@@ -87,7 +87,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 |---|---|---|
 | Launch at login | **PORT** | `SMAppService` — much simpler natively than the JVM path |
 | Monochrome menu-bar icon toggle | **DROP** | Confirmed 2026-07-16; the native menu bar shows live text, no icon |
-| 12/24-hour clock handling | **PORT** | Verify `:core` formatters already honor it through the bridge |
+| 12/24-hour clock handling | ✅ (7b) | Detected at launch via the NSDateFormatter "j"-probe, threaded through the snapshot; hover labels honor it — future wall-clock surfaces inherit the plumbing |
 | French localization of the native UI | **PORT** | JVM ships FR; native is hardcoded EN. Required for parity — one cross-cutting phase near the end (also revisits the Kotlin-computed labels) |
 
 ## Packaging / release (the cutover itself)
@@ -110,6 +110,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 - Debounce the Settings time pickers if mid-typing clamping feels fighty (Phase 6 note).
 - Extract a shared seconds/net-line view if a third surface appears (Phase 6/7a).
+- Visual pass: JVM busy lane is a two-pass glow+core stroke (native is single-pass, reads heavier); tooltip can clip at canvas edges; hit-test hardcodes inset 40 / lineWidth 18 (promote to DayRingCanvas statics when theming).
 - `FocusClosureButtons` for a third surface (widget) when it comes.
 - Menu-bar icon *option* (text is the identity today; some users may prefer an icon).
 - Probe logging in `probeNetTime` (needs a `:core` logging seam).
@@ -118,7 +119,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 ## Suggested sequencing (adjust freely)
 
-1. **7b** busy arcs + hover (in flight next)
+1. ~~**7b** busy arcs + hover~~ ✅ merged 2a1520d
 2. **Visual identity pass** (palette, styled ring/cards) — makes every later screen land in its final look
 3. **Detours** (visuals now exist to draw bodies/halo)
 4. **Presence & on-goal** (drift nudges, engaged arcs, dock badge, `sessionOffGoal`)

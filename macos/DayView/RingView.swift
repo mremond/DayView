@@ -17,6 +17,9 @@ struct RingView: View {
 
     @State private var hoveredBusy: HoveredBusyArc?
 
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: DayViewPalette { DayViewPalette.current(for: colorScheme) }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
@@ -26,6 +29,13 @@ struct RingView: View {
             }
             .padding(32)
         }
+        .background(
+            RadialGradient(
+                gradient: Gradient(colors: [palette.glow, palette.ink]),
+                center: .center, startRadius: 0, endRadius: 500
+            )
+            .ignoresSafeArea()
+        )
         .onReceive(model.$snapshot) { snap in
             // Seed the local text/date fields once from persisted state.
             if !seeded {
@@ -48,10 +58,14 @@ struct RingView: View {
     }
 
     private var ringSection: some View {
-        VStack(spacing: 8) {
-            GeometryReader { proxy in
+        GeometryReader { proxy in
+            ZStack {
                 DayRingCanvas(
                     momentAngleDegrees: model.snapshot.momentAngleDegrees,
+                    remainingRatio: model.snapshot.remainingRatio,
+                    isFinished: model.snapshot.isFinished,
+                    hasStarted: model.snapshot.hasStarted,
+                    hasGoal: !model.snapshot.goalTitle.isEmpty || model.snapshot.goalHasDeadline,
                     busyArcs: model.snapshot.busyArcs
                 )
                 .onContinuousHover(coordinateSpace: .local) { phase in
@@ -62,70 +76,71 @@ struct RingView: View {
                         hoveredBusy = nil
                     }
                 }
-                .overlay(alignment: .topLeading) {
-                    if let hover = hoveredBusy {
-                        Text(hover.label)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
-                            .offset(x: hover.position.x + 12, y: hover.position.y - 28)
-                            .allowsHitTesting(false)
+                VStack(spacing: 2) {
+                    Text(model.snapshot.dayStatus)
+                        .font(.system(size: 40, weight: .light, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(palette.cloud)
+                    if !model.snapshot.secondsLabel.isEmpty {
+                        Text(model.snapshot.secondsLabel)
+                            .font(.caption).monospacedDigit().foregroundStyle(palette.muted)
+                    }
+                    if !model.snapshot.netTimeLabel.isEmpty {
+                        Text(model.snapshot.netTimeLabel)
+                            .font(.caption).monospacedDigit().foregroundStyle(palette.muted)
                     }
                 }
-            }
-            .frame(height: 260)
-            Text(model.snapshot.dayStatus)
-                .font(.system(size: 40, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-            if !model.snapshot.secondsLabel.isEmpty {
-                Text(model.snapshot.secondsLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            if !model.snapshot.netTimeLabel.isEmpty {
-                Text(model.snapshot.netTimeLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                if let hover = hoveredBusy {
+                    Text(hover.label)
+                        .font(.caption)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                        .position(x: hover.position.x + 12, y: hover.position.y - 28)
+                        .allowsHitTesting(false)
+                }
             }
         }
+        .frame(height: 300)
     }
 
     private var focusSection: some View {
-        GroupBox("Focus") {
-            VStack(alignment: .leading, spacing: 12) {
-                TextField("What are you focusing on?", text: $intention)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { model.setFocusIntention(intention) }
-                HStack {
-                    Stepper("Duration: \(model.snapshot.pomodoroMinutes) min",
-                            onIncrement: { model.changePomodoroDuration(5) },
-                            onDecrement: { model.changePomodoroDuration(-5) })
-                        .disabled(model.snapshot.pomodoroStatus != "IDLE")
-                    Spacer()
-                    switch model.snapshot.pomodoroStatus {
-                    case "IDLE":
-                        Button("Start focus") {
-                            model.startFocus(intention: intention)
-                        }
-                        .disabled(intention.isEmpty)
-                    case "BREAK":
-                        // Relaunch the next session of the sequence, keeping the intention.
-                        Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
-                        Button("Stop focus") { model.stopFocus() }
-                    default: // "ACTIVE"
-                        Button("Stop focus") { model.stopFocus() }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("FOCUS")
+                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.amber)
+            TextField("What are you focusing on?", text: $intention)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { model.setFocusIntention(intention) }
+            HStack {
+                Stepper("Duration: \(model.snapshot.pomodoroMinutes) min",
+                        onIncrement: { model.changePomodoroDuration(5) },
+                        onDecrement: { model.changePomodoroDuration(-5) })
+                    .disabled(model.snapshot.pomodoroStatus != "IDLE")
+                Spacer()
+                switch model.snapshot.pomodoroStatus {
+                case "IDLE":
+                    Button("Start focus") {
+                        model.startFocus(intention: intention)
                     }
-                }
-                Text(model.snapshot.focusLine.isEmpty ? "Idle" : model.snapshot.focusLine)
-                    .foregroundStyle(.secondary)
-                if model.snapshot.pomodoroStatus == "BREAK" {
-                    closureSection
+                    .tint(palette.amber)
+                    .disabled(intention.isEmpty)
+                case "BREAK":
+                    // Relaunch the next session of the sequence, keeping the intention.
+                    Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
+                        .tint(palette.amber)
+                    Button("Stop focus") { model.stopFocus() }
+                        .tint(palette.red)
+                default: // "ACTIVE"
+                    Button("Stop focus") { model.stopFocus() }
+                        .tint(palette.red)
                 }
             }
+            Text(model.snapshot.focusLine.isEmpty ? "Idle" : model.snapshot.focusLine)
+                .foregroundStyle(.secondary)
+            if model.snapshot.pomodoroStatus == "BREAK" {
+                closureSection
+            }
         }
+        .dayViewPanel(palette)
     }
 
     // The closure ritual: name how the sequence ends so the session record and
@@ -140,32 +155,33 @@ struct RingView: View {
     }
 
     private var goalSection: some View {
-        GroupBox("Long-term goal") {
-            VStack(alignment: .leading, spacing: 12) {
-                TextField("Long-term goal", text: $goalTitle)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { model.setGoalTitle(goalTitle) }
-                HStack {
-                    DatePicker("Deadline", selection: $deadline)
-                        .onChange(of: deadline) { newValue in
-                            let millis = Int64(newValue.timeIntervalSince1970 * 1000)
-                            // Only persist a genuine user change. Seeding `deadline` from the
-                            // snapshot also fires .onChange (with `seeded` already true); guard
-                            // on the value so that seed round-trip isn't written back.
-                            if seeded && millis != model.snapshot.goalDeadlineEpochMillis {
-                                model.setGoalDeadline(epochMillis: millis)
-                            }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("LONG-TERM GOAL")
+                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.mint)
+            TextField("Long-term goal", text: $goalTitle)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { model.setGoalTitle(goalTitle) }
+            HStack {
+                DatePicker("Deadline", selection: $deadline)
+                    .onChange(of: deadline) { newValue in
+                        let millis = Int64(newValue.timeIntervalSince1970 * 1000)
+                        // Only persist a genuine user change. Seeding `deadline` from the
+                        // snapshot also fires .onChange (with `seeded` already true); guard
+                        // on the value so that seed round-trip isn't written back.
+                        if seeded && millis != model.snapshot.goalDeadlineEpochMillis {
+                            model.setGoalDeadline(epochMillis: millis)
                         }
-                    if model.snapshot.goalHasDeadline {
-                        Button("Clear") { model.clearGoalDeadline() }
                     }
-                }
                 if model.snapshot.goalHasDeadline {
-                    Text("\(model.snapshot.goalHoursRemaining)h of working time left")
-                        .foregroundStyle(.secondary)
+                    Button("Clear") { model.clearGoalDeadline() }
                 }
             }
+            if model.snapshot.goalHasDeadline {
+                Text("\(model.snapshot.goalHoursRemaining)h of working time left")
+                    .foregroundStyle(.secondary)
+            }
         }
+        .dayViewPanel(palette)
     }
 
     // Geometry half of the hit test (the angle-containment half is Kotlin's
@@ -174,8 +190,8 @@ struct RingView: View {
     private func busyArcHit(at point: CGPoint, in size: CGSize) -> HoveredBusyArc? {
         let arcs = model.snapshot.busyArcs
         guard !arcs.isEmpty else { return nil }
-        let inset: CGFloat = 40
-        let lineWidth: CGFloat = 18
+        let inset = DayRingCanvas.defaultInset
+        let lineWidth = DayRingCanvas.defaultLineWidth
         let side = min(size.width, size.height) - inset * 2
         let radius = max(side / 2, 1)
         let busyRadius = radius - lineWidth * DayRingCanvas.busyRadiusFactor

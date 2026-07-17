@@ -720,4 +720,35 @@ class DayViewSessionTest {
 
         sub.cancel()
     }
+
+    @Test
+    fun hasStartedReflectsTheDayWindow() = runTest {
+        // Window 00:00-23:59: the fixture instant is mid-day, so the day has started.
+        val started = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val startedSession = DayViewSession(started, backgroundScope)
+        val startedSeen = mutableListOf<TodaySnapshot>()
+        val sub1 = startedSession.subscribe { startedSeen.add(it) }
+        runCurrent()
+        assertEquals(true, startedSeen.last().hasStarted)
+        sub1.cancel()
+
+        // Window 23:00-23:59: at the same mid-day instant the day has NOT started yet.
+        val notYet = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 23 * 60, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val notYetSession = DayViewSession(notYet, backgroundScope)
+        val notYetSeen = mutableListOf<TodaySnapshot>()
+        val sub2 = notYetSession.subscribe { notYetSeen.add(it) }
+        runCurrent()
+        assertEquals(false, notYetSeen.last().hasStarted)
+        sub2.cancel()
+    }
 }

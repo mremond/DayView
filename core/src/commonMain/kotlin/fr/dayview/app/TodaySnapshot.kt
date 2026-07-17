@@ -104,6 +104,7 @@ data class TodaySnapshot(
     val netTimeLabel: String, // "Net " + formatDurationHm(netRemaining), "" when off/no data
     val calendars: List<CalendarChoice>, // raw available calendars (settings checklist)
     val busyArcs: List<BusyArcSnapshot>,
+    val hasStarted: Boolean,
 )
 
 internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySnapshot {
@@ -174,5 +175,6 @@ internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySna
                 hoverLabel = busyArcHoverLabel(arc, use24Hour),
             )
         },
+        hasStarted = progress.hasStarted,
     )
 }
