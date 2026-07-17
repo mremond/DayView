@@ -4,8 +4,9 @@ import DayViewKit
 /// The DayView dial, shared by the main and mini windows. Draws (in order) the track, an
 /// optional goal halo, 24 hour ticks, the ratio-accented remaining sweep (a rotated
 /// gradient once the day has started, else a uniform ring), the moment marker, the
-/// finished rest state, and the calendar-busy lane (glow + core). Constants mirror the
-/// JVM CountdownCircle. Drawing only — the interior text and hover live with the callers.
+/// finished rest state, the calendar-busy lane (inner, glow + core), and the detour lane
+/// (outer, glow + core). Constants mirror the JVM CountdownCircle. Drawing only — the
+/// interior text and hover live with the callers.
 struct DayRingCanvas: View {
     let momentAngleDegrees: Double
     let remainingRatio: Double
@@ -13,6 +14,7 @@ struct DayRingCanvas: View {
     let hasStarted: Bool
     var hasGoal: Bool = false
     var busyArcs: [BusyArcSnapshot] = []
+    var detourBodies: [DetourBodySnapshot] = []
     var lineWidth: CGFloat = DayRingCanvas.defaultLineWidth
     var inset: CGFloat = DayRingCanvas.defaultInset
 
@@ -24,6 +26,7 @@ struct DayRingCanvas: View {
     static let defaultLineWidth: CGFloat = 18
     static let busyRadiusFactor: CGFloat = 0.95
     static let busyWidthFactor: CGFloat = 0.7
+    static let detourRadiusFactor: CGFloat = 0.95
 
     var body: some View {
         Canvas { context, size in
@@ -111,6 +114,16 @@ struct DayRingCanvas: View {
                 let color = palette.busyColor(Int(arc.colorIndex))
                 var lane = Path()
                 lane.addArc(center: center, radius: busyRadius, startAngle: .degrees(arc.startAngleDegrees), endAngle: .degrees(arc.startAngleDegrees + arc.sweepDegrees), clockwise: false)
+                context.stroke(lane, with: .color(color.opacity(0.16)), style: StrokeStyle(lineWidth: lineWidth * 0.7, lineCap: .round))
+                context.stroke(lane, with: .color(color.opacity(0.92)), style: StrokeStyle(lineWidth: lineWidth * 0.42, lineCap: .round))
+            }
+
+            // 8. Detour lane (outer, glow + core).
+            let detourRadius = radius + lineWidth * Self.detourRadiusFactor
+            for body in detourBodies {
+                let color = palette.detourColor(Int(body.colorIndex))
+                var lane = Path()
+                lane.addArc(center: center, radius: detourRadius, startAngle: .degrees(body.startAngleDegrees), endAngle: .degrees(body.startAngleDegrees + body.sweepDegrees), clockwise: false)
                 context.stroke(lane, with: .color(color.opacity(0.16)), style: StrokeStyle(lineWidth: lineWidth * 0.7, lineCap: .round))
                 context.stroke(lane, with: .color(color.opacity(0.92)), style: StrokeStyle(lineWidth: lineWidth * 0.42, lineCap: .round))
             }

@@ -27,6 +27,14 @@ data class DetourEntry(
     val durationLabel: String, // formatDurationHm(duration)
 )
 
+/** One detour episode projected on the ring's outer lane, ready for drawing and hover. */
+data class DetourBodySnapshot(
+    val startAngleDegrees: Double, // -90° anchor, clockwise
+    val sweepDegrees: Double, // already floored to a visible minimum by :core
+    val colorIndex: Long, // matches the tally source color
+    val hoverLabel: String, // "<motif> · <start> – <end>"
+)
+
 /** One calendar-busy block projected on the ring, ready for native drawing and hover. */
 data class BusyArcSnapshot(
     val startAngleDegrees: Double, // -90° anchor (12 o'clock), clockwise
@@ -35,34 +43,53 @@ data class BusyArcSnapshot(
     val hoverLabel: String, // "<name> · <start>–<end>", see busyArcHoverLabel
 )
 
-private const val BUSY_HOVER_TOLERANCE_DEGREES = 5.0
-
 /**
- * Index of the arc containing [angleDegrees], or the nearest arc within 5° of one of
- * its edges — the JVM hover margin: a 15-minute event is a ~5° sliver, and pure
- * containment would make it a pixel-wide target. Ring convention: -90° anchor,
- * clockwise, wrap-aware. -1 when nothing is within tolerance.
+ * Index of the arc (parallel [starts]/[sweeps], same length) containing [angleDegrees], or
+ * the nearest whose edge is within [toleranceDegrees] — the JVM hover margin: a short arc is
+ * a few-degree sliver, and pure containment would make it a pixel-wide target. Ring
+ * convention: -90° anchor, clockwise, wrap-aware. -1 when nothing is within tolerance.
  */
-fun busyArcIndexAt(arcs: List<BusyArcSnapshot>, angleDegrees: Double): Int {
+fun angularArcIndexAt(
+    starts: List<Double>,
+    sweeps: List<Double>,
+    angleDegrees: Double,
+    toleranceDegrees: Double,
+): Int {
     val probe = normalizeRingDegrees(angleDegrees)
     var best = -1
     var bestDistance = Double.MAX_VALUE
-    arcs.forEachIndexed { index, arc ->
-        val offset = normalizeRingDegrees(probe - normalizeRingDegrees(arc.startAngleDegrees))
-        val distance = if (offset <= arc.sweepDegrees) {
+    for (index in starts.indices) {
+        val offset = normalizeRingDegrees(probe - normalizeRingDegrees(starts[index]))
+        val distance = if (offset <= sweeps[index]) {
             0.0
         } else {
             // Angular distance to the nearer edge, wrap-aware: past the end going
             // clockwise, or back around to the start going counter-clockwise.
-            minOf(offset - arc.sweepDegrees, 360.0 - offset)
+            minOf(offset - sweeps[index], 360.0 - offset)
         }
         if (distance < bestDistance) {
             bestDistance = distance
             best = index
         }
     }
-    return if (bestDistance <= BUSY_HOVER_TOLERANCE_DEGREES) best else -1
+    return if (bestDistance <= toleranceDegrees) best else -1
 }
+
+/** Busy-arc pick at the 5° hover margin. */
+fun busyArcIndexAt(arcs: List<BusyArcSnapshot>, angleDegrees: Double): Int = angularArcIndexAt(
+    arcs.map { it.startAngleDegrees },
+    arcs.map { it.sweepDegrees },
+    angleDegrees,
+    5.0,
+)
+
+/** Detour-body pick at the 6° hover margin (the JVM detour tolerance). */
+fun detourBodyIndexAt(bodies: List<DetourBodySnapshot>, angleDegrees: Double): Int = angularArcIndexAt(
+    bodies.map { it.startAngleDegrees },
+    bodies.map { it.sweepDegrees },
+    angleDegrees,
+    6.0,
+)
 
 private fun normalizeRingDegrees(degrees: Double): Double {
     val mod = degrees % 360.0
@@ -126,6 +153,7 @@ data class TodaySnapshot(
     val detourTotalLabel: String,
     val recentDetourCategories: List<String>,
     val detours: List<DetourEntry>,
+    val detourBodies: List<DetourBodySnapshot>,
 )
 
 internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySnapshot {
@@ -214,6 +242,18 @@ internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySna
                 timeRangeLabel = "${formatWallClock(start.hour, start.minute, use24Hour)} – " +
                     formatWallClock(end.hour, end.minute, use24Hour),
                 durationLabel = formatDurationHm(episode.duration),
+            )
+        },
+        detourBodies = detourBodiesState.map { body ->
+            val zone = TimeZone.currentSystemDefault()
+            val start = body.start.toLocalDateTime(zone)
+            val end = body.end.toLocalDateTime(zone)
+            DetourBodySnapshot(
+                startAngleDegrees = body.startAngleDegrees.toDouble(),
+                sweepDegrees = body.sweepDegrees.toDouble(),
+                colorIndex = body.colorIndex.toLong(),
+                hoverLabel = "${body.category} · ${formatWallClock(start.hour, start.minute, use24Hour)} – " +
+                    formatWallClock(end.hour, end.minute, use24Hour),
             )
         },
     )

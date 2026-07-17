@@ -33,13 +33,14 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Net time: K/N EventKit source (primed store, travel time), probe, settings section, `Net X h MM` readout | 7a |
 | Busy arcs on the main ring + hover labels (5° margin), 12/24-h clock plumbing | 7b |
 | Visual identity: palette (dark+light), layered dial, interior countdown, glow bg, panel cards | 8 |
+| Detours declare: capture sheet (motif/recent chips/duration), tally, daily total, edit list, forget-category | 9a |
 | App icon shared with the JVM build | (main, 89e4c6b) |
 
 ## Today screen
 
 | Item | Status | Notes |
 |---|---|---|
-| Detours: declare (+ recent-motif chips), ring bodies, per-source tally, daily total, edit list, tap/hover pop-up, goal halo | **PORT** | Big; own phase. `:core` types/persistence exist |
+| Detours: ring bodies (outer lane) + hover motif/times | 🔜 **9b** | Declare/tally/total/list/forget done in 9a; goal halo done in 8; `detourBodiesState` ready. Off-window tag deferred |
 | Must-dos (up to 3 planned obligations, complete/free slot) | **PORT** | Small; `:core` logic exists |
 | Focus/engaged arcs + "Focus H h MM" total below countdown | **PORT** | Depends on the presence phase (data source) |
 | Focus-session detail pop-up (intention, engaged, deep-focus per session) | **PORT** | Records exist since 5a; engaged/deep-focus figures need presence |

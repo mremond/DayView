@@ -886,4 +886,51 @@ class DayViewSessionTest {
 
         sub.cancel()
     }
+
+    @Test
+    fun detourBodiesCarryAnglesColorAndHoverLabel() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L) // midday UTC fixture
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.addDetour("Call", 15, "")
+        runCurrent()
+        val body = seen.last().detourBodies.single()
+        assertEquals(0L, body.colorIndex)
+        assertTrue(body.sweepDegrees > 0.0)
+        // Label from the episode's own instants (the entry carries the same span).
+        val entry = seen.last().detours.single()
+        val zone = TimeZone.currentSystemDefault()
+        val start = Instant.fromEpochMilliseconds(entry.startEpochMillis).toLocalDateTime(zone)
+        val end = Instant.fromEpochMilliseconds(entry.endEpochMillis).toLocalDateTime(zone)
+        assertEquals(
+            "Call · ${formatWallClock(start.hour, start.minute, true)} – ${formatWallClock(end.hour, end.minute, true)}",
+            body.hoverLabel,
+        )
+
+        sub.cancel()
+    }
+
+    @Test
+    fun detourBodiesEmptyWithNoDetours() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+        assertTrue(seen.last().detourBodies.isEmpty())
+        sub.cancel()
+    }
 }
