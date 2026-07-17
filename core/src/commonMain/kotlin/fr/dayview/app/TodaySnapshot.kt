@@ -10,6 +10,23 @@ data class CalendarChoice(
     val included: Boolean,
 )
 
+/** One distraction source for the tally row. */
+data class DetourSourceSnapshot(
+    val label: String,
+    val colorIndex: Long, // stable per source; the UI maps % detours palette size
+    val totalLabel: String, // formatDurationHm(total)
+)
+
+/** One declared detour episode, for the edit list (index matches detoursToday). */
+data class DetourEntry(
+    val startEpochMillis: Long,
+    val endEpochMillis: Long,
+    val category: String,
+    val description: String,
+    val timeRangeLabel: String, // "09:00 – 09:15"
+    val durationLabel: String, // formatDurationHm(duration)
+)
+
 /** One calendar-busy block projected on the ring, ready for native drawing and hover. */
 data class BusyArcSnapshot(
     val startAngleDegrees: Double, // -90° anchor (12 o'clock), clockwise
@@ -105,6 +122,10 @@ data class TodaySnapshot(
     val calendars: List<CalendarChoice>, // raw available calendars (settings checklist)
     val busyArcs: List<BusyArcSnapshot>,
     val hasStarted: Boolean,
+    val detourSources: List<DetourSourceSnapshot>,
+    val detourTotalLabel: String,
+    val recentDetourCategories: List<String>,
+    val detours: List<DetourEntry>,
 )
 
 internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySnapshot {
@@ -176,5 +197,24 @@ internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySna
             )
         },
         hasStarted = progress.hasStarted,
+        detourSources = detourSourcesState.map {
+            DetourSourceSnapshot(it.label, it.colorIndex.toLong(), formatDurationHm(it.total))
+        },
+        detourTotalLabel = if (detoursToday.isEmpty()) "" else "Detours ${formatDurationHm(detoursTotalToday)}",
+        recentDetourCategories = recentDetourCategories,
+        detours = detoursToday.map { episode ->
+            val zone = TimeZone.currentSystemDefault()
+            val start = episode.start.toLocalDateTime(zone)
+            val end = episode.end.toLocalDateTime(zone)
+            DetourEntry(
+                startEpochMillis = episode.start.toEpochMilliseconds(),
+                endEpochMillis = episode.end.toEpochMilliseconds(),
+                category = episode.category,
+                description = episode.description,
+                timeRangeLabel = "${formatWallClock(start.hour, start.minute, use24Hour)} – " +
+                    formatWallClock(end.hour, end.minute, use24Hour),
+                durationLabel = formatDurationHm(episode.duration),
+            )
+        },
     )
 }

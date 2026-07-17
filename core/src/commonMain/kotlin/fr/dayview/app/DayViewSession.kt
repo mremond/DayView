@@ -140,5 +140,23 @@ class DayViewSession internal constructor(
 
     fun setFocusIntention(intention: String) = controller.setFocusIntention(intention)
 
+    fun addDetour(category: String, durationMinutes: Int, description: String) = controller.addDetour(category, durationMinutes, description)
+
+    fun updateDetour(index: Int, startEpochMillis: Long, endEpochMillis: Long, category: String, description: String) = controller.updateDetour(
+        index,
+        DetourEpisode(
+            start = Instant.fromEpochMilliseconds(startEpochMillis),
+            end = Instant.fromEpochMilliseconds(endEpochMillis),
+            category = category,
+            description = description,
+        ),
+    )
+
+    fun removeDetour(index: Int) = controller.removeDetour(index)
+
+    fun restoreLastRemovedDetour() = controller.restoreLastRemovedDetour()
+
+    fun forgetRecentDetourCategory(category: String) = controller.forgetRecentDetourCategory(category)
+
     fun close() = scope.cancel()
 }

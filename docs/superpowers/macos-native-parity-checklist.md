@@ -32,13 +32,13 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Kotlin-computed presentation labels (`secondsLabel`/`focusLine`/`menuBarTitle`) | 6 |
 | Net time: K/N EventKit source (primed store, travel time), probe, settings section, `Net X h MM` readout | 7a |
 | Busy arcs on the main ring + hover labels (5° margin), 12/24-h clock plumbing | 7b |
+| Visual identity: palette (dark+light), layered dial, interior countdown, glow bg, panel cards | 8 |
 | App icon shared with the JVM build | (main, 89e4c6b) |
 
 ## Today screen
 
 | Item | Status | Notes |
 |---|---|---|
-| Visual identity pass: DayView palette (ink/mint/amber), radial glow, gradient sweep, moment marker, ratio-based accent (mint→amber→red) | **PORT** | The native app is functionally ahead but visually plain vanilla SwiftUI; one dedicated phase |
 | Detours: declare (+ recent-motif chips), ring bodies, per-source tally, daily total, edit list, tap/hover pop-up, goal halo | **PORT** | Big; own phase. `:core` types/persistence exist |
 | Must-dos (up to 3 planned obligations, complete/free slot) | **PORT** | Small; `:core` logic exists |
 | Focus/engaged arcs + "Focus H h MM" total below countdown | **PORT** | Depends on the presence phase (data source) |
@@ -55,7 +55,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Presence tracking: frontmost-app watcher, on-goal classification, engaged/deep-focus accumulation | **PORT** | `:core` accumulators exist; native needs an `NSWorkspace` frontmost provider — simpler than the JVM's approach |
 | Drift nudges: 4-switches rule, 2-min off-goal rule, grace/interval, notification | **PORT** | Same phase as presence |
 | On-goal apps settings screen (running-apps picker) | **PORT** | Same phase as presence |
-| Dock badge while a drift reminder is pending | **PORT** | Trivial once presence exists |
+| Dock badge + single Dock bounce while a drift reminder is pending | **PORT** | Trivial once presence exists; JVM MacDockBadge + MacDockBouncer (main e1b122c) are the reference |
 | Resume ritual (still-active session found on relaunch/wake) | **PORT** | Own small phase; brings the window to front |
 | `sessionOffGoal` feeding the clean-session ledger | **PORT** | Falls out of presence; closes the 5a documented limitation |
 | Keyboard shortcuts: ⌘↩ start focus, ←/→ duration, Esc closes dialogs | **PORT** | Cheap; native `.keyboardShortcut` |
@@ -120,8 +120,8 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 ## Suggested sequencing (adjust freely)
 
 1. ~~**7b** busy arcs + hover~~ ✅ merged 2a1520d
-2. **Visual identity pass** (palette, styled ring/cards) — makes every later screen land in its final look
-3. **Detours** (visuals now exist to draw bodies/halo)
+2. ~~**Visual identity pass**~~ ✅ merged a4fb363
+3. **Detours** (visuals now exist to draw bodies/halo) ← next
 4. **Presence & on-goal** (drift nudges, engaged arcs, dock badge, `sessionOffGoal`)
 5. **Resume ritual** + keyboard shortcuts (small)
 6. **Must-dos** + hero quotes (small)

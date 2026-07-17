@@ -751,4 +751,139 @@ class DayViewSessionTest {
         assertEquals(false, notYetSeen.last().hasStarted)
         sub2.cancel()
     }
+
+    @Test
+    fun detourCaptureFillsSourcesTotalAndList() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L) // midday UTC fixture
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.addDetour("Call", 15, "")
+        runCurrent()
+        val s = seen.last()
+        assertEquals(1, s.detourSources.size)
+        assertEquals("Call", s.detourSources.first().label)
+        assertTrue(Regex("^(\\d+ h \\d{2}|\\d+ min)$").matches(s.detourSources.first().totalLabel))
+        assertTrue(s.detourTotalLabel.startsWith("Detours "))
+        assertEquals(1, s.detours.size)
+        assertTrue(s.recentDetourCategories.contains("Call"))
+        // The list entry's time range is built from the episode's own instants.
+        val entry = s.detours.first()
+        val zone = TimeZone.currentSystemDefault()
+        val start = Instant.fromEpochMilliseconds(entry.startEpochMillis).toLocalDateTime(zone)
+        val end = Instant.fromEpochMilliseconds(entry.endEpochMillis).toLocalDateTime(zone)
+        assertEquals(
+            "${formatWallClock(start.hour, start.minute, true)} – ${formatWallClock(end.hour, end.minute, true)}",
+            entry.timeRangeLabel,
+        )
+
+        sub.cancel()
+    }
+
+    @Test
+    fun detourRemoveThenRestoreRoundTrips() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.addDetour("Call", 15, "")
+        session.addDetour("Chat", 30, "")
+        runCurrent()
+        assertEquals(2, seen.last().detours.size)
+
+        session.removeDetour(0)
+        runCurrent()
+        assertEquals(1, seen.last().detours.size)
+
+        session.restoreLastRemovedDetour()
+        runCurrent()
+        assertEquals(2, seen.last().detours.size)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun detourUpdateAndForgetCategory() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.addDetour("Call", 15, "")
+        runCurrent()
+        val e = seen.last().detours.first()
+        session.updateDetour(0, e.startEpochMillis, e.endEpochMillis, "Meeting", "")
+        runCurrent()
+        assertEquals("Meeting", seen.last().detours.first().category)
+
+        session.forgetRecentDetourCategory("Meeting")
+        runCurrent()
+        assertTrue(!seen.last().recentDetourCategories.contains("Meeting"))
+
+        sub.cancel()
+    }
+
+    @Test
+    fun sameCategoryDetoursAccumulateInOneSource() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.addDetour("Call", 15, "")
+        session.addDetour("Call", 30, "")
+        runCurrent()
+        // One source, both episodes; the list keeps both entries.
+        assertEquals(1, seen.last().detourSources.size)
+        assertEquals(2, seen.last().detours.size)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun updateDetourChangesTheTimeSpan() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+
+        session.addDetour("Call", 15, "")
+        runCurrent()
+        val e = seen.last().detours.first()
+        // Widen the span: keep the end, move the start 60 minutes earlier.
+        val newStart = e.startEpochMillis - 45 * 60_000L
+        session.updateDetour(0, newStart, e.endEpochMillis, e.category, e.description)
+        runCurrent()
+        assertEquals(newStart, seen.last().detours.first().startEpochMillis)
+
+        sub.cancel()
+    }
 }

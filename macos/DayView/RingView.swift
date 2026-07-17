@@ -9,6 +9,8 @@ struct RingView: View {
     @State private var deadline: Date = Date()
     @State private var seeded = false
     @State private var lastPomodoroStatus = "IDLE"
+    @State private var showDetourCapture = false
+    @State private var showDetourList = false
 
     private struct HoveredBusyArc {
         let label: String
@@ -24,6 +26,7 @@ struct RingView: View {
         ScrollView {
             VStack(spacing: 28) {
                 ringSection
+                detourSection
                 focusSection
                 goalSection
             }
@@ -36,6 +39,8 @@ struct RingView: View {
             )
             .ignoresSafeArea()
         )
+        .sheet(isPresented: $showDetourCapture) { DetourCaptureSheet(model: model, isPresented: $showDetourCapture) }
+        .sheet(isPresented: $showDetourList) { DetourListSheet(model: model, isPresented: $showDetourList) }
         .onReceive(model.$snapshot) { snap in
             // Seed the local text/date fields once from persisted state.
             if !seeded {
@@ -89,6 +94,10 @@ struct RingView: View {
                         Text(model.snapshot.netTimeLabel)
                             .font(.caption).monospacedDigit().foregroundStyle(palette.muted)
                     }
+                    if !model.snapshot.detourTotalLabel.isEmpty {
+                        Text(model.snapshot.detourTotalLabel)
+                            .font(.caption).foregroundStyle(palette.muted)
+                    }
                 }
                 if let hover = hoveredBusy {
                     Text(hover.label)
@@ -101,6 +110,37 @@ struct RingView: View {
             }
         }
         .frame(height: 300)
+    }
+
+    private var detourSection: some View {
+        VStack(spacing: 10) {
+            if !model.snapshot.detourSources.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(model.snapshot.detourSources, id: \.label) { source in
+                            Button {
+                                showDetourList = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Circle().fill(palette.detourColor(Int(source.colorIndex))).frame(width: 8, height: 8)
+                                    Text(source.label).foregroundStyle(palette.cloud)
+                                    Text(source.totalLabel).foregroundStyle(palette.muted)
+                                }
+                                .font(.caption)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            Button {
+                showDetourCapture = true
+            } label: {
+                Label("Detour", systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
+            .tint(palette.muted)
+        }
     }
 
     private var focusSection: some View {

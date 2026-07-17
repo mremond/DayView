@@ -35,6 +35,16 @@ final class TodayModel: ObservableObject {
     func setGoalDeadline(epochMillis: Int64) { session.setGoalDeadline(epochMillis: epochMillis) }
     func clearGoalDeadline() { session.setGoalDeadline(epochMillis: 0) }
 
+    func addDetour(category: String, durationMinutes: Int32, description: String) {
+        session.addDetour(category: category, durationMinutes: durationMinutes, description: description)
+    }
+    func updateDetour(index: Int32, startEpochMillis: Int64, endEpochMillis: Int64, category: String, description: String) {
+        session.updateDetour(index: index, startEpochMillis: startEpochMillis, endEpochMillis: endEpochMillis, category: category, description: description)
+    }
+    func removeDetour(index: Int32) { session.removeDetour(index: index) }
+    func restoreLastRemovedDetour() { session.restoreLastRemovedDetour() }
+    func forgetRecentDetourCategory(_ category: String) { session.forgetRecentDetourCategory(category: category) }
+
     deinit {
         subscription?.cancel()
         timer?.invalidate()
