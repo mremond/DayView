@@ -562,14 +562,16 @@ internal fun DetourEditForm(
     val initialStart = (initial?.start ?: now).toLocalDateTime(timeZone)
     var category by remember { mutableStateOf(initial?.category.orEmpty()) }
     var description by remember { mutableStateOf(initial?.description.orEmpty()) }
-    var startMinutes by remember {
-        mutableIntStateOf(
-            (initialStart.hour * 60 + initialStart.minute - if (initial == null) 15 else 0).coerceAtLeast(0),
-        )
-    }
-    var durationMinutes by remember {
-        mutableIntStateOf(initial?.duration?.inWholeMinutes?.toInt() ?: 15)
-    }
+    val initialDurationMinutes = initial?.duration?.inWholeMinutes?.toInt() ?: 15
+    val initialStartMinutes =
+        (initialStart.hour * 60 + initialStart.minute - if (initial == null) initialDurationMinutes else 0).coerceAtLeast(0)
+    var durationMinutes by remember { mutableIntStateOf(initialDurationMinutes) }
+    var startPinned by remember { mutableStateOf(false) }
+    var pinnedStartMinutes by remember { mutableIntStateOf(initialStartMinutes) }
+    // Anchored end: duration edits grow the episode backwards from its end (now, for a
+    // retroactive add) until the user pins the start by nudging or typing it.
+    val endAnchorMinutes = initialStartMinutes + initialDurationMinutes
+    val startMinutes = if (startPinned) pinnedStartMinutes else (endAnchorMinutes - durationMinutes).coerceIn(0, 23 * 60 + 55)
     Column {
         GoalTextField(
             value = description,
@@ -584,6 +586,7 @@ internal fun DetourEditForm(
             semanticLabel = stringResource(Res.string.detour_category_label),
             placeholder = stringResource(Res.string.detour_category_placeholder),
             onValueChange = { category = it },
+            modifier = Modifier.testTag(DayViewTestTags.DetourCategoryField),
         )
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -596,7 +599,10 @@ internal fun DetourEditForm(
                         enabled = startMinutes > 0,
                         onClickLabel = stringResource(Res.string.detour_start_decrease),
                         valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
-                    ) { startMinutes = snapToFive(startMinutes, -1).coerceIn(0, 23 * 60 + 55) }
+                    ) {
+                        pinnedStartMinutes = snapToFive(startMinutes, -1).coerceIn(0, 23 * 60 + 55)
+                        startPinned = true
+                    }
                     Spacer(Modifier.width(10.dp))
                     EditableTimeValue(
                         displayText = formatMinutesOfDay(startMinutes, uses24Hour),
@@ -605,7 +611,10 @@ internal fun DetourEditForm(
                         editLabel = stringResource(Res.string.detour_start_edit_label),
                         valueTag = DayViewTestTags.DetourEditStartValue,
                         fieldTag = DayViewTestTags.DetourEditStartField,
-                        onCommit = { startMinutes = it },
+                        onCommit = { typed ->
+                            pinnedStartMinutes = typed
+                            startPinned = true
+                        },
                     )
                     Spacer(Modifier.width(10.dp))
                     TimeButton(
@@ -614,7 +623,10 @@ internal fun DetourEditForm(
                         onClickLabel = stringResource(Res.string.detour_start_increase),
                         valueDescription = stringResource(Res.string.detour_start_value, formatMinutesOfDay(startMinutes, uses24Hour)),
                         modifier = Modifier.testTag(DayViewTestTags.DetourEditStartIncrease),
-                    ) { startMinutes = snapToFive(startMinutes, +1).coerceIn(0, 23 * 60 + 55) }
+                    ) {
+                        pinnedStartMinutes = snapToFive(startMinutes, +1).coerceIn(0, 23 * 60 + 55)
+                        startPinned = true
+                    }
                 }
             }
             Column(Modifier.weight(1f)) {

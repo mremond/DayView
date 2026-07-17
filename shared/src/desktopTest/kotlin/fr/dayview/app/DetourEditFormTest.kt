@@ -41,6 +41,47 @@ class DetourEditFormTest {
     }
 
     @Test
+    fun durationChangeKeepsRetroactiveAddEndingNow() = runComposeUiTest {
+        var saved: DetourEpisode? = null
+        setContent {
+            DetourEditForm(
+                initial = null,
+                now = midWindowNow(),
+                onDelete = null,
+                onCancel = {},
+                onSave = { saved = it },
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourCategoryField).performTextInput("vélo")
+        onNodeWithTag(DayViewTestTags.DetourEditDurationIncrease).performClick()
+        onNodeWithTag(DayViewTestTags.DetourEditSave).performClick()
+
+        // now is 13:00; 15 min + snaps to 20 min and the start follows so the end stays at now.
+        assertEquals(12 * 60 + 40, localMinutes(saved!!))
+        assertEquals(20, saved!!.duration.inWholeMinutes.toInt())
+    }
+
+    @Test
+    fun durationChangeKeepsExistingEpisodeEndAnchored() = runComposeUiTest {
+        var saved: DetourEpisode? = null
+        setContent {
+            DetourEditForm(
+                initial = detourEpisodeAt(midWindowNow(), 14 * 60 + 30, 15, "vélo"),
+                now = midWindowNow(),
+                onDelete = null,
+                onCancel = {},
+                onSave = { saved = it },
+            )
+        }
+        onNodeWithTag(DayViewTestTags.DetourEditDurationIncrease).performClick()
+        onNodeWithTag(DayViewTestTags.DetourEditSave).performClick()
+
+        // 14:30–14:45 grows backwards: 20 min starting 14:25, end unchanged.
+        assertEquals(14 * 60 + 25, localMinutes(saved!!))
+        assertEquals(20, saved!!.duration.inWholeMinutes.toInt())
+    }
+
+    @Test
     fun typedStartAndDurationAreSaved() = runComposeUiTest {
         var saved: DetourEpisode? = null
         setContent {
