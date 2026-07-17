@@ -102,6 +102,7 @@ private fun runApplication() = application {
     val loginLauncher = remember { MacLoginLauncher() }
     val focusStatusItem = remember { MacFocusStatusItem() }
     val dockBadge = remember { MacDockBadge() }
+    val dockBouncer = remember { MacDockBouncer() }
     val frontmostApplicationProvider = remember { MacFrontmostApplicationProvider() }
     val runningApplicationsProvider = remember { MacRunningApplicationsProvider() }
     val focusDriftDetector = remember { FocusDriftDetector() }
@@ -316,6 +317,7 @@ private fun runApplication() = application {
     }
     LaunchedEffect(focusDriftReminderId) {
         dockBadge.update(focusDriftReminderId != null)
+        dockBouncer.update(focusDriftReminderId)
     }
     DisposableEffect(Unit) {
         onDispose {
