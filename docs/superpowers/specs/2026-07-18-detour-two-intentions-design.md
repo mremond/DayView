@@ -102,6 +102,13 @@ fun cancelOpenDetour()
   open overnight can neither cross midnight nor produce a ten-hour episode.
 - `cancelOpenDetour` clears the open state without committing — for a toggle hit by accident.
 
+The exclusion is deliberately **asymmetric**: `startPomodoro` keeps its
+`if (state.openDetourStart != null) return` guard. Entering a detour during a focus session is
+a real event — you got pulled away. Starting a focus while a detour is open is not the mirror
+of it: it means you are *back*, so the detour should end rather than coexist. Since ending it
+requires a motif, the honest behaviour is to refuse and let the UI say to stop the detour
+first.
+
 Day rollover deliberately leaves `openDetourStart` alone: `openDetourStart` is not day-keyed
 (unlike `detoursToday`), and silently discarding an open detour at midnight would lose real
 data. The cap and the floor above are what make that safe, and the capped range is surfaced
