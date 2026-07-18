@@ -8,6 +8,7 @@ import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
@@ -269,6 +270,9 @@ fun detourDefaultStartMinutes(
 
 /** How far back the retroactive default start may reach when no boundary is nearer. */
 val DETOUR_ANCHOR_MAX_LOOKBACK: Duration = 120.minutes
+
+/** Longest span an open detour may record; a longer one was forgotten, not lived. */
+val OPEN_DETOUR_MAX_SPAN: Duration = 4.hours
 
 /**
  * Default start for a retroactive detour: the last boundary before [now] — the end of the most

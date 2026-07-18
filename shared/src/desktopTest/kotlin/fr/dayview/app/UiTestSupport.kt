@@ -268,7 +268,9 @@ internal fun controllerDayViewActions(controller: DayViewController): DayViewScr
     removeDetour = { controller.removeDetour(it) },
     addDetourEpisode = { controller.addDetourEpisode(it) },
     startOpenDetour = { category, description -> controller.startOpenDetour(category, description) },
-    stopOpenDetour = { controller.stopOpenDetour() },
+    // Same temporary shim as App.kt: keeps this test-support wiring compiling until the
+    // Compose UI plan replaces it with the closure form that collects the motif at stop.
+    stopOpenDetour = { controller.stopOpenDetour(controller.state.openDetourCategory) },
     forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
     addPlannedObligation = { controller.addPlannedObligation(it) },
     removePlannedObligation = { controller.removePlannedObligation(it) },

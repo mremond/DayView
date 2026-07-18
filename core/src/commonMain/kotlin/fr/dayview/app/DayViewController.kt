@@ -536,36 +536,59 @@ class DayViewController(
         )
     }
 
+    /**
+     * Enter a detour now. The motif is optional here on purpose: at the moment you are pulled
+     * away, a form is the wrong thing to ask for — the motif is collected by [stopOpenDetour],
+     * when you know what it was. Allowed during a focus session; the countdown keeps running
+     * and the span is hollowed out of engaged time.
+     */
     fun startOpenDetour(
-        category: String,
+        category: String = "",
         description: String = "",
     ) {
-        // Mutually exclusive with focus, and only one open detour at a time.
-        if (state.pomodoroEnd != null || state.openDetourStart != null) return
-        val clean = sanitizeDetourCategory(category)
-        if (clean.isEmpty()) return
+        // Only one open detour at a time.
+        if (state.openDetourStart != null) return
         state = state.copy(
             openDetourStart = state.now,
-            openDetourCategory = clean,
+            openDetourCategory = sanitizeDetourCategory(category),
             openDetourDescription = sanitizeDetourDescription(description),
         )
         persistState()
     }
 
-    fun stopOpenDetour() {
+    /**
+     * Close the open detour into an episode ending now, using the motif supplied at stop time.
+     * A blank motif is refused and leaves the detour open — the caller's form is responsible
+     * for requiring one. The span is capped at [OPEN_DETOUR_MAX_SPAN] and floored at the start
+     * of the local day, so a detour forgotten open overnight can neither cross midnight nor
+     * record a monstrous episode.
+     */
+    fun stopOpenDetour(
+        category: String,
+        description: String = "",
+    ) {
         val start = state.openDetourStart ?: return
-        val minutes = (state.now - start).inWholeMinutes.toInt().coerceAtLeast(1)
-        val category = state.openDetourCategory
-        val description = state.openDetourDescription
-        // Clear the open state first (no persist yet).
+        val clean = sanitizeDetourCategory(category)
+        if (clean.isEmpty()) return
+        val end = state.now
+        val flooredStart = maxOf(start, end - OPEN_DETOUR_MAX_SPAN, startOfLocalDay(end))
         state = state.copy(openDetourStart = null, openDetourCategory = "", openDetourDescription = "")
-        if (sanitizeDetourCategory(category).isEmpty()) {
-            // addDetour would no-op without persisting; write the cleared state ourselves.
+        if (flooredStart >= end) {
+            // Degenerate span (clock skew): drop the episode but persist the cleared state.
             persistState()
             return
         }
-        // addDetour's own persist then writes the cleared fields plus the new episode atomically.
-        addDetour(category, minutes, description)
+        commitDetours(
+            state.detoursToday + DetourEpisode(flooredStart, end, clean, sanitizeDetourDescription(description)),
+            pushCategory = clean,
+        )
+    }
+
+    /** Discard the open detour without recording anything — for a toggle hit by accident. */
+    fun cancelOpenDetour() {
+        if (state.openDetourStart == null) return
+        state = state.copy(openDetourStart = null, openDetourCategory = "", openDetourDescription = "")
+        persistState()
     }
 
     fun closePomodoro(outcome: FocusClosureOutcome) {

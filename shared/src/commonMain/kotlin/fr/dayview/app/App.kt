@@ -614,7 +614,10 @@ fun DayViewApp(
                                     removeDetour = { controller.removeDetour(it) },
                                     addDetourEpisode = { controller.addDetourEpisode(it) },
                                     startOpenDetour = { category, description -> controller.startOpenDetour(category, description) },
-                                    stopOpenDetour = { controller.stopOpenDetour() },
+                                    // Temporary shim: reproduces the old "commit with the motif given at start" behaviour so
+                                    // :shared keeps building. The Compose UI plan replaces it with the closure form, which is
+                                    // what collects the motif at stop.
+                                    stopOpenDetour = { controller.stopOpenDetour(controller.state.openDetourCategory) },
                                     forgetDetourCategory = { controller.forgetRecentDetourCategory(it) },
                                     addPlannedObligation = { controller.addPlannedObligation(it) },
                                     removePlannedObligation = { controller.removePlannedObligation(it) },

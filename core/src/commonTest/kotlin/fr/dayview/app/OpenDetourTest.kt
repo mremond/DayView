@@ -2,13 +2,12 @@ package fr.dayview.app
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
@@ -33,17 +32,19 @@ class OpenDetourTest {
     }
 
     @Test
-    fun startIgnoresBlankCategory() {
+    fun startAcceptsBlankCategory() {
         val c = controller(DayPreferencesSnapshot())
-        c.startOpenDetour("   ", "x")
-        assertNull(c.state.openDetourStart)
+        c.startOpenDetour()
+        assertEquals(now, c.state.openDetourStart)
+        assertEquals("", c.state.openDetourCategory)
     }
 
     @Test
-    fun startRefusedWhileFocusRunning() {
+    fun startAllowedWhileFocusRunning() {
         val c = controller(DayPreferencesSnapshot(pomodoroEnd = now + 25.minutes))
-        c.startOpenDetour("Réunion", "")
-        assertNull(c.state.openDetourStart)
+        c.startOpenDetour()
+        assertEquals(now, c.state.openDetourStart)
+        assertTrue(c.state.focusIsActive)
     }
 
     @Test
@@ -54,17 +55,59 @@ class OpenDetourTest {
     }
 
     @Test
-    fun stopRecordsEpisodeAndClears() {
-        val c = controller(
-            DayPreferencesSnapshot(openDetourStart = now - 15.minutes, openDetourCategory = "Réunion"),
-        )
-        c.stopOpenDetour()
+    fun stopRecordsEpisodeWithTheMotifGivenAtStop() {
+        val c = controller(DayPreferencesSnapshot(openDetourStart = now - 15.minutes))
+        c.stopOpenDetour("  Réunion\nimprévue ", "avec Paul")
         assertNull(c.state.openDetourStart)
         assertEquals("", c.state.openDetourCategory)
         val episode = c.state.detoursToday.single()
-        assertEquals("Réunion", episode.category)
+        assertEquals("Réunion imprévue", episode.category)
+        assertEquals("avec Paul", episode.description)
         assertEquals(now, episode.end)
         assertEquals(15.minutes, episode.end - episode.start)
+    }
+
+    @Test
+    fun stopIgnoresABlankMotif() {
+        val c = controller(DayPreferencesSnapshot(openDetourStart = now - 15.minutes))
+        c.stopOpenDetour("   ")
+        assertEquals(now - 15.minutes, c.state.openDetourStart)
+        assertTrue(c.state.detoursToday.isEmpty())
+    }
+
+    @Test
+    fun stopCapsTheSpanAtFourHours() {
+        val c = controller(DayPreferencesSnapshot(openDetourStart = now - 9.hours))
+        c.stopOpenDetour("Oubli")
+        val episode = c.state.detoursToday.single()
+        assertEquals(now, episode.end)
+        assertEquals(4.hours, episode.end - episode.start)
+    }
+
+    @Test
+    fun stopNeverCrossesMidnight() {
+        // 01:00 local: the 4 h cap would still reach into yesterday, so the day floor wins.
+        val startOfToday = startOfLocalDay(now)
+        val oneAm = startOfToday + 1.hours
+        val c = DayViewController(
+            DefaultDayPreferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = DayPreferencesSnapshot(openDetourStart = oneAm - 3.hours),
+            initialNow = oneAm,
+        )
+        c.stopOpenDetour("Nuit blanche")
+        val episode = c.state.detoursToday.single()
+        assertEquals(startOfToday, episode.start)
+        assertEquals(oneAm, episode.end)
+    }
+
+    @Test
+    fun cancelClearsWithoutRecording() {
+        val c = controller(DayPreferencesSnapshot(openDetourStart = now - 15.minutes))
+        c.cancelOpenDetour()
+        assertNull(c.state.openDetourStart)
+        assertEquals("", c.state.openDetourCategory)
+        assertTrue(c.state.detoursToday.isEmpty())
     }
 
     @Test
@@ -80,26 +123,5 @@ class OpenDetourTest {
         c.startOpenDetour("Deuxième", "x")
         assertEquals(now, c.state.openDetourStart)
         assertEquals("Première", c.state.openDetourCategory)
-    }
-
-    @Test
-    fun stopPersistsClearedStateEvenWithBlankCategory() = runTest {
-        DefaultDayPreferences.persist(DayPreferencesSnapshot())
-        val running = DayPreferencesSnapshot(openDetourStart = now - 5.minutes, openDetourCategory = "")
-        DefaultDayPreferences.persist(running)
-        try {
-            val c = DayViewController(
-                DefaultDayPreferences,
-                CoroutineScope(Dispatchers.Unconfined),
-                initialSnapshot = running,
-                initialNow = now,
-            )
-            c.stopOpenDetour()
-            assertNull(c.state.openDetourStart)
-            assertTrue(c.state.detoursToday.isEmpty())
-            assertNull(DefaultDayPreferences.snapshots.first().openDetourStart)
-        } finally {
-            DefaultDayPreferences.persist(DayPreferencesSnapshot())
-        }
     }
 }
