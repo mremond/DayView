@@ -5,12 +5,13 @@ import kotlin.test.assertEquals
 
 class MacWindowSpaceBehaviorTest {
     @Test
-    fun addsAllSpacesAndFullScreenAuxiliaryWhilePreservingCompatibleFlags() {
-        val existing = (1L shl 1) or (1L shl 4)
+    fun addsOverlayBehaviorsWhilePreservingOnlyCompatibleFlags() {
+        val incompatible = (1L shl 1) or (1L shl 7) or (1L shl 9) or (1L shl 16) or (1L shl 17)
+        val compatible = 1L shl 4
 
         assertEquals(
-            (existing and (1L shl 1).inv()) or (1L shl 0) or (1L shl 8),
-            MacWindowSpaceBehavior.withFullScreenVisibility(existing),
+            compatible or (1L shl 0) or (1L shl 8) or (1L shl 18),
+            MacWindowSpaceBehavior.withFullScreenVisibility(incompatible or compatible),
         )
     }
 }

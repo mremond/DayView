@@ -421,9 +421,12 @@ private fun runApplication() = application {
             resizable = true,
         ) {
             window.minimumSize = java.awt.Dimension(200, 300)
+            DisposableEffect(Unit) {
+                onDispose { MacWindowSpaceBehavior.restoreRegularApplicationMode() }
+            }
             LaunchedEffect(window) {
                 repeat(10) {
-                    if (MacWindowSpaceBehavior.enableForWindowTitle(window.title)) return@LaunchedEffect
+                    MacWindowSpaceBehavior.enableForWindowTitle(window.title)
                     delay(50)
                 }
             }

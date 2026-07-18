@@ -12,6 +12,10 @@ struct MiniWindowBehavior: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         (nsView as? MiniWindowBehaviorView)?.configureWindow()
     }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: ()) {
+        NSApp.setActivationPolicy(.regular)
+    }
 }
 
 private final class MiniWindowBehaviorView: NSView {
@@ -22,10 +26,18 @@ private final class MiniWindowBehaviorView: NSView {
 
     func configureWindow() {
         guard let window else { return }
+        NSApp.setActivationPolicy(.accessory)
         var behavior = window.collectionBehavior
         behavior.remove(.moveToActiveSpace)
+        behavior.remove(.fullScreenPrimary)
+        behavior.remove(.fullScreenNone)
+        behavior.remove(.primary)
+        behavior.remove(.auxiliary)
         behavior.insert(.canJoinAllSpaces)
         behavior.insert(.fullScreenAuxiliary)
+        behavior.insert(.canJoinAllApplications)
         window.collectionBehavior = behavior
+        window.level = .screenSaver
+        window.hidesOnDeactivate = false
     }
 }
