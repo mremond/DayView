@@ -102,6 +102,7 @@ class DayViewSession internal constructor(
             onGoalBundleIds = state.onGoalApps.map { it.bundleId }.toSet(),
             pomodoroEnd = state.pomodoroEnd,
             dayKey = dayKeyOf(state.now),
+            detourOpen = state.openDetourRunning,
         )
         if (result.presenceIntervals != state.focusPresenceIntervals) {
             controller.setFocusPresenceIntervals(result.presenceIntervals)
