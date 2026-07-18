@@ -119,7 +119,9 @@ was empty) is replaced by this pair.
 
 ### `:core` — hollowing the focus session
 
-There are two engaged-time paths and **both** need the fix:
+There are **three** engaged-time paths, not two, and all three need the fix. The third was
+missed when this spec was first written and surfaced only in the whole-branch review — it is
+the one that ships:
 
 - **Android** derives engaged intervals from the session window
   (`derivesEngagedFromSessions`): `appendEngagedSession` carves with `detoursToday`. A focus
@@ -132,6 +134,15 @@ There are two engaged-time paths and **both** need the fix:
   off an on-goal app. A rabbit-hole inside your editor still counts as engaged. Fix: pass
   `openDetourRunning` into `observe` and treat the tick as off-goal. **A declared detour
   outranks app inference.**
+- **Compose desktop** — the build actually shipped as the macOS `.dmg` and the Linux packages,
+  which come from `shared/build/compose/binaries` — runs a *fourth* copy of that pipeline
+  inline in `Main.kt`, never touching `PresenceCoordinator`. It needs the same treatment,
+  applied separately. `PresenceCoordinator` reaches only the native SwiftUI app, which has no
+  detour surface yet, so fixing it alone would have changed nothing for any shipped user.
+
+That duplication between `PresenceCoordinator` and `Main.kt` is the root cause of this class of
+miss, and is worth collapsing: migrating `Main.kt`'s presence block onto `PresenceCoordinator`
+would also give the shipped desktop build the test coverage it currently lacks entirely.
 
 ### UI — one form, three configurations
 
