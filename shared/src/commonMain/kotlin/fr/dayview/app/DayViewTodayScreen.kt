@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,10 +52,12 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -525,6 +529,16 @@ private fun CompactTodayContent(
     val progress = state.dayProgress
     val pomodoro = state.pomodoroProgress
     var openSheet by remember { mutableStateOf<CompactSheet?>(null) }
+    val activeFocusRequester = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(pomodoro.status) {
+        if (pomodoro.status != PomodoroStatus.IDLE) {
+            // The compact Focus panel is inserted by this same state change. Wait for its
+            // first layout pass so the requester has real bounds to reveal.
+            withFrameNanos { }
+            activeFocusRequester.bringIntoView()
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -577,6 +591,7 @@ private fun CompactTodayContent(
                 onStart = actions.startPomodoro,
                 onStop = actions.stopPomodoro,
                 onClose = actions.closePomodoro,
+                modifier = Modifier.bringIntoViewRequester(activeFocusRequester),
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -2145,11 +2160,12 @@ private fun FocusPanel(
     onStart: () -> Unit,
     onStop: () -> Unit,
     onClose: (FocusClosureOutcome) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
     val animatedRatio by animateFloatAsState(progress.remainingRatio, tween(500), label = "focus-progress")
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(18.dp))
             .border(1.dp, colors.overlay.copy(alpha = .06f), RoundedCornerShape(18.dp))
             .padding(16.dp),
@@ -2610,7 +2626,15 @@ internal fun GoalTextField(
             .padding(horizontal = 12.dp, vertical = 11.dp),
         decorationBox = { innerTextField ->
             Box {
-                if (value.isEmpty()) Text(placeholder, color = colors.muted, fontSize = 13.sp)
+                if (value.isEmpty()) {
+                    Text(
+                        placeholder,
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 innerTextField()
             }
         },

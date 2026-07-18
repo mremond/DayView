@@ -196,6 +196,30 @@ class TodayScreenTest {
     }
 
     @Test
+    fun compactMainWindowBringsActiveFocusIntoView() = runComposeUiTest {
+        val now = midWindowNow()
+        val snapshot = DayPreferencesSnapshot(
+            focusIntention = "Finaliser la présentation",
+            pomodoroEnd = now + 25.minutes,
+        )
+        setContent {
+            val state = remember { seededController(snapshot, now).state }
+            VisualViewport(width = 420.dp, height = 680.dp) {
+                DayViewTheme {
+                    DayViewScreen(
+                        state = state,
+                        actions = noopDayViewActions(openMiniWindow = {}),
+                        reminders = noReminders(),
+                    )
+                }
+            }
+        }
+
+        onNodeWithTag(DayViewTestTags.FocusStop).assertIsDisplayed().assertInsideVisualViewport(this)
+        captureVisual("today-compact-active-focus-auto-scrolled")
+    }
+
+    @Test
     fun androidCompactViewportKeepsTouchActionsVisibleAtOneHundredThirtyPercent() = runComposeUiTest {
         val now = midWindowNow()
         val snapshot = DayPreferencesSnapshot(

@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -318,7 +320,7 @@ private fun FocusIntentionModal(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
-    Box(
+    BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
             .background(colors.ink.copy(alpha = .6f))
             .clickable(
@@ -328,9 +330,17 @@ private fun FocusIntentionModal(
             ),
         contentAlignment = Alignment.Center,
     ) {
+        val compactWidth = maxWidth < 280.dp
+        val compactHeight = maxHeight < 400.dp
+        val outerHorizontalPadding = if (compactWidth) 8.dp else 20.dp
+        val outerVerticalPadding = if (compactHeight) 8.dp else 0.dp
+        val cardPadding = if (compactWidth || compactHeight) 12.dp else 18.dp
+        val cardAlignment = if (compactHeight) Alignment.TopCenter else Alignment.Center
+
         Column(
             modifier = Modifier.fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .align(cardAlignment)
+                .padding(horizontal = outerHorizontalPadding, vertical = outerVerticalPadding)
                 .background(colors.panel, RoundedCornerShape(18.dp))
                 .border(1.dp, colors.overlay.copy(alpha = .08f), RoundedCornerShape(18.dp))
                 .clickable(
@@ -338,7 +348,9 @@ private fun FocusIntentionModal(
                     indication = null,
                     onClick = {},
                 )
-                .padding(18.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(cardPadding)
+                .testTag(DayViewTestTags.MiniFocusModal),
         ) {
             Text(
                 stringResource(Res.string.focus_section),
@@ -362,25 +374,43 @@ private fun FocusIntentionModal(
                 placeholder = stringResource(Res.string.focus_intention_placeholder),
                 onValueChange = onIntentionChange,
             )
-            Spacer(Modifier.height(14.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                FocusActionButton(
-                    stringResource(Res.string.focus_cancel_button),
-                    colors.muted,
-                    modifier = Modifier.weight(1f),
-                    onClick = onDismiss,
-                )
+            Spacer(Modifier.height(if (compactHeight) 10.dp else 14.dp))
+            if (compactWidth) {
                 FocusActionButton(
                     stringResource(Res.string.focus_start_short_button),
                     colors.amber,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.MiniFocusConfirm),
                     enabled = intention.isNotBlank(),
                     filled = true,
                     onClick = onStart,
                 )
+                Spacer(Modifier.height(8.dp))
+                FocusActionButton(
+                    stringResource(Res.string.focus_cancel_button),
+                    colors.muted,
+                    modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.MiniFocusCancel),
+                    onClick = onDismiss,
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    FocusActionButton(
+                        stringResource(Res.string.focus_cancel_button),
+                        colors.muted,
+                        modifier = Modifier.weight(1f).testTag(DayViewTestTags.MiniFocusCancel),
+                        onClick = onDismiss,
+                    )
+                    FocusActionButton(
+                        stringResource(Res.string.focus_start_short_button),
+                        colors.amber,
+                        modifier = Modifier.weight(1f).testTag(DayViewTestTags.MiniFocusConfirm),
+                        enabled = intention.isNotBlank(),
+                        filled = true,
+                        onClick = onStart,
+                    )
+                }
             }
         }
     }

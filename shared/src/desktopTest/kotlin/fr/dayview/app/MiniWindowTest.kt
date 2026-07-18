@@ -134,4 +134,32 @@ class MiniWindowTest {
         onNodeWithTag(DayViewTestTags.OpenMainWindow).assertIsDisplayed().assertInsideVisualViewport(this)
         onNodeWithTag(DayViewTestTags.MiniFocusStart).assertIsDisplayed().assertInsideVisualViewport(this)
     }
+
+    @Test
+    fun minimumMiniWindowKeepsFocusFormActionsVisible() = runComposeUiTest {
+        val now = midWindowNow()
+        setContent {
+            VisualViewport(width = 200.dp, height = 300.dp) {
+                DayViewMiniApp(
+                    progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                    showSeconds = false,
+                    now = now,
+                    goalTitle = "",
+                    goalDeadline = null,
+                    pomodoro = calculatePomodoroProgress(now, 25, null),
+                    focusIntention = "",
+                    onStartFocus = {},
+                    onStopFocus = {},
+                    onCloseFocus = {},
+                    onOpenMainWindow = {},
+                )
+            }
+        }
+
+        onNodeWithTag(DayViewTestTags.MiniFocusStart).performClick()
+        captureVisual("mini-window-focus-form-minimum-200x300")
+        onNodeWithTag(DayViewTestTags.MiniFocusModal).assertIsDisplayed().assertInsideVisualViewport(this)
+        onNodeWithTag(DayViewTestTags.MiniFocusConfirm).assertIsDisplayed().assertInsideVisualViewport(this)
+        onNodeWithTag(DayViewTestTags.MiniFocusCancel).assertIsDisplayed().assertInsideVisualViewport(this)
+    }
 }
