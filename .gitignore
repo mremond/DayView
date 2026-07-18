@@ -22,3 +22,6 @@ macos/Packages/DayViewKit/.build/
 server/sync-store.json
 server/sync-store.json.tmp
 server/sync-endpoint
+
+# Private working notes (strategy, pricing, market research)
+private/
