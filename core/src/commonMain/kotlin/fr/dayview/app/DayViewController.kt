@@ -506,11 +506,16 @@ class DayViewController(
      * so far. A focus session closing mid-detour must be carved by a span that is not committed
      * yet; `deriveEngagedIntervals` clips cuts to the session window, so the later real commit
      * cannot double-count.
+     *
+     * Deliberately skips the 4-hour cap and local-day floor that [stopOpenDetour] applies: this
+     * episode is provisional (never persisted as-is), and every caller clips it to a focus
+     * session window of at most a few hours, so an unbounded span here can never carve more than
+     * the session itself covers.
      */
-    private fun detoursForCarving(): List<DetourEpisode> {
+    private fun detoursForCarving(stopInstant: Instant): List<DetourEpisode> {
         val openStart = state.openDetourStart ?: return state.detoursToday
-        if (state.now <= openStart) return state.detoursToday
-        return state.detoursToday + DetourEpisode(openStart, state.now, PROVISIONAL_DETOUR_CATEGORY)
+        if (stopInstant <= openStart) return state.detoursToday
+        return state.detoursToday + DetourEpisode(openStart, stopInstant, PROVISIONAL_DETOUR_CATEGORY)
     }
 
     /**
@@ -523,7 +528,7 @@ class DayViewController(
         val end = state.pomodoroEnd ?: return
         val start = end - state.pomodoroMinutes.minutes
         val effectiveEnd = minOf(stopInstant, end)
-        val derived = deriveEngagedIntervals(start, effectiveEnd, detoursForCarving())
+        val derived = deriveEngagedIntervals(start, effectiveEnd, detoursForCarving(stopInstant))
         if (derived.isEmpty()) return
         val today = dayKeyOf(state.now)
         val existing = if (state.focusSessionDayKey == today) state.focusSessionIntervals else emptyList()
@@ -614,7 +619,7 @@ class DayViewController(
             pomodoroEnd = state.pomodoroEnd,
             pomodoroMinutes = state.pomodoroMinutes,
             sessionOffGoal = state.sessionOffGoal,
-            detoursToday = state.detoursToday,
+            detoursToday = detoursForCarving(state.now),
             outcome = outcome,
         )
         // Single atomic persist of the whole snapshot: unlike the previous

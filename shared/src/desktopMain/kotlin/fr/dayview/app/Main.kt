@@ -176,6 +176,9 @@ private fun runApplication() = application {
                 soundCuePlayer.play(SoundCue.BREAK_REMINDER, soundSettings.volumePercent / 100f)
             }
 
+            // A declared detour outranks app inference: rabbit-holing inside an on-goal app is
+            // still off the path, and only the user can say so (matches PresenceCoordinator).
+            val detourOpen = currentPreferences.openDetourStart != null
             val shouldShowResumeRitual = focusResumeDetector.observe(focusIsActive, currentNow)
             val frontmostBundleId = if (focusIsActive && !shouldShowResumeRitual) {
                 frontmostApplicationProvider.bundleIdentifier()
@@ -183,19 +186,21 @@ private fun runApplication() = application {
                 null
             }
             val onGoalBundleIds = currentPreferences.onGoalApps.map { it.bundleId }.toSet()
+            // Keep observing every tick, detour or not, so the detector's internal
+            // offGoalSince/cooldown state stays fresh; only the visible nudge below is
+            // suppressed while the detour is declared — you already know you are off path.
+            val driftDetected = focusDriftDetector.observe(
+                focusIsActive,
+                currentNow,
+                frontmostBundleId,
+                onGoalBundleIds,
+            )
             if (shouldShowResumeRitual) {
                 focusResumeRitualId = currentNow
                 focusDriftReminderId = null
                 isMiniWindowVisible = false
                 isWindowVisible = true
-            } else if (
-                focusDriftDetector.observe(
-                    focusIsActive,
-                    currentNow,
-                    frontmostBundleId,
-                    onGoalBundleIds,
-                )
-            ) {
+            } else if (!detourOpen && driftDetected) {
                 focusDriftReminderId = currentNow
                 nudgeNotifier.notify(
                     title = getString(Res.string.desktop_nudge_title),
@@ -212,7 +217,11 @@ private fun runApplication() = application {
             val dayKey = currentNow
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .date.toEpochDays()
-            val classification = classifyFrontmost(frontmostBundleId, onGoalBundleIds)
+            val classification = if (detourOpen) {
+                OnGoalState.OFF_GOAL
+            } else {
+                classifyFrontmost(frontmostBundleId, onGoalBundleIds)
+            }
             sessionOffGoal = cleanlinessTracker.observe(currentNow, currentPomodoroEnd, classification)
             // Diagnostic: measure classification mix and actual tick cadence per session, so
             // we can tell App Nap sampling gaps apart from on-goal misclassification.

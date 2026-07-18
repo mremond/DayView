@@ -49,4 +49,20 @@ class CloseFocusSnapshotTest {
         val closed = closeFocusSnapshot(snapshot, now, Duration.ZERO, FocusClosureOutcome.COMPLETED)
         assertEquals(1, closed.cleanSessions.cleanToday)
     }
+
+    @Test
+    fun stillOpenDetourPreventsACleanCount() {
+        // The mini window can close a focus session while a detour opened during it is still
+        // running (startOpenDetour no longer refuses during an active focus session). The open
+        // detour spans the whole session here, same as evaluateSessionClean would see via
+        // DayViewController.closePomodoro.
+        val snapshot = DayPreferencesSnapshot(
+            focusIntention = "mini window work",
+            pomodoroMinutes = 25,
+            pomodoroEnd = now,
+            openDetourStart = now - 25.minutes,
+        )
+        val closed = closeFocusSnapshot(snapshot, now, Duration.ZERO, FocusClosureOutcome.COMPLETED)
+        assertEquals(0, closed.cleanSessions.cleanToday)
+    }
 }

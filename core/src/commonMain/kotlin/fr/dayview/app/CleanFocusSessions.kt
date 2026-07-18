@@ -116,6 +116,23 @@ fun closedFocusLedger(
 } ?: cleanSessions
 
 /**
+ * Same shape as `DayViewController.detoursForCarving`: today's committed episodes plus, when
+ * the snapshot still has a detour open, a provisional episode covering it up to [now]. Without
+ * this, closing a focus session from a window that bypasses the controller (the desktop mini
+ * window) while a detour opened during the session is still running would miss the overlap and
+ * wrongly register the session as clean.
+ */
+private fun detoursForCarving(
+    snapshot: DayPreferencesSnapshot,
+    now: Instant,
+    committedToday: List<DetourEpisode>,
+): List<DetourEpisode> {
+    val openStart = snapshot.openDetourStart ?: return committedToday
+    if (now <= openStart) return committedToday
+    return committedToday + DetourEpisode(openStart, now, PROVISIONAL_DETOUR_CATEGORY)
+}
+
+/**
  * Applies a closure outcome directly to the persisted snapshot: ends the session, keeps
  * or clears the intention per outcome, and updates the clean-session ledger. Same
  * semantics as DayViewController.closePomodoro, for windows that bypass the controller
@@ -128,7 +145,8 @@ fun closeFocusSnapshot(
     outcome: FocusClosureOutcome,
 ): DayPreferencesSnapshot {
     val dayKey = dayKeyOf(now)
-    val detoursToday = if (snapshot.detoursDayKey == dayKey) snapshot.detours else emptyList()
+    val committedDetours = if (snapshot.detoursDayKey == dayKey) snapshot.detours else emptyList()
+    val detoursToday = detoursForCarving(snapshot, now, committedDetours)
     val newRecord = snapshot.pomodoroEnd?.let { end ->
         val start = end - snapshot.pomodoroMinutes.minutes
         val effectiveEnd = minOf(now, end)

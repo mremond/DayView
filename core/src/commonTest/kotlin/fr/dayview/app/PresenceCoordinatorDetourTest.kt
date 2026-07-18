@@ -69,4 +69,27 @@ class PresenceCoordinatorDetourTest {
         }
         assertFalse(fired, "no nudge while the detour is declared — you already know")
     }
+
+    @Test
+    fun noImmediateNudgeOnFirstTickAfterADetourEnds() {
+        val coordinator = PresenceCoordinator()
+        // Off-goal for under a minute before the detour opens: past the 30s initial grace so
+        // offGoalSince is set, but well short of the 120s sustained threshold, so nothing has
+        // fired yet and the reminder cooldown is still unset.
+        for (second in 0..40) coordinator.tickAt(second, detourOpen = false, bundleId = offGoalApp)
+        // Detour open well past the sustained threshold. If the drift detector kept observing
+        // underneath (the fix), it naturally "fires" once mid-detour (discarded — no visible
+        // nudge) and starts a fresh 5-minute cooldown. If it went stale (the bug), none of that
+        // happens and its pre-detour offGoalSince timestamp just sits there.
+        for (second in 41..300) coordinator.tickAt(second, detourOpen = true, bundleId = offGoalApp)
+        // Detour closes; frontmost app is still off-goal. The very first tick must not nudge —
+        // a stale offGoalSince would make `now - offGoalSince` look sustained immediately, with
+        // no grace period.
+        val result = coordinator.tickAt(301, detourOpen = false, bundleId = offGoalApp)
+        assertEquals(
+            null,
+            result.driftReminderAt,
+            "no immediate nudge on the first tick after a detour ends",
+        )
+    }
 }

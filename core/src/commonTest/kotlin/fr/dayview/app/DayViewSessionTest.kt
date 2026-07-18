@@ -1481,4 +1481,32 @@ class DayViewSessionTest {
             c.state.focusSessionIntervals,
         )
     }
+
+    @Test
+    fun closingASessionWithAnOpenDetourDoesNotRegisterAsClean() {
+        // Midday local: 12 h of margin on both sides so the clean-session dayKey lands on the
+        // same local day regardless of the machine's timezone.
+        val start = startOfLocalDay(Instant.fromEpochMilliseconds(1_700_000_000_000L)) + 12.hours
+        val pomodoroEnd = start + 25.minutes
+        val c = DayViewController(
+            DefaultDayPreferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = DayPreferencesSnapshot(
+                pomodoroEnd = pomodoroEnd,
+                pomodoroMinutes = 25,
+                focusIntention = "Ship it",
+                // Declared right when the session started and never closed: off-path the whole way.
+                openDetourStart = start,
+            ),
+            // The session ran to term while the detour was still open.
+            initialNow = pomodoroEnd,
+            derivesEngagedFromSessions = true,
+        )
+        c.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        // Engaged time correctly excludes the still-open detour...
+        assertEquals(Duration.ZERO, c.state.sessionFocusedToday)
+        // ...and the same closure must not count as a clean session or extend the streak.
+        assertEquals(0, c.state.cleanSessions.cleanToday)
+    }
 }

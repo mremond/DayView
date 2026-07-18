@@ -54,10 +54,12 @@ class PresenceCoordinator(private val dayViewBundleId: String = DAYVIEW_BUNDLE_I
         val state = if (detourOpen) OnGoalState.OFF_GOAL else classifyFrontmost(frontmostBundleId, onGoalBundleIds, dayViewBundleId)
         // JVM Main.kt ordering: the resume ritual wins the tick and suppresses a drift nudge.
         val resumeAt = if (resumeDetector.observe(isFocusActive, now)) now else null
-        // No nudge while the detour is declared — you already know you are off path.
-        val driftFired = !detourOpen &&
-            resumeAt == null &&
-            driftDetector.observe(isFocusActive, now, frontmostBundleId, onGoalBundleIds)
+        // Keep observing every tick — including while a detour is open — so the detector's
+        // internal offGoalSince/cooldown state stays fresh. Only the visible nudge is
+        // suppressed while the detour is declared: you already know you are off path, but a
+        // stale offGoalSince would otherwise read as instantly sustained the moment it closes.
+        val driftObserved = driftDetector.observe(isFocusActive, now, frontmostBundleId, onGoalBundleIds)
+        val driftFired = !detourOpen && resumeAt == null && driftObserved
         val driftAt = if (driftFired) now else null
         val offGoal = cleanlinessTracker.observe(now, pomodoroEnd, state)
         presence = when {
