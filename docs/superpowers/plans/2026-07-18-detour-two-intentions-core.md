@@ -22,12 +22,14 @@ Gradle. Tests in `core/src/commonTest`, run on the JVM target.
 - Design source of truth: `docs/superpowers/specs/2026-07-18-detour-two-intentions-design.md`.
 - Anchor lookback cap: **120 minutes**. Open-detour span cap: **4 hours**, additionally floored
   at the start of the local day so a span can never cross midnight.
-- This plan touches `:core`, **plus exactly one deliberate exception**: a one-line temporary
-  shim at `shared/src/commonMain/kotlin/fr/dayview/app/App.kt:617` (Task 2), needed because
-  removing the no-argument `stopOpenDetour()` breaks that call site. The shim is marked
-  temporary in a comment and is removed by the Compose UI plan. No other `:shared` file, and no
-  `:androidApp` or `macos/` file, is modified. A reviewer seeing this shim should confirm it
-  matches this constraint, not flag it as unplanned scope.
+- This plan touches `:core`, **plus two deliberate one-line shims** (Task 2), needed because
+  removing the no-argument `stopOpenDetour()` breaks its call sites:
+  `shared/src/commonMain/kotlin/fr/dayview/app/App.kt:617` and
+  `shared/src/desktopTest/kotlin/fr/dayview/app/UiTestSupport.kt:271`, a test-support helper
+  that mirrors `App.kt`'s wiring. Both carry a comment marking them temporary and are removed
+  by the Compose UI plan, which must update **both** sites. No other `:shared` file, and no
+  `:androidApp` or `macos/` file, is modified. A reviewer seeing these two shims should confirm
+  they match this constraint, not flag them as unplanned scope.
 - ktlint is enforced. Run `./gradlew ktlintCheck` before every commit; `./gradlew ktlintFormat`
   auto-fixes.
 - Full gate before the last commit:
