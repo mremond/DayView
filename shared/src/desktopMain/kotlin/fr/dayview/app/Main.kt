@@ -421,6 +421,12 @@ private fun runApplication() = application {
             resizable = true,
         ) {
             window.minimumSize = java.awt.Dimension(200, 300)
+            LaunchedEffect(window) {
+                repeat(10) {
+                    if (MacWindowSpaceBehavior.enableForWindowTitle(window.title)) return@LaunchedEffect
+                    delay(50)
+                }
+            }
             DayViewMiniApp(
                 progress = dayProgress,
                 showSeconds = showSeconds,

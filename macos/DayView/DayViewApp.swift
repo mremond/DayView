@@ -15,6 +15,7 @@ struct DayViewApp: App {
         Window("DayView Mini", id: "mini") {
             MiniView(model: model)
                 .frame(minWidth: 200, minHeight: 300)
+                .background(MiniWindowBehavior())
                 .onAppear { windows.isMiniOpen = true }
                 .onDisappear { windows.isMiniOpen = false }
                 .preferredColorScheme(preferredScheme(for: model.snapshot.themeMode))
