@@ -267,6 +267,31 @@ fun detourDefaultStartMinutes(
     return (nowMinutes - durationMinutes.coerceIn(1, 12 * 60)).coerceIn(0, 23 * 60 + 59)
 }
 
+/** How far back the retroactive default start may reach when no boundary is nearer. */
+val DETOUR_ANCHOR_MAX_LOOKBACK: Duration = 120.minutes
+
+/**
+ * Default start for a retroactive detour: the last boundary before [now] — the end of the most
+ * recent detour or focus session — clamped so it is never older than [maxLookback] nor earlier
+ * than [windowStart], and never later than [now].
+ *
+ * A duration is a guess; a boundary is knowledge. The clamps keep the proposal plausible on a
+ * day that started hours ago with nothing declared since.
+ */
+fun detourAnchorStart(
+    now: Instant,
+    detours: List<DetourEpisode>,
+    focusSessions: List<FocusSessionRecord>,
+    windowStart: Instant,
+    maxLookback: Duration = DETOUR_ANCHOR_MAX_LOOKBACK,
+): Instant {
+    val lastDetourEnd = detours.maxOfOrNull { it.end }
+    val lastFocusEnd = focusSessions.maxOfOrNull { it.end }
+    val floor = maxOf(now - maxLookback, windowStart)
+    val boundary = listOfNotNull(lastDetourEnd, lastFocusEnd).maxOrNull()
+    return maxOf(boundary ?: floor, floor).coerceAtMost(now)
+}
+
 /** Build an episode on the same local day as [dayReference], for the list editor. */
 fun detourEpisodeAt(
     dayReference: Instant,

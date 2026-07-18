@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 private fun t(ms: Long): Instant = Instant.fromEpochMilliseconds(ms)
@@ -333,5 +334,80 @@ class DetoursTest {
         // Inside the arc it is found; far away (180° across) it is not.
         assertEquals(body, detourBodyAtAngle(bodies, 0f))
         assertNull(detourBodyAtAngle(bodies, 180f))
+    }
+
+    // Anchor tests work in whole minutes from a fixed "now" for readability.
+    private val anchorNow = t(1_700_000_000_000L)
+    private fun minutesBefore(minutes: Int): Instant = anchorNow - minutes.minutes
+
+    @Test
+    fun anchorFallsBackToLookbackWhenNothingPrecedes() {
+        val anchor = detourAnchorStart(
+            now = anchorNow,
+            detours = emptyList(),
+            focusSessions = emptyList(),
+            windowStart = minutesBefore(600),
+        )
+        assertEquals(minutesBefore(120), anchor)
+    }
+
+    @Test
+    fun anchorNeverReachesBeforeTheDayWindow() {
+        val anchor = detourAnchorStart(
+            now = anchorNow,
+            detours = emptyList(),
+            focusSessions = emptyList(),
+            windowStart = minutesBefore(30),
+        )
+        assertEquals(minutesBefore(30), anchor)
+    }
+
+    @Test
+    fun anchorUsesTheLastDetourEnd() {
+        val anchor = detourAnchorStart(
+            now = anchorNow,
+            detours = listOf(
+                DetourEpisode(minutesBefore(90), minutesBefore(80), "vieux"),
+                DetourEpisode(minutesBefore(50), minutesBefore(40), "récent"),
+            ),
+            focusSessions = emptyList(),
+            windowStart = minutesBefore(600),
+        )
+        assertEquals(minutesBefore(40), anchor)
+    }
+
+    @Test
+    fun anchorUsesTheLastFocusEndWhenItIsNewer() {
+        val anchor = detourAnchorStart(
+            now = anchorNow,
+            detours = listOf(DetourEpisode(minutesBefore(90), minutesBefore(80), "détour")),
+            focusSessions = listOf(
+                FocusSessionRecord(minutesBefore(60), minutesBefore(25), "écrire", null),
+            ),
+            windowStart = minutesBefore(600),
+        )
+        assertEquals(minutesBefore(25), anchor)
+    }
+
+    @Test
+    fun anchorIgnoresBoundariesOlderThanTheLookback() {
+        val anchor = detourAnchorStart(
+            now = anchorNow,
+            detours = listOf(DetourEpisode(minutesBefore(400), minutesBefore(300), "ce matin")),
+            focusSessions = emptyList(),
+            windowStart = minutesBefore(600),
+        )
+        assertEquals(minutesBefore(120), anchor)
+    }
+
+    @Test
+    fun anchorNeverExceedsNow() {
+        val anchor = detourAnchorStart(
+            now = anchorNow,
+            detours = listOf(DetourEpisode(minutesBefore(10), anchorNow + 5.minutes, "en avance")),
+            focusSessions = emptyList(),
+            windowStart = minutesBefore(600),
+        )
+        assertEquals(anchorNow, anchor)
     }
 }
