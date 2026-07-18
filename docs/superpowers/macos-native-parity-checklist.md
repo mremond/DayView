@@ -35,7 +35,9 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Visual identity: palette (dark+light), layered dial, interior countdown, glow bg, panel cards | 8 |
 | Detours: capture/tally/total/edit-list/forget (9a) + ring bodies on outer lane with hover (9b) | 9a–9b |
 | Presence foundation: NSWorkspace frontmost feed, PresenceCoordinator, engaged arcs + Focus total, on-goal apps settings, sessionOffGoal → ledger | 10a |
+| Attention layer: drift nudges (4-switch / 2-min rules), Dock badge + single bounce, in-app drift banner, resumption ritual with window restore | 10b |
 | App icon shared with the JVM build | (main, 89e4c6b) |
+| Presence persistence: intervals written on the desktop cadence, seeded at launch so a relaunch mid-session continues the run | 11 |
 
 ## Today screen
 
@@ -52,12 +54,9 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Drift nudges: 4-switches rule, 2-min off-goal rule, grace/interval, notification | 🔜 **10b** | Detectors already relocated to `:core` in 10a; needs UNUserNotificationCenter (notification permission) |
-| Dock badge + single Dock bounce while a drift reminder is pending | **10b** | JVM MacDockBadge + MacDockBouncer (main e1b122c) are the reference |
-| Resume ritual (still-active session found on relaunch/wake) | **10b** | `FocusResumeDetector` already in `:core`; brings the window to front |
 | Keyboard shortcuts: ⌘↩ start focus, ←/→ duration, Esc closes dialogs | **PORT** | Cheap; native `.keyboardShortcut` |
 
-**New (from the 10a review):** native presence persistence — `focusPresenceIntervals` has no key in `:core`'s `DayPreferencesStore`, so engaged arcs/total are in-memory only and reset on relaunch; `focusSessionIntervals` persists but `DayViewNative` never seeds it back, so `PresenceCoordinator.restore()` is inert natively. **PORT** before cutover (the JVM persists these), own small phase.
+**New (from the 10b review):** (a) the drift **notification banner** — `UNUserNotificationCenter` needs authorization and does not deliver reliably unsigned, so it waits for the packaging phase (the JVM uses the deprecated `NSUserNotification`); (b) in **menu-bar-only mode** (both windows closed) a resume ritual latches with nothing to surface it — it appears when a window is next opened, but the JVM forces the window visible. Both **PORT** before cutover.
 
 ## Sounds
 
@@ -70,7 +69,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Day-rollover archiving wired natively | **PORT** | ⚠️ Verify first: `DayViewNative.create()` passes no history store — native rollover may not archive today. Behavior-layer item |
+| Day-rollover archiving wired natively | **PORT** | ⚠️ Verify first: `DayViewNative.create()` passes no history store — native rollover may not archive today. Behavior-layer item. When this lands, presence seeding must switch to the JVM's shape at the same time: seed the stored intervals raw and let the accumulators reset themselves on the day-key change, otherwise the archived record for the previous day carries no presence intervals |
 | Week screen (mini rings) + day screen (date label, back nav) | **PORT** | After the visual pass (reuses ring rendering) |
 
 ## Sync
@@ -121,7 +120,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 1. ~~**7b** busy arcs + hover~~ ✅ merged 2a1520d
 2. ~~**Visual identity pass**~~ ✅ merged a4fb363
 3. ~~**Detours**~~ ✅ merged 6d5025b (9a) + bc36539 (9b)
-4. ~~**Presence foundation (10a)**~~ ✅ merged 066c385 → **10b attention layer next** (drift nudges, dock badge/bounce, resume ritual)
+4. ~~**Presence & on-goal (10a + 10b)**~~ ✅ merged 066c385 + b2f4846
 5. **Resume ritual** + keyboard shortcuts (small)
 6. **Must-dos** + hero quotes (small)
 7. **Sounds**

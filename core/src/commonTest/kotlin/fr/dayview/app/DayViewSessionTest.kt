@@ -1048,6 +1048,28 @@ class DayViewSessionTest {
         }
     }
 
+    private class FakePresencePersistence(
+        private val stored: StoredPresence = StoredPresence(),
+    ) : PresencePersistence {
+        data class Save(
+            val dayKey: Long,
+            val presence: List<FocusPresenceInterval>,
+            val session: List<FocusPresenceInterval>,
+        )
+
+        val saves = mutableListOf<Save>()
+
+        override suspend fun load(): StoredPresence = stored
+
+        override suspend fun save(
+            dayKey: Long,
+            presence: List<FocusPresenceInterval>,
+            session: List<FocusPresenceInterval>,
+        ) {
+            saves.add(Save(dayKey, presence, session))
+        }
+    }
+
     @Test
     fun aStillActiveSessionAtLaunchRaisesTheResumeRitual() = runTest {
         val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
@@ -1265,6 +1287,171 @@ class DayViewSessionTest {
         runCurrent()
         assertTrue(!seen.last().showDriftReminder, "the 5-minute cooldown suppresses a second reminder")
         assertEquals(1, dock.bounces, "no second bounce inside the cooldown")
+
+        sub.cancel()
+    }
+
+    @Test
+    fun presenceSavesOnStructuralChangeThenThrottlesToThirtySeconds() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val persistence = FakePresencePersistence()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = start,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.on.goal"),
+            now = { clock },
+            presencePersistence = persistence,
+        )
+        session.startFocus("Ship it")
+        runCurrent()
+        assertEquals(0, persistence.saves.size, "nothing accrued yet, nothing to write")
+
+        // The lenient session accumulator commits its first run once it reaches its
+        // 60s minimum: the list goes from 0 to 1 entry — a structural change.
+        repeat(61) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertEquals(1, persistence.saves.size, "a run opening writes immediately")
+        assertEquals(dayKeyOf(start), persistence.saves.last().dayKey)
+        assertEquals(1, persistence.saves.last().session.size)
+
+        // Extending the same run only moves its end: throttled for 30s.
+        repeat(29) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertEquals(1, persistence.saves.size, "extensions inside the 30s window are not written")
+
+        clock += 1.seconds
+        session.tick()
+        runCurrent()
+        assertEquals(2, persistence.saves.size, "30s after the last write, the extension is flushed")
+    }
+
+    @Test
+    fun presenceIsNotSavedWhileIdle() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val persistence = FakePresencePersistence()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = start,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.on.goal"),
+            now = { clock },
+            presencePersistence = persistence,
+        )
+        repeat(120) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertEquals(0, persistence.saves.size, "no focus, no presence, no writes")
+    }
+
+    @Test
+    fun seededIntervalsRenderFromTheFirstSnapshot() = runTest {
+        // Anchor to the local day so the seeded interval is inside the day window in
+        // every timezone.
+        val dayStart = dayWindow(Instant.fromEpochMilliseconds(1_699_956_000_000L), 0, 1439).first
+        val now = dayStart + 3.hours
+        val stored = listOf(FocusPresenceInterval(dayStart + 1.hours, dayStart + 90.minutes))
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = now,
+            initialFocusPresenceIntervals = stored,
+            initialFocusSessionIntervals = stored,
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+
+        assertTrue(seen.last().focusArcs.isNotEmpty(), "restored engaged arcs should render")
+        assertTrue(
+            seen.last().focusTotalLabel.startsWith("Focus "),
+            "restored engaged total should render, was '${seen.last().focusTotalLabel}'",
+        )
+
+        sub.cancel()
+    }
+
+    @Test
+    fun seededIntervalsSurviveNinetySecondsOfTicking() = runTest {
+        // Anchor to the local day so the seeded interval is inside the day window in
+        // every timezone.
+        val dayStart = dayWindow(Instant.fromEpochMilliseconds(1_699_956_000_000L), 0, 1439).first
+        val start = dayStart + 3.hours
+        var clock = start
+        val seeded = listOf(FocusPresenceInterval(dayStart + 1.hours, dayStart + 90.minutes))
+        val persistence = FakePresencePersistence()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = start,
+            initialFocusPresenceIntervals = seeded,
+            initialFocusSessionIntervals = seeded,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.on.goal"),
+            now = { clock },
+            presencePersistence = persistence,
+        )
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        session.startFocus("Ship it")
+        runCurrent()
+
+        // Roughly 90 simulated seconds of on-goal presence: enough for the session
+        // accumulator to open and commit its own run alongside the seeded one.
+        repeat(90) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+
+        assertTrue(
+            seen.last().focusArcs.isNotEmpty(),
+            "engaged arcs should still render after ticking",
+        )
+        assertTrue(
+            persistence.saves.isNotEmpty(),
+            "the accruing run should have triggered at least one persisted save",
+        )
+        assertTrue(
+            persistence.saves.last().session.contains(seeded.single()),
+            "the seeded session interval must still be present after ticking, not dropped by the first save",
+        )
 
         sub.cancel()
     }

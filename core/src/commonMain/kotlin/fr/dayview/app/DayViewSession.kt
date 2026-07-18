@@ -1,11 +1,13 @@
 package fr.dayview.app
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /** Handle returned by [DayViewSession.subscribe]; named to avoid Combine's `Cancellable`. */
@@ -30,6 +32,7 @@ class DayViewSession internal constructor(
     private val now: () -> Instant = { Clock.System.now() },
     private val dayViewBundleId: String = DAYVIEW_BUNDLE_ID,
     private val dockAttention: DockAttentionProvider = NoopDockAttentionProvider,
+    private val presencePersistence: PresencePersistence = NoopPresencePersistence,
 ) {
     private var ticksSinceCalendarRefresh = 0
     private val presence = PresenceCoordinator(dayViewBundleId)
@@ -37,6 +40,13 @@ class DayViewSession internal constructor(
     private var resumeRitualId: Instant? = null
     private var lastBouncedFor: Instant? = null
     private var lastAppliedBadge: Boolean = false
+
+    // What the store already holds, and when it was last written. Comparing against the
+    // persisted lists (rather than the previous tick) means a skipped write is retried on
+    // the next tick instead of being lost.
+    private var savedPresence: List<FocusPresenceInterval> = emptyList()
+    private var savedSession: List<FocusPresenceInterval> = emptyList()
+    private var lastPresenceSave: Instant = Instant.DISTANT_PAST
 
     // The latch fields above live outside controller.stateFlow, so a dismiss that doesn't
     // otherwise change controller state (tick() with an unchanged `now`) would be silently
@@ -53,6 +63,8 @@ class DayViewSession internal constructor(
         run {
             val state = controller.stateFlow.value
             presence.restore(state.focusPresenceIntervals, state.focusSessionIntervals, dayKeyOf(state.now))
+            savedPresence = state.focusPresenceIntervals
+            savedSession = state.focusSessionIntervals
         }
     }
     fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot(use24Hour, driftReminderId != null, resumeRitualId != null)
@@ -98,6 +110,7 @@ class DayViewSession internal constructor(
             controller.setFocusSessionIntervals(result.sessionIntervals)
         }
         controller.setSessionOffGoal(result.sessionOffGoal)
+        persistPresenceIfDue(state.now, dayKeyOf(state.now), result.presenceIntervals, result.sessionIntervals)
 
         // Latch the attention signals (a reminder persists until dismissed).
         result.resumeRitualAt?.let {
@@ -128,6 +141,40 @@ class DayViewSession internal constructor(
             dockAttention.bounceOnce()
         }
         if (pending == null) lastBouncedFor = null
+    }
+
+    /**
+     * JVM cadence (Main.kt): write on a structural change — a run opened or closed, so a
+     * list's size moved — otherwise at most every 30s, since extending an open run only
+     * moves its end. The write is launched into the session scope so the 1 Hz tick never
+     * blocks on disk.
+     */
+    private fun persistPresenceIfDue(
+        now: Instant,
+        dayKey: Long,
+        presenceIntervals: List<FocusPresenceInterval>,
+        sessionIntervals: List<FocusPresenceInterval>,
+    ) {
+        if (presenceIntervals == savedPresence && sessionIntervals == savedSession) return
+        val structural =
+            presenceIntervals.size != savedPresence.size || sessionIntervals.size != savedSession.size
+        if (!structural && now - lastPresenceSave < 30.seconds) return
+        savedPresence = presenceIntervals
+        savedSession = sessionIntervals
+        lastPresenceSave = now
+        scope.launch {
+            // Presence is best-effort telemetry: an unhandled exception here (disk full,
+            // read-only volume) would otherwise propagate out of this launched coroutine and,
+            // on Kotlin/Native, terminate the whole process mid-Focus. Losing a write is
+            // acceptable; crashing is not. Cancellation must still propagate normally.
+            try {
+                presencePersistence.save(dayKey, presenceIntervals, sessionIntervals)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                // Swallowed intentionally: see comment above.
+            }
+        }
     }
 
     fun dismissDriftReminder() {

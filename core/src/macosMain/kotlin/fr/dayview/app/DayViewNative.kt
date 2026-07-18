@@ -1,5 +1,6 @@
 package fr.dayview.app
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,11 +22,27 @@ private fun systemUses24HourClock(): Boolean {
 object DayViewNative {
     fun create(): DayViewSession {
         val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-        val preferences = macosDayPreferences()
+        val preferences = macosPreferences()
+        // Read the persisted presence once, before the controller exists: seeding it is what
+        // turns DayViewSession's PresenceCoordinator.restore call into a real reseed, so a
+        // relaunch mid-session continues the run instead of restarting it. A read failure
+        // (corrupt file, unreadable volume) must not block the app from launching at all —
+        // fall back to an empty StoredPresence and let the session start fresh.
+        val stored = runBlocking {
+            try {
+                preferences.presencePersistence.load()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                StoredPresence()
+            }
+        }
         val controller = DayViewController(
-            preferences,
+            preferences.dayPreferences,
             scope,
-            initialSnapshot = runBlocking { preferences.snapshots.first() },
+            initialSnapshot = runBlocking { preferences.dayPreferences.snapshots.first() },
+            initialFocusPresenceIntervals = stored.presence,
+            initialFocusSessionIntervals = stored.session,
         )
         val source = EventKitCalendarSource()
         val session = DayViewSession(
@@ -40,6 +57,7 @@ object DayViewNative {
             // than the DAYVIEW_BUNDLE_ID default) keeps DayView itself classified NEUTRAL in
             // every config instead of only in Release.
             dayViewBundleId = NSBundle.mainBundle.bundleIdentifier ?: DAYVIEW_BUNDLE_ID,
+            presencePersistence = preferences.presencePersistence,
         )
         // After the user answers the access prompt, re-read immediately instead of
         // waiting for the next minute tick.
