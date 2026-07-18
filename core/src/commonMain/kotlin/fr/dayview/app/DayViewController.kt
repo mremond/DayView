@@ -502,6 +502,18 @@ class DayViewController(
     }
 
     /**
+     * Today's episodes plus, when a detour is still running, a provisional episode covering it
+     * so far. A focus session closing mid-detour must be carved by a span that is not committed
+     * yet; `deriveEngagedIntervals` clips cuts to the session window, so the later real commit
+     * cannot double-count.
+     */
+    private fun detoursForCarving(): List<DetourEpisode> {
+        val openStart = state.openDetourStart ?: return state.detoursToday
+        if (state.now <= openStart) return state.detoursToday
+        return state.detoursToday + DetourEpisode(openStart, state.now, PROVISIONAL_DETOUR_CATEGORY)
+    }
+
+    /**
      * Android path: derive this session's engaged intervals from its window and append
      * them (coalesced) to the day's list. `effectiveEnd` caps overtime at pomodoroEnd
      * and honours an early stop. No-op when the platform feeds engaged time per-tick.
@@ -511,7 +523,7 @@ class DayViewController(
         val end = state.pomodoroEnd ?: return
         val start = end - state.pomodoroMinutes.minutes
         val effectiveEnd = minOf(stopInstant, end)
-        val derived = deriveEngagedIntervals(start, effectiveEnd, state.detoursToday)
+        val derived = deriveEngagedIntervals(start, effectiveEnd, detoursForCarving())
         if (derived.isEmpty()) return
         val today = dayKeyOf(state.now)
         val existing = if (state.focusSessionDayKey == today) state.focusSessionIntervals else emptyList()

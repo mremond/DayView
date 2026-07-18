@@ -1,5 +1,7 @@
 package fr.dayview.app
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.TimeZone
@@ -1454,5 +1456,29 @@ class DayViewSessionTest {
         )
 
         sub.cancel()
+    }
+
+    @Test
+    fun stoppingFocusCarvesAStillOpenDetour() {
+        val start = Instant.fromEpochMilliseconds(1_700_000_000_000L)
+        val c = DayViewController(
+            DefaultDayPreferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = DayPreferencesSnapshot(
+                pomodoroEnd = start + 30.minutes,
+                pomodoroMinutes = 30,
+                focusIntention = "écrire",
+                // Pulled away 10 minutes in, still off-path when the session is stopped.
+                openDetourStart = start + 10.minutes,
+            ),
+            initialNow = start + 20.minutes,
+            derivesEngagedFromSessions = true,
+        )
+        c.stopPomodoro()
+        // Engaged = [start, start+10]; the open detour carves [start+10, start+20].
+        assertEquals(
+            listOf(FocusPresenceInterval(start, start + 10.minutes)),
+            c.state.focusSessionIntervals,
+        )
     }
 }
