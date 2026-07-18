@@ -1036,4 +1036,236 @@ class DayViewSessionTest {
         assertTrue(seen.last().focusArcs.isEmpty())
         sub.cancel()
     }
+
+    private class FakeDock : DockAttentionProvider {
+        var badge: Boolean? = null
+        var bounces = 0
+        override fun setBadge(visible: Boolean) {
+            badge = visible
+        }
+        override fun bounceOnce() {
+            bounces++
+        }
+    }
+
+    @Test
+    fun aStillActiveSessionAtLaunchRaisesTheResumeRitual() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                pomodoroEnd = start + 20.minutes,
+                focusIntention = "Ship it",
+            ),
+            initialNow = start,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.on.goal"),
+            now = { clock },
+        )
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        clock += 1.seconds
+        session.tick()
+        runCurrent()
+
+        assertTrue(seen.last().showResumeRitual, "a session already running at launch should raise the ritual")
+
+        session.dismissResumeRitual()
+        runCurrent()
+        assertTrue(!seen.last().showResumeRitual)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun driftReminderLatchesBadgesAndBouncesOnce() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val dock = FakeDock()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = start,
+        )
+        val provider = FakeFrontmostProvider(bundleId = "com.other")
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = provider,
+            now = { clock },
+            dockAttention = dock,
+        )
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        session.startFocus("Ship it")
+        runCurrent()
+
+        // Sit off-goal well past the 2-minute sustained rule.
+        repeat(200) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+
+        assertTrue(seen.last().showDriftReminder, "sustained off-goal should latch a drift reminder")
+        assertEquals(true, dock.badge)
+        assertEquals(1, dock.bounces, "exactly one bounce per reminder")
+
+        // More off-goal ticks must not re-bounce for the same latched reminder.
+        repeat(30) {
+            clock += 1.seconds
+            session.tick()
+        }
+        assertEquals(1, dock.bounces)
+
+        session.dismissDriftReminder()
+        runCurrent()
+        assertTrue(!seen.last().showDriftReminder)
+        assertEquals(false, dock.badge)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun aManuallyStartedFocusDoesNotRaiseTheResumeRitual() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            initialNow = start,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.on.goal"),
+            now = { clock },
+        )
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        // Idle ticks first: the app is running with no focus.
+        repeat(5) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertTrue(!seen.last().showResumeRitual)
+
+        // The user starts a focus by hand — this must NOT look like a recovered session.
+        session.startFocus("Ship it")
+        repeat(3) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertTrue(!seen.last().showResumeRitual, "a manually started focus must not raise the resume ritual")
+
+        sub.cancel()
+    }
+
+    @Test
+    fun endingTheFocusClearsBothLatchesAndTheBadge() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val dock = FakeDock()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = start,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.other"),
+            now = { clock },
+            dockAttention = dock,
+        )
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        session.startFocus("Ship it")
+        repeat(200) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertTrue(seen.last().showDriftReminder)
+        assertEquals(true, dock.badge)
+
+        session.stopFocus()
+        clock += 1.seconds
+        session.tick()
+        runCurrent()
+        assertTrue(!seen.last().showDriftReminder, "ending the focus clears the drift latch")
+        assertEquals(false, dock.badge, "ending the focus clears the badge")
+
+        sub.cancel()
+    }
+
+    @Test
+    fun theCooldownSuppressesASecondReminder() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val dock = FakeDock()
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 60,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = start,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.other"),
+            now = { clock },
+            dockAttention = dock,
+        )
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        session.startFocus("Ship it")
+        repeat(200) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertEquals(1, dock.bounces)
+
+        // Dismiss, then keep drifting for another two minutes: the detector's 5-minute
+        // cooldown must suppress a second reminder.
+        session.dismissDriftReminder()
+        repeat(120) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+        assertTrue(!seen.last().showDriftReminder, "the 5-minute cooldown suppresses a second reminder")
+        assertEquals(1, dock.bounces, "no second bounce inside the cooldown")
+
+        sub.cancel()
+    }
 }

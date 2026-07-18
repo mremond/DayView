@@ -68,4 +68,102 @@ class PresenceCoordinatorTest {
         assertTrue(result.presenceIntervals.isEmpty())
         assertTrue(result.sessionIntervals.isEmpty())
     }
+
+    @Test
+    fun rapidAppSwitchingRaisesADriftReminder() {
+        val coordinator = PresenceCoordinator()
+        val start = 1_699_956_000_000L
+        val end = Instant.fromEpochMilliseconds(start + 25 * 60_000L)
+        // Past the 30s initial grace, then four distinct frontmost apps inside 45s.
+        var fired: Instant? = null
+        val apps = listOf("com.a", "com.b", "com.c", "com.d", "com.e")
+        for (i in 0..70) {
+            val now = Instant.fromEpochMilliseconds(start + i * 1000L)
+            val bundle = if (i < 40) "com.other" else apps[(i - 40) / 2 % apps.size]
+            val r = coordinator.observe(
+                now = now,
+                isFocusActive = true,
+                frontmostBundleId = bundle,
+                onGoalBundleIds = setOf("com.on.goal"),
+                pomodoroEnd = end,
+                dayKey = dayKeyOf(now),
+            )
+            if (r.driftReminderAt != null) fired = r.driftReminderAt
+        }
+        assertTrue(fired != null, "rapid switching should raise a drift reminder")
+    }
+
+    @Test
+    fun sustainedOffGoalRaisesADriftReminder() {
+        val coordinator = PresenceCoordinator()
+        val start = 1_699_956_000_000L
+        val end = Instant.fromEpochMilliseconds(start + 25 * 60_000L)
+        var fired: Instant? = null
+        // One off-goal app held well past the 2-minute sustained rule.
+        for (i in 0..200) {
+            val now = Instant.fromEpochMilliseconds(start + i * 1000L)
+            val r = coordinator.observe(
+                now = now,
+                isFocusActive = true,
+                frontmostBundleId = "com.other",
+                onGoalBundleIds = setOf("com.on.goal"),
+                pomodoroEnd = end,
+                dayKey = dayKeyOf(now),
+            )
+            if (r.driftReminderAt != null) fired = r.driftReminderAt
+        }
+        assertTrue(fired != null, "a sustained off-goal stretch should raise a drift reminder")
+    }
+
+    @Test
+    fun noDriftReminderWhileStayingOnGoal() {
+        val coordinator = PresenceCoordinator()
+        val start = 1_699_956_000_000L
+        val end = Instant.fromEpochMilliseconds(start + 25 * 60_000L)
+        for (i in 0..200) {
+            val now = Instant.fromEpochMilliseconds(start + i * 1000L)
+            val r = coordinator.observe(
+                now = now,
+                isFocusActive = true,
+                frontmostBundleId = "com.on.goal",
+                onGoalBundleIds = setOf("com.on.goal"),
+                pomodoroEnd = end,
+                dayKey = dayKeyOf(now),
+            )
+            assertEquals(null, r.driftReminderAt)
+        }
+    }
+
+    @Test
+    fun aStillActiveSessionOnFirstObservationRaisesTheResumeRitual() {
+        val coordinator = PresenceCoordinator()
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val r = coordinator.observe(
+            now = now,
+            isFocusActive = true,
+            frontmostBundleId = "com.on.goal",
+            onGoalBundleIds = setOf("com.on.goal"),
+            pomodoroEnd = Instant.fromEpochMilliseconds(1_699_956_000_000L + 25 * 60_000L),
+            dayKey = dayKeyOf(now),
+        )
+        assertEquals(now, r.resumeRitualAt)
+        // The resume tick suppresses a drift nudge (JVM else-if ordering).
+        assertEquals(null, r.driftReminderAt)
+    }
+
+    @Test
+    fun noResumeRitualWhenIdle() {
+        val coordinator = PresenceCoordinator()
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val r = coordinator.observe(
+            now = now,
+            isFocusActive = false,
+            frontmostBundleId = null,
+            onGoalBundleIds = emptySet(),
+            pomodoroEnd = null,
+            dayKey = dayKeyOf(now),
+        )
+        assertEquals(null, r.resumeRitualAt)
+        assertEquals(null, r.driftReminderAt)
+    }
 }

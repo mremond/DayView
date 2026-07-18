@@ -161,9 +161,15 @@ data class TodaySnapshot(
     val focusArcs: List<FocusArcSnapshot>,
     val focusSessionBands: List<FocusArcSnapshot>,
     val focusTotalLabel: String,
+    val showDriftReminder: Boolean,
+    val showResumeRitual: Boolean,
 )
 
-internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySnapshot {
+internal fun DayViewUiState.toTodaySnapshot(
+    use24Hour: Boolean = true,
+    showDriftReminder: Boolean = false,
+    showResumeRitual: Boolean = false,
+): TodaySnapshot {
     val progress = dayProgress
     val pomodoro = pomodoroProgress
     val clock = when (pomodoro.status) {
@@ -266,5 +272,7 @@ internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySna
         focusArcs = focusArcsState.map { FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble()) },
         focusSessionBands = focusSessionBandsState.map { FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble()) },
         focusTotalLabel = if (focusedToday > Duration.ZERO) "Focus ${formatDurationHm(focusedToday)}" else "",
+        showDriftReminder = showDriftReminder,
+        showResumeRitual = showResumeRitual,
     )
 }

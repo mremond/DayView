@@ -70,6 +70,14 @@ struct MiniView: View {
             )
         }
         .sheet(isPresented: $showIntentionSheet) { intentionSheet }
+        .onChange(of: model.snapshot.showResumeRitual) { _, showing in
+            // A ritual while in mini mode restores full mode (JVM parity), where the
+            // ritual panel is rendered.
+            if showing {
+                openWindow(id: "main")
+                dismissWindow(id: "mini")
+            }
+        }
     }
 
     private var goalCard: some View {

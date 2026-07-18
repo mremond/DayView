@@ -34,6 +34,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Busy arcs on the main ring + hover labels (5° margin), 12/24-h clock plumbing | 7b |
 | Visual identity: palette (dark+light), layered dial, interior countdown, glow bg, panel cards | 8 |
 | Detours: capture/tally/total/edit-list/forget (9a) + ring bodies on outer lane with hover (9b) | 9a–9b |
+| Presence foundation: NSWorkspace frontmost feed, PresenceCoordinator, engaged arcs + Focus total, on-goal apps settings, sessionOffGoal → ledger | 10a |
 | App icon shared with the JVM build | (main, 89e4c6b) |
 
 ## Today screen
@@ -41,7 +42,6 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Item | Status | Notes |
 |---|---|---|
 | Must-dos (up to 3 planned obligations, complete/free slot) | **PORT** | Small; `:core` logic exists |
-| Focus/engaged arcs + "Focus H h MM" total below countdown | **PORT** | Depends on the presence phase (data source) |
 | Focus-session detail pop-up (intention, engaged, deep-focus per session) | **PORT** | Records exist since 5a; engaged/deep-focus figures need presence |
 | Day-over screen + next-3-days availability | **PORT** | `updateUpcomingData` exists in `:core`; session must feed it (7a deferred it) |
 | Hero quotes (day-state message) | **PORT** | Confirmed 2026-07-16; pure copy layer over `:core` slots |
@@ -52,13 +52,12 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Presence tracking: frontmost-app watcher, on-goal classification, engaged/deep-focus accumulation | 🔜 **PORT** | Next per sequencing. `:core` accumulators exist; native needs an `NSWorkspace` frontmost provider — simpler than the JVM's approach |
-| Drift nudges: 4-switches rule, 2-min off-goal rule, grace/interval, notification | **PORT** | Same phase as presence |
-| On-goal apps settings screen (running-apps picker) | **PORT** | Same phase as presence |
-| Dock badge + single Dock bounce while a drift reminder is pending | **PORT** | Trivial once presence exists; JVM MacDockBadge + MacDockBouncer (main e1b122c) are the reference |
-| Resume ritual (still-active session found on relaunch/wake) | **PORT** | Own small phase; brings the window to front |
-| `sessionOffGoal` feeding the clean-session ledger | **PORT** | Falls out of presence; closes the 5a documented limitation |
+| Drift nudges: 4-switches rule, 2-min off-goal rule, grace/interval, notification | 🔜 **10b** | Detectors already relocated to `:core` in 10a; needs UNUserNotificationCenter (notification permission) |
+| Dock badge + single Dock bounce while a drift reminder is pending | **10b** | JVM MacDockBadge + MacDockBouncer (main e1b122c) are the reference |
+| Resume ritual (still-active session found on relaunch/wake) | **10b** | `FocusResumeDetector` already in `:core`; brings the window to front |
 | Keyboard shortcuts: ⌘↩ start focus, ←/→ duration, Esc closes dialogs | **PORT** | Cheap; native `.keyboardShortcut` |
+
+**New (from the 10a review):** native presence persistence — `focusPresenceIntervals` has no key in `:core`'s `DayPreferencesStore`, so engaged arcs/total are in-memory only and reset on relaunch; `focusSessionIntervals` persists but `DayViewNative` never seeds it back, so `PresenceCoordinator.restore()` is inert natively. **PORT** before cutover (the JVM persists these), own small phase.
 
 ## Sounds
 
@@ -122,7 +121,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 1. ~~**7b** busy arcs + hover~~ ✅ merged 2a1520d
 2. ~~**Visual identity pass**~~ ✅ merged a4fb363
 3. ~~**Detours**~~ ✅ merged 6d5025b (9a) + bc36539 (9b)
-4. **Presence & on-goal** (drift nudges, engaged arcs, dock badge, `sessionOffGoal`)
+4. ~~**Presence foundation (10a)**~~ ✅ merged 066c385 → **10b attention layer next** (drift nudges, dock badge/bounce, resume ritual)
 5. **Resume ritual** + keyboard shortcuts (small)
 6. **Must-dos** + hero quotes (small)
 7. **Sounds**

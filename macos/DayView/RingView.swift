@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import AppKit
 import DayViewKit
 
 struct RingView: View {
@@ -21,10 +22,17 @@ struct RingView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: DayViewPalette { DayViewPalette.current(for: colorScheme) }
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
+                if model.snapshot.showResumeRitual {
+                    resumeRitual
+                } else if model.snapshot.showDriftReminder {
+                    driftBanner
+                }
                 ringSection
                 detourSection
                 focusSection
@@ -41,6 +49,15 @@ struct RingView: View {
         )
         .sheet(isPresented: $showDetourCapture) { DetourCaptureSheet(model: model, isPresented: $showDetourCapture) }
         .sheet(isPresented: $showDetourList) { DetourListSheet(model: model, isPresented: $showDetourList) }
+        .onChange(of: model.snapshot.showResumeRitual) { _, showing in
+            // The ritual is deliberately interruptive: surface the window it lives in.
+            if showing { NSApplication.shared.activate(ignoringOtherApps: true) }
+        }
+        .onAppear {
+            // The window may be created with a ritual already pending (the mini→main swap):
+            // onChange does not fire for an initial value, so surface it here too.
+            if model.snapshot.showResumeRitual { NSApplication.shared.activate(ignoringOtherApps: true) }
+        }
         .onReceive(model.$snapshot) { snap in
             // Seed the local text/date fields once from persisted state.
             if !seeded {
@@ -199,6 +216,47 @@ struct RingView: View {
                 .foregroundStyle(.secondary)
             FocusClosureButtons(model: model)
         }
+    }
+
+    // Drift nudge: an amber panel restating the intention, dismissable in one click.
+    private var driftBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("BACK TO THE ESSENTIAL")
+                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.amber)
+            Text(model.snapshot.focusIntention.isEmpty ? "One thing at a time." : model.snapshot.focusIntention)
+                .foregroundStyle(palette.cloud)
+            HStack {
+                Spacer()
+                Button("BACK AT IT") { model.dismissDriftReminder() }
+                    .buttonStyle(.bordered)
+                    .tint(palette.amber)
+            }
+        }
+        .dayViewPanel(palette)
+    }
+
+    // Resumption ritual: a still-running session found at launch or after a wake.
+    private var resumeRitual: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("YOUR RESUME POINT")
+                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.mint)
+            Text(model.snapshot.focusIntention.isEmpty ? "One thing at a time." : model.snapshot.focusIntention)
+                .foregroundStyle(palette.cloud)
+            if !model.snapshot.pomodoroClock.isEmpty {
+                Text("\(model.snapshot.pomodoroClock) left to stay on track.")
+                    .font(.caption).foregroundStyle(palette.muted)
+            }
+            HStack {
+                Spacer()
+                Button("Stop") { model.stopFocus(); model.dismissResumeRitual() }
+                    .buttonStyle(.bordered)
+                    .tint(palette.red)
+                Button("Resume") { model.dismissResumeRitual() }
+                    .buttonStyle(.bordered)
+                    .tint(palette.mint)
+            }
+        }
+        .dayViewPanel(palette)
     }
 
     private var goalSection: some View {

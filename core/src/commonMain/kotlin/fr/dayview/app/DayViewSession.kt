@@ -2,6 +2,8 @@ package fr.dayview.app
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -27,10 +29,24 @@ class DayViewSession internal constructor(
     private val frontmostAppProvider: FrontmostAppProvider = NoopFrontmostAppProvider,
     private val now: () -> Instant = { Clock.System.now() },
     private val dayViewBundleId: String = DAYVIEW_BUNDLE_ID,
+    private val dockAttention: DockAttentionProvider = NoopDockAttentionProvider,
 ) {
     private var ticksSinceCalendarRefresh = 0
     private val presence = PresenceCoordinator(dayViewBundleId)
-    private var presenceWasActive = false
+    private var driftReminderId: Instant? = null
+    private var resumeRitualId: Instant? = null
+    private var lastBouncedFor: Instant? = null
+    private var lastAppliedBadge: Boolean = false
+
+    // The latch fields above live outside controller.stateFlow, so a dismiss that doesn't
+    // otherwise change controller state (tick() with an unchanged `now`) would be silently
+    // swallowed by StateFlow's equality-based conflation. This counter is combined into the
+    // subscription below purely to force a fresh emission whenever a latch changes.
+    private val latchVersion = MutableStateFlow(0)
+
+    private fun bumpLatchVersion() {
+        latchVersion.value++
+    }
 
     init {
         refreshCalendar()
@@ -39,11 +55,13 @@ class DayViewSession internal constructor(
             presence.restore(state.focusPresenceIntervals, state.focusSessionIntervals, dayKeyOf(state.now))
         }
     }
-    fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot(use24Hour)
+    fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot(use24Hour, driftReminderId != null, resumeRitualId != null)
 
     fun subscribe(onEach: (TodaySnapshot) -> Unit): DayViewSubscription {
         val job = scope.launch {
-            controller.stateFlow.collect { onEach(it.toTodaySnapshot(use24Hour)) }
+            combine(controller.stateFlow, latchVersion) { state, _ -> state }.collect {
+                onEach(it.toTodaySnapshot(use24Hour, driftReminderId != null, resumeRitualId != null))
+            }
         }
         return object : DayViewSubscription {
             override fun cancel() = job.cancel()
@@ -60,26 +78,67 @@ class DayViewSession internal constructor(
 
         val state = controller.stateFlow.value
         val focusActive = state.pomodoroEnd?.let { state.now < it } ?: false
-        // Only sample while a focus is (or just was) active — idle ticks skip the work.
-        if (focusActive || presenceWasActive) {
-            val result = presence.observe(
-                now = state.now,
-                isFocusActive = focusActive,
-                // Match Main.kt: never sample the frontmost app on the closing edge tick.
-                frontmostBundleId = if (focusActive) frontmostAppProvider.frontmostBundleId() else null,
-                onGoalBundleIds = state.onGoalApps.map { it.bundleId }.toSet(),
-                pomodoroEnd = state.pomodoroEnd,
-                dayKey = dayKeyOf(state.now),
-            )
-            if (result.presenceIntervals != state.focusPresenceIntervals) {
-                controller.setFocusPresenceIntervals(result.presenceIntervals)
-            }
-            if (result.sessionIntervals != state.focusSessionIntervals) {
-                controller.setFocusSessionIntervals(result.sessionIntervals)
-            }
-            controller.setSessionOffGoal(result.sessionOffGoal)
-            presenceWasActive = focusActive
+        // JVM parity: the resume detector observes every tick, active or idle, so a cold
+        // launch's first manual Start Focus is never mistaken for a recovered session.
+        val priorDriftReminderId = driftReminderId
+        val priorResumeRitualId = resumeRitualId
+        val result = presence.observe(
+            now = state.now,
+            isFocusActive = focusActive,
+            // Match Main.kt: never sample the frontmost app while idle.
+            frontmostBundleId = if (focusActive) frontmostAppProvider.frontmostBundleId() else null,
+            onGoalBundleIds = state.onGoalApps.map { it.bundleId }.toSet(),
+            pomodoroEnd = state.pomodoroEnd,
+            dayKey = dayKeyOf(state.now),
+        )
+        if (result.presenceIntervals != state.focusPresenceIntervals) {
+            controller.setFocusPresenceIntervals(result.presenceIntervals)
         }
+        if (result.sessionIntervals != state.focusSessionIntervals) {
+            controller.setFocusSessionIntervals(result.sessionIntervals)
+        }
+        controller.setSessionOffGoal(result.sessionOffGoal)
+
+        // Latch the attention signals (a reminder persists until dismissed).
+        result.resumeRitualAt?.let {
+            resumeRitualId = it
+            driftReminderId = null // the ritual supersedes a pending nudge (JVM parity)
+        }
+        result.driftReminderAt?.let { driftReminderId = it }
+        if (!focusActive) {
+            driftReminderId = null
+            resumeRitualId = null
+        }
+        applyDockAttention()
+        if (driftReminderId != priorDriftReminderId || resumeRitualId != priorResumeRitualId) {
+            bumpLatchVersion()
+        }
+    }
+
+    private fun applyDockAttention() {
+        val pending = driftReminderId
+        val badgeVisible = pending != null
+        if (badgeVisible != lastAppliedBadge) {
+            lastAppliedBadge = badgeVisible
+            dockAttention.setBadge(badgeVisible)
+        }
+        // One bounce per distinct reminder — the JVM's lastBouncedFor dedupe.
+        if (pending != null && pending != lastBouncedFor) {
+            lastBouncedFor = pending
+            dockAttention.bounceOnce()
+        }
+        if (pending == null) lastBouncedFor = null
+    }
+
+    fun dismissDriftReminder() {
+        driftReminderId = null
+        applyDockAttention()
+        bumpLatchVersion()
+    }
+
+    fun dismissResumeRitual() {
+        resumeRitualId = null
+        bumpLatchVersion()
     }
 
     fun startFocus(intention: String) {

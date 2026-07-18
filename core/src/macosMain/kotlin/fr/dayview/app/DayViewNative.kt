@@ -34,6 +34,7 @@ object DayViewNative {
             source,
             use24Hour = systemUses24HourClock(),
             frontmostAppProvider = NSWorkspaceFrontmostProvider(),
+            dockAttention = NSAppDockAttention(),
             // The Debug build ships under a distinct bundle id (fr.dayview.app.debug) so it can
             // coexist with the shipping Compose app; deriving from the running bundle (rather
             // than the DAYVIEW_BUNDLE_ID default) keeps DayView itself classified NEUTRAL in

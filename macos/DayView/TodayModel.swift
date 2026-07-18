@@ -51,6 +51,9 @@ final class TodayModel: ObservableObject {
     func runningApps() -> [AppRef] { session.runningApps() }
     var onGoalBundleIds: [String] { session.onGoalBundleIds() }
 
+    func dismissDriftReminder() { session.dismissDriftReminder() }
+    func dismissResumeRitual() { session.dismissResumeRitual() }
+
     deinit {
         subscription?.cancel()
         timer?.invalidate()

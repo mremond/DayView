@@ -14,6 +14,8 @@ class PresenceCoordinator(private val dayViewBundleId: String = DAYVIEW_BUNDLE_I
         val presenceIntervals: List<FocusPresenceInterval>,
         val sessionIntervals: List<FocusPresenceInterval>,
         val sessionOffGoal: Duration,
+        val driftReminderAt: Instant? = null,
+        val resumeRitualAt: Instant? = null,
     )
 
     private val presenceAccumulator = PresenceAccumulator(bridge = 60.seconds)
@@ -24,6 +26,8 @@ class PresenceCoordinator(private val dayViewBundleId: String = DAYVIEW_BUNDLE_I
         interruptionGap = 15.seconds,
     )
     private val cleanlinessTracker = SessionCleanlinessTracker()
+    private val driftDetector = FocusDriftDetector(dayViewBundleId = dayViewBundleId)
+    private val resumeDetector = FocusResumeDetector()
     private var presence: List<FocusPresenceInterval> = emptyList()
     private var session: List<FocusPresenceInterval> = emptyList()
     private var wasFocusActive = false
@@ -45,6 +49,10 @@ class PresenceCoordinator(private val dayViewBundleId: String = DAYVIEW_BUNDLE_I
         dayKey: Long,
     ): Result {
         val state = classifyFrontmost(frontmostBundleId, onGoalBundleIds, dayViewBundleId)
+        // JVM Main.kt ordering: the resume ritual wins the tick and suppresses a drift nudge.
+        val resumeAt = if (resumeDetector.observe(isFocusActive, now)) now else null
+        val driftFired = resumeAt == null && driftDetector.observe(isFocusActive, now, frontmostBundleId, onGoalBundleIds)
+        val driftAt = if (driftFired) now else null
         val offGoal = cleanlinessTracker.observe(now, pomodoroEnd, state)
         presence = when {
             isFocusActive -> presenceAccumulator.observe(now, state, dayKey)
@@ -57,6 +65,6 @@ class PresenceCoordinator(private val dayViewBundleId: String = DAYVIEW_BUNDLE_I
             else -> session
         }
         wasFocusActive = isFocusActive
-        return Result(presence, session, offGoal)
+        return Result(presence, session, offGoal, driftAt, resumeAt)
     }
 }
