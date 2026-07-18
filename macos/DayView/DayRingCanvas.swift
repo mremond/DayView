@@ -15,6 +15,8 @@ struct DayRingCanvas: View {
     var hasGoal: Bool = false
     var busyArcs: [BusyArcSnapshot] = []
     var detourBodies: [DetourBodySnapshot] = []
+    var focusArcs: [FocusArcSnapshot] = []
+    var focusSessionBands: [FocusArcSnapshot] = []
     var lineWidth: CGFloat = DayRingCanvas.defaultLineWidth
     var inset: CGFloat = DayRingCanvas.defaultInset
 
@@ -106,6 +108,18 @@ struct DayRingCanvas: View {
                 let restCenter = CGPoint(x: center.x, y: center.y - radius)
                 fillCircle(&context, at: restCenter, radius: lineWidth * 0.6, color: palette.overlay.opacity(0.12))
                 fillCircle(&context, at: restCenter, radius: lineWidth * 0.34, color: palette.muted)
+            }
+
+            // 6b. Engaged focus arcs (main lane): session bands (dim) then on-goal arcs (bright).
+            for band in focusSessionBands {
+                var arc = Path()
+                arc.addArc(center: center, radius: radius, startAngle: .degrees(band.startAngleDegrees), endAngle: .degrees(band.startAngleDegrees + band.sweepDegrees), clockwise: false)
+                context.stroke(arc, with: .color(palette.mint.opacity(0.18)), style: StrokeStyle(lineWidth: lineWidth * 0.5, lineCap: .round))
+            }
+            for focus in focusArcs {
+                var arc = Path()
+                arc.addArc(center: center, radius: radius, startAngle: .degrees(focus.startAngleDegrees), endAngle: .degrees(focus.startAngleDegrees + focus.sweepDegrees), clockwise: false)
+                context.stroke(arc, with: .color(palette.mint.opacity(0.55)), style: StrokeStyle(lineWidth: lineWidth * 0.5, lineCap: .round))
             }
 
             // 7. Busy lane (glow + core).

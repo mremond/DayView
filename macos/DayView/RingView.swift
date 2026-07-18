@@ -72,7 +72,9 @@ struct RingView: View {
                     hasStarted: model.snapshot.hasStarted,
                     hasGoal: !model.snapshot.goalTitle.isEmpty || model.snapshot.goalHasDeadline,
                     busyArcs: model.snapshot.busyArcs,
-                    detourBodies: model.snapshot.detourBodies
+                    detourBodies: model.snapshot.detourBodies,
+                    focusArcs: model.snapshot.focusArcs,
+                    focusSessionBands: model.snapshot.focusSessionBands
                 )
                 .onContinuousHover(coordinateSpace: .local) { phase in
                     switch phase {
@@ -98,6 +100,10 @@ struct RingView: View {
                     if !model.snapshot.detourTotalLabel.isEmpty {
                         Text(model.snapshot.detourTotalLabel)
                             .font(.caption).foregroundStyle(palette.muted)
+                    }
+                    if !model.snapshot.focusTotalLabel.isEmpty {
+                        Text(model.snapshot.focusTotalLabel)
+                            .font(.caption).foregroundStyle(palette.mint)
                     }
                 }
                 if let hover = hoveredArc {

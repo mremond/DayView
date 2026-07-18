@@ -45,6 +45,12 @@ final class TodayModel: ObservableObject {
     func restoreLastRemovedDetour() { session.restoreLastRemovedDetour() }
     func forgetRecentDetourCategory(_ category: String) { session.forgetRecentDetourCategory(category: category) }
 
+    func addOnGoalApp(bundleId: String, name: String) { session.addOnGoalApp(bundleId: bundleId, name: name) }
+    func removeOnGoalApp(bundleId: String) { session.removeOnGoalApp(bundleId: bundleId) }
+    func onGoalApps() -> [AppRef] { session.onGoalApps() }
+    func runningApps() -> [AppRef] { session.runningApps() }
+    var onGoalBundleIds: [String] { session.onGoalBundleIds() }
+
     deinit {
         subscription?.cancel()
         timer?.invalidate()

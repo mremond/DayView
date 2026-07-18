@@ -10,6 +10,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class DayViewSessionTest {
@@ -931,6 +932,108 @@ class DayViewSessionTest {
         val sub = session.subscribe { seen.add(it) }
         runCurrent()
         assertTrue(seen.last().detourBodies.isEmpty())
+        sub.cancel()
+    }
+
+    private class FakeFrontmostProvider(
+        var bundleId: String? = null,
+        var apps: List<AppRef> = emptyList(),
+    ) : FrontmostAppProvider {
+        var frontmostQueries = 0
+        override fun frontmostBundleId(): String? {
+            frontmostQueries++
+            return bundleId
+        }
+        override fun runningApps(): List<AppRef> = apps
+    }
+
+    @Test
+    fun onGoalAppsRoundTripThroughTheSnapshot() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        session.addOnGoalApp("com.on.goal", "On Goal")
+        runCurrent()
+        assertEquals(setOf(AppRef("com.on.goal", "On Goal")), controller.stateFlow.value.onGoalApps)
+    }
+
+    @Test
+    fun engagedTimeAccruesThroughTheSessionTickChain() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val provider = FakeFrontmostProvider(bundleId = "com.on.goal")
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = start,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = provider,
+            now = { clock },
+        )
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        session.startFocus("Ship it")
+        runCurrent()
+
+        // Three simulated minutes of on-goal presence, one tick per second.
+        repeat(180) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+
+        assertTrue(seen.last().focusArcs.isNotEmpty(), "engaged arcs should have accrued")
+        assertTrue(seen.last().focusTotalLabel.startsWith("Focus "), "focus total should render")
+
+        sub.cancel()
+    }
+
+    @Test
+    fun frontmostIsNotSampledWhenNoFocusIsActive() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        var clock = start
+        val provider = FakeFrontmostProvider(bundleId = "com.on.goal")
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = start,
+        )
+        val session = DayViewSession(controller, backgroundScope, frontmostAppProvider = provider, now = { clock })
+        repeat(5) {
+            clock += 1.seconds
+            session.tick()
+        }
+        assertEquals(0, provider.frontmostQueries)
+    }
+
+    @Test
+    fun focusTotalLabelEmptyWithNoEngagedTime() = runTest {
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = Instant.fromEpochMilliseconds(1_699_956_000_000L),
+        )
+        val session = DayViewSession(controller, backgroundScope)
+        val seen = mutableListOf<TodaySnapshot>()
+        val sub = session.subscribe { seen.add(it) }
+        runCurrent()
+        assertEquals("", seen.last().focusTotalLabel)
+        assertTrue(seen.last().focusArcs.isEmpty())
         sub.cancel()
     }
 }

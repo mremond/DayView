@@ -6,6 +6,8 @@ import DayViewKit
 /// controller's clamping round-trips back into the pickers via the snapshot.
 struct SettingsView: View {
     @ObservedObject var model: TodayModel
+    @State private var apps: [AppRef] = []
+    @State private var selected: Set<String> = []
 
     var body: some View {
         Form {
@@ -78,6 +80,34 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+            Section("On-goal apps") {
+                Text("Apps that count as working toward your goal during a Focus.")
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(apps, id: \.bundleId) { app in
+                    Toggle(app.displayName, isOn: Binding(
+                        get: { selected.contains(app.bundleId) },
+                        set: { on in
+                            if on {
+                                selected.insert(app.bundleId)
+                                model.addOnGoalApp(bundleId: app.bundleId, name: app.displayName)
+                            } else {
+                                selected.remove(app.bundleId)
+                                model.removeOnGoalApp(bundleId: app.bundleId)
+                            }
+                        }
+                    ))
+                }
+            }
+            .onAppear {
+                // Union of the stored (possibly not-running) apps and the currently running
+                // ones, so a configured app that isn't running right now stays visible and
+                // removable instead of disappearing from the list.
+                var byBundleId: [String: AppRef] = [:]
+                for app in model.onGoalApps() { byBundleId[app.bundleId] = app }
+                for app in model.runningApps() { byBundleId[app.bundleId] = app }
+                apps = byBundleId.values.sorted { $0.displayName < $1.displayName }
+                selected = Set(model.onGoalBundleIds)
             }
         }
         .formStyle(.grouped)

@@ -2,6 +2,7 @@ package fr.dayview.app
 
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration
 
 /** One row of the settings calendar checklist. [included] is the EFFECTIVE inclusion. */
 data class CalendarChoice(
@@ -34,6 +35,9 @@ data class DetourBodySnapshot(
     val colorIndex: Long, // matches the tally source color
     val hoverLabel: String, // "<motif> · <start> – <end>"
 )
+
+/** A focus/engaged arc on the ring's main lane (mint; no color index; no hover in 10a). */
+data class FocusArcSnapshot(val startAngleDegrees: Double, val sweepDegrees: Double)
 
 /** One calendar-busy block projected on the ring, ready for native drawing and hover. */
 data class BusyArcSnapshot(
@@ -154,6 +158,9 @@ data class TodaySnapshot(
     val recentDetourCategories: List<String>,
     val detours: List<DetourEntry>,
     val detourBodies: List<DetourBodySnapshot>,
+    val focusArcs: List<FocusArcSnapshot>,
+    val focusSessionBands: List<FocusArcSnapshot>,
+    val focusTotalLabel: String,
 )
 
 internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySnapshot {
@@ -256,5 +263,8 @@ internal fun DayViewUiState.toTodaySnapshot(use24Hour: Boolean = true): TodaySna
                     formatWallClock(end.hour, end.minute, use24Hour),
             )
         },
+        focusArcs = focusArcsState.map { FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble()) },
+        focusSessionBands = focusSessionBandsState.map { FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble()) },
+        focusTotalLabel = if (focusedToday > Duration.ZERO) "Focus ${formatDurationHm(focusedToday)}" else "",
     )
 }

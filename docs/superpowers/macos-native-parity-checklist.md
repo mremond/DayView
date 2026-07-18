@@ -33,14 +33,13 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Net time: K/N EventKit source (primed store, travel time), probe, settings section, `Net X h MM` readout | 7a |
 | Busy arcs on the main ring + hover labels (5° margin), 12/24-h clock plumbing | 7b |
 | Visual identity: palette (dark+light), layered dial, interior countdown, glow bg, panel cards | 8 |
-| Detours declare: capture sheet (motif/recent chips/duration), tally, daily total, edit list, forget-category | 9a |
+| Detours: capture/tally/total/edit-list/forget (9a) + ring bodies on outer lane with hover (9b) | 9a–9b |
 | App icon shared with the JVM build | (main, 89e4c6b) |
 
 ## Today screen
 
 | Item | Status | Notes |
 |---|---|---|
-| Detours: ring bodies (outer lane) + hover motif/times | 🔜 **9b** | Declare/tally/total/list/forget done in 9a; goal halo done in 8; `detourBodiesState` ready. Off-window tag deferred |
 | Must-dos (up to 3 planned obligations, complete/free slot) | **PORT** | Small; `:core` logic exists |
 | Focus/engaged arcs + "Focus H h MM" total below countdown | **PORT** | Depends on the presence phase (data source) |
 | Focus-session detail pop-up (intention, engaged, deep-focus per session) | **PORT** | Records exist since 5a; engaged/deep-focus figures need presence |
@@ -53,7 +52,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Presence tracking: frontmost-app watcher, on-goal classification, engaged/deep-focus accumulation | **PORT** | `:core` accumulators exist; native needs an `NSWorkspace` frontmost provider — simpler than the JVM's approach |
+| Presence tracking: frontmost-app watcher, on-goal classification, engaged/deep-focus accumulation | 🔜 **PORT** | Next per sequencing. `:core` accumulators exist; native needs an `NSWorkspace` frontmost provider — simpler than the JVM's approach |
 | Drift nudges: 4-switches rule, 2-min off-goal rule, grace/interval, notification | **PORT** | Same phase as presence |
 | On-goal apps settings screen (running-apps picker) | **PORT** | Same phase as presence |
 | Dock badge + single Dock bounce while a drift reminder is pending | **PORT** | Trivial once presence exists; JVM MacDockBadge + MacDockBouncer (main e1b122c) are the reference |
@@ -111,7 +110,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 - Debounce the Settings time pickers if mid-typing clamping feels fighty (Phase 6 note).
 - Extract a shared seconds/net-line view if a third surface appears (Phase 6/7a).
-- Visual pass: JVM busy lane is a two-pass glow+core stroke (native is single-pass, reads heavier); tooltip can clip at canvas edges; hit-test hardcodes inset 40 / lineWidth 18 (promote to DayRingCanvas statics when theming).
+- Ring hover tooltip can clip at the canvas edges near the top/right (busy + detour lanes). Cosmetic. (Glow+core stroke and the hit-test statics were resolved in phases 8/9b.)
 - `FocusClosureButtons` for a third surface (widget) when it comes.
 - Menu-bar icon *option* (text is the identity today; some users may prefer an icon).
 - Probe logging in `probeNetTime` (needs a `:core` logging seam).
@@ -122,7 +121,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 1. ~~**7b** busy arcs + hover~~ ✅ merged 2a1520d
 2. ~~**Visual identity pass**~~ ✅ merged a4fb363
-3. **Detours** (visuals now exist to draw bodies/halo) ← next
+3. ~~**Detours**~~ ✅ merged 6d5025b (9a) + bc36539 (9b)
 4. **Presence & on-goal** (drift nudges, engaged arcs, dock badge, `sessionOffGoal`)
 5. **Resume ritual** + keyboard shortcuts (small)
 6. **Must-dos** + hero quotes (small)

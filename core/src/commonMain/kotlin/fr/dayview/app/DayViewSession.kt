@@ -24,11 +24,20 @@ class DayViewSession internal constructor(
     private val scope: CoroutineScope,
     private val calendarSource: CalendarSource = NoopCalendarSource,
     private val use24Hour: Boolean = true,
+    private val frontmostAppProvider: FrontmostAppProvider = NoopFrontmostAppProvider,
+    private val now: () -> Instant = { Clock.System.now() },
+    private val dayViewBundleId: String = DAYVIEW_BUNDLE_ID,
 ) {
     private var ticksSinceCalendarRefresh = 0
+    private val presence = PresenceCoordinator(dayViewBundleId)
+    private var presenceWasActive = false
 
     init {
         refreshCalendar()
+        run {
+            val state = controller.stateFlow.value
+            presence.restore(state.focusPresenceIntervals, state.focusSessionIntervals, dayKeyOf(state.now))
+        }
     }
     fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot(use24Hour)
 
@@ -42,11 +51,34 @@ class DayViewSession internal constructor(
     }
 
     fun tick() {
-        controller.tick(Clock.System.now())
+        controller.tick(now())
         // JVM cadence: re-probe the calendar once a minute.
         if (++ticksSinceCalendarRefresh >= 60) {
             ticksSinceCalendarRefresh = 0
             refreshCalendar()
+        }
+
+        val state = controller.stateFlow.value
+        val focusActive = state.pomodoroEnd?.let { state.now < it } ?: false
+        // Only sample while a focus is (or just was) active — idle ticks skip the work.
+        if (focusActive || presenceWasActive) {
+            val result = presence.observe(
+                now = state.now,
+                isFocusActive = focusActive,
+                // Match Main.kt: never sample the frontmost app on the closing edge tick.
+                frontmostBundleId = if (focusActive) frontmostAppProvider.frontmostBundleId() else null,
+                onGoalBundleIds = state.onGoalApps.map { it.bundleId }.toSet(),
+                pomodoroEnd = state.pomodoroEnd,
+                dayKey = dayKeyOf(state.now),
+            )
+            if (result.presenceIntervals != state.focusPresenceIntervals) {
+                controller.setFocusPresenceIntervals(result.presenceIntervals)
+            }
+            if (result.sessionIntervals != state.focusSessionIntervals) {
+                controller.setFocusSessionIntervals(result.sessionIntervals)
+            }
+            controller.setSessionOffGoal(result.sessionOffGoal)
+            presenceWasActive = focusActive
         }
     }
 
@@ -157,6 +189,23 @@ class DayViewSession internal constructor(
     fun restoreLastRemovedDetour() = controller.restoreLastRemovedDetour()
 
     fun forgetRecentDetourCategory(category: String) = controller.forgetRecentDetourCategory(category)
+
+    /** The configured on-goal apps (stored set), for the settings list. */
+    fun onGoalApps(): List<AppRef> = controller.stateFlow.value.onGoalApps.toList()
+
+    fun addOnGoalApp(bundleId: String, name: String) {
+        val current = controller.stateFlow.value.onGoalApps
+        controller.setOnGoalApps(current + AppRef(bundleId, name))
+    }
+
+    fun removeOnGoalApp(bundleId: String) {
+        val current = controller.stateFlow.value.onGoalApps
+        controller.setOnGoalApps(current.filterNot { it.bundleId == bundleId }.toSet())
+    }
+
+    fun runningApps(): List<AppRef> = frontmostAppProvider.runningApps().filterNot { it.bundleId == dayViewBundleId }
+
+    fun onGoalBundleIds(): List<String> = controller.stateFlow.value.onGoalApps.map { it.bundleId }
 
     fun close() = scope.cancel()
 }
