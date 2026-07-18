@@ -56,14 +56,21 @@ class OpenDetourTest {
 
     @Test
     fun stopRecordsEpisodeWithTheMotifGivenAtStop() {
-        val c = controller(DayPreferencesSnapshot(openDetourStart = now - 15.minutes))
+        // Midday local: 12 h of margin on both sides so the day floor can never dominate.
+        val midday = startOfLocalDay(now) + 12.hours
+        val c = DayViewController(
+            DefaultDayPreferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = DayPreferencesSnapshot(openDetourStart = midday - 15.minutes),
+            initialNow = midday,
+        )
         c.stopOpenDetour("  Réunion\nimprévue ", "avec Paul")
         assertNull(c.state.openDetourStart)
         assertEquals("", c.state.openDetourCategory)
         val episode = c.state.detoursToday.single()
         assertEquals("Réunion imprévue", episode.category)
         assertEquals("avec Paul", episode.description)
-        assertEquals(now, episode.end)
+        assertEquals(midday, episode.end)
         assertEquals(15.minutes, episode.end - episode.start)
     }
 
@@ -77,10 +84,17 @@ class OpenDetourTest {
 
     @Test
     fun stopCapsTheSpanAtFourHours() {
-        val c = controller(DayPreferencesSnapshot(openDetourStart = now - 9.hours))
+        // Midday local: 12 h of margin on both sides so the day floor can never dominate.
+        val midday = startOfLocalDay(now) + 12.hours
+        val c = DayViewController(
+            DefaultDayPreferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = DayPreferencesSnapshot(openDetourStart = midday - 9.hours),
+            initialNow = midday,
+        )
         c.stopOpenDetour("Oubli")
         val episode = c.state.detoursToday.single()
-        assertEquals(now, episode.end)
+        assertEquals(midday, episode.end)
         assertEquals(4.hours, episode.end - episode.start)
     }
 

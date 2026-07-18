@@ -574,7 +574,8 @@ class DayViewController(
         val flooredStart = maxOf(start, end - OPEN_DETOUR_MAX_SPAN, startOfLocalDay(end))
         state = state.copy(openDetourStart = null, openDetourCategory = "", openDetourDescription = "")
         if (flooredStart >= end) {
-            // Degenerate span (clock skew): drop the episode but persist the cleared state.
+            // Degenerate span (clock skew, or a same-instant start-then-stop double-tap):
+            // drop the episode but persist the cleared state.
             persistState()
             return
         }
