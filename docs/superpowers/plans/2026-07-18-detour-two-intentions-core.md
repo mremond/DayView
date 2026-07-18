@@ -22,9 +22,12 @@ Gradle. Tests in `core/src/commonTest`, run on the JVM target.
 - Design source of truth: `docs/superpowers/specs/2026-07-18-detour-two-intentions-design.md`.
 - Anchor lookback cap: **120 minutes**. Open-detour span cap: **4 hours**, additionally floored
   at the start of the local day so a span can never cross midnight.
-- This plan touches `:core` only. No `:shared`, `:androidApp`, or `macos/` file is modified.
-  Compose and Swift call sites keep compiling because no existing public signature is removed
-  without its replacement being added in the same task.
+- This plan touches `:core`, **plus exactly one deliberate exception**: a one-line temporary
+  shim at `shared/src/commonMain/kotlin/fr/dayview/app/App.kt:617` (Task 2), needed because
+  removing the no-argument `stopOpenDetour()` breaks that call site. The shim is marked
+  temporary in a comment and is removed by the Compose UI plan. No other `:shared` file, and no
+  `:androidApp` or `macos/` file, is modified. A reviewer seeing this shim should confirm it
+  matches this constraint, not flag it as unplanned scope.
 - ktlint is enforced. Run `./gradlew ktlintCheck` before every commit; `./gradlew ktlintFormat`
   auto-fixes.
 - Full gate before the last commit:
@@ -402,6 +405,9 @@ stopOpenDetour = { controller.stopOpenDetour() },
 to
 
 ```kotlin
+// Temporary shim: reproduces the old "commit with the motif given at start" behaviour so
+// :shared keeps building. The Compose UI plan replaces it with the closure form, which is
+// what collects the motif at stop.
 stopOpenDetour = { controller.stopOpenDetour(controller.state.openDetourCategory) },
 ```
 
