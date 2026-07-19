@@ -341,6 +341,17 @@ class FocusAlarmTest {
 
     @Test
     fun breakReceiverPublishesElapsedPauseDuration() {
+        // DayViewPreferences is a process-wide singleton that outlives the SharedPreferences
+        // clear in setUp(): seed openDetourStart = null explicitly so this test's outcome
+        // cannot depend on whatever an earlier test left behind (this receiver path reads it
+        // via the same fallback snapshot as the intention, since EXTRA_INTENTION is never set
+        // on break-reminder pending intents) — mirrors
+        // finalBreakReminderCancelsRatherThanLeavingAnUnclearableCard's seeding for the same
+        // reason.
+        runBlocking {
+            val preferences = DayViewPreferences.get(context)
+            preferences.persist(preferences.snapshots.first().copy(openDetourStart = null))
+        }
         val breakStart = System.currentTimeMillis() - 20 * 60_000L
         val intent = Intent(context, FocusAlarmReceiver::class.java)
             .putExtra(FocusAlarmReceiver.EXTRA_KIND, FocusAlarmReceiver.KIND_BREAK_REMINDER)
@@ -361,6 +372,19 @@ class FocusAlarmTest {
             notification.extras.getString(Notification.EXTRA_TEXT),
         )
         assertEquals(breakStart + 30 * 60_000L, nextAlarm().getTriggerAtMs())
+        // With no open detour, restoreBreakReminders must also (re)post the ongoing "On break"
+        // card with a live Resume action — the only path that keeps that card alive across a
+        // break with the app closed. This is the assertion that catches hasOpenDetour being
+        // hardwired or inverted to true on this alarm-fire path: the popup above is built
+        // unconditionally after the when(kind) block and would still pass either way.
+        val breakCard = notifications.allNotifications.first {
+            it.extras.getString(Notification.EXTRA_TITLE) == "On break"
+        }
+        val resumeAction = breakCard.actions.single()
+        assertEquals("Resume", resumeAction.title)
+        val resumeIntent = shadowOf(resumeAction.actionIntent).savedIntent
+        assertEquals(FocusNotificationManager.ACTION_RESUME_FOCUS, resumeIntent.action)
+        assertEquals(FocusNotificationActionReceiver::class.java.name, resumeIntent.component?.className)
     }
 
     @Test
