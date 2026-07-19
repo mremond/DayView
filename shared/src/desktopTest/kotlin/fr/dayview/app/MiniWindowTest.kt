@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -246,6 +247,41 @@ class MiniWindowTest {
         // … and the toll folds away with the obligation.
         onNodeWithTag(DayViewTestTags.FocusExitDetourCategory).assertDoesNotExist()
         onNodeWithTag(DayViewTestTags.FocusExitDetourConfirm).assertDoesNotExist()
+    }
+
+    @Test
+    fun crossingTheTermKeepsTheIntentionBeingTypedIntoTheClosureSheet() = runComposeUiTest {
+        // Mirrors FocusFlowTest's identity check for the wide window: without it, the toll
+        // test above could pass for the wrong reason — if the closure sheet lost its state
+        // entirely across the crossing (rather than only its detour toll), pendingOutcome
+        // would reset on its own and the detour fields would be absent, but so would this
+        // half-typed intention, which the crossing must not throw away.
+        val start = midWindowNow()
+        val end = start + 1.minutes
+        var now by mutableStateOf(start)
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, end),
+                focusIntention = "",
+                onStartFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
+                onOpenMainWindow = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.MiniFocusStop).performClick()
+        onNodeWithTag(DayViewTestTags.FocusClosureIntention).performTextInput("Écrire le rapport")
+        // The term passes while the intention is half-typed. Capturing it is the whole point
+        // of moving the naming to the close, so the crossing must not throw it away.
+        now = end + 1.minutes
+        waitForIdle()
+        // Prove the OVERTIME branch composed before reading anything out of it.
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.COMPLETED)).assertExists()
+        onNodeWithTag(DayViewTestTags.FocusClosureIntention).assertTextContains("Écrire le rapport")
     }
 
     @Test
