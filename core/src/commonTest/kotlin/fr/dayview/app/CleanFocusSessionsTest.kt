@@ -17,31 +17,31 @@ class CleanFocusSessionsTest {
     @Test
     fun completedWithNoDriftAndNoDetourIsClean() {
         assertTrue(
-            evaluateSessionClean(window, offGoalDuring = 0.seconds, detours = emptyList(), outcome = FocusClosureOutcome.COMPLETED),
+            evaluateSessionClean(window, now = window.end, offGoalDuring = 0.seconds, detours = emptyList(), outcome = FocusClosureOutcome.COMPLETED),
         )
     }
 
     @Test
     fun progressedNeverCounts() {
         assertFalse(
-            evaluateSessionClean(window, offGoalDuring = 0.seconds, detours = emptyList(), outcome = FocusClosureOutcome.PROGRESSED),
+            evaluateSessionClean(window, now = window.end, offGoalDuring = 0.seconds, detours = emptyList(), outcome = FocusClosureOutcome.PROGRESSED),
         )
     }
 
     @Test
     fun toResumeNeverCounts() {
         assertFalse(
-            evaluateSessionClean(window, offGoalDuring = 0.seconds, detours = emptyList(), outcome = FocusClosureOutcome.TO_RESUME),
+            evaluateSessionClean(window, now = window.end, offGoalDuring = 0.seconds, detours = emptyList(), outcome = FocusClosureOutcome.TO_RESUME),
         )
     }
 
     @Test
     fun offGoalAtToleranceIsCleanButOverIsNot() {
         assertTrue(
-            evaluateSessionClean(window, offGoalDuring = 30.seconds, detours = emptyList(), outcome = FocusClosureOutcome.COMPLETED),
+            evaluateSessionClean(window, now = window.end, offGoalDuring = 30.seconds, detours = emptyList(), outcome = FocusClosureOutcome.COMPLETED),
         )
         assertFalse(
-            evaluateSessionClean(window, offGoalDuring = 31.seconds, detours = emptyList(), outcome = FocusClosureOutcome.COMPLETED),
+            evaluateSessionClean(window, now = window.end, offGoalDuring = 31.seconds, detours = emptyList(), outcome = FocusClosureOutcome.COMPLETED),
         )
     }
 
@@ -51,10 +51,94 @@ class CleanFocusSessionsTest {
         val touchingEnd = DetourEpisode(window.end, window.end + 5.minutes, "call")
         val outside = DetourEpisode(window.end + 5.minutes, window.end + 10.minutes, "call")
         assertFalse(
-            evaluateSessionClean(window, 0.seconds, listOf(overlapping), FocusClosureOutcome.COMPLETED),
+            evaluateSessionClean(window, window.end, 0.seconds, listOf(overlapping), FocusClosureOutcome.COMPLETED),
         )
         assertTrue(
-            evaluateSessionClean(window, 0.seconds, listOf(touchingEnd, outside), FocusClosureOutcome.COMPLETED),
+            evaluateSessionClean(window, window.end, 0.seconds, listOf(touchingEnd, outside), FocusClosureOutcome.COMPLETED),
+        )
+    }
+
+    @Test
+    fun completedBeforeTheTermEarnsNoCredit() {
+        // Reaching the term is the serious criterion (see spec): an early COMPLETED
+        // closure is free (no detour demanded) but must not earn streak credit.
+        assertFalse(
+            evaluateSessionClean(
+                window,
+                now = window.end - 1.minutes,
+                offGoalDuring = 0.seconds,
+                detours = emptyList(),
+                outcome = FocusClosureOutcome.COMPLETED,
+            ),
+        )
+    }
+
+    @Test
+    fun completedAtOrAfterTheTermStillEarnsCredit() {
+        assertTrue(
+            evaluateSessionClean(
+                window,
+                now = window.end,
+                offGoalDuring = 0.seconds,
+                detours = emptyList(),
+                outcome = FocusClosureOutcome.COMPLETED,
+            ),
+        )
+        assertTrue(
+            evaluateSessionClean(
+                window,
+                now = window.end + 5.minutes,
+                offGoalDuring = 0.seconds,
+                detours = emptyList(),
+                outcome = FocusClosureOutcome.COMPLETED,
+            ),
+        )
+    }
+
+    /**
+     * The two rules that arrived from different branches have to hold together at the one
+     * place both of them route through. Reaching the term is the serious criterion, and a
+     * detour overlapping the session disqualifies it — including one still open at closure,
+     * carved in as a provisional episode by the caller.
+     */
+    @Test
+    fun closedFocusLedgerHonoursBothTheTermAndTheOpenDetour() {
+        val dayKey = dayKeyOf(window.end)
+        fun cleanCountAt(
+            now: Instant,
+            detours: List<DetourEpisode>,
+        ): Int = closedFocusLedger(
+            cleanSessions = CleanSessionLedger(),
+            dayKey = dayKey,
+            pomodoroEnd = window.end,
+            sessionMinutes = 25,
+            sessionOffGoal = Duration.ZERO,
+            detoursToday = detours,
+            outcome = FocusClosureOutcome.COMPLETED,
+            now = now,
+        ).cleanToday
+
+        // Baseline: ran to term, nothing in the way.
+        assertEquals(1, cleanCountAt(window.end, emptyList()))
+        // Term rule: an early COMPLETED is free but earns no credit, detour or not.
+        assertEquals(0, cleanCountAt(window.end - 1.minutes, emptyList()))
+        // Detour rule: opened mid-session and still open at a closure in overtime. The
+        // provisional episode runs from the pull-away to the closure and overlaps the window.
+        assertEquals(
+            0,
+            cleanCountAt(
+                window.end + 10.minutes,
+                listOf(DetourEpisode(window.start + 5.minutes, window.end + 10.minutes, PROVISIONAL_DETOUR_CATEGORY)),
+            ),
+        )
+        // ...but a detour opened *after* the term does not reach into [start, term], so a
+        // session that ran clean to its term keeps its credit. Overtime never spoils it.
+        assertEquals(
+            1,
+            cleanCountAt(
+                window.end + 10.minutes,
+                listOf(DetourEpisode(window.end + 2.minutes, window.end + 10.minutes, PROVISIONAL_DETOUR_CATEGORY)),
+            ),
         )
     }
 
@@ -84,11 +168,13 @@ class CleanFocusSessionsTest {
     @Test
     fun trackerResetsWhenSessionChanges() {
         val tracker = SessionCleanlinessTracker()
-        tracker.observe(at(0L), at(1L), OnGoalState.ON_GOAL)
-        tracker.observe(at(10_000L), at(1L), OnGoalState.OFF_GOAL)
+        val sessionEnd1 = at(100_000L)
+        val sessionEnd2 = at(200_000L)
+        tracker.observe(at(0L), sessionEnd1, OnGoalState.ON_GOAL)
+        tracker.observe(at(10_000L), sessionEnd1, OnGoalState.OFF_GOAL)
         assertEquals(10.seconds, tracker.offGoalDuration)
         // New session end -> reset.
-        tracker.observe(at(20_000L), at(999L), OnGoalState.OFF_GOAL)
+        tracker.observe(at(20_000L), sessionEnd2, OnGoalState.OFF_GOAL)
         assertEquals(0.seconds, tracker.offGoalDuration)
     }
 
@@ -165,5 +251,16 @@ class CleanFocusSessionsTest {
         assertEquals(1, closed.focusSessionRecords.size)
         assertEquals("mini window work", closed.focusSessionRecords[0].intention)
         assertEquals(dayKeyOf(now), closed.focusSessionRecordsDayKey)
+    }
+
+    @Test
+    fun offGoalPastTermDoesNotAccumulate() {
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        val tracker = SessionCleanlinessTracker()
+        tracker.observe(end - 2.minutes, end, OnGoalState.OFF_GOAL)
+        tracker.observe(end - 1.minutes, end, OnGoalState.OFF_GOAL) // 1 min inside the window
+        tracker.observe(end + 5.minutes, end, OnGoalState.OFF_GOAL) // straddles the term: only up to `end` counts
+        tracker.observe(end + 9.minutes, end, OnGoalState.OFF_GOAL) // fully past the term: nothing
+        assertEquals(2.minutes, tracker.offGoalDuration)
     }
 }

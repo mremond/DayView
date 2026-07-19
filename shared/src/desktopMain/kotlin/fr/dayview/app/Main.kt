@@ -32,6 +32,8 @@ import fr.dayview.app.generated.resources.desktop_quit_dayview
 import fr.dayview.app.generated.resources.desktop_show_mini_window
 import fr.dayview.app.generated.resources.desktop_today_remaining
 import fr.dayview.app.generated.resources.focus_single_thing
+import fr.dayview.app.generated.resources.overtime_reminder_body
+import fr.dayview.app.generated.resources.overtime_reminder_title
 import fr.dayview.app.sync.Aes256GcmCodec
 import fr.dayview.app.sync.FileSyncStatePersistence
 import fr.dayview.app.sync.HttpSyncTransport
@@ -67,6 +69,20 @@ fun main() {
     // instead of always following the OS. "system" is the neutral starting point.
     System.setProperty("apple.awt.application.appearance", "system")
     runApplication()
+}
+
+/**
+ * Compact title for the macOS menu-bar status item, one value per pomodoro status.
+ * ACTIVE/OVERTIME/IDLE are locale-independent, so this stays a pure function —
+ * MacFocusStatusItemTest asserts it directly, without composing the app's LaunchedEffect
+ * loop. BREAK needs a localized template, which only the caller can fetch (a suspend
+ * resource lookup); it is passed in already resolved, or null outside BREAK.
+ */
+fun menuBarCompactTitle(progress: PomodoroProgress, breakTitle: String?): String? = when (progress.status) {
+    PomodoroStatus.ACTIVE -> formatPomodoroCompactMinutes(progress)
+    PomodoroStatus.OVERTIME -> formatOvertimeLabel(progress)
+    PomodoroStatus.BREAK -> breakTitle
+    PomodoroStatus.IDLE -> null
 }
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -111,6 +127,7 @@ private fun runApplication() = application {
     val soundCuePlayer = remember { createSoundCuePlayer() }
     val soundAlertScheduler = remember { SoundAlertScheduler() }
     val breakReminderScheduler = remember { BreakReminderScheduler() }
+    val overtimeReminderScheduler = remember { OvertimeReminderScheduler() }
     var isWindowVisible by remember { mutableStateOf(true) }
     var isMiniWindowVisible by remember { mutableStateOf(false) }
     var focusDriftReminderId by remember { mutableStateOf<Instant?>(null) }
@@ -160,7 +177,9 @@ private fun runApplication() = application {
             val currentPreferences = preferenceSnapshot
             val currentPomodoroEnd = currentPreferences.pomodoroEnd
 
-            val focusIsActive = currentPomodoroEnd != null && currentPomodoroEnd > currentNow
+            // The shared predicate, never re-derived here: a session stays open past its term
+            // (OVERTIME) until a conscious closure, so presence, cues and drift all follow it.
+            val focusIsActive = currentPreferences.focusIsActive
             val soundSettings = currentPreferences.soundSettings
             val soundCue = soundAlertScheduler.observe(
                 now = currentNow,
@@ -171,9 +190,18 @@ private fun runApplication() = application {
             if (soundCue != null && soundSettings.allowsDayCue(soundCue, focusIsActive)) {
                 soundCuePlayer.play(soundCue, soundSettings.volumePercent / 100f)
             }
-            val breakStart = currentPomodoroEnd?.takeIf { it <= currentNow }
-            if (breakReminderScheduler.observe(currentNow, breakStart)) {
+            if (breakReminderScheduler.observe(currentNow, currentPreferences.breakStart)) {
                 soundCuePlayer.play(SoundCue.BREAK_REMINDER, soundSettings.volumePercent / 100f)
+            }
+            val currentSessionMinutes = currentPreferences.sessionMinutesEffective
+            if (overtimeReminderScheduler.observe(currentNow, currentPomodoroEnd, currentSessionMinutes)) {
+                // Same delivery channel the break reminder uses at this site: the
+                // BREAK_REMINDER sound cue, plus a discreet native notification.
+                soundCuePlayer.play(SoundCue.BREAK_REMINDER, soundSettings.volumePercent / 100f)
+                nudgeNotifier.notify(
+                    title = getString(Res.string.overtime_reminder_title),
+                    body = getString(Res.string.overtime_reminder_body),
+                )
             }
 
             // A declared detour outranks app inference: rabbit-holing inside an on-goal app is
@@ -282,6 +310,8 @@ private fun runApplication() = application {
     val goalDeadline = preferenceSnapshot.goalDeadline
     val pomodoroMinutes = preferenceSnapshot.pomodoroMinutes
     val pomodoroEnd = preferenceSnapshot.pomodoroEnd
+    val sessionMinutesEffective = preferenceSnapshot.sessionMinutesEffective
+    val breakStart = preferenceSnapshot.breakStart
     val focusIntention = preferenceSnapshot.focusIntention
     val showSeconds = preferenceSnapshot.showSeconds
     val dayProgress = calculateDayProgress(now, startMinutes, endMinutes)
@@ -303,26 +333,34 @@ private fun runApplication() = application {
             else -> stringResource(Res.string.desktop_goal_title_hours, goalTitle.take(24), hours.toString())
         }
     }
-    val pomodoro = calculatePomodoroProgress(now, pomodoroMinutes, pomodoroEnd)
+    val pomodoro = calculatePomodoroProgress(now, sessionMinutesEffective, pomodoroEnd, breakStart)
     val focusStatus = when (pomodoro.status) {
-        PomodoroStatus.ACTIVE -> listOfNotNull(
+        // Overtime is still Focus (the session hasn't been closed) — only the trailing
+        // clock segment swaps from the countdown to the "+N min" headline.
+        PomodoroStatus.ACTIVE, PomodoroStatus.OVERTIME -> listOfNotNull(
             stringResource(Res.string.desktop_focus),
             focusIntention.take(24).takeIf(String::isNotBlank),
-            formatPomodoroClock(pomodoro),
+            if (pomodoro.status == PomodoroStatus.OVERTIME) formatOvertimeLabel(pomodoro) else formatPomodoroClock(pomodoro),
         ).joinToString(" · ")
         PomodoroStatus.BREAK -> stringResource(Res.string.desktop_break, formatBreakClock(pomodoro))
         PomodoroStatus.IDLE -> null
     }
 
-    LaunchedEffect(pomodoro.status, pomodoro.remaining.inWholeSeconds) {
-        focusStatusItem.update(
-            when (pomodoro.status) {
-                PomodoroStatus.ACTIVE -> formatPomodoroCompactMinutes(pomodoro)
-                PomodoroStatus.BREAK ->
-                    getString(Res.string.desktop_menubar_break, pomodoro.breakElapsed.inWholeMinutes.toString())
-                PomodoroStatus.IDLE -> null
-            },
-        )
+    // Keyed on the whole-minute elapsed counters too: during OVERTIME `remaining` is always
+    // ZERO and during BREAK it is the fixed session duration, so neither ever changes on its
+    // own — without these keys the title would freeze at whatever it read on entry.
+    LaunchedEffect(
+        pomodoro.status,
+        pomodoro.remaining.inWholeSeconds,
+        pomodoro.overtimeElapsed.inWholeMinutes,
+        pomodoro.breakElapsed.inWholeMinutes,
+    ) {
+        val breakTitle = if (pomodoro.status == PomodoroStatus.BREAK) {
+            getString(Res.string.desktop_menubar_break, pomodoro.breakElapsed.inWholeMinutes.toString())
+        } else {
+            null
+        }
+        focusStatusItem.update(menuBarCompactTitle(pomodoro, breakTitle))
     }
     LaunchedEffect(focusDriftReminderId) {
         dockBadge.update(focusDriftReminderId != null)
@@ -447,30 +485,29 @@ private fun runApplication() = application {
                 goalDeadline = goalDeadline,
                 pomodoro = pomodoro,
                 focusIntention = focusIntention,
+                openDetourRunning = preferenceSnapshot.openDetourStart != null,
+                recentDetourCategories = preferenceSnapshot.recentDetourCategories,
                 fontScale = preferenceSnapshot.fontScale,
                 onStartFocus = { intention ->
                     scope.launch {
                         val s = preferences.snapshots.first()
+                        val next = focusStartSnapshot(s, now, intention, pomodoroMinutes) ?: return@launch
+                        preferences.persist(next)
+                    }
+                },
+                onCloseFocus = { outcome, intention, detourCategory, detourDescription ->
+                    scope.launch {
+                        val s = preferences.snapshots.first()
                         preferences.persist(
-                            s.copy(
-                                focusIntention = intention.trim().take(100),
-                                pomodoroMinutes = pomodoroMinutes,
-                                pomodoroEnd = focusStartEnd(now, pomodoroMinutes),
+                            closeFocusSnapshot(
+                                snapshot = s.copy(pomodoroMinutes = pomodoroMinutes),
+                                now = now,
+                                sessionOffGoal = sessionOffGoal,
+                                outcome = outcome,
+                                intention = intention,
+                                detourCategory = detourCategory,
+                                detourDescription = detourDescription,
                             ),
-                        )
-                    }
-                },
-                onStopFocus = {
-                    scope.launch {
-                        val s = preferences.snapshots.first()
-                        preferences.persist(s.copy(pomodoroMinutes = pomodoroMinutes, pomodoroEnd = null))
-                    }
-                },
-                onCloseFocus = { outcome ->
-                    scope.launch {
-                        val s = preferences.snapshots.first()
-                        preferences.persist(
-                            closeFocusSnapshot(s.copy(pomodoroMinutes = pomodoroMinutes), now, sessionOffGoal, outcome),
                         )
                     }
                 },

@@ -27,6 +27,8 @@ internal object DayPreferenceKeys {
     const val GOAL_START = "goal_start"
     const val POMODORO_MINUTES = "pomodoro_minutes"
     const val POMODORO_END = "pomodoro_end"
+    const val POMODORO_SESSION_MINUTES = "pomodoro_session_minutes"
+    const val BREAK_START = "break_start"
     const val OPEN_DETOUR_START = "detour_open_start"
     const val OPEN_DETOUR_CATEGORY = "detour_open_category"
     const val OPEN_DETOUR_DESCRIPTION = "detour_open_description"
@@ -72,6 +74,8 @@ private val goalDeadlineKey = longPreferencesKey(DayPreferenceKeys.GOAL_DEADLINE
 private val goalStartKey = longPreferencesKey(DayPreferenceKeys.GOAL_START)
 private val pomodoroMinutesKey = intPreferencesKey(DayPreferenceKeys.POMODORO_MINUTES)
 private val pomodoroEndKey = longPreferencesKey(DayPreferenceKeys.POMODORO_END)
+private val pomodoroSessionMinutesKey = intPreferencesKey(DayPreferenceKeys.POMODORO_SESSION_MINUTES)
+private val breakStartKey = longPreferencesKey(DayPreferenceKeys.BREAK_START)
 private val openDetourStartKey = longPreferencesKey(DayPreferenceKeys.OPEN_DETOUR_START)
 private val openDetourCategoryKey = stringPreferencesKey(DayPreferenceKeys.OPEN_DETOUR_CATEGORY)
 private val openDetourDescriptionKey = stringPreferencesKey(DayPreferenceKeys.OPEN_DETOUR_DESCRIPTION)
@@ -120,6 +124,8 @@ class DayPreferencesStore(
             prefs[goalStartKey] = snapshot.goalStart?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
             prefs[pomodoroMinutesKey] = snapshot.pomodoroMinutes
             prefs[pomodoroEndKey] = snapshot.pomodoroEnd?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
+            prefs[pomodoroSessionMinutesKey] = snapshot.pomodoroSessionMinutes ?: -1
+            prefs[breakStartKey] = snapshot.breakStart?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
             prefs[openDetourStartKey] = snapshot.openDetourStart?.toEpochMilliseconds() ?: DayPreferenceKeys.NO_DEADLINE
             prefs[openDetourCategoryKey] = snapshot.openDetourCategory
             prefs[openDetourDescriptionKey] = snapshot.openDetourDescription
@@ -174,6 +180,10 @@ private fun Preferences.toSnapshot(): DayPreferencesSnapshot {
         pomodoroMinutes = this[pomodoroMinutesKey] ?: defaults.pomodoroMinutes,
         pomodoroEnd = this[pomodoroEndKey]
             ?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE }
+            ?.let(Instant::fromEpochMilliseconds),
+        pomodoroSessionMinutes = (this[pomodoroSessionMinutesKey] ?: -1).takeIf { it > 0 },
+        breakStart = (this[breakStartKey] ?: DayPreferenceKeys.NO_DEADLINE)
+            .takeIf { it != DayPreferenceKeys.NO_DEADLINE }
             ?.let(Instant::fromEpochMilliseconds),
         openDetourStart = this[openDetourStartKey]
             ?.takeUnless { it == DayPreferenceKeys.NO_DEADLINE }

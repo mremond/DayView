@@ -107,7 +107,8 @@ struct MiniView: View {
                     Button("Stop") { model.stopFocus() }
                         .tint(palette.red)
                 }
-            case "BREAK":
+            case "BREAK", "OVERTIME":
+                // Task 10/11/12 gives this its real behaviour
                 HStack(spacing: 8) {
                     Text("Break · \(model.snapshot.focusIntention)")
                         .lineLimit(1)

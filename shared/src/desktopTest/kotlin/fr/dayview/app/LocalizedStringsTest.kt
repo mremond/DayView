@@ -6,7 +6,14 @@ import fr.dayview.app.generated.resources.desktop_quit_dayview
 import fr.dayview.app.generated.resources.desktop_today_remaining
 import fr.dayview.app.generated.resources.detour_capture_open_label
 import fr.dayview.app.generated.resources.detour_list_title
+import fr.dayview.app.generated.resources.focus_closure_intention_label
+import fr.dayview.app.generated.resources.focus_exit_cancel
+import fr.dayview.app.generated.resources.focus_exit_detour_confirm
+import fr.dayview.app.generated.resources.focus_exit_detour_label
 import fr.dayview.app.generated.resources.focus_intention_label
+import fr.dayview.app.generated.resources.focus_intention_optional_hint
+import fr.dayview.app.generated.resources.focus_quick_start_button
+import fr.dayview.app.generated.resources.focus_state_overtime
 import fr.dayview.app.generated.resources.goal_progress_percent
 import fr.dayview.app.generated.resources.goal_section_title
 import fr.dayview.app.generated.resources.goal_title_label
@@ -56,6 +63,13 @@ class LocalizedStringsTest {
             assertEquals("No history recorded for 2026-07-14.", getString(Res.string.history_day_no_data_a11y, "2026-07-14"))
             assertEquals("‹  HISTORY", getString(Res.string.history_back))
             assertEquals("TUE · 2026-07-14", getString(Res.string.history_day_title, "TUE", "2026-07-14"))
+            assertEquals("WHAT WAS IT?", getString(Res.string.focus_closure_intention_label))
+            assertEquals("NAME WHAT PULLS YOU AWAY", getString(Res.string.focus_exit_detour_label))
+            assertEquals("LEAVE VIA DETOUR", getString(Res.string.focus_exit_detour_confirm))
+            assertEquals("STAY", getString(Res.string.focus_exit_cancel))
+            assertEquals("OVERTIME — STILL COUNTED", getString(Res.string.focus_state_overtime))
+            assertEquals("Optional — name it when you close.", getString(Res.string.focus_intention_optional_hint))
+            assertEquals("5 MIN", getString(Res.string.focus_quick_start_button))
 
             Locale.setDefault(Locale.FRENCH)
             assertEquals("‹  AUJOURD’HUI", getString(Res.string.settings_back))
@@ -75,6 +89,13 @@ class LocalizedStringsTest {
             assertEquals("Aucun historique enregistré pour le 14/07/2026.", getString(Res.string.history_day_no_data_a11y, "14/07/2026"))
             assertEquals("‹  HISTORIQUE", getString(Res.string.history_back))
             assertEquals("MAR · 14/07/2026", getString(Res.string.history_day_title, "MAR", "14/07/2026"))
+            assertEquals("C’ÉTAIT QUOI ?", getString(Res.string.focus_closure_intention_label))
+            assertEquals("NOMMEZ CE QUI VOUS ATTIRE", getString(Res.string.focus_exit_detour_label))
+            assertEquals("PARTIR EN DÉTOUR", getString(Res.string.focus_exit_detour_confirm))
+            assertEquals("RESTER", getString(Res.string.focus_exit_cancel))
+            assertEquals("EN ÉLAN — TOUJOURS COMPTÉ", getString(Res.string.focus_state_overtime))
+            assertEquals("Facultatif — nommez-la à la clôture.", getString(Res.string.focus_intention_optional_hint))
+            assertEquals("5 MIN", getString(Res.string.focus_quick_start_button))
         } finally {
             Locale.setDefault(previous)
         }

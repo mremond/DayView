@@ -20,18 +20,24 @@
     <string name="focus_notification_channel_description">Affiche le compte à rebours de la session active</string>
     <string name="focus_notification_title">Focus en cours</string>
     <string name="focus_notification_break_title">Pause en cours</string>
-    <string name="focus_notification_stop">Arrêter</string>
+    <string name="focus_notification_overtime_title">Focus — en élan, toujours compté</string>
+    <string name="focus_notification_close">Clôturer</string>
     <string name="focus_notification_resume">Reprendre</string>
     <string name="focus_tile_name">DayView Focus</string>
     <string name="focus_tile_start">Lancer Focus</string>
     <string name="focus_tile_active">Focus actif</string>
+    <string name="focus_tile_overtime">Focus en élan</string>
     <string name="focus_tile_break">Pause en cours</string>
     <string name="focus_tile_subtitle">Dernière intention</string>
     <string name="focus_tile_break_subtitle">Toucher pour reprendre</string>
     <string name="focus_alarm_channel">Fin des sessions Focus</string>
     <string name="focus_alarm_channel_description">Prévient lorsqu’une session Focus se termine</string>
     <string name="focus_end_title">Focus terminé</string>
-    <string name="focus_end_body">Votre session est terminée. La pause commence.</string>
+    <string name="focus_end_body">Votre session a atteint son terme. Le temps continue de compter jusqu’à la clôture.</string>
+    <string name="overtime_reminder_channel">Rappel d’élan</string>
+    <string name="overtime_reminder_channel_description">Un unique rappel discret lorsqu’une session dépasse largement son terme</string>
+    <string name="overtime_reminder_title">Toujours en élan — clôturer reste un choix.</string>
+    <string name="overtime_reminder_body">La session a doublé sa durée.</string>
     <string name="break_reminder_title">Pause · %1$d minutes</string>
     <string name="break_reminder_body">Souhaitez-vous reprendre un focus ou terminer la série ?</string>
 </resources>

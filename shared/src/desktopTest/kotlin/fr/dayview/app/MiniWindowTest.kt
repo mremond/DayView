@@ -1,13 +1,19 @@
 package fr.dayview.app
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
@@ -27,14 +33,62 @@ class MiniWindowTest {
                 pomodoro = calculatePomodoroProgress(now, 25, null),
                 focusIntention = "",
                 onStartFocus = {},
-                onStopFocus = {},
-                onCloseFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
                 onOpenMainWindow = { mainOpened = true },
             )
         }
         onNodeWithTag(DayViewTestTags.OpenMainWindow).assertExists()
         onNodeWithTag(DayViewTestTags.OpenMainWindow).performClick()
         assertTrue(mainOpened)
+    }
+
+    @Test
+    fun startingFocusFromIntentionModalNeedsNoIntention() = runComposeUiTest {
+        var started: String? = null
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, null),
+                focusIntention = "",
+                onStartFocus = { started = it },
+                onCloseFocus = { _, _, _, _ -> },
+                onOpenMainWindow = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.MiniFocusStart).performClick()
+        onNodeWithTag(DayViewTestTags.MiniFocusConfirm).assertIsEnabled()
+        onNodeWithTag(DayViewTestTags.MiniFocusConfirm).performClick()
+        assertEquals("", started)
+    }
+
+    @Test
+    fun startAffordanceIsHiddenWhileAnOpenDetourRuns() = runComposeUiTest {
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, null),
+                focusIntention = "",
+                openDetourRunning = true,
+                onStartFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
+                onOpenMainWindow = {},
+            )
+        }
+        // Prove the mini window composed at all (sibling in the same branch) before
+        // asserting the Start affordance's absence — otherwise this would pass vacuously
+        // if the whole tree failed to render.
+        onNodeWithTag(DayViewTestTags.OpenMainWindow).assertExists()
+        onNodeWithTag(DayViewTestTags.MiniFocusStart).assertDoesNotExist()
     }
 
     @Test
@@ -48,11 +102,10 @@ class MiniWindowTest {
                 now = now,
                 goalTitle = "",
                 goalDeadline = null,
-                pomodoro = calculatePomodoroProgress(now, 25, now - 1.minutes),
+                pomodoro = calculatePomodoroProgress(now, 25, null, breakStart = now - 1.minutes),
                 focusIntention = "Couper 5k secs",
                 onStartFocus = { startedIntention = it },
-                onStopFocus = {},
-                onCloseFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
                 onOpenMainWindow = {},
             )
         }
@@ -62,7 +115,32 @@ class MiniWindowTest {
     }
 
     @Test
-    fun relaunchButtonHiddenWhileFocusIsActive() = runComposeUiTest {
+    fun relaunchButtonIsHiddenWhileAnOpenDetourRuns() = runComposeUiTest {
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, null, breakStart = now - 1.minutes),
+                focusIntention = "Couper 5k secs",
+                openDetourRunning = true,
+                onStartFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
+                onOpenMainWindow = {},
+            )
+        }
+        // Prove the mini window composed at all (sibling in the same branch) before
+        // asserting the relaunch control's absence — otherwise this would pass vacuously
+        // if the whole tree failed to render.
+        onNodeWithTag(DayViewTestTags.OpenMainWindow).assertExists()
+        onNodeWithTag(DayViewTestTags.MiniFocusRelaunch).assertDoesNotExist()
+    }
+
+    @Test
+    fun relaunchAndClosureAreHiddenWhileFocusIsActive() = runComposeUiTest {
         val now = midWindowNow()
         setContent {
             DayViewMiniApp(
@@ -74,17 +152,47 @@ class MiniWindowTest {
                 pomodoro = calculatePomodoroProgress(now, 25, now + 10.minutes),
                 focusIntention = "Couper 5k secs",
                 onStartFocus = {},
-                onStopFocus = {},
-                onCloseFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
                 onOpenMainWindow = {},
             )
         }
+        // Prove the running-session card is composed before asserting absences.
+        onNodeWithTag(DayViewTestTags.MiniFocusStop).assertExists()
         onNodeWithTag(DayViewTestTags.MiniFocusRelaunch).assertDoesNotExist()
         onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.COMPLETED)).assertDoesNotExist()
     }
 
     @Test
-    fun closureButtonsDuringBreakReportTheOutcome() = runComposeUiTest {
+    fun stoppingARunningFocusOpensTheClosureSheetAndCostsADetour() = runComposeUiTest {
+        var closed: List<Any?>? = null
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, now + 10.minutes),
+                focusIntention = "Couper 5k secs",
+                onStartFocus = {},
+                onCloseFocus = { outcome, intention, category, description ->
+                    closed = listOf(outcome, intention, category, description)
+                },
+                onOpenMainWindow = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.MiniFocusStop).performClick()
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.PROGRESSED)).performClick()
+        // Fleeing before the term reports nothing until the pull is named.
+        assertNull(closed)
+        onNodeWithTag(DayViewTestTags.FocusExitDetourCategory).performTextInput("Mail")
+        onNodeWithTag(DayViewTestTags.FocusExitDetourConfirm).performClick()
+        assertEquals(listOf(FocusClosureOutcome.PROGRESSED, "Couper 5k secs", "Mail", ""), closed)
+    }
+
+    @Test
+    fun closureButtonsDuringOvertimeReportTheOutcome() = runComposeUiTest {
         var closedWith: FocusClosureOutcome? = null
         val now = midWindowNow()
         setContent {
@@ -97,14 +205,71 @@ class MiniWindowTest {
                 pomodoro = calculatePomodoroProgress(now, 25, now - 1.minutes),
                 focusIntention = "Couper 5k secs",
                 onStartFocus = {},
-                onStopFocus = {},
-                onCloseFocus = { closedWith = it },
+                onCloseFocus = { outcome, _, _, _ -> closedWith = outcome },
                 onOpenMainWindow = {},
             )
         }
         onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.TO_RESUME)).assertExists()
         onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.COMPLETED)).performClick()
         assertEquals(FocusClosureOutcome.COMPLETED, closedWith)
+    }
+
+    @Test
+    fun crossingTheTermDropsADetourTollNoLongerOwed() = runComposeUiTest {
+        val start = midWindowNow()
+        val end = start + 1.minutes
+        var now by mutableStateOf(start)
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, end),
+                focusIntention = "Couper 5k secs",
+                onStartFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
+                onOpenMainWindow = {},
+            )
+        }
+        onNodeWithTag(DayViewTestTags.MiniFocusStop).performClick()
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.PROGRESSED)).performClick()
+        onNodeWithTag(DayViewTestTags.FocusExitDetourCategory).assertExists()
+        // The term passes while the detour capture is open. Overtime owes no name, and the
+        // mini window's Cancel disappears with it, so a capture left standing here would be
+        // a charge with no way out.
+        now = end + 1.minutes
+        waitForIdle()
+        // The sheet stays — overtime is where it lives …
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.PROGRESSED)).assertExists()
+        // … and the toll folds away with the obligation.
+        onNodeWithTag(DayViewTestTags.FocusExitDetourCategory).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.FocusExitDetourConfirm).assertDoesNotExist()
+    }
+
+    @Test
+    fun closureControlsAreAbsentDuringBreak() = runComposeUiTest {
+        val now = midWindowNow()
+        setContent {
+            DayViewMiniApp(
+                progress = calculateDayProgress(now, 8 * 60, 18 * 60),
+                showSeconds = false,
+                now = now,
+                goalTitle = "",
+                goalDeadline = null,
+                pomodoro = calculatePomodoroProgress(now, 25, null, breakStart = now - 1.minutes),
+                focusIntention = "Couper 5k secs",
+                onStartFocus = {},
+                onCloseFocus = { _, _, _, _ -> },
+                onOpenMainWindow = {},
+            )
+        }
+        // Relaunch is BREAK-only and proves the branch renders.
+        onNodeWithTag(DayViewTestTags.MiniFocusRelaunch).assertExists()
+        // The session is already closed: nothing left to stop or to close.
+        onNodeWithTag(DayViewTestTags.MiniFocusStop).assertDoesNotExist()
+        onNodeWithTag(DayViewTestTags.focusOutcome(FocusClosureOutcome.COMPLETED)).assertDoesNotExist()
     }
 
     @Test
@@ -122,8 +287,7 @@ class MiniWindowTest {
                     focusIntention = "",
                     fontScale = 1.5f,
                     onStartFocus = {},
-                    onStopFocus = {},
-                    onCloseFocus = {},
+                    onCloseFocus = { _, _, _, _ -> },
                     onOpenMainWindow = {},
                 )
             }
@@ -149,8 +313,7 @@ class MiniWindowTest {
                     pomodoro = calculatePomodoroProgress(now, 25, null),
                     focusIntention = "",
                     onStartFocus = {},
-                    onStopFocus = {},
-                    onCloseFocus = {},
+                    onCloseFocus = { _, _, _, _ -> },
                     onOpenMainWindow = {},
                 )
             }

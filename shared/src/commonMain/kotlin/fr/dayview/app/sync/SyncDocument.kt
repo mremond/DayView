@@ -25,7 +25,13 @@ data class SoundDto(
  */
 @Serializable data class GoalDto(val title: String, val deadline: Long, val start: Long, val cleared: Boolean = false)
 
-@Serializable data class PomodoroDto(val minutes: Int, val end: Long)
+@Serializable
+data class PomodoroDto(
+    val minutes: Int,
+    val end: Long,
+    val sessionMinutes: Int = -1,
+    val breakStart: Long = -1L,
+)
 
 @Serializable data class OpenDetourDto(val start: Long, val category: String, val description: String)
 

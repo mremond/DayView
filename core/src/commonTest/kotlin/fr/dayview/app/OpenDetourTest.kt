@@ -48,6 +48,25 @@ class OpenDetourTest {
     }
 
     @Test
+    fun startClearsALiveBreak() {
+        // A live break with no session and no detour running yet — starting a detour now
+        // must supersede it, the same way closure already does: a break and an open detour
+        // must never be live at once.
+        val c = controller(DayPreferencesSnapshot(breakStart = now - 5.minutes))
+        c.startOpenDetour("Café", "avec Paul")
+        assertEquals(now, c.state.openDetourStart)
+        assertNull(c.state.breakStart)
+    }
+
+    @Test
+    fun startWithNoBreakLiveLeavesBreakStartUnaffected() {
+        val c = controller(DayPreferencesSnapshot())
+        c.startOpenDetour("Café", "avec Paul")
+        assertEquals(now, c.state.openDetourStart)
+        assertNull(c.state.breakStart)
+    }
+
+    @Test
     fun startPomodoroRefusedWhileOpenDetourRunning() {
         val c = controller(DayPreferencesSnapshot(openDetourStart = now, focusIntention = "Écrire"))
         c.startPomodoro()

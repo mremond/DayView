@@ -27,27 +27,35 @@ class FocusNotificationManager(context: Context) {
         }
 
         createChannel()
-        val openApp = PendingIntent.getActivity(
-            appContext,
-            OPEN_REQUEST_CODE,
-            Intent(appContext, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val openApp = openAppPendingIntent()
         val notification = baseBuilder(openApp, intention)
             .setSmallIcon(R.drawable.ic_dayview_notification)
             .setColor(appContext.getColor(R.color.dayview_notification_accent))
             .setContentTitle(appContext.getString(R.string.focus_notification_title))
             .setWhen(System.currentTimeMillis() + remainingMillis)
             .setChronometerCountDown(true)
-            .addAction(
-                Notification.Action.Builder(
-                    Icon.createWithResource(appContext, R.drawable.ic_dayview_notification),
-                    appContext.getString(R.string.focus_notification_stop),
-                    actionPendingIntent(ACTION_STOP_FOCUS, STOP_REQUEST_CODE),
-                ).build(),
-            )
+            .addAction(closeAction(openApp))
+            .build()
+        manager.notify(NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * Past the term the session has not ended — it counts up. Same ongoing notification,
+     * same slot, chronometer reversed, and the only way out leads into the app.
+     */
+    fun showOvertime(endMillis: Long, intention: String) {
+        if (endMillis > System.currentTimeMillis() || !canPostNotifications()) {
+            cancel()
+            return
+        }
+
+        createChannel()
+        val openApp = openAppPendingIntent()
+        val notification = baseBuilder(openApp, intention)
+            .setContentTitle(appContext.getString(R.string.focus_notification_overtime_title))
+            .setWhen(endMillis)
+            .setChronometerCountDown(false)
+            .addAction(closeAction(openApp))
             .build()
         manager.notify(NOTIFICATION_ID, notification)
     }
@@ -59,14 +67,7 @@ class FocusNotificationManager(context: Context) {
         }
 
         createChannel()
-        val openApp = PendingIntent.getActivity(
-            appContext,
-            OPEN_REQUEST_CODE,
-            Intent(appContext, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val openApp = openAppPendingIntent()
         val notification = baseBuilder(openApp, intention)
             .setContentTitle(appContext.getString(R.string.focus_notification_break_title))
             .setWhen(breakStartMillis)
@@ -106,6 +107,26 @@ class FocusNotificationManager(context: Context) {
             .setOnlyAlertOnce(true)
     }
 
+    private fun openAppPendingIntent(): PendingIntent = PendingIntent.getActivity(
+        appContext,
+        OPEN_REQUEST_CODE,
+        Intent(appContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        },
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    /**
+     * Closing is never a broadcast. Ending a session costs a deliberate act — naming the
+     * outcome, and naming the pull when leaving early — so the action opens the app where
+     * that ritual lives rather than ending the session behind the user's back.
+     */
+    private fun closeAction(openApp: PendingIntent): Notification.Action = Notification.Action.Builder(
+        Icon.createWithResource(appContext, R.drawable.ic_dayview_notification),
+        appContext.getString(R.string.focus_notification_close),
+        openApp,
+    ).build()
+
     private fun actionPendingIntent(action: String, requestCode: Int): PendingIntent = PendingIntent.getBroadcast(
         appContext,
         requestCode,
@@ -139,9 +160,7 @@ class FocusNotificationManager(context: Context) {
         const val NOTIFICATION_ID = 4110
         private const val CHANNEL_ID = "focus_active"
         private const val OPEN_REQUEST_CODE = 4111
-        private const val STOP_REQUEST_CODE = 4112
         private const val RESUME_REQUEST_CODE = 4113
-        const val ACTION_STOP_FOCUS = "fr.dayview.app.action.STOP_FOCUS"
         const val ACTION_RESUME_FOCUS = "fr.dayview.app.action.RESUME_FOCUS"
     }
 }
@@ -150,16 +169,13 @@ class FocusNotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val preferences = DayViewPreferences.get(context)
         when (intent.action) {
-            FocusNotificationManager.ACTION_STOP_FOCUS -> {
-                runBlocking {
-                    val s = preferences.snapshots.first()
-                    preferences.persist(s.copy(pomodoroEnd = null))
-                }
-                FocusAlarmScheduler(context).cancel()
-            }
             FocusNotificationManager.ACTION_RESUME_FOCUS -> {
                 val s = runBlocking { preferences.snapshots.first() }
-                if (s.openDetourStart == null) {
+                // Mirrors DayViewController.startPomodoro: refuses while a session or an open
+                // detour runs, and writes the whole session snapshot rather than a bare end.
+                // A refusal still falls through to the tile refresh below, so a stale surface
+                // that offered this action corrects itself on the tap.
+                if (s.openDetourStart == null && s.pomodoroEnd == null) {
                     val durationMinutes = s.pomodoroMinutes.coerceIn(5, 180)
                     val endMillis = System.currentTimeMillis() + durationMinutes * 60_000L
                     runBlocking {
@@ -167,10 +183,12 @@ class FocusNotificationActionReceiver : BroadcastReceiver() {
                             s.copy(
                                 pomodoroMinutes = durationMinutes,
                                 pomodoroEnd = Instant.fromEpochMilliseconds(endMillis),
+                                pomodoroSessionMinutes = durationMinutes,
+                                breakStart = null,
                             ),
                         )
                     }
-                    FocusAlarmScheduler(context).schedule(endMillis, s.focusIntention)
+                    FocusAlarmScheduler(context).schedule(endMillis, s.focusIntention, durationMinutes)
                 }
             }
             else -> return

@@ -10,6 +10,7 @@ import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -186,7 +187,7 @@ class DayViewControllerTest {
         assertEquals(expectedEnd, preferences.current.pomodoroEnd)
 
         controller.tick(expectedEnd)
-        assertEquals(PomodoroStatus.BREAK, controller.state.pomodoroProgress.status)
+        assertEquals(PomodoroStatus.OVERTIME, controller.state.pomodoroProgress.status)
 
         controller.closePomodoro(FocusClosureOutcome.TO_RESUME)
         assertEquals("Préparer la démonstration", controller.state.focusIntention)
@@ -219,10 +220,11 @@ class DayViewControllerTest {
 
     @Test
     fun aDesktopSessionOnlyDayArchivesItsFocusSessionRecords() = runTest {
-        // Models a desktop day whose ONLY activity is a stopped pomodoro: no calendar busy layer,
-        // no detours, derivesEngagedFromSessions=false, and stopPomodoro never touches the
-        // clean-session ledger. The session records are then the only thing making the day worth
-        // archiving, so they must be reachable by persistedDayKey or they are lost at rollover.
+        // Models a desktop day whose only activity is a closed pomodoro: no calendar busy layer,
+        // no detours, derivesEngagedFromSessions=false. This goes through closePomodoro, which
+        // also stamps cleanSessions.dayKey to day1, so it does NOT isolate
+        // focusSessionRecordsDayKey as the archival trigger — see
+        // focusSessionRecordsAloneTriggerArchival below for that guarantee.
         val history = InMemoryDayHistoryStore()
         // Full-day window so the archived clip keeps the session regardless of the host timezone.
         val preferences = InMemoryDayPreferences(
@@ -241,7 +243,42 @@ class DayViewControllerTest {
         controller.setFocusIntention("write the plan")
         controller.startPomodoro()
         controller.tick(day1 + 5.minutes)
-        controller.stopPomodoro()
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+        // Cross into the next day to trigger archival of day1.
+        controller.tick(Instant.parse("2026-05-05T12:00:00Z"))
+
+        val archived = history.read(dayKeyOf(day1))
+        assertNotNull(archived)
+        assertEquals(1, archived.focusSessionRecords.size)
+        assertEquals("write the plan", archived.focusSessionRecords.first().intention)
+    }
+
+    @Test
+    fun focusSessionRecordsAloneTriggerArchival() = runTest {
+        // Isolates focusSessionRecordsDayKey as an archival trigger in persistedDayKey: unlike
+        // aDesktopSessionOnlyDayArchivesItsFocusSessionRecords above, this seeds the snapshot
+        // directly rather than closing through closePomodoro, so cleanSessions is left at its
+        // default (dayKey = -1L) and cannot also point at day1. If focusSessionRecordsDayKey
+        // were dropped from persistedDayKey's list, this test fails.
+        val history = InMemoryDayHistoryStore()
+        val day1 = Instant.parse("2026-05-04T12:00:00Z")
+        val record = FocusSessionRecord(day1, day1 + 5.minutes, "write the plan", FocusClosureOutcome.COMPLETED)
+        val preferences = InMemoryDayPreferences(
+            DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 23 * 60 + 59,
+                focusSessionRecordsDayKey = dayKeyOf(day1),
+                focusSessionRecords = listOf(record),
+            ),
+        )
+        val controller = DayViewController(
+            preferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = preferences.current,
+            initialNow = day1,
+            history = history,
+        )
+
         // Cross into the next day to trigger archival of day1.
         controller.tick(Instant.parse("2026-05-05T12:00:00Z"))
 
@@ -972,5 +1009,170 @@ class DayViewControllerTest {
             listOf(FocusPresenceInterval(windowStart, windowStart + 30.minutes)),
         )
         assertEquals(30.minutes, controller.state.sessionFocusedToday)
+    }
+
+    // --- Asymmetric focus lifecycle: entering is free, fleeing costs a name, overtime counts.
+
+    @Test
+    fun startNeedsNoIntention() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        assertEquals("", controller.state.focusIntention)
+
+        controller.startPomodoro()
+
+        assertNotNull(controller.state.pomodoroEnd)
+        assertEquals(controller.state.pomodoroMinutes, controller.state.pomodoroSessionMinutes)
+    }
+
+    @Test
+    fun quickStartKeepsPreferredDuration() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        val preferred = controller.state.pomodoroMinutes
+
+        // 15 is not the coerceIn(5, 180) floor, so this distinguishes pass-through from
+        // clamping — 5 would pass even if startPomodoro clamped every call down to the floor.
+        controller.startPomodoro(minutes = 15)
+
+        assertEquals(15, controller.state.pomodoroSessionMinutes)
+        assertEquals(preferred, controller.state.pomodoroMinutes)
+    }
+
+    @Test
+    fun startWhileSessionRunsIsIgnored() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+        val end = controller.state.pomodoroEnd
+        val sessionMinutes = controller.state.pomodoroSessionMinutes
+
+        // Advance the clock so a second call, if it were not refused, would compute a
+        // different end than the first — an unmoved clock lets this pass even with the
+        // guard deleted, since both calls would land on the identical Instant.
+        controller.tick(t(10_000L) + 1.minutes)
+        controller.startPomodoro(minutes = 5)
+
+        assertEquals(end, controller.state.pomodoroEnd)
+        assertEquals(sessionMinutes, controller.state.pomodoroSessionMinutes)
+    }
+
+    @Test
+    fun earlyProgressedWithoutDetourIsRefused() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+
+        controller.closePomodoro(FocusClosureOutcome.PROGRESSED)
+
+        assertNotNull(controller.state.pomodoroEnd) // still running
+    }
+
+    @Test
+    fun earlyProgressedWithDetourClosesAndStartsOpenDetour() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+
+        controller.closePomodoro(FocusClosureOutcome.PROGRESSED, detourCategory = "Mail")
+
+        assertNull(controller.state.pomodoroEnd)
+        assertEquals("Mail", controller.state.openDetourCategory)
+        assertNotNull(controller.state.openDetourStart)
+        assertNull(controller.state.breakStart) // the detour replaces the break
+    }
+
+    @Test
+    fun earlyCompletedIsFree() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        assertNull(controller.state.pomodoroEnd)
+        assertNotNull(controller.state.breakStart)
+    }
+
+    @Test
+    fun closureRecordsOvertimeUncapped() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+        val end = controller.state.pomodoroEnd!!
+        controller.tick(end + 12.minutes)
+
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        val record = controller.state.focusSessionRecords.last()
+        assertEquals(end + 12.minutes, record.end)
+    }
+
+    @Test
+    fun closureAppliesEditedIntentionToRecord() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+        controller.tick(t(10_000L) + 5.minutes)
+
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED, intention = "revised chapter 3")
+
+        assertEquals("revised chapter 3", controller.state.focusSessionRecords.last().intention)
+    }
+
+    @Test
+    fun closureTruncatesTheIntentionAtOneHundredCharacters() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+        controller.tick(t(10_000L) + 5.minutes)
+        val overlong = "x".repeat(150)
+
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED, intention = overlong)
+
+        assertEquals("x".repeat(100), controller.state.focusSessionRecords.last().intention)
+    }
+
+    @Test
+    fun changingDurationDuringOvertimeLeavesMinutesUntouched() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        val preferred = controller.state.pomodoroMinutes
+        controller.startPomodoro()
+        val end = controller.state.pomodoroEnd!!
+        controller.tick(end + 1.minutes)
+        assertEquals(PomodoroStatus.OVERTIME, controller.state.pomodoroProgress.status)
+
+        controller.changePomodoroDuration(15)
+
+        assertEquals(preferred, controller.state.pomodoroMinutes)
+    }
+
+    @Test
+    fun changingDurationWhileIdleDoesNotWriteASessionWindow() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        assertEquals(PomodoroStatus.IDLE, controller.state.pomodoroProgress.status)
+        val preferred = controller.state.pomodoroMinutes
+
+        controller.changePomodoroDuration(15)
+
+        // The guard doesn't block IDLE, so the call ran and did move the preference...
+        assertEquals(preferred + 15, controller.state.pomodoroMinutes)
+        // ...but no longer writes pomodoroEnd as a side effect: no session window is opened.
+        assertNull(controller.state.pomodoroEnd)
+    }
+
+    @Test
+    fun closePomodoroWithWhitespaceOnlyDetourCategoryIsRefused() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        controller.startPomodoro()
+
+        // Sanitizing a whitespace-only category yields "", so this must not count as named.
+        controller.closePomodoro(FocusClosureOutcome.PROGRESSED, detourCategory = "   ")
+
+        assertNotNull(controller.state.pomodoroEnd) // still running
+    }
+
+    @Test
+    fun closePomodoroWithNoRunningSessionIsANoOp() {
+        val controller = testController(InMemoryDayPreferences(), 10_000L)
+        assertNull(controller.state.pomodoroEnd)
+
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
+
+        assertNull(controller.state.pomodoroEnd)
+        assertNull(controller.state.breakStart)
+        assertNull(controller.state.lastFocusClosure)
+        assertTrue(controller.state.focusSessionRecords.isEmpty())
     }
 }

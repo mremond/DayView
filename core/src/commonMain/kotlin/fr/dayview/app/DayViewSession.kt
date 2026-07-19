@@ -89,7 +89,7 @@ class DayViewSession internal constructor(
         }
 
         val state = controller.stateFlow.value
-        val focusActive = state.pomodoroEnd?.let { state.now < it } ?: false
+        val focusActive = state.focusIsActive
         // JVM parity: the resume detector observes every tick, active or idle, so a cold
         // launch's first manual Start Focus is never mistaken for a recovered session.
         val priorDriftReminderId = driftReminderId
@@ -194,7 +194,14 @@ class DayViewSession internal constructor(
         controller.startPomodoro()
     }
 
-    fun stopFocus() = controller.stopPomodoro()
+    /**
+     * The native window's Stop, still a bridge rather than the closure ritual: it picks
+     * TO_RESUME and names no detour, so before the term the controller silently refuses it
+     * and the button does nothing; past the term it closes normally. Giving the native
+     * window the real closure sheet — outcomes, the intention, the detour capture — is a
+     * known, accepted gap, tracked with the rest of the native parity work.
+     */
+    fun stopFocus() = controller.closePomodoro(FocusClosureOutcome.TO_RESUME)
 
     /**
      * Ends the session through the closure ritual. [outcome] is one of "COMPLETED",

@@ -11,6 +11,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlin.time.Clock
 import kotlin.time.Instant
 
 internal enum class FocusTileAction {
@@ -21,15 +22,30 @@ internal enum class FocusTileAction {
 internal enum class FocusTileState {
     IDLE,
     ACTIVE,
+    OVERTIME,
     BREAK,
 }
 
+/**
+ * The tile only offers its one-tap start where a start can actually succeed. A session that
+ * is running — whether inside its term (ACTIVE) or past it (OVERTIME) — and an open detour
+ * both make [DayViewController.startPomodoro] a no-op, so in those states the tap opens the
+ * app instead of rendering a control that would do nothing (or worse, overwrite a running
+ * session's end).
+ *
+ * Entering focus is free, so the intention plays no part here: it is invited at the close.
+ * A tile labelled "Start Focus" that opened the app instead, because nothing was named yet,
+ * would be the abolished toll surviving on the one surface that cannot ask for a name.
+ */
 internal fun focusTileAction(
     state: FocusTileState,
-    intention: String,
     canPostNotifications: Boolean,
+    hasOpenDetour: Boolean,
 ): FocusTileAction = if (
-    state != FocusTileState.ACTIVE && intention.isNotBlank() && canPostNotifications
+    state != FocusTileState.ACTIVE &&
+    state != FocusTileState.OVERTIME &&
+    !hasOpenDetour &&
+    canPostNotifications
 ) {
     FocusTileAction.START_FOCUS
 } else {
@@ -48,26 +64,37 @@ class DayViewFocusTileService : TileService() {
             val preferences = DayViewPreferences.get(applicationContext)
             val now = System.currentTimeMillis()
             val snap = runBlocking { preferences.snapshots.first() }
-            val tileState = focusTileState(snap.pomodoroEnd?.toEpochMilliseconds(), now)
+            val tileState = focusTileState(
+                snap.pomodoroEnd?.toEpochMilliseconds(),
+                snap.breakStart?.toEpochMilliseconds(),
+                now,
+            )
             when (
                 focusTileAction(
                     state = tileState,
-                    intention = snap.focusIntention,
                     canPostNotifications = canPostNotifications(),
+                    hasOpenDetour = snap.openDetourStart != null,
                 )
             ) {
                 FocusTileAction.OPEN_APP -> openDayView()
                 FocusTileAction.START_FOCUS -> {
-                    if (snap.openDetourStart == null) {
-                        val endMillis = now + snap.pomodoroMinutes.coerceIn(5, 180) * 60_000L
-                        runBlocking {
-                            preferences.persist(snap.copy(pomodoroEnd = Instant.fromEpochMilliseconds(endMillis)))
-                        }
-                        FocusAlarmScheduler(applicationContext).schedule(
-                            endMillis,
-                            snap.focusIntention,
+                    val durationMinutes = snap.pomodoroMinutes.coerceIn(5, 180)
+                    val endMillis = now + durationMinutes * 60_000L
+                    runBlocking {
+                        // The whole session snapshot, as DayViewController.startPomodoro writes it.
+                        preferences.persist(
+                            snap.copy(
+                                pomodoroEnd = Instant.fromEpochMilliseconds(endMillis),
+                                pomodoroSessionMinutes = durationMinutes,
+                                breakStart = null,
+                            ),
                         )
                     }
+                    FocusAlarmScheduler(applicationContext).schedule(
+                        endMillis,
+                        snap.focusIntention,
+                        durationMinutes,
+                    )
                     updateTile()
                 }
             }
@@ -79,12 +106,14 @@ class DayViewFocusTileService : TileService() {
         val snap = runBlocking { DayViewPreferences.get(applicationContext).snapshots.first() }
         val tileState = focusTileState(
             snap.pomodoroEnd?.toEpochMilliseconds(),
+            snap.breakStart?.toEpochMilliseconds(),
             System.currentTimeMillis(),
         )
         tile.state = if (tileState == FocusTileState.IDLE) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE
         tile.label = getString(
             when (tileState) {
                 FocusTileState.ACTIVE -> R.string.focus_tile_active
+                FocusTileState.OVERTIME -> R.string.focus_tile_overtime
                 FocusTileState.BREAK -> R.string.focus_tile_break
                 FocusTileState.IDLE -> R.string.focus_tile_start
             },
@@ -92,6 +121,13 @@ class DayViewFocusTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = when (tileState) {
                 FocusTileState.ACTIVE -> snap.focusIntention.trim().take(30)
+                FocusTileState.OVERTIME -> formatOvertimeLabel(
+                    calculatePomodoroProgress(
+                        now = Clock.System.now(),
+                        durationMinutes = snap.sessionMinutesEffective,
+                        end = snap.pomodoroEnd,
+                    ),
+                )
                 FocusTileState.BREAK -> getString(R.string.focus_tile_break_subtitle)
                 FocusTileState.IDLE -> getString(R.string.focus_tile_subtitle)
             }
@@ -135,8 +171,18 @@ class DayViewFocusTileService : TileService() {
     }
 }
 
-internal fun focusTileState(endMillis: Long?, nowMillis: Long): FocusTileState = when {
-    endMillis == null -> FocusTileState.IDLE
-    endMillis > nowMillis -> FocusTileState.ACTIVE
-    else -> FocusTileState.BREAK
+/**
+ * Mirrors [calculatePomodoroProgress]: a term that has passed is *overtime*, not a break.
+ * A break exists only once the session was closed — that closure is what sets [breakStartMillis].
+ */
+internal fun focusTileState(
+    endMillis: Long?,
+    breakStartMillis: Long?,
+    nowMillis: Long,
+): FocusTileState = when {
+    endMillis != null && endMillis > nowMillis -> FocusTileState.ACTIVE
+    endMillis != null -> FocusTileState.OVERTIME
+    breakStartMillis != null &&
+        nowMillis - breakStartMillis <= BREAK_VISIBLE_MAX.inWholeMilliseconds -> FocusTileState.BREAK
+    else -> FocusTileState.IDLE
 }

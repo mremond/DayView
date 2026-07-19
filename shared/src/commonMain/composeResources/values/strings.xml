@@ -137,13 +137,18 @@
     <string name="focus_state_idle">READY TO COMMIT</string>
     <string name="focus_state_active">IN PROGRESS</string>
     <string name="focus_state_break_active">ON BREAK</string>
-    <string name="focus_state_series_inactive">IDLE STRETCH</string>
+    <string name="focus_state_overtime">OVERTIME — STILL COUNTED</string>
     <string name="focus_break_since">ON BREAK FOR</string>
     <string name="focus_break_disconnect">TAKE TIME TO DISCONNECT</string>
     <string name="focus_break_conscious">RESUMING STAYS A CONSCIOUS CHOICE</string>
     <string name="focus_close_section">CLOSE THIS FOCUS</string>
+    <string name="focus_closure_intention_label">WHAT WAS IT?</string>
+    <string name="focus_exit_detour_label">NAME WHAT PULLS YOU AWAY</string>
+    <string name="focus_exit_detour_confirm">LEAVE VIA DETOUR</string>
+    <string name="focus_exit_cancel">STAY</string>
     <string name="focus_resume_point">YOUR RESUME POINT</string>
     <string name="focus_resume_time_left">%1$s left to stay on track.</string>
+    <string name="focus_resume_overtime">%1$s past the term — closing stays a choice.</string>
     <string name="focus_drift_title">BACK TO THE ESSENTIAL</string>
     <string name="focus_drift_dismiss">BACK AT IT</string>
     <string name="focus_my_intention">MY INTENTION</string>
@@ -151,7 +156,8 @@
     <string name="focus_intention_prompt">DURING THIS FOCUS, I WILL…</string>
     <string name="focus_intention_label">Focus intention</string>
     <string name="focus_intention_placeholder">E.g. finish the presentation outline</string>
-    <string name="focus_intention_hint">Write an intention to start.</string>
+    <string name="focus_intention_optional_hint">Optional — name it when you close.</string>
+    <string name="focus_quick_start_button">5 MIN</string>
     <string name="focus_duration_decrease">Decrease the Focus duration by 5 minutes</string>
     <string name="focus_duration_increase">Increase the Focus duration by 5 minutes</string>
     <string name="focus_duration_value">Focus duration: %1$s minutes</string>
@@ -276,6 +282,8 @@
     <string name="desktop_quit_dayview">Quit DayView</string>
     <string name="desktop_choose_time">Choose the time</string>
     <string name="desktop_nudge_title">Back to the essential</string>
+    <string name="overtime_reminder_title">Still going — closing stays a choice.</string>
+    <string name="overtime_reminder_body">The session passed twice its length.</string>
 
     <!-- Detours -->
     <string name="detours_today">Detours %1$s</string>

@@ -10,6 +10,7 @@ import okio.fakefilesystem.FakeFileSystem
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.time.Instant
 
 class DayPreferencesStoreTest {
@@ -234,5 +235,26 @@ class DayPreferencesStoreTest {
         val reloaded = store.snapshots.first()
         assertEquals(records, reloaded.focusSessionRecords)
         assertEquals(42L, reloaded.focusSessionRecordsDayKey)
+    }
+
+    @Test
+    fun sessionMinutesAndBreakStartRoundTrip() = runTest {
+        val store = newStore(FakeFileSystem())
+        val snapshot = DayPreferencesSnapshot(
+            pomodoroSessionMinutes = 5,
+            breakStart = Instant.fromEpochMilliseconds(123_456_000L),
+        )
+        store.persist(snapshot)
+        val restored = store.snapshots.first()
+        assertEquals(5, restored.pomodoroSessionMinutes)
+        assertEquals(Instant.fromEpochMilliseconds(123_456_000L), restored.breakStart)
+    }
+
+    @Test
+    fun absentSessionKeysReadBackAsNull() = runTest {
+        val store = newStore(FakeFileSystem())
+        val restored = store.snapshots.first()
+        assertNull(restored.pomodoroSessionMinutes)
+        assertNull(restored.breakStart)
     }
 }

@@ -75,7 +75,8 @@ fun DayViewApp(
     launchAtLogin: Boolean? = null,
     onLaunchAtLoginChange: ((Boolean) -> Unit)? = null,
     onOpenMiniWindow: (() -> Unit)? = null,
-    onFocusAlarmChange: (end: Instant?, intention: String) -> Unit = { _, _ -> },
+    onFocusAlarmChange: (end: Instant?, intention: String, sessionMinutes: Int) -> Unit = { _, _, _ -> },
+    onFocusBreakStarted: (startEpochMillis: Long) -> Unit = {},
     onRequestCalendarPermission: (() -> Unit)? = null,
     onOpenPowerSettings: (() -> Unit)? = null,
     showFocusDriftReminder: Boolean = false,
@@ -596,18 +597,24 @@ fun DayViewApp(
                                     startPomodoro = {
                                         controller.startPomodoro()
                                         controller.state.pomodoroEnd?.let {
-                                            onFocusAlarmChange(it, controller.state.focusIntention)
+                                            onFocusAlarmChange(it, controller.state.focusIntention, controller.state.sessionMinutesEffective)
                                         }
                                     },
-                                    stopPomodoro = {
-                                        val intention = controller.state.focusIntention
-                                        controller.stopPomodoro()
-                                        onFocusAlarmChange(null, intention)
+                                    quickStartPomodoro = {
+                                        controller.startPomodoro(minutes = 5)
+                                        controller.state.pomodoroEnd?.let {
+                                            onFocusAlarmChange(it, controller.state.focusIntention, controller.state.sessionMinutesEffective)
+                                        }
                                     },
-                                    closePomodoro = { outcome ->
-                                        val intention = controller.state.focusIntention
-                                        controller.closePomodoro(outcome)
-                                        onFocusAlarmChange(null, intention)
+                                    closePomodoro = { outcome, intention, detourCategory, detourDescription ->
+                                        controller.closePomodoro(outcome, intention, detourCategory, detourDescription)
+                                        // A closure the early-exit gate refuses is a silent no-op: the
+                                        // session keeps running, so its alarm must keep standing and no
+                                        // break has been anchored.
+                                        if (controller.state.pomodoroEnd == null) {
+                                            onFocusAlarmChange(null, controller.state.focusIntention, controller.state.sessionMinutesEffective)
+                                            controller.state.breakStart?.let { onFocusBreakStarted(it.toEpochMilliseconds()) }
+                                        }
                                     },
                                     addDetour = { category, durationMinutes, description -> controller.addDetour(category, durationMinutes, description) },
                                     updateDetour = { index, episode -> controller.updateDetour(index, episode) },

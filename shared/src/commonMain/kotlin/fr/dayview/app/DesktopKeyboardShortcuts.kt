@@ -13,15 +13,13 @@ import androidx.compose.ui.input.key.type
 internal expect fun desktopKeyboardShortcutsEnabled(): Boolean
 
 internal fun Modifier.startFocusOnCommandEnter(
-    enabled: Boolean,
     onStart: () -> Unit,
 ): Modifier = if (!desktopKeyboardShortcutsEnabled()) {
     this
 } else {
     onPreviewKeyEvent { event ->
         val handled =
-            enabled &&
-                event.type == KeyEventType.KeyDown &&
+            event.type == KeyEventType.KeyDown &&
                 event.key == Key.Enter &&
                 event.isMetaPressed
         if (handled) onStart()

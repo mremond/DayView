@@ -136,10 +136,14 @@ class DayViewWidget : AppWidgetProvider() {
                 startMinutesOfDay = snapshot.startMinutes,
                 endMinutesOfDay = snapshot.endMinutes,
             )
+            // A term that has passed does not clear the focus block: the session keeps
+            // running, so the widget swaps the countdown for a count-up instead of going blank.
+            val sessionEndMillis = snapshot.pomodoroEnd?.toEpochMilliseconds()
             val content = WidgetContent(
                 progress = progress,
                 goal = snapshot.goalTitle.trim(),
-                focusEndMillis = snapshot.pomodoroEnd?.toEpochMilliseconds()?.takeIf { it > now },
+                focusEndMillis = sessionEndMillis?.takeIf { it > now },
+                overtimeSinceMillis = sessionEndMillis?.takeIf { it <= now },
                 focusIntention = snapshot.focusIntention.trim(),
                 nowMillis = now,
                 ring = renderRing(context, progress),
@@ -210,29 +214,31 @@ class DayViewWidget : AppWidgetProvider() {
             val showGoal = content.goal.isNotBlank() &&
                 when (layout) {
                     DayViewWidgetLayout.COMPACT -> false
-                    DayViewWidgetLayout.MEDIUM -> content.focusEndMillis == null
+                    DayViewWidgetLayout.MEDIUM -> !content.focusIsRunning
                     DayViewWidgetLayout.LARGE -> true
                 }
             views.setViewVisibility(R.id.widget_goal, if (showGoal) View.VISIBLE else View.GONE)
             views.setTextViewText(R.id.widget_goal, context.getString(R.string.widget_goal, content.goal))
 
             val focusEnd = content.focusEndMillis
-            val focusIsActive = focusEnd != null
-            views.setViewVisibility(R.id.widget_focus, if (focusIsActive) View.VISIBLE else View.GONE)
-            if (focusIsActive) {
+            val overtimeSince = content.overtimeSinceMillis
+            views.setViewVisibility(R.id.widget_focus, if (content.focusIsRunning) View.VISIBLE else View.GONE)
+            if (content.focusIsRunning) {
                 val intention = content.focusIntention.ifBlank { context.getString(R.string.widget_focus_default) }
                 views.setTextViewText(R.id.widget_focus_intention, intention)
                 views.setViewVisibility(
                     R.id.widget_focus_intention,
                     if (layout == DayViewWidgetLayout.COMPACT) View.GONE else View.VISIBLE,
                 )
+                val countingDown = focusEnd != null
+                val anchorMillis = focusEnd ?: overtimeSince!!
                 views.setChronometer(
                     R.id.widget_focus_countdown,
-                    SystemClock.elapsedRealtime() + (focusEnd - content.nowMillis),
+                    SystemClock.elapsedRealtime() + (anchorMillis - content.nowMillis),
                     null,
                     true,
                 )
-                views.setChronometerCountDown(R.id.widget_focus_countdown, true)
+                views.setChronometerCountDown(R.id.widget_focus_countdown, countingDown)
             } else {
                 views.setViewVisibility(R.id.widget_focus_intention, View.GONE)
                 views.setChronometer(R.id.widget_focus_countdown, SystemClock.elapsedRealtime(), null, false)
@@ -244,10 +250,14 @@ class DayViewWidget : AppWidgetProvider() {
             val progress: DayProgress,
             val goal: String,
             val focusEndMillis: Long?,
+            val overtimeSinceMillis: Long?,
             val focusIntention: String,
             val nowMillis: Long,
             val ring: Bitmap,
-        )
+        ) {
+            /** A session is running inside its term (counting down) or past it (counting up). */
+            val focusIsRunning: Boolean get() = focusEndMillis != null || overtimeSinceMillis != null
+        }
 
         private fun formatRemaining(progress: DayProgress): String = when {
             !progress.hasStarted -> formatTime(progress.startHour, progress.startMinute)

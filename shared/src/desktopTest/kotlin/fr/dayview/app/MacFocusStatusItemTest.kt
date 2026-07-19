@@ -1,6 +1,9 @@
 package fr.dayview.app
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 class MacFocusStatusItemTest {
     @Test
@@ -12,5 +15,12 @@ class MacFocusStatusItemTest {
             item.update("21m")
             item.update(null)
         }
+    }
+
+    @Test
+    fun overtimeTitleIsThePlusMinutesHeadline() {
+        val end = Instant.fromEpochMilliseconds(0L)
+        val progress = calculatePomodoroProgress(end + 3.minutes, 25, end)
+        assertEquals("+3 min", menuBarCompactTitle(progress, breakTitle = null))
     }
 }

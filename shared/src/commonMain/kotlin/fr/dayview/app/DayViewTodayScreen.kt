@@ -125,15 +125,17 @@ import fr.dayview.app.generated.resources.focus_drift_title
 import fr.dayview.app.generated.resources.focus_duration_decrease
 import fr.dayview.app.generated.resources.focus_duration_increase
 import fr.dayview.app.generated.resources.focus_duration_value
-import fr.dayview.app.generated.resources.focus_intention_hint
 import fr.dayview.app.generated.resources.focus_intention_label
+import fr.dayview.app.generated.resources.focus_intention_optional_hint
 import fr.dayview.app.generated.resources.focus_intention_placeholder
 import fr.dayview.app.generated.resources.focus_intention_prompt
 import fr.dayview.app.generated.resources.focus_my_intention
 import fr.dayview.app.generated.resources.focus_outcome_completed
 import fr.dayview.app.generated.resources.focus_outcome_progressed
 import fr.dayview.app.generated.resources.focus_outcome_to_resume
+import fr.dayview.app.generated.resources.focus_quick_start_button
 import fr.dayview.app.generated.resources.focus_resume
+import fr.dayview.app.generated.resources.focus_resume_overtime
 import fr.dayview.app.generated.resources.focus_resume_point
 import fr.dayview.app.generated.resources.focus_resume_time_left
 import fr.dayview.app.generated.resources.focus_section
@@ -147,7 +149,7 @@ import fr.dayview.app.generated.resources.focus_start_full_button
 import fr.dayview.app.generated.resources.focus_state_active
 import fr.dayview.app.generated.resources.focus_state_break_active
 import fr.dayview.app.generated.resources.focus_state_idle
-import fr.dayview.app.generated.resources.focus_state_series_inactive
+import fr.dayview.app.generated.resources.focus_state_overtime
 import fr.dayview.app.generated.resources.focus_stop
 import fr.dayview.app.generated.resources.focused_today
 import fr.dayview.app.generated.resources.goal_badge
@@ -214,8 +216,8 @@ internal data class DayViewScreenActions(
     val changeFocusIntention: (String) -> Unit,
     val changePomodoroDuration: (Int) -> Unit,
     val startPomodoro: () -> Unit,
-    val stopPomodoro: () -> Unit,
-    val closePomodoro: (FocusClosureOutcome) -> Unit,
+    val quickStartPomodoro: () -> Unit,
+    val closePomodoro: (FocusClosureOutcome, String, String, String) -> Unit,
     val addDetour: (String, Int, String) -> Unit,
     val updateDetour: (Int, DetourEpisode) -> Unit,
     val removeDetour: (Int) -> Unit,
@@ -365,6 +367,9 @@ internal fun DayViewScreen(
                         pomodoro = pomodoro,
                         focusIntention = state.focusIntention,
                         lastFocusClosure = state.lastFocusClosure,
+                        now = state.now,
+                        pomodoroEnd = state.pomodoroEnd,
+                        recentDetourCategories = state.recentDetourCategories,
                         onFocusIntentionChange = actions.changeFocusIntention,
                         showFocusDriftReminder = reminders.showDriftReminder,
                         onDismissFocusDriftReminder = reminders.dismissDriftReminder,
@@ -372,9 +377,10 @@ internal fun DayViewScreen(
                         onDismissFocusResumeRitual = reminders.dismissResumeRitual,
                         onPomodoroDurationChange = actions.changePomodoroDuration,
                         onPomodoroStart = actions.startPomodoro,
-                        onPomodoroStop = actions.stopPomodoro,
+                        onPomodoroQuickStart = actions.quickStartPomodoro,
                         onPomodoroClose = actions.closePomodoro,
                         openDetour = state.openDetourPanelState,
+                        openDetourRunning = state.openDetourRunning,
                         onStopOpenDetour = actions.stopOpenDetour,
                         modifier = Modifier.weight(.85f).verticalScroll(rememberScrollState()),
                     )
@@ -582,6 +588,10 @@ private fun CompactTodayContent(
                 progress = pomodoro,
                 intention = state.focusIntention,
                 lastClosure = state.lastFocusClosure,
+                now = state.now,
+                pomodoroEnd = state.pomodoroEnd,
+                recentDetourCategories = state.recentDetourCategories,
+                openDetourRunning = state.openDetourRunning,
                 onIntentionChange = actions.changeFocusIntention,
                 showDriftReminder = reminders.showDriftReminder,
                 onDismissDriftReminder = reminders.dismissDriftReminder,
@@ -589,7 +599,7 @@ private fun CompactTodayContent(
                 onDismissResumeRitual = reminders.dismissResumeRitual,
                 onDurationChange = actions.changePomodoroDuration,
                 onStart = actions.startPomodoro,
-                onStop = actions.stopPomodoro,
+                onQuickStart = actions.quickStartPomodoro,
                 onClose = actions.closePomodoro,
                 modifier = Modifier.bringIntoViewRequester(activeFocusRequester),
             )
@@ -630,6 +640,10 @@ private fun CompactTodayContent(
                     onDurationChange = actions.changePomodoroDuration,
                     onStart = {
                         actions.startPomodoro()
+                        openSheet = null
+                    },
+                    onQuickStart = {
+                        actions.quickStartPomodoro()
                         openSheet = null
                     },
                 )
@@ -2068,6 +2082,9 @@ private fun SidePanel(
     pomodoro: PomodoroProgress,
     focusIntention: String,
     lastFocusClosure: FocusClosureOutcome?,
+    now: Instant,
+    pomodoroEnd: Instant?,
+    recentDetourCategories: List<String>,
     onFocusIntentionChange: (String) -> Unit,
     showFocusDriftReminder: Boolean,
     onDismissFocusDriftReminder: () -> Unit,
@@ -2075,9 +2092,10 @@ private fun SidePanel(
     onDismissFocusResumeRitual: () -> Unit,
     onPomodoroDurationChange: (Int) -> Unit,
     onPomodoroStart: () -> Unit,
-    onPomodoroStop: () -> Unit,
-    onPomodoroClose: (FocusClosureOutcome) -> Unit,
+    onPomodoroQuickStart: () -> Unit,
+    onPomodoroClose: (FocusClosureOutcome, String, String, String) -> Unit,
     openDetour: OpenDetourPanelState?,
+    openDetourRunning: Boolean,
     onStopOpenDetour: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2090,6 +2108,10 @@ private fun SidePanel(
                 progress = pomodoro,
                 intention = focusIntention,
                 lastClosure = lastFocusClosure,
+                now = now,
+                pomodoroEnd = pomodoroEnd,
+                recentDetourCategories = recentDetourCategories,
+                openDetourRunning = openDetourRunning,
                 onIntentionChange = onFocusIntentionChange,
                 showDriftReminder = showFocusDriftReminder,
                 onDismissDriftReminder = onDismissFocusDriftReminder,
@@ -2097,7 +2119,7 @@ private fun SidePanel(
                 onDismissResumeRitual = onDismissFocusResumeRitual,
                 onDurationChange = onPomodoroDurationChange,
                 onStart = onPomodoroStart,
-                onStop = onPomodoroStop,
+                onQuickStart = onPomodoroQuickStart,
                 onClose = onPomodoroClose,
             )
         }
@@ -2151,6 +2173,10 @@ private fun FocusPanel(
     progress: PomodoroProgress,
     intention: String,
     lastClosure: FocusClosureOutcome?,
+    now: Instant,
+    pomodoroEnd: Instant?,
+    recentDetourCategories: List<String>,
+    openDetourRunning: Boolean,
     onIntentionChange: (String) -> Unit,
     showDriftReminder: Boolean,
     onDismissDriftReminder: () -> Unit,
@@ -2158,12 +2184,16 @@ private fun FocusPanel(
     onDismissResumeRitual: () -> Unit,
     onDurationChange: (Int) -> Unit,
     onStart: () -> Unit,
-    onStop: () -> Unit,
-    onClose: (FocusClosureOutcome) -> Unit,
+    onQuickStart: () -> Unit,
+    onClose: (FocusClosureOutcome, String, String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDayViewColors.current
     val animatedRatio by animateFloatAsState(progress.remainingRatio, tween(500), label = "focus-progress")
+    // Leaving a running session is a deliberate detour, so Stop only unfolds the closure
+    // sheet. Keyed on the status so a stage change (term reached, session closed) folds it
+    // back rather than leaving a stale sheet over the next stage.
+    var showEarlyClosure by remember(progress.status) { mutableStateOf(false) }
     Column(
         modifier = modifier.fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(18.dp))
@@ -2177,13 +2207,13 @@ private fun FocusPanel(
                 when (progress.status) {
                     PomodoroStatus.IDLE -> stringResource(Res.string.focus_state_idle)
                     PomodoroStatus.ACTIVE -> stringResource(Res.string.focus_state_active)
-                    PomodoroStatus.BREAK -> if (progress.breakElapsed >= 60.minutes) {
-                        stringResource(Res.string.focus_state_series_inactive)
-                    } else {
-                        stringResource(Res.string.focus_state_break_active)
-                    }
+                    PomodoroStatus.OVERTIME -> stringResource(Res.string.focus_state_overtime)
+                    PomodoroStatus.BREAK -> stringResource(Res.string.focus_state_break_active)
                 },
-                color = if (progress.status == PomodoroStatus.BREAK) colors.mint else colors.muted,
+                color = when (progress.status) {
+                    PomodoroStatus.OVERTIME, PomodoroStatus.BREAK -> colors.mint
+                    else -> colors.muted
+                },
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = .7.sp,
@@ -2191,10 +2221,19 @@ private fun FocusPanel(
         }
         Spacer(Modifier.height(12.dp))
 
-        if (progress.status == PomodoroStatus.ACTIVE) {
+        // The term does not end the session, so neither ritual belongs to ACTIVE alone:
+        // coming back during overtime deserves the same resume point, and drifting there
+        // the same nudge. Rendering them only before the term would also latch the resume
+        // ritual invisibly, muting every later nudge for the rest of the session.
+        val isActive = progress.status == PomodoroStatus.ACTIVE
+        val isOvertime = progress.status == PomodoroStatus.OVERTIME
+        val isBreak = progress.status == PomodoroStatus.BREAK
+        val sessionIsOpen = isActive || isOvertime
+        if (sessionIsOpen) {
             if (showResumeRitual) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
+                        .testTag(DayViewTestTags.FocusResumeRitual)
                         .background(colors.mint.copy(alpha = .12f), RoundedCornerShape(12.dp))
                         .border(1.dp, colors.mint.copy(alpha = .3f), RoundedCornerShape(12.dp))
                         .padding(13.dp),
@@ -2216,7 +2255,11 @@ private fun FocusPanel(
                     )
                     Spacer(Modifier.height(5.dp))
                     Text(
-                        stringResource(Res.string.focus_resume_time_left, formatPomodoroClock(progress)),
+                        if (isOvertime) {
+                            stringResource(Res.string.focus_resume_overtime, formatOvertimeLabel(progress))
+                        } else {
+                            stringResource(Res.string.focus_resume_time_left, formatPomodoroClock(progress))
+                        },
                         color = colors.muted,
                         fontSize = 11.sp,
                     )
@@ -2225,15 +2268,19 @@ private fun FocusPanel(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(9.dp),
                     ) {
-                        FocusActionButton(
-                            stringResource(Res.string.focus_stop),
-                            colors.red,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onStop()
-                                onDismissResumeRitual()
-                            },
-                        )
+                        // Past the term the closure sheet is already unfolded below, so a Stop
+                        // here would only duplicate it; the ritual then offers resuming alone.
+                        if (isActive) {
+                            FocusActionButton(
+                                stringResource(Res.string.focus_stop),
+                                colors.red,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    showEarlyClosure = true
+                                    onDismissResumeRitual()
+                                },
+                            )
+                        }
                         FocusActionButton(
                             stringResource(Res.string.focus_resume),
                             colors.mint,
@@ -2271,6 +2318,8 @@ private fun FocusPanel(
                 }
                 Spacer(Modifier.height(12.dp))
             }
+        }
+        if (isActive) {
             Text(
                 stringResource(Res.string.focus_my_intention),
                 color = colors.muted,
@@ -2290,12 +2339,14 @@ private fun FocusPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(formatPomodoroClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
                 Spacer(Modifier.weight(1f))
-                FocusActionButton(
-                    stringResource(Res.string.focus_stop),
-                    colors.red,
-                    modifier = Modifier.testTag(DayViewTestTags.FocusStop),
-                    onClick = onStop,
-                )
+                if (!showEarlyClosure) {
+                    FocusActionButton(
+                        stringResource(Res.string.focus_stop),
+                        colors.red,
+                        modifier = Modifier.testTag(DayViewTestTags.FocusStop),
+                        onClick = { showEarlyClosure = true },
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             Box(
@@ -2307,9 +2358,15 @@ private fun FocusPanel(
                         .background(colors.amber, CircleShape),
                 )
             }
-        } else if (progress.status == PomodoroStatus.BREAK) {
+        } else if (isOvertime) {
+            // Past the term nothing is lost and nothing is owed: the time keeps counting
+            // until a closure names it, and that closure costs no detour.
+            Text(formatOvertimeLabel(progress), color = colors.mint, fontSize = 34.sp, fontWeight = FontWeight.Light)
+        } else if (isBreak) {
+            // The session is closed and this is real time off, so the panel leads with the
+            // break rather than with the next session.
             Text(
-                if (progress.breakElapsed >= 60.minutes) stringResource(Res.string.focus_state_series_inactive) else stringResource(Res.string.focus_break_since),
+                stringResource(Res.string.focus_break_since),
                 color = colors.muted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -2320,8 +2377,6 @@ private fun FocusPanel(
                 Text(formatBreakClock(progress), color = colors.cloud, fontSize = 34.sp, fontWeight = FontWeight.Light)
                 Spacer(Modifier.weight(1f))
                 FocusRelaunchRoundButton(onStart, Modifier.testTag(DayViewTestTags.FocusRelaunch))
-                Spacer(Modifier.width(8.dp))
-                FocusStopRoundButton(onStop, Modifier.testTag(DayViewTestTags.FocusStop))
             }
             Spacer(Modifier.height(14.dp))
             Text(
@@ -2335,16 +2390,40 @@ private fun FocusPanel(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = .9.sp,
             )
-            Spacer(Modifier.height(14.dp))
-            FocusClosureSection(onClose)
-        } else {
+        }
+        // Whenever no session is open, entering one is offered — idle or on break alike.
+        // A break lasts up to an hour, and for all of it resuming stays a conscious choice:
+        // one that has to be a real choice, with an intention, a duration and the 5-minute
+        // preset, rather than a single silent relaunch on the preferred duration.
+        if (!sessionIsOpen) {
+            if (isBreak) Spacer(Modifier.height(16.dp))
             FocusCreationContent(
                 progress = progress,
                 intention = intention,
-                lastClosure = lastClosure,
+                // On a break the panel's own copy already speaks for the moment; the closure
+                // chip would only replay the session that was just closed, right above it.
+                lastClosure = lastClosure.takeIf { !isBreak },
                 onIntentionChange = onIntentionChange,
                 onDurationChange = onDurationChange,
                 onStart = onStart,
+                onQuickStart = onQuickStart,
+            )
+        }
+        // One call site for both windows of an open session, so crossing the term keeps the
+        // sheet's identity — and the intention someone is halfway through typing into it.
+        // The toll is read from the clock, not from which branch composed the sheet: past
+        // the term `earlyExitRequiresDetour` is false for every outcome on its own. Overtime
+        // has nothing to cancel (the sheet is the panel); before the term, Stay folds it away.
+        // A detour already running is also toll-free: it already is the named exit, and its
+        // motif is collected when it stops rather than duplicated here.
+        if (sessionIsOpen && (isOvertime || showEarlyClosure)) {
+            Spacer(Modifier.height(14.dp))
+            FocusClosureContent(
+                intention = intention,
+                requiresDetourFor = { earlyExitRequiresDetour(now, pomodoroEnd, it, openDetourRunning) },
+                recentDetourCategories = recentDetourCategories,
+                onClose = onClose,
+                onCancel = { showEarlyClosure = false }.takeIf { !isOvertime },
             )
         }
     }
@@ -2390,14 +2469,13 @@ private fun FocusCreationContent(
     onIntentionChange: (String) -> Unit,
     onDurationChange: (Int) -> Unit,
     onStart: () -> Unit,
+    onQuickStart: () -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     Column(
         modifier = Modifier.fillMaxWidth()
-            .startFocusOnCommandEnter(
-                enabled = intention.isNotBlank(),
-                onStart = onStart,
-            ),
+            // Entering focus is free: the intention is no longer a toll on Start.
+            .startFocusOnCommandEnter(onStart = onStart),
     ) {
         if (lastClosure != null) {
             FocusClosureChip(lastClosure)
@@ -2449,18 +2527,23 @@ private fun FocusCreationContent(
         }
         Spacer(Modifier.height(13.dp))
         val startLabel = stringResource(Res.string.focus_start_full_button)
-        FocusActionButton(
-            if (desktopKeyboardShortcutsEnabled()) "$startLabel · ⌘↩" else startLabel,
-            colors.amber,
-            modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.FocusStart),
-            enabled = intention.isNotBlank(),
-            filled = true,
-            onClick = onStart,
-        )
-        if (intention.isBlank()) {
-            Spacer(Modifier.height(7.dp))
-            Text(stringResource(Res.string.focus_intention_hint), color = colors.muted, fontSize = 10.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FocusActionButton(
+                if (desktopKeyboardShortcutsEnabled()) "$startLabel · ⌘↩" else startLabel,
+                colors.amber,
+                modifier = Modifier.weight(1f).testTag(DayViewTestTags.FocusStart),
+                filled = true,
+                onClick = onStart,
+            )
+            FocusActionButton(
+                stringResource(Res.string.focus_quick_start_button),
+                colors.amber,
+                modifier = Modifier.testTag(DayViewTestTags.FocusQuickStart),
+                onClick = onQuickStart,
+            )
         }
+        Spacer(Modifier.height(7.dp))
+        Text(stringResource(Res.string.focus_intention_optional_hint), color = colors.muted, fontSize = 10.sp)
     }
 }
 

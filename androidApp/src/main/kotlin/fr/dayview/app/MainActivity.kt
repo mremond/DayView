@@ -87,14 +87,21 @@ class MainActivity : ComponentActivity() {
                 history = DayViewPreferences.history(),
                 focusContributions = DayViewPreferences.focusContributions(),
                 deviceId = deviceId,
-                onFocusAlarmChange = { end, intention ->
+                onFocusAlarmChange = { end, intention, sessionMinutes ->
                     if (end == null) {
                         focusAlarmScheduler.cancel()
                     } else {
-                        val scheduledExactly = focusAlarmScheduler.schedule(end.toEpochMilliseconds(), intention)
+                        val scheduledExactly = focusAlarmScheduler.schedule(
+                            end.toEpochMilliseconds(),
+                            intention,
+                            sessionMinutes,
+                        )
                         requestRequiredAccess(requestExactAlarm = !scheduledExactly)
                     }
                 },
+                // Fired only once a closure actually landed and it was not a detour exit: the
+                // break is anchored on that instant, never on the term the session ran past.
+                onFocusBreakStarted = { focusAlarmScheduler.close(it) },
                 onRequestCalendarPermission = {
                     calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                 },
@@ -121,11 +128,26 @@ class MainActivity : ComponentActivity() {
 
     private fun restoreActiveFocusAlarm() {
         val snap = runBlocking { preferences.snapshots.first() }
-        val endMillis = snap.pomodoroEnd?.toEpochMilliseconds() ?: return
-        if (endMillis > System.currentTimeMillis()) {
-            focusAlarmScheduler.schedule(endMillis, snap.focusIntention)
-        } else {
-            focusAlarmScheduler.restoreBreakReminders(endMillis, snap.focusIntention)
+        val sessionMinutes = snap.sessionMinutesEffective
+        val endMillis = snap.pomodoroEnd?.toEpochMilliseconds()
+        val breakStartMillis = snap.breakStart?.toEpochMilliseconds()
+        // The BREAK_VISIBLE_MAX cutoff and the open-detour guard both live inside
+        // FocusAlarmScheduler.restoreBreakReminders now, so this decision only needs to route
+        // to the right primitive — it does not need to re-derive "is this break still worth
+        // showing" itself.
+        when (focusAlarmRestoreAction(endMillis, breakStartMillis, System.currentTimeMillis())) {
+            FocusAlarmRestoreAction.SCHEDULE ->
+                focusAlarmScheduler.schedule(requireNotNull(endMillis), snap.focusIntention, sessionMinutes)
+            FocusAlarmRestoreAction.RESTORE_OVERTIME ->
+                // The term passed without a closure: the session is still running, upwards.
+                focusAlarmScheduler.restoreOvertime(requireNotNull(endMillis), snap.focusIntention, sessionMinutes)
+            FocusAlarmRestoreAction.RESTORE_BREAK ->
+                focusAlarmScheduler.restoreBreakReminders(
+                    breakStartMillis = requireNotNull(breakStartMillis),
+                    intention = snap.focusIntention,
+                    hasOpenDetour = snap.openDetourStart != null,
+                )
+            FocusAlarmRestoreAction.NOTHING -> Unit
         }
     }
 
@@ -152,4 +174,30 @@ class MainActivity : ComponentActivity() {
             ),
         )
     }
+}
+
+internal enum class FocusAlarmRestoreAction {
+    SCHEDULE,
+    RESTORE_OVERTIME,
+    RESTORE_BREAK,
+    NOTHING,
+}
+
+/**
+ * Mirrors [focusTileState]'s split: a term in the future is scheduled, a term already past is
+ * overtime, and only the absence of a session leaves room for a break. Unlike the tile's
+ * decision, this one does not need its own BREAK_VISIBLE_MAX cutoff — that gate (and the
+ * open-detour guard) live inside [FocusAlarmScheduler.restoreBreakReminders] itself, so both of
+ * its callers (this restore path and [FocusAlarmReceiver]'s break-reminder branch) are covered
+ * by the same check rather than by one the other bypasses.
+ */
+internal fun focusAlarmRestoreAction(
+    endMillis: Long?,
+    breakStartMillis: Long?,
+    nowMillis: Long,
+): FocusAlarmRestoreAction = when {
+    endMillis != null && endMillis > nowMillis -> FocusAlarmRestoreAction.SCHEDULE
+    endMillis != null -> FocusAlarmRestoreAction.RESTORE_OVERTIME
+    breakStartMillis != null -> FocusAlarmRestoreAction.RESTORE_BREAK
+    else -> FocusAlarmRestoreAction.NOTHING
 }

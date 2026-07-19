@@ -2,6 +2,7 @@ package fr.dayview.app
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -37,9 +38,9 @@ class PomodoroTest {
     }
 
     @Test
-    fun exactDeadlineAndPastDeadlineAreFinished() {
-        assertEquals(PomodoroStatus.BREAK, calculatePomodoroProgress(t(1_000L), 25, t(1_000L)).status)
-        assertEquals(PomodoroStatus.BREAK, calculatePomodoroProgress(t(2_000L), 25, t(1_000L)).status)
+    fun exactDeadlineAndPastDeadlineAreOvertime() {
+        assertEquals(PomodoroStatus.OVERTIME, calculatePomodoroProgress(t(1_000L), 25, t(1_000L)).status)
+        assertEquals(PomodoroStatus.OVERTIME, calculatePomodoroProgress(t(2_000L), 25, t(1_000L)).status)
     }
 
     @Test
@@ -95,16 +96,16 @@ class PomodoroTest {
     }
 
     @Test
-    fun breakCountsUpFromTheFocusDeadline() {
+    fun overtimeCountsUpFromTheFocusDeadline() {
         val progress = calculatePomodoroProgress(
             now = t(31 * 60_000L + 12_000L),
             durationMinutes = 25,
             end = t(25 * 60_000L),
         )
 
-        assertEquals(PomodoroStatus.BREAK, progress.status)
-        assertEquals(6.minutes + 12.seconds, progress.breakElapsed)
-        assertEquals("06:12", formatBreakClock(progress))
+        assertEquals(PomodoroStatus.OVERTIME, progress.status)
+        assertEquals(6.minutes + 12.seconds, progress.overtimeElapsed)
+        assertEquals("06:12", formatElapsedClock(progress.overtimeElapsed))
     }
 
     @Test
@@ -163,5 +164,103 @@ class PomodoroTest {
     fun formatElapsedClockPadsMinutesAndSeconds() {
         assertEquals("01:05", formatElapsedClock(65.seconds))
         assertEquals("00:00", formatElapsedClock(kotlin.time.Duration.ZERO))
+    }
+
+    @Test
+    fun pastTermIsOvertimeNotBreak() {
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        val progress = calculatePomodoroProgress(end + 3.minutes, 25, end)
+        assertEquals(PomodoroStatus.OVERTIME, progress.status)
+        assertEquals(3.minutes, progress.overtimeElapsed)
+        assertEquals(Duration.ZERO, progress.remaining)
+    }
+
+    @Test
+    fun breakComesFromBreakStartAnchor() {
+        val breakStart = Instant.fromEpochMilliseconds(1_000_000L)
+        val progress = calculatePomodoroProgress(breakStart + 7.minutes, 25, end = null, breakStart = breakStart)
+        assertEquals(PomodoroStatus.BREAK, progress.status)
+        assertEquals(7.minutes, progress.breakElapsed)
+    }
+
+    @Test
+    fun breakStaysVisibleAtExactlySixtyMinutes() {
+        val breakStart = Instant.fromEpochMilliseconds(1_000_000L)
+        val progress = calculatePomodoroProgress(breakStart + 60.minutes, 25, end = null, breakStart = breakStart)
+        assertEquals(PomodoroStatus.BREAK, progress.status)
+        assertEquals(60.minutes, progress.breakElapsed)
+    }
+
+    @Test
+    fun breakDecaysToIdleAfterSixtyMinutes() {
+        val breakStart = Instant.fromEpochMilliseconds(1_000_000L)
+        val progress = calculatePomodoroProgress(breakStart + 61.minutes, 25, end = null, breakStart = breakStart)
+        assertEquals(PomodoroStatus.IDLE, progress.status)
+    }
+
+    @Test
+    fun activeSessionIgnoresStaleBreakStart() {
+        val end = Instant.fromEpochMilliseconds(2_000_000L)
+        val progress = calculatePomodoroProgress(end - 10.minutes, 25, end, breakStart = Instant.fromEpochMilliseconds(0L))
+        assertEquals(PomodoroStatus.ACTIVE, progress.status)
+    }
+
+    @Test
+    fun overtimeLabelCeilsToWholeMinutesAndNeverShowsZero() {
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        assertEquals("+1 min", formatOvertimeLabel(calculatePomodoroProgress(end + 10.seconds, 25, end)))
+        assertEquals("+3 min", formatOvertimeLabel(calculatePomodoroProgress(end + 2.minutes + 10.seconds, 25, end)))
+    }
+
+    @Test
+    fun earlyExitGateOnlyBeforeTermAndOnlyWhenNotCompleted() {
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        assertTrue(earlyExitRequiresDetour(end - 1.minutes, end, FocusClosureOutcome.PROGRESSED))
+        assertTrue(earlyExitRequiresDetour(end - 1.minutes, end, FocusClosureOutcome.TO_RESUME))
+        assertFalse(earlyExitRequiresDetour(end - 1.minutes, end, FocusClosureOutcome.COMPLETED))
+        assertFalse(earlyExitRequiresDetour(end, end, FocusClosureOutcome.PROGRESSED))
+        assertFalse(earlyExitRequiresDetour(end + 1.minutes, end, FocusClosureOutcome.TO_RESUME))
+        assertFalse(earlyExitRequiresDetour(end - 1.minutes, null, FocusClosureOutcome.PROGRESSED))
+    }
+
+    @Test
+    fun earlyExitGateIsFreeWhenADetourAlreadyRuns() {
+        // A running detour already is the named exit; its motif is collected when it stops
+        // (stopOpenDetour), not duplicated at focus-closure. Otherwise this is exactly the
+        // case pinned above as requiring a name.
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        assertTrue(earlyExitRequiresDetour(end - 1.minutes, end, FocusClosureOutcome.PROGRESSED))
+        assertFalse(
+            earlyExitRequiresDetour(end - 1.minutes, end, FocusClosureOutcome.PROGRESSED, detourAlreadyRunning = true),
+        )
+    }
+
+    @Test
+    fun overtimeReminderFiresOnceAtDoubleDuration() {
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        val scheduler = OvertimeReminderScheduler()
+        scheduler.observe(end + 24.minutes, end, 25)
+        assertTrue(scheduler.observe(end + 25.minutes + 5.seconds, end, 25))
+        assertFalse(scheduler.observe(end + 26.minutes, end, 25))
+    }
+
+    @Test
+    fun overtimeReminderResetsWhenSessionChanges() {
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        val scheduler = OvertimeReminderScheduler()
+        scheduler.observe(end + 24.minutes, end, 25)
+        assertTrue(scheduler.observe(end + 26.minutes, end, 25))
+        val newEnd = end + 90.minutes
+        scheduler.observe(newEnd + 24.minutes, newEnd, 25)
+        assertTrue(scheduler.observe(newEnd + 26.minutes, newEnd, 25))
+    }
+
+    @Test
+    fun overtimeReminderSkipsWhenWakingLongPastThreshold() {
+        val end = Instant.fromEpochMilliseconds(1_000_000L)
+        val scheduler = OvertimeReminderScheduler()
+        scheduler.observe(end + 1.minutes, end, 25)
+        // Laptop asleep across the threshold: too stale to alert.
+        assertFalse(scheduler.observe(end + 50.minutes, end, 25))
     }
 }

@@ -125,9 +125,9 @@ data class TodaySnapshot(
     val isFinished: Boolean,
     val remainingHours: Long,
     val remainingMinutes: Long,
-    // "IDLE" | "ACTIVE" | "BREAK" — the Swift UI switches on these exact strings, so
-    // renaming PomodoroStatus enum constants would silently degrade the Swift UI
-    // instead of failing to compile.
+    // "IDLE" | "ACTIVE" | "OVERTIME" | "BREAK" — the Swift UI switches on these exact
+    // strings, so renaming PomodoroStatus enum constants would silently degrade the
+    // Swift UI instead of failing to compile.
     val pomodoroStatus: String,
     val pomodoroClock: String, // formatted clock, "" when idle
     val focusIntention: String,
@@ -174,6 +174,8 @@ internal fun DayViewUiState.toTodaySnapshot(
     val pomodoro = pomodoroProgress
     val clock = when (pomodoro.status) {
         PomodoroStatus.ACTIVE -> formatPomodoroClock(pomodoro)
+        // "+N min" — distinct from BREAK's breakElapsed clock.
+        PomodoroStatus.OVERTIME -> formatOvertimeLabel(pomodoro)
         PomodoroStatus.BREAK -> formatBreakClock(pomodoro)
         PomodoroStatus.IDLE -> ""
     }
@@ -212,7 +214,8 @@ internal fun DayViewUiState.toTodaySnapshot(
             ""
         },
         focusLine = when (pomodoro.status) {
-            PomodoroStatus.ACTIVE -> "Focus · $focusIntention · $clock"
+            PomodoroStatus.ACTIVE, PomodoroStatus.OVERTIME ->
+                if (focusIntention.isBlank()) "Focus · $clock" else "Focus · $focusIntention · $clock"
             PomodoroStatus.BREAK -> "Break · $clock"
             PomodoroStatus.IDLE -> ""
         },

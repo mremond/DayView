@@ -48,6 +48,7 @@ import fr.dayview.app.generated.resources.focus_section
 import fr.dayview.app.generated.resources.focus_start_button
 import fr.dayview.app.generated.resources.focus_start_short_button
 import fr.dayview.app.generated.resources.focus_state_break_active
+import fr.dayview.app.generated.resources.focus_state_overtime
 import fr.dayview.app.generated.resources.goal_section_title
 import fr.dayview.app.generated.resources.mini_focus_active
 import fr.dayview.app.generated.resources.mini_focus_single_thing
@@ -65,10 +66,14 @@ fun DayViewMiniApp(
     goalDeadline: Instant?,
     pomodoro: PomodoroProgress,
     focusIntention: String,
+    // A detour may be declared during a session, but not the reverse: startPomodoro refuses
+    // while a detour runs. The mini window has no detour UI of its own, so while one runs it
+    // simply offers no Start affordance rather than implying it can start a session on top.
+    openDetourRunning: Boolean = false,
+    recentDetourCategories: List<String> = emptyList(),
     fontScale: Float = 1f,
     onStartFocus: (String) -> Unit,
-    onStopFocus: () -> Unit,
-    onCloseFocus: (FocusClosureOutcome) -> Unit,
+    onCloseFocus: (FocusClosureOutcome, String, String, String) -> Unit,
     onOpenMainWindow: () -> Unit,
 ) {
     DayViewTheme(uses24Hour = rememberUses24HourClock()) { colors ->
@@ -111,18 +116,25 @@ fun DayViewMiniApp(
                             Spacer(Modifier.height(10.dp))
                         }
                         if (pomodoro.status == PomodoroStatus.IDLE) {
-                            MiniFocusStart(
-                                onClick = {
-                                    draftIntention = focusIntention
-                                    showIntentionModal = true
-                                },
-                            )
+                            // No detour UI here by design (YAGNI) — while one runs, the Start
+                            // affordance simply does not render, matching startPomodoro's
+                            // refusal to open a session on top of a detour. The reverse is
+                            // allowed, so a session already running keeps its panel below.
+                            if (!openDetourRunning) {
+                                MiniFocusStart(
+                                    onClick = {
+                                        draftIntention = focusIntention
+                                        showIntentionModal = true
+                                    },
+                                )
+                            }
                         } else {
                             MiniFocus(
                                 progress = pomodoro,
                                 intention = focusIntention,
+                                recentDetourCategories = recentDetourCategories,
+                                openDetourRunning = openDetourRunning,
                                 onRelaunch = { onStartFocus(focusIntention) },
-                                onStop = onStopFocus,
                                 onClose = onCloseFocus,
                             )
                         }
@@ -245,12 +257,19 @@ private fun MiniFocusStart(onClick: () -> Unit) {
 private fun MiniFocus(
     progress: PomodoroProgress,
     intention: String,
+    recentDetourCategories: List<String>,
+    // Relaunching funnels into the same start guard as the IDLE affordance: startPomodoro
+    // refuses to open a session while a detour runs (the reverse is allowed), so it hides
+    // on the same condition.
+    openDetourRunning: Boolean,
     onRelaunch: () -> Unit,
-    onStop: () -> Unit,
-    onClose: (FocusClosureOutcome) -> Unit,
+    onClose: (FocusClosureOutcome, String, String, String) -> Unit,
 ) {
     val colors = LocalDayViewColors.current
     val isBreak = progress.status == PomodoroStatus.BREAK
+    val isOvertime = progress.status == PomodoroStatus.OVERTIME
+    // Leaving a running session only unfolds the closure sheet; the stage change folds it back.
+    var showEarlyClosure by remember(progress.status) { mutableStateOf(false) }
     BoxWithConstraints {
         // On a narrow card the fixed clock and buttons would starve the label
         // column; shrink them so the label keeps readable width.
@@ -269,8 +288,12 @@ private fun MiniFocus(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        if (isBreak) stringResource(Res.string.focus_state_break_active) else stringResource(Res.string.mini_focus_active),
-                        color = if (isBreak) colors.mint else colors.amber,
+                        when {
+                            isBreak -> stringResource(Res.string.focus_state_break_active)
+                            isOvertime -> stringResource(Res.string.focus_state_overtime)
+                            else -> stringResource(Res.string.mini_focus_active)
+                        },
+                        color = if (isBreak || isOvertime) colors.mint else colors.amber,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.1.sp,
@@ -287,26 +310,53 @@ private fun MiniFocus(
                     )
                 }
                 Spacer(Modifier.width(gap))
+                // Overtime reads as a headline rather than a clock: the time still counts.
+                val clockText = when (progress.status) {
+                    PomodoroStatus.OVERTIME -> formatOvertimeLabel(progress)
+                    PomodoroStatus.BREAK -> formatBreakClock(progress)
+                    else -> formatPomodoroClock(progress)
+                }
                 Text(
-                    if (isBreak) formatBreakClock(progress) else formatPomodoroClock(progress),
-                    color = colors.cloud,
+                    clockText,
+                    color = if (isOvertime) colors.mint else colors.cloud,
                     fontSize = if (compact) 18.sp else 24.sp,
                     fontWeight = FontWeight.Light,
                 )
-                Spacer(Modifier.width(gap))
-                if (isBreak) {
+                if (isBreak && !openDetourRunning) {
+                    Spacer(Modifier.width(gap))
                     FocusRelaunchRoundButton(
                         onRelaunch,
                         Modifier.testTag(DayViewTestTags.MiniFocusRelaunch),
                         size = buttonSize,
                     )
-                    Spacer(Modifier.width(8.dp))
                 }
-                FocusStopRoundButton(onStop, size = buttonSize)
+                // The closure is the only way out of a running session; in BREAK there is
+                // nothing left to stop.
+                if (progress.status == PomodoroStatus.ACTIVE && !showEarlyClosure) {
+                    Spacer(Modifier.width(gap))
+                    FocusStopRoundButton(
+                        onStop = { showEarlyClosure = true },
+                        modifier = Modifier.testTag(DayViewTestTags.MiniFocusStop),
+                        size = buttonSize,
+                    )
+                }
             }
-            if (isBreak) {
+            // One call site across the crossing, as in the main window: the sheet keeps its
+            // identity when the term is reached mid-closure, and the toll it charges is read
+            // from the status rather than from the tap that opened it.
+            if (isOvertime || showEarlyClosure) {
                 Spacer(Modifier.height(11.dp))
-                FocusClosureSection(onClose)
+                FocusClosureContent(
+                    intention = intention,
+                    // Before the term leaving costs a name; past it the closure is free. A
+                    // detour already running is also free: it already is the named exit, and
+                    // its motif is collected when it stops rather than duplicated here.
+                    requiresDetourFor = { !isOvertime && it != FocusClosureOutcome.COMPLETED && !openDetourRunning },
+                    recentDetourCategories = recentDetourCategories,
+                    onClose = onClose,
+                    // Overtime has nothing to cancel: the sheet is the panel, not an exit.
+                    onCancel = { showEarlyClosure = false }.takeIf { !isOvertime },
+                )
             }
         }
     }
@@ -379,8 +429,8 @@ private fun FocusIntentionModal(
                 FocusActionButton(
                     stringResource(Res.string.focus_start_short_button),
                     colors.amber,
+                    // Entering focus is free: the intention is no longer a toll on Start.
                     modifier = Modifier.fillMaxWidth().testTag(DayViewTestTags.MiniFocusConfirm),
-                    enabled = intention.isNotBlank(),
                     filled = true,
                     onClick = onStart,
                 )
@@ -405,8 +455,8 @@ private fun FocusIntentionModal(
                     FocusActionButton(
                         stringResource(Res.string.focus_start_short_button),
                         colors.amber,
+                        // Entering focus is free: the intention is no longer a toll on Start.
                         modifier = Modifier.weight(1f).testTag(DayViewTestTags.MiniFocusConfirm),
-                        enabled = intention.isNotBlank(),
                         filled = true,
                         onClick = onStart,
                     )

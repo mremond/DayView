@@ -15,6 +15,8 @@ data class DayPreferencesSnapshot(
     val goalStart: Instant? = null,
     val pomodoroMinutes: Int = 25,
     val pomodoroEnd: Instant? = null,
+    val pomodoroSessionMinutes: Int? = null,
+    val breakStart: Instant? = null,
     val focusIntention: String = "",
     val openDetourStart: Instant? = null,
     val openDetourCategory: String = "",
@@ -38,6 +40,21 @@ data class DayPreferencesSnapshot(
     val cleanSessions: CleanSessionLedger = CleanSessionLedger(),
     val fontScale: Float = 1.0f,
 )
+
+/**
+ * The snapshot-side twin of [DayViewUiState.focusIsActive], for the loops that read
+ * persisted preferences rather than controller state (the desktop tick loop).
+ */
+val DayPreferencesSnapshot.focusIsActive: Boolean
+    get() = focusSessionIsOpen(pomodoroEnd)
+
+/**
+ * The snapshot-side twin of [DayViewUiState.sessionMinutesEffective]: the running session's
+ * own snapshotted duration, falling back to the preferred one between sessions. Changing the
+ * preference mid-session must never reach the window that is running.
+ */
+val DayPreferencesSnapshot.sessionMinutesEffective: Int
+    get() = pomodoroSessionMinutes ?: pomodoroMinutes
 
 interface DayPreferences {
     val snapshots: Flow<DayPreferencesSnapshot>

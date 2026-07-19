@@ -11,19 +11,20 @@ DayView makes the time remaining before the end of the day visible. The circle i
 
 The interface and business logic are shared using Kotlin Multiplatform and Compose Multiplatform.
 The light or dark appearance automatically follows the system theme on Android and macOS.
-On Android, a resizable widget displays the ring and remaining time without opening the application. It also shows the long-term goal and, during a Focus session, the intention and live countdown. A persistent notification tracks the Focus and its pause, with actions to stop or resume the sequence. A “DayView Focus” tile, which can be added from Quick Settings, lets you start the last configured Focus, resume after a pause, or open the active session.
+On Android, a resizable widget displays the ring and remaining time without opening the application. It also shows the long-term goal and, during a Focus session, the intention and live countdown. A persistent notification tracks the Focus and its pause, with an action that opens the app during the session and, once on break, an action to resume the sequence directly. A “DayView Focus” tile, which can be added from Quick Settings, lets you start the last configured Focus, resume after a pause, or open the active session.
 On macOS, DayView remains accessible from the menu bar. Closing its window hides it without stopping the countdown; the menu lets you reopen it or quit the application completely.
 
 Mini-window mode, accessible from the header or menu bar, keeps a compact view of the ring and the day’s countdown above other applications. It also shows the long-term goal and automatically adds the remaining time and intention while a Focus is in progress.
 
 ## Product vocabulary
 
-DayView uses four concepts consistently across its interface and documentation:
+DayView uses five concepts consistently across its interface and documentation:
 
 | Scope | English | French |
 | --- | --- | --- |
 | Longer-term direction | **Long-term goal** | **Cap** |
 | Commitment for one Focus | **Focus intention** | **Intention** |
+| Time worked past the timer's term, counted until closure | **Overtime** | **Élan** |
 | At most three commitments for today | **Must-dos** | **Incontournables** |
 | Unplanned work or interruptions | **Detours** | **Détours** |
 
@@ -192,15 +193,15 @@ day only.
 
 ## Focus
 
-The Focus timer lets you commit to a 25-minute block by default, adjustable in five-minute increments. A concrete intention must be entered before starting and remains visible throughout the session. Its deadline and intention are stored locally: the countdown continues when the window is hidden or the application is relaunched. On desktop, `⌘↩` starts a ready Focus, `←`/`→` adjust a focused duration control, and `Esc` closes a dialog. On Android, a system alarm triggers an audible notification at the end even when the application is no longer in the foreground. On macOS, the remaining time is also visible in the menu bar.
+The Focus timer lets you commit to a 25-minute block by default, adjustable in five-minute increments, or start instantly with the one-tap “5 MIN” preset next to the Start button. Starting costs nothing: no intention is required, and one entered beforehand remains visible throughout the session. Its deadline and intention are stored locally: the countdown continues when the window is hidden or the application is relaunched. On desktop, `⌘↩` starts a ready Focus, `←`/`→` adjust a focused duration control, and `Esc` closes a dialog. On Android, a system alarm triggers an audible notification at the end even when the application is no longer in the foreground. On macOS, the remaining time is also visible in the menu bar.
 
 During a Focus on macOS, DayView observes only the identifier of the application in the foreground. Four application switches in less than 45 seconds trigger a reminder of the intention. You can also list, on the Settings screen, the applications that count as working toward the long-term goal; while a Focus is active, staying in an application outside that list for more than two minutes triggers the same reminder—catching quiet drift that rapid switching alone would miss. A 30-second grace period and a five-minute interval between reminders prevent repeated interruptions. This detection remains local and never reads window contents.
 
 When on-goal applications are configured, DayView also records the stretches spent in them during a Focus and draws them as accent arcs on the circle, with an “Engaged” total below the countdown (“Engaged 1 h 23”, or “Engaged 23 min” under an hour). These stretches come purely from the foreground application—brief interruptions under 30 seconds are bridged, and runs shorter than two minutes are ignored—and are stored locally per day, so the arcs survive a relaunch.
 
-If DayView finds a still-active session after the application is relaunched or the Mac wakes up, a resumption ritual brings the intention and remaining time back to the foreground. The user can resume immediately or stop the session.
+If DayView finds a still-active session after the application is relaunched or the Mac wakes up, a resumption ritual brings the intention and remaining time back to the foreground. The user can resume immediately or open the same closing ritual to end the session there.
 
-At the end of a Focus, the session can be closed with one click using “Completed,” “Progressed,” or “Resume later.” The last choice retains the intention for the next session; the other two clear the field for a new task.
+Reaching the timer's term is an invitation rather than an automatic close: on Android a chime sounds, but the session stays open and counted, its clock switching to a running “+N min” overtime readout. A break begins only once you consciously close the session, choosing one of three outcomes—done, still in progress, or to resume later—and DayView always asks what it was at that point, prefilled with any intention already set. Marking it to resume later keeps the intention for the next session; the other two clear the field for a new task. Leaving before the term with anything other than done costs a name: describing what pulled you away opens a detour, its stopwatch running in place of the break. Closing as done—whether at the term or early—stays free. If a session runs on to twice its planned length, DayView offers one discreet reminder suggesting you close it.
 
 ## Calculation principle
 

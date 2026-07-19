@@ -24,18 +24,24 @@
     <string name="focus_notification_channel_description">Shows the countdown for the active session</string>
     <string name="focus_notification_title">Focus in progress</string>
     <string name="focus_notification_break_title">On break</string>
-    <string name="focus_notification_stop">Stop</string>
+    <string name="focus_notification_overtime_title">Focus — running over, still counted</string>
+    <string name="focus_notification_close">Close</string>
     <string name="focus_notification_resume">Resume</string>
     <string name="focus_tile_name">DayView Focus</string>
     <string name="focus_tile_start">Start Focus</string>
     <string name="focus_tile_active">Focus active</string>
+    <string name="focus_tile_overtime">Focus running over</string>
     <string name="focus_tile_break">On break</string>
     <string name="focus_tile_subtitle">Last intention</string>
     <string name="focus_tile_break_subtitle">Tap to resume</string>
     <string name="focus_alarm_channel">Focus session end</string>
     <string name="focus_alarm_channel_description">Notifies when a Focus session ends</string>
     <string name="focus_end_title">Focus ended</string>
-    <string name="focus_end_body">Your session is over. The break begins.</string>
+    <string name="focus_end_body">Your session reached its term. Time keeps counting until you close it.</string>
+    <string name="overtime_reminder_channel">Overtime reminder</string>
+    <string name="overtime_reminder_channel_description">A single quiet reminder when a session runs well past its term</string>
+    <string name="overtime_reminder_title">Still going — closing stays a choice.</string>
+    <string name="overtime_reminder_body">The session passed twice its length.</string>
     <string name="break_reminder_title">Break · %1$d minutes</string>
     <string name="break_reminder_body">Would you like to resume a focus or end the series?</string>
 </resources>

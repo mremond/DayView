@@ -61,7 +61,17 @@ fun buildDocument(
         showSeconds = restamp(snapshot.showSeconds, base?.showSeconds, now, deviceId),
         sound = restamp(snapshot.soundSettings.toDto(), base?.sound, now, deviceId),
         goal = buildGoal(snapshot, base?.goal, now, deviceId),
-        pomodoro = restamp(PomodoroDto(snapshot.pomodoroMinutes, snapshot.pomodoroEnd.toMillisOrAbsent()), base?.pomodoro, now, deviceId),
+        pomodoro = restamp(
+            PomodoroDto(
+                snapshot.pomodoroMinutes,
+                snapshot.pomodoroEnd.toMillisOrAbsent(),
+                snapshot.pomodoroSessionMinutes ?: -1,
+                snapshot.breakStart?.toEpochMilliseconds() ?: -1L,
+            ),
+            base?.pomodoro,
+            now,
+            deviceId,
+        ),
         openDetour = restamp(
             OpenDetourDto(snapshot.openDetourStart.toMillisOrAbsent(), snapshot.openDetourCategory, snapshot.openDetourDescription),
             base?.openDetour,
@@ -169,37 +179,54 @@ private fun <T> buildItems(
     return present + tombstones
 }
 
-fun applyDocument(document: SyncDocument, local: DayPreferencesSnapshot): DayPreferencesSnapshot = local.copy(
-    startMinutes = document.dayWindow.value.start,
-    endMinutes = document.dayWindow.value.end,
-    showSeconds = document.showSeconds.value,
-    soundSettings = document.sound.value.toSettings(),
-    goalTitle = document.goal.value.title,
-    goalDeadline = document.goal.value.deadline.toInstantOrNull(),
-    goalStart = document.goal.value.start.toInstantOrNull(),
-    pomodoroMinutes = document.pomodoro.value.minutes,
-    pomodoroEnd = document.pomodoro.value.end.toInstantOrNull(),
-    openDetourStart = document.openDetour.value.start.toInstantOrNull(),
-    openDetourCategory = document.openDetour.value.category,
-    openDetourDescription = document.openDetour.value.description,
-    focusIntention = document.focusIntention.value,
-    themeMode = ThemeMode.entries.firstOrNull { it.name == document.themeMode.value } ?: local.themeMode,
-    // preserve device-local calendar ids; only the enabled toggle is synced
-    netTimeSettings = local.netTimeSettings.copy(enabled = document.netTimeEnabled.value),
-    detoursDayKey = document.detours.dayKey,
-    detours = document.detours.items.filterNot { it.deleted }
-        .map { DetourEpisode(Instant.fromEpochMilliseconds(it.value.start), Instant.fromEpochMilliseconds(it.value.end), it.value.motif, it.value.description) },
-    plannedObligationsDayKey = document.plannedObligations.dayKey,
-    plannedObligations = document.plannedObligations.items.filterNot { it.deleted }.map { it.value },
-    plannedObligationsCompleted = document.plannedObligationsCompleted.items.filterNot { it.deleted }.map { it.value },
-    recentDetourCategories = document.recentDetourMotifs
-        .filterNot { it.deleted }
-        .sortedByDescending { it.stamp.at }
-        .take(MAX_RECENT_DETOUR_CATEGORIES)
-        .map { it.value },
-    cleanSessions = document.cleanSessions.value.toLedger(),
-    // onGoalApps and fontScale are left untouched by copy() → preserved
-)
+fun applyDocument(document: SyncDocument, local: DayPreferencesSnapshot): DayPreferencesSnapshot {
+    val openDetourStart = document.openDetour.value.start.toInstantOrNull()
+    val breakStart = document.pomodoro.value.breakStart.takeIf { it > 0L }?.let(Instant::fromEpochMilliseconds)
+    return local.copy(
+        startMinutes = document.dayWindow.value.start,
+        endMinutes = document.dayWindow.value.end,
+        showSeconds = document.showSeconds.value,
+        soundSettings = document.sound.value.toSettings(),
+        goalTitle = document.goal.value.title,
+        goalDeadline = document.goal.value.deadline.toInstantOrNull(),
+        goalStart = document.goal.value.start.toInstantOrNull(),
+        pomodoroMinutes = document.pomodoro.value.minutes,
+        pomodoroEnd = document.pomodoro.value.end.toInstantOrNull(),
+        pomodoroSessionMinutes = document.pomodoro.value.sessionMinutes.takeIf { it > 0 },
+        // A break and an open detour must never be live at once (see startOpenDetour /
+        // closePomodoro / closeFocusSnapshot: the detour always replaces the break). Every
+        // same-device write path already enforces that, but `pomodoro` (carries breakStart) and
+        // `openDetour` (carries openDetourStart) are merged as two independent last-writer-wins
+        // registers (SyncMerge.kt), so concurrent offline edits on two devices can merge into a
+        // document with both live. This is the single point where a merged SyncDocument becomes
+        // the DayPreferencesSnapshot that gets persisted — reconciling here, rather than in a
+        // downstream reader, means every consumer of DayPreferences.snapshots (DayViewController,
+        // and the desktop mini window / tray / Android Quick Settings tile that read the stored
+        // snapshot directly) sees an already-consistent value. Do not move this back to a
+        // reader-side check: it would have to be duplicated at every direct-snapshot call site.
+        breakStart = breakStart.takeIf { openDetourStart == null },
+        openDetourStart = openDetourStart,
+        openDetourCategory = document.openDetour.value.category,
+        openDetourDescription = document.openDetour.value.description,
+        focusIntention = document.focusIntention.value,
+        themeMode = ThemeMode.entries.firstOrNull { it.name == document.themeMode.value } ?: local.themeMode,
+        // preserve device-local calendar ids; only the enabled toggle is synced
+        netTimeSettings = local.netTimeSettings.copy(enabled = document.netTimeEnabled.value),
+        detoursDayKey = document.detours.dayKey,
+        detours = document.detours.items.filterNot { it.deleted }
+            .map { DetourEpisode(Instant.fromEpochMilliseconds(it.value.start), Instant.fromEpochMilliseconds(it.value.end), it.value.motif, it.value.description) },
+        plannedObligationsDayKey = document.plannedObligations.dayKey,
+        plannedObligations = document.plannedObligations.items.filterNot { it.deleted }.map { it.value },
+        plannedObligationsCompleted = document.plannedObligationsCompleted.items.filterNot { it.deleted }.map { it.value },
+        recentDetourCategories = document.recentDetourMotifs
+            .filterNot { it.deleted }
+            .sortedByDescending { it.stamp.at }
+            .take(MAX_RECENT_DETOUR_CATEGORIES)
+            .map { it.value },
+        cleanSessions = document.cleanSessions.value.toLedger(),
+        // onGoalApps and fontScale are left untouched by copy() → preserved
+    )
+}
 
 private fun SoundSettings.toDto() = SoundDto(enabled, startCueEnabled, intervalCueEnabled, endCueEnabled, intervalMinutes, volumePercent)
 private fun SoundDto.toSettings() = SoundSettings(enabled, startCue, intervalCue, endCue, intervalMinutes, volumePercent)

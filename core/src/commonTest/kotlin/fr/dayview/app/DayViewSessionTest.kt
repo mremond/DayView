@@ -8,6 +8,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -75,7 +76,8 @@ class DayViewSessionTest {
         controller.setFocusIntention("Ship it")
         controller.startPomodoro() // start at T0, end = T0 + 60m
         controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L + 30 * 60_000L))
-        controller.closePomodoro(FocusClosureOutcome.PROGRESSED) // early close at +30m
+        // COMPLETED is the one outcome that may leave before the term without naming a detour.
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED) // early close at +30m
 
         // Engaged = 30 minutes (no detours), independent of strict focus.
         assertEquals(30.minutes, controller.stateFlow.value.sessionFocusedToday)
@@ -93,32 +95,16 @@ class DayViewSessionTest {
         controller.setFocusIntention("Ship it")
         controller.startPomodoro()
         controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L + 30 * 60_000L))
-        controller.closePomodoro(FocusClosureOutcome.PROGRESSED)
+        // COMPLETED so the closure actually goes through: a refused close would make the
+        // "nothing recorded" assertions below pass vacuously.
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
 
         assertEquals(true, controller.stateFlow.value.focusSessionIntervals.isEmpty())
         assertEquals(Duration.ZERO, controller.stateFlow.value.sessionFocusedToday)
     }
 
     @Test
-    fun flagOffStopPomodoroDoesNotRecordEngagedTime() = runTest {
-        val controller = DayViewController(
-            DefaultDayPreferences,
-            backgroundScope,
-            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 60),
-            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
-            derivesEngagedFromSessions = false,
-        )
-        controller.setFocusIntention("Ship it")
-        controller.startPomodoro()
-        controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L + 30 * 60_000L))
-        controller.stopPomodoro()
-
-        assertEquals(true, controller.stateFlow.value.focusSessionIntervals.isEmpty())
-        assertEquals(Duration.ZERO, controller.stateFlow.value.sessionFocusedToday)
-    }
-
-    @Test
-    fun overtimeIsCappedAtPomodoroEnd() = runTest {
+    fun overtimeCountsAsEngagedTime() = runTest {
         // Midday UTC start (unlike the other fixtures' late-evening instant) so a
         // 90-minute tick cannot cross local midnight and get clipped by dayWindow
         // regardless of the host machine's time zone.
@@ -135,12 +121,12 @@ class DayViewSessionTest {
         controller.tick(start + 90.minutes)
         controller.closePomodoro(FocusClosureOutcome.COMPLETED) // closed well past the 60m end
 
-        // Overtime past pomodoroEnd is not counted as engaged time.
-        assertEquals(60.minutes, controller.stateFlow.value.sessionFocusedToday)
+        // Time worked past the term counts instead of draining into an unnoticed break.
+        assertEquals(90.minutes, controller.stateFlow.value.sessionFocusedToday)
     }
 
     @Test
-    fun stopPomodoroRecordsEngagedTime() = runTest {
+    fun earlyCloseRecordsEngagedTimeUpToTheClosure() = runTest {
         val controller = DayViewController(
             DefaultDayPreferences,
             backgroundScope,
@@ -151,7 +137,7 @@ class DayViewSessionTest {
         controller.setFocusIntention("Ship it")
         controller.startPomodoro() // start at T0, end = T0 + 60m
         controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L + 20 * 60_000L))
-        controller.stopPomodoro()
+        controller.closePomodoro(FocusClosureOutcome.COMPLETED)
 
         assertEquals(20.minutes, controller.stateFlow.value.sessionFocusedToday)
     }
@@ -174,7 +160,8 @@ class DayViewSessionTest {
 
         session.closeFocus("COMPLETED")
         runCurrent()
-        assertEquals("IDLE", seen.last().pomodoroStatus)
+        // A closed session opens a break, so the panel reads BREAK rather than IDLE.
+        assertEquals("BREAK", seen.last().pomodoroStatus)
         assertEquals("", seen.last().focusIntention)
 
         sub.cancel()
@@ -194,9 +181,13 @@ class DayViewSessionTest {
 
         session.startFocus("Ship it")
         runCurrent()
+        // TO_RESUME cannot leave before the term without naming a detour, and the
+        // primitives-only facade has no way to name one yet (Task 10/11), so let the
+        // session reach its term first: this test pins the outcome mapping, not the gate.
+        controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L) + 25.minutes)
         session.closeFocus("TO_RESUME")
         runCurrent()
-        assertEquals("IDLE", seen.last().pomodoroStatus)
+        assertEquals("BREAK", seen.last().pomodoroStatus)
         assertEquals("Ship it", seen.last().focusIntention)
 
         sub.cancel()
@@ -218,8 +209,8 @@ class DayViewSessionTest {
         runCurrent()
         session.closeFocus("garbage")
         runCurrent()
-        // COMPLETED semantics: session ends, intention cleared.
-        assertEquals("IDLE", seen.last().pomodoroStatus)
+        // COMPLETED semantics: session ends into a break, intention cleared.
+        assertEquals("BREAK", seen.last().pomodoroStatus)
         assertEquals("", seen.last().focusIntention)
 
         sub.cancel()
@@ -239,9 +230,12 @@ class DayViewSessionTest {
 
         session.startFocus("Ship it")
         runCurrent()
+        // Past the term first: PROGRESSED before it would need a named detour, which the
+        // primitives-only facade cannot supply yet (Task 10/11).
+        controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L) + 25.minutes)
         session.closeFocus("PROGRESSED")
         runCurrent()
-        assertEquals("IDLE", seen.last().pomodoroStatus)
+        assertEquals("BREAK", seen.last().pomodoroStatus)
         assertEquals("", seen.last().focusIntention)
         // PROGRESSED and COMPLETED are indistinguishable at snapshot level (both clear
         // the intention), so pin the mapping via the recorded closure outcome.
@@ -331,11 +325,13 @@ class DayViewSessionTest {
 
     @Test
     fun presentationLabelsFollowFocusState() = runTest {
+        // Midday UTC start so the ageing-out tick below cannot cross local midnight.
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
         val controller = DayViewController(
             DefaultDayPreferences,
             backgroundScope,
             initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
-            initialNow = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+            initialNow = start,
         )
         val session = DayViewSession(controller, backgroundScope)
         val seen = mutableListOf<TodaySnapshot>()
@@ -350,7 +346,14 @@ class DayViewSessionTest {
         assertTrue(seen.last().focusLine.startsWith("Focus · Ship it · "))
         assertEquals(seen.last().pomodoroClock, seen.last().menuBarTitle)
 
+        // Ending a session at its term opens a break, so the idle presentation only
+        // returns once that break has aged out (BREAK_VISIBLE_MAX).
+        controller.tick(start + 25.minutes)
         session.stopFocus()
+        runCurrent()
+        assertTrue(seen.last().focusLine.startsWith("Break · "))
+
+        controller.tick(start + 25.minutes + BREAK_VISIBLE_MAX + 1.minutes)
         runCurrent()
         assertEquals("", seen.last().focusLine)
         assertEquals(seen.last().dayStatus, seen.last().menuBarTitle)
@@ -359,7 +362,7 @@ class DayViewSessionTest {
     }
 
     @Test
-    fun presentationLabelsDuringBreak() = runTest {
+    fun presentationLabelsDuringOvertime() = runTest {
         // Midday UTC start so a 26-minute tick cannot cross local midnight in any zone.
         val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
         val controller = DayViewController(
@@ -373,11 +376,12 @@ class DayViewSessionTest {
         val sub = session.subscribe { seen.add(it) }
 
         session.startFocus("Ship it")
-        controller.tick(start + 26.minutes) // past the default 25-minute session: BREAK
+        controller.tick(start + 26.minutes) // past the default 25-minute session: OVERTIME, not BREAK
         runCurrent()
-        assertEquals("BREAK", seen.last().pomodoroStatus)
-        assertTrue(seen.last().focusLine.startsWith("Break · "))
-        // During the break the menu bar shows the break clock, not the day headline.
+        assertEquals("OVERTIME", seen.last().pomodoroStatus)
+        // Overtime still reads as focus time (not a break): "Focus · <intention> · +N min".
+        assertEquals("Focus · Ship it · +1 min", seen.last().focusLine)
+        // During overtime the menu bar shows the overtime clock, not the day headline.
         assertEquals(seen.last().pomodoroClock, seen.last().menuBarTitle)
 
         sub.cancel()
@@ -1236,7 +1240,9 @@ class DayViewSessionTest {
         assertTrue(seen.last().showDriftReminder)
         assertEquals(true, dock.badge)
 
-        session.stopFocus()
+        // COMPLETED is the outcome that may end a session before its term without naming
+        // a detour; the point here is the latches, not which closure was chosen.
+        session.closeFocus("COMPLETED")
         clock += 1.seconds
         session.tick()
         runCurrent()
@@ -1474,7 +1480,10 @@ class DayViewSessionTest {
             initialNow = start + 20.minutes,
             derivesEngagedFromSessions = true,
         )
-        c.stopPomodoro()
+        // The one-tap stopPomodoro is gone: every stop routes through the closure ritual.
+        // COMPLETED before the term is the free closure — no detour name is owed — so this
+        // exercises the same carve the original stopPomodoro() did.
+        c.closePomodoro(FocusClosureOutcome.COMPLETED)
         // Engaged = [start, start+10]; the open detour carves [start+10, start+20].
         assertEquals(
             listOf(FocusPresenceInterval(start, start + 10.minutes)),
@@ -1508,5 +1517,38 @@ class DayViewSessionTest {
         assertEquals(Duration.ZERO, c.state.sessionFocusedToday)
         // ...and the same closure must not count as a clean session or extend the streak.
         assertEquals(0, c.state.cleanSessions.cleanToday)
+    }
+
+    @Test
+    fun earlyProgressedClosureWithARunningDetourSucceedsWithNoCategory() {
+        val start = Instant.fromEpochMilliseconds(1_700_000_000_000L)
+        val detourStart = start + 10.minutes
+        val c = DayViewController(
+            DefaultDayPreferences,
+            CoroutineScope(Dispatchers.Unconfined),
+            initialSnapshot = DayPreferencesSnapshot(
+                pomodoroEnd = start + 30.minutes,
+                pomodoroMinutes = 30,
+                focusIntention = "écrire",
+                // A detour is already running when the session is stopped early: it already
+                // is the named exit, so PROGRESSED below must succeed without a category and
+                // must not disturb it.
+                openDetourStart = detourStart,
+                openDetourCategory = "Mail",
+            ),
+            initialNow = start + 20.minutes,
+        )
+
+        c.closePomodoro(FocusClosureOutcome.PROGRESSED)
+
+        // The session actually closed — before this fix, earlyExitRequiresDetour would have
+        // silently refused it (pomodoroEnd would still be non-null).
+        assertNull(c.state.pomodoroEnd)
+        // The running detour's own start and category are untouched, not reset or overwritten.
+        assertEquals(detourStart, c.state.openDetourStart)
+        assertEquals("Mail", c.state.openDetourCategory)
+        // This closure hands off to the already-running detour, so no break starts either —
+        // otherwise a break and an open detour would be simultaneously live.
+        assertNull(c.state.breakStart)
     }
 }

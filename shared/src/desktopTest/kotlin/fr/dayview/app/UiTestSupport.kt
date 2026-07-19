@@ -148,6 +148,33 @@ internal fun afterWindowNow(): Instant {
     ).toInstant(tz)
 }
 
+/**
+ * A [DayViewUiState] built directly, for the tests that have to move the clock across a
+ * session's term. The controller reads its state from a StateFlow that composition does not
+ * observe, so a test that needs the screen to *react* to a new "now" drives this instead.
+ */
+internal fun focusUiState(
+    now: Instant,
+    pomodoroEnd: Instant?,
+    intention: String = "",
+    pomodoroMinutes: Int = 25,
+): DayViewUiState = DayViewUiState(
+    now = now,
+    startMinutes = 8 * 60,
+    endMinutes = 18 * 60,
+    showSeconds = false,
+    soundSettings = SoundSettings(),
+    goalTitle = "",
+    goalDeadlineText = "",
+    goalDeadline = null,
+    goalStartText = "",
+    goalStart = null,
+    pomodoroMinutes = pomodoroMinutes,
+    pomodoroEnd = pomodoroEnd,
+    focusIntention = intention,
+    pomodoroSessionMinutes = pomodoroEnd?.let { pomodoroMinutes },
+)
+
 /** Builds a controller from a seeded snapshot + fixed clock — the production path. */
 internal fun seededController(
     snapshot: DayPreferencesSnapshot,
@@ -194,8 +221,8 @@ internal fun noopDayViewActions(
     changeFocusIntention: (String) -> Unit = {},
     changePomodoroDuration: (Int) -> Unit = {},
     startPomodoro: () -> Unit = {},
-    stopPomodoro: () -> Unit = {},
-    closePomodoro: (FocusClosureOutcome) -> Unit = {},
+    quickStartPomodoro: () -> Unit = {},
+    closePomodoro: (FocusClosureOutcome, String, String, String) -> Unit = { _, _, _, _ -> },
     openNetTimeSettings: () -> Unit = {},
     openSyncSettings: () -> Unit = {},
 ): DayViewScreenActions = DayViewScreenActions(
@@ -210,7 +237,7 @@ internal fun noopDayViewActions(
     changeFocusIntention = changeFocusIntention,
     changePomodoroDuration = changePomodoroDuration,
     startPomodoro = startPomodoro,
-    stopPomodoro = stopPomodoro,
+    quickStartPomodoro = quickStartPomodoro,
     closePomodoro = closePomodoro,
     addDetour = { _, _, _ -> },
     updateDetour = { _, _ -> },
@@ -261,8 +288,10 @@ internal fun controllerDayViewActions(controller: DayViewController): DayViewScr
     changeFocusIntention = { controller.setFocusIntention(it) },
     changePomodoroDuration = { controller.changePomodoroDuration(it) },
     startPomodoro = { controller.startPomodoro() },
-    stopPomodoro = { controller.stopPomodoro() },
-    closePomodoro = { controller.closePomodoro(it) },
+    quickStartPomodoro = { controller.startPomodoro(minutes = 5) },
+    closePomodoro = { outcome, intention, detourCategory, detourDescription ->
+        controller.closePomodoro(outcome, intention, detourCategory, detourDescription)
+    },
     addDetour = { category, durationMinutes, description -> controller.addDetour(category, durationMinutes, description) },
     updateDetour = { index, episode -> controller.updateDetour(index, episode) },
     removeDetour = { controller.removeDetour(it) },

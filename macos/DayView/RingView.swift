@@ -187,7 +187,8 @@ struct RingView: View {
                     }
                     .tint(palette.amber)
                     .disabled(intention.isEmpty)
-                case "BREAK":
+                case "BREAK", "OVERTIME":
+                    // Task 10/11/12 gives this its real behaviour
                     // Relaunch the next session of the sequence, keeping the intention.
                     Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
                         .tint(palette.amber)
@@ -200,7 +201,8 @@ struct RingView: View {
             }
             Text(model.snapshot.focusLine.isEmpty ? "Idle" : model.snapshot.focusLine)
                 .foregroundStyle(.secondary)
-            if model.snapshot.pomodoroStatus == "BREAK" {
+            // Task 10/11/12 gives this its real behaviour
+            if model.snapshot.pomodoroStatus == "BREAK" || model.snapshot.pomodoroStatus == "OVERTIME" {
                 closureSection
             }
         }

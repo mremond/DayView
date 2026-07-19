@@ -42,6 +42,8 @@ data class DayViewUiState(
     val pomodoroMinutes: Int,
     val pomodoroEnd: Instant?,
     val focusIntention: String,
+    val pomodoroSessionMinutes: Int? = null,
+    val breakStart: Instant? = null,
     val openDetourStart: Instant? = null,
     val openDetourCategory: String = "",
     val openDetourDescription: String = "",
@@ -81,11 +83,16 @@ data class DayViewUiState(
     val dayProgress: DayProgress
         get() = calculateDayProgress(dayNow, startMinutes, endMinutes)
 
-    val pomodoroProgress: PomodoroProgress
-        get() = calculatePomodoroProgress(now, pomodoroMinutes, pomodoroEnd)
+    /** Duration of the running session when one exists, else the user's preferred duration. */
+    val sessionMinutesEffective: Int
+        get() = pomodoroSessionMinutes ?: pomodoroMinutes
 
+    val pomodoroProgress: PomodoroProgress
+        get() = calculatePomodoroProgress(now, sessionMinutesEffective, pomodoroEnd, breakStart)
+
+    /** A session is open — started and not yet closed. Overtime counts as open. */
     val focusIsActive: Boolean
-        get() = pomodoroEnd?.let { it > now } == true
+        get() = focusSessionIsOpen(pomodoroEnd)
 
     val openDetourRunning: Boolean
         get() = openDetourStart != null
@@ -478,26 +485,34 @@ class DayViewController(
         persistState()
     }
 
+    /**
+     * Only adjustable between sessions: the running window is snapshotted in
+     * `pomodoroSessionMinutes`, so a change to the preferred duration must not reach it —
+     * neither while the timer runs (ACTIVE) nor while it is being overrun (OVERTIME).
+     */
     fun changePomodoroDuration(deltaMinutes: Int) {
-        if (state.pomodoroProgress.status == PomodoroStatus.ACTIVE) return
+        val status = state.pomodoroProgress.status
+        if (status == PomodoroStatus.ACTIVE || status == PomodoroStatus.OVERTIME) return
         val updated = (state.pomodoroMinutes + deltaMinutes).coerceIn(5, 180)
-        state = state.copy(pomodoroMinutes = updated, pomodoroEnd = null)
+        state = state.copy(pomodoroMinutes = updated)
         persistState()
     }
 
-    fun startPomodoro() {
+    /**
+     * Entering focus is free: no intention is required. [minutes] defaults to the preferred
+     * duration and is snapshotted for this session only, so a quick preset never rewrites
+     * the preference. No-ops while a session or an open detour is already running.
+     */
+    fun startPomodoro(minutes: Int = state.pomodoroMinutes) {
         if (state.openDetourStart != null) return
-        if (state.focusIntention.isBlank()) return
-        val end = state.now + state.pomodoroMinutes.minutes
-        state = state.copy(pomodoroEnd = end, lastFocusClosure = null)
-        persistState()
-    }
-
-    fun stopPomodoro() {
-        appendEngagedSession(state.now)
-        // The Stop button is an early abort with no closure choice, so the record carries no outcome.
-        recordClosingSession(state.now, null)
-        state = state.copy(pomodoroEnd = null)
+        if (state.pomodoroEnd != null) return
+        val sessionMinutes = minutes.coerceIn(5, 180)
+        state = state.copy(
+            pomodoroEnd = state.now + sessionMinutes.minutes,
+            pomodoroSessionMinutes = sessionMinutes,
+            breakStart = null,
+            lastFocusClosure = null,
+        )
         persistState()
     }
 
@@ -520,15 +535,17 @@ class DayViewController(
 
     /**
      * Android path: derive this session's engaged intervals from its window and append
-     * them (coalesced) to the day's list. `effectiveEnd` caps overtime at pomodoroEnd
-     * and honours an early stop. No-op when the platform feeds engaged time per-tick.
+     * them (coalesced) to the day's list. The window runs from the session's start to the
+     * moment of closure, so time worked past the term counts instead of draining into an
+     * unnoticed break. No-op when the platform feeds engaged time per-tick.
      */
     private fun appendEngagedSession(stopInstant: Instant) {
         if (!derivesEngagedFromSessions) return
         val end = state.pomodoroEnd ?: return
-        val start = end - state.pomodoroMinutes.minutes
-        val effectiveEnd = minOf(stopInstant, end)
-        val derived = deriveEngagedIntervals(start, effectiveEnd, detoursForCarving(stopInstant))
+        val start = end - state.sessionMinutesEffective.minutes
+        // Uncapped by the term on purpose (overtime counts), and carved by a still-open detour
+        // so a session rabbit-holed through its overtime does not bank the detour as engaged.
+        val derived = deriveEngagedIntervals(start, stopInstant, detoursForCarving(stopInstant))
         if (derived.isEmpty()) return
         val today = dayKeyOf(state.now)
         val existing = if (state.focusSessionDayKey == today) state.focusSessionIntervals else emptyList()
@@ -538,15 +555,21 @@ class DayViewController(
         )
     }
 
-    /** Append a record for the closing session, keyed to today; resets the list on day rollover. */
-    private fun recordClosingSession(stopInstant: Instant, outcome: FocusClosureOutcome?) {
+    /**
+     * Append a record for the closing session, keyed to today; resets the list on day
+     * rollover. The record ends at the moment of closure, uncapped, so overtime counts.
+     */
+    private fun recordClosingSession(
+        stopInstant: Instant,
+        outcome: FocusClosureOutcome?,
+        intention: String,
+    ) {
         val end = state.pomodoroEnd ?: return
-        val start = end - state.pomodoroMinutes.minutes
-        val effectiveEnd = minOf(stopInstant, end)
-        if (effectiveEnd <= start) return
+        val start = end - state.sessionMinutesEffective.minutes
+        if (stopInstant <= start) return
         val today = dayKeyOf(state.now)
         val existing = if (state.focusSessionRecordsDayKey == today) state.focusSessionRecords else emptyList()
-        val record = FocusSessionRecord(start, effectiveEnd, state.focusIntention, outcome)
+        val record = FocusSessionRecord(start, stopInstant, intention, outcome)
         state = state.copy(
             focusSessionRecords = existing + record,
             focusSessionRecordsDayKey = today,
@@ -557,7 +580,9 @@ class DayViewController(
      * Enter a detour now. The motif is optional here on purpose: at the moment you are pulled
      * away, a form is the wrong thing to ask for — the motif is collected by [stopOpenDetour],
      * when you know what it was. Allowed during a focus session; the countdown keeps running
-     * and the span is hollowed out of engaged time.
+     * and the span is hollowed out of engaged time. Also allowed during a break: starting a
+     * detour supersedes it, the same way closure already replaces a break with a detour — a
+     * break and an open detour must never be live at once.
      */
     fun startOpenDetour(
         category: String = "",
@@ -569,6 +594,7 @@ class DayViewController(
             openDetourStart = state.now,
             openDetourCategory = sanitizeDetourCategory(category),
             openDetourDescription = sanitizeDetourDescription(description),
+            breakStart = null,
         )
         persistState()
     }
@@ -609,29 +635,53 @@ class DayViewController(
         persistState()
     }
 
-    fun closePomodoro(outcome: FocusClosureOutcome) {
+    /**
+     * Ends the running session. Leaving *before* its term with anything other than
+     * COMPLETED costs a name: without a usable [detourCategory] the call is a silent
+     * no-op, so the session simply keeps running — unless a detour is already running,
+     * in which case it already is the named exit and no category is owed. A closure that
+     * hands off to a detour — one newly named here, or one already running — starts no
+     * break; otherwise the break opens at [state.now].
+     */
+    fun closePomodoro(
+        outcome: FocusClosureOutcome,
+        intention: String = state.focusIntention,
+        detourCategory: String = "",
+        detourDescription: String = "",
+    ) {
+        val end = state.pomodoroEnd ?: return
+        val namedDetour = sanitizeDetourCategory(detourCategory).isNotEmpty()
+        if (earlyExitRequiresDetour(state.now, end, outcome, state.openDetourRunning) && !namedDetour) return
+        val trimmedIntention = intention.take(100)
         appendEngagedSession(state.now)
-        recordClosingSession(state.now, outcome)
-        val updatedIntention = focusIntentionAfterClosure(state.focusIntention, outcome)
+        recordClosingSession(state.now, outcome, trimmedIntention)
         val ledger = closedFocusLedger(
             cleanSessions = state.cleanSessions,
             dayKey = dayKeyOf(state.now),
             pomodoroEnd = state.pomodoroEnd,
-            pomodoroMinutes = state.pomodoroMinutes,
+            sessionMinutes = state.sessionMinutesEffective,
             sessionOffGoal = state.sessionOffGoal,
             detoursToday = detoursForCarving(state.now),
             outcome = outcome,
+            now = state.now,
         )
-        // Single atomic persist of the whole snapshot: unlike the previous
-        // two-save version, there is no intermediate state to reconcile against.
+        // Persists the closure snapshot. On the named-detour path this is NOT the only
+        // save: startOpenDetour below persists again once the detour opens, so there is a
+        // visible intermediate state — the session closed but the detour not yet open.
         state = state.copy(
             pomodoroEnd = null,
-            focusIntention = updatedIntention,
+            pomodoroSessionMinutes = null,
+            breakStart = if (namedDetour || state.openDetourRunning) null else state.now,
+            focusIntention = focusIntentionAfterClosure(trimmedIntention, outcome),
             lastFocusClosure = outcome,
             cleanSessions = ledger,
             sessionOffGoal = Duration.ZERO,
         )
         persistState()
+        // Must follow the state update above: the ledger, the record and the engaged carve
+        // were all computed against the session that just closed, and startOpenDetour refuses
+        // to replace a detour that is already running (one opened mid-session keeps its start).
+        if (namedDetour) startOpenDetour(detourCategory, detourDescription)
     }
 
     fun setNetTimeSettings(settings: NetTimeSettings) {
@@ -876,6 +926,8 @@ private fun DayViewUiState.toSnapshot(): DayPreferencesSnapshot = DayPreferences
     goalStart = goalStart,
     pomodoroMinutes = pomodoroMinutes,
     pomodoroEnd = pomodoroEnd,
+    pomodoroSessionMinutes = pomodoroSessionMinutes,
+    breakStart = breakStart,
     focusIntention = focusIntention,
     openDetourStart = openDetourStart,
     openDetourCategory = openDetourCategory,
@@ -910,6 +962,17 @@ private fun DayPreferencesSnapshot.coerced(): DayPreferencesSnapshot {
         goalTitle = goalTitle.take(80),
         pomodoroMinutes = pomodoroMinutes.coerceIn(5, 180),
         focusIntention = focusIntention.take(100),
+        // A break and an open detour must never be live at once (see startOpenDetour /
+        // closePomodoro / closeFocusSnapshot: the detour always replaces the break). Every
+        // same-device write path already enforces that, but this snapshot may not have come
+        // from one: sync merges `pomodoro` (carries breakStart) and `openDetour` (carries
+        // openDetourStart) as two independent last-writer-wins registers (SyncMerge.kt), so a
+        // merge of two devices' concurrent, offline edits can hand back both fields live. This
+        // is the shared boundary both a disk restore and a sync-applied snapshot pass through
+        // before becoming UI state, so it is where the invariant has to be re-checked — do not
+        // remove this thinking it duplicates the write-path guards, it is what catches the
+        // cross-device case they cannot see.
+        breakStart = breakStart.takeIf { openDetourStart == null },
         openDetourCategory = sanitizeDetourCategory(openDetourCategory),
         openDetourDescription = sanitizeDetourDescription(openDetourDescription),
         detours = detours.map { it.copy(category = sanitizeDetourCategory(it.category)) },
@@ -945,6 +1008,8 @@ private fun DayPreferencesSnapshot.toUiState(now: Instant): DayViewUiState {
         goalStart = safe.goalStart,
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEnd = safe.pomodoroEnd,
+        pomodoroSessionMinutes = safe.pomodoroSessionMinutes,
+        breakStart = safe.breakStart,
         focusIntention = safe.focusIntention,
         openDetourStart = safe.openDetourStart,
         openDetourCategory = safe.openDetourCategory,
@@ -982,6 +1047,8 @@ private fun DayViewUiState.withPersisted(snapshot: DayPreferencesSnapshot): DayV
         goalStart = safe.goalStart,
         pomodoroMinutes = safe.pomodoroMinutes,
         pomodoroEnd = safe.pomodoroEnd,
+        pomodoroSessionMinutes = safe.pomodoroSessionMinutes,
+        breakStart = safe.breakStart,
         focusIntention = safe.focusIntention,
         openDetourStart = safe.openDetourStart,
         openDetourCategory = safe.openDetourCategory,

@@ -136,13 +136,18 @@
     <string name="focus_state_idle">PRÊT À S’ENGAGER</string>
     <string name="focus_state_active">EN COURS</string>
     <string name="focus_state_break_active">PAUSE EN COURS</string>
-    <string name="focus_state_series_inactive">SÉRIE INACTIVE</string>
+    <string name="focus_state_overtime">EN ÉLAN — TOUJOURS COMPTÉ</string>
     <string name="focus_break_since">PAUSE DEPUIS</string>
     <string name="focus_break_disconnect">PRENEZ LE TEMPS DE DÉCONNECTER</string>
     <string name="focus_break_conscious">REPRENDRE RESTE UN CHOIX CONSCIENT</string>
     <string name="focus_close_section">CLÔTURER CE FOCUS</string>
+    <string name="focus_closure_intention_label">C’ÉTAIT QUOI ?</string>
+    <string name="focus_exit_detour_label">NOMMEZ CE QUI VOUS ATTIRE</string>
+    <string name="focus_exit_detour_confirm">PARTIR EN DÉTOUR</string>
+    <string name="focus_exit_cancel">RESTER</string>
     <string name="focus_resume_point">VOTRE POINT DE REPRISE</string>
     <string name="focus_resume_time_left">Il reste %1$s pour garder le cap.</string>
+    <string name="focus_resume_overtime">%1$s au-delà du terme — clôturer reste un choix.</string>
     <string name="focus_drift_title">REVENIR À L’ESSENTIEL</string>
     <string name="focus_drift_dismiss">C’EST REPARTI</string>
     <string name="focus_my_intention">MON INTENTION</string>
@@ -150,7 +155,8 @@
     <string name="focus_intention_prompt">DURANT CE FOCUS, JE VAIS…</string>
     <string name="focus_intention_label">Intention du Focus</string>
     <string name="focus_intention_placeholder">Ex. terminer le plan de la présentation</string>
-    <string name="focus_intention_hint">Écrivez une intention pour démarrer.</string>
+    <string name="focus_intention_optional_hint">Facultatif — nommez-la à la clôture.</string>
+    <string name="focus_quick_start_button">5 MIN</string>
     <string name="focus_duration_decrease">Diminuer la durée du Focus de 5 minutes</string>
     <string name="focus_duration_increase">Augmenter la durée du Focus de 5 minutes</string>
     <string name="focus_duration_value">Durée du Focus : %1$s minutes</string>
@@ -275,6 +281,8 @@
     <string name="desktop_quit_dayview">Quitter DayView</string>
     <string name="desktop_choose_time">Choisir l’heure</string>
     <string name="desktop_nudge_title">Reviens à l’essentiel</string>
+    <string name="overtime_reminder_title">Toujours en élan — clôturer reste un choix.</string>
+    <string name="overtime_reminder_body">La session a doublé sa durée.</string>
 
     <!-- Detours -->
     <string name="detours_today">Détours %1$s</string>

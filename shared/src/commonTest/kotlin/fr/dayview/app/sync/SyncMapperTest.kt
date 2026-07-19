@@ -6,6 +6,7 @@ import fr.dayview.app.DetourEpisode
 import fr.dayview.app.NetTimeSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
@@ -138,5 +139,82 @@ class SyncMapperTest {
         val doc = buildDocument(base.copy(startMinutes = 500), base = null, deviceId = "a", now = 100)
         val result = applyDocument(doc, local)
         assertEquals(onGoalApps, result.onGoalApps)
+    }
+
+    @Test
+    fun pomodoroRoundTripCarriesSessionAndBreak() {
+        val snapshot = base.copy(
+            pomodoroMinutes = 25,
+            pomodoroEnd = Instant.fromEpochMilliseconds(1_000L),
+            pomodoroSessionMinutes = 5,
+            breakStart = Instant.fromEpochMilliseconds(2_000L),
+        )
+        val doc = buildDocument(snapshot, base = null, deviceId = "a", now = 100)
+        val restored = applyDocument(doc, base)
+        assertEquals(5, restored.pomodoroSessionMinutes)
+        assertEquals(Instant.fromEpochMilliseconds(2_000L), restored.breakStart)
+    }
+
+    // A live break and a live open detour must never coexist (the detour always replaces the
+    // break — see startOpenDetour / closePomodoro / closeFocusSnapshot). `pomodoro` and
+    // `openDetour` are merged as two independent last-writer-wins registers (SyncMerge.kt), so
+    // this reconstructs the real cross-device scenario: device A closes to a break while device
+    // B, offline, starts a detour; each device's local build only restamps the field it actually
+    // touched, so a plain per-field merge can legitimately pick the break from A and the detour
+    // from B and hand back both live at once. This is not a contrived document — it is exactly
+    // what `SyncDocument.merge` produces from two ordinary, unmodified device histories.
+    @Test
+    fun applyDocumentClearsBreakWhenMergedDocumentHasBothLive() {
+        val docBase = buildDocument(base, base = null, deviceId = "seed", now = 0)
+        val docA = buildDocument(
+            base.copy(breakStart = Instant.fromEpochMilliseconds(5_000L)),
+            base = docBase,
+            deviceId = "a",
+            now = 100,
+        )
+        val docB = buildDocument(
+            base.copy(openDetourStart = Instant.fromEpochMilliseconds(6_000L), openDetourCategory = "Slack"),
+            base = docBase,
+            deviceId = "b",
+            now = 50,
+        )
+        val merged = docA.merge(docB)
+        // Sanity: confirm the merge itself (LWW semantics, untouched by this change) really does
+        // produce both fields live — this is the hole being closed, not a fixture mistake.
+        assertTrue(merged.pomodoro.value.breakStart > 0L)
+        assertTrue(merged.openDetour.value.start > 0L)
+
+        val result = applyDocument(merged, base)
+        assertNull(result.breakStart) // the detour wins
+        assertEquals(Instant.fromEpochMilliseconds(6_000L), result.openDetourStart)
+        assertEquals("Slack", result.openDetourCategory)
+    }
+
+    @Test
+    fun applyDocumentLeavesBreakAloneWhenNoDetourIsLive() {
+        val docBase = buildDocument(base, base = null, deviceId = "seed", now = 0)
+        val docA = buildDocument(
+            base.copy(breakStart = Instant.fromEpochMilliseconds(5_000L)),
+            base = docBase,
+            deviceId = "a",
+            now = 100,
+        )
+        val result = applyDocument(docA, base)
+        assertEquals(Instant.fromEpochMilliseconds(5_000L), result.breakStart)
+        assertNull(result.openDetourStart)
+    }
+
+    @Test
+    fun applyDocumentLeavesDetourAloneWhenNoBreakIsLive() {
+        val docBase = buildDocument(base, base = null, deviceId = "seed", now = 0)
+        val docB = buildDocument(
+            base.copy(openDetourStart = Instant.fromEpochMilliseconds(6_000L), openDetourCategory = "Slack"),
+            base = docBase,
+            deviceId = "b",
+            now = 50,
+        )
+        val result = applyDocument(docB, base)
+        assertEquals(Instant.fromEpochMilliseconds(6_000L), result.openDetourStart)
+        assertNull(result.breakStart)
     }
 }

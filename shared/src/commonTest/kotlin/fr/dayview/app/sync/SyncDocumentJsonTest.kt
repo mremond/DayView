@@ -1,11 +1,19 @@
 package fr.dayview.app.sync
 
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SyncDocumentJsonTest {
+    @Test
+    fun pomodoroDtoDecodesLegacyJsonWithoutNewFields() {
+        val dto = SyncJson.decodeFromString<PomodoroDto>("""{"minutes":25,"end":123}""")
+        assertEquals(-1, dto.sessionMinutes)
+        assertEquals(-1L, dto.breakStart)
+    }
+
     @Test
     fun roundTripsThroughJson() {
         val doc = sampleDocument()

@@ -25,9 +25,10 @@ fun mergeIntervals(intervals: List<FocusPresenceInterval>): List<FocusPresenceIn
 
 /**
  * Engaged intervals for one Pomodoro session: the window [sessionStart, effectiveEnd]
- * with declared detours carved out. `effectiveEnd` is the caller's `min(stopInstant,
- * pomodoroEnd)`, so early stops end early and overtime is already capped. Returns 0..N
- * disjoint pieces (a detour in the middle splits the window).
+ * with declared detours carved out. `effectiveEnd` is whatever instant the caller passes;
+ * its production caller (DayViewController.appendEngagedSession) passes the closure
+ * instant uncapped, so overtime past `pomodoroEnd` counts too. Returns 0..N disjoint
+ * pieces (a detour in the middle splits the window).
  */
 fun deriveEngagedIntervals(
     sessionStart: Instant,
