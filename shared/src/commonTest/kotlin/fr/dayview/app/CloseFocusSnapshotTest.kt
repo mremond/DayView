@@ -114,6 +114,13 @@ class CloseFocusSnapshotTest {
         val snapshot = breakSnapshot().copy(pomodoroSessionMinutes = 5)
         val closed = closeFocusSnapshot(snapshot, now, Duration.ZERO, FocusClosureOutcome.COMPLETED)
         assertNull(closed.pomodoroSessionMinutes)
+        // The parity fix this guards: the recorded window's start must come from the
+        // in-flight session's own duration (pomodoroSessionMinutes = 5), not from the raw
+        // preferred duration (pomodoroMinutes = 25) which differs whenever the 5-minute quick
+        // preset started the session. end (pomodoroEnd = now - 1.minutes) is fixed by
+        // breakSnapshot(), so a start derived from 25 minutes instead of 5 would land 20
+        // minutes earlier than this.
+        assertEquals(now - 6.minutes, closed.focusSessionRecords.single().start)
     }
 
     @Test
