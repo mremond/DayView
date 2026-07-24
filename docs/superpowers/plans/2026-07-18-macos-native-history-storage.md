@@ -364,46 +364,82 @@ Add to `core/src/commonTest/kotlin/fr/dayview/app/DayViewSessionTest.kt`, at the
 
 ```kotlin
     @Test
-    fun intervalsRestoredUnderAnEarlierDayAreClearedByTheFirstTick() = runTest {
-        // A relaunch on the day after a session: the intervals are seeded so the archive can
-        // capture them, but they belong to a day that has ended and must not render as today's.
-        val today = Instant.fromEpochMilliseconds(1_700_042_400_000L)
-        val yesterdayKey = dayKeyOf(today) - 1
-        val stale = listOf(
-            FocusPresenceInterval(today - 20.hours, today - 19.hours),
-        )
-        var clock = today
+    fun staleIntervalsStayAvailableToTheArchiveWithoutRenderingAsToday() = runTest {
+        // A relaunch the day after a session. The intervals must survive in state — that is
+        // what lets the controller's archival capture the day that ended with its engaged
+        // time intact — while contributing nothing to today.
+        val dayStart = dayWindow(Instant.fromEpochMilliseconds(1_700_042_400_000L), 0, 1439).first
+        val now = dayStart + 10.hours
+        val yesterdayKey = dayKeyOf(now) - 1
+        val stale = listOf(FocusPresenceInterval(dayStart - 3.hours, dayStart - 2.hours))
         val controller = DayViewController(
             DefaultDayPreferences,
             backgroundScope,
             initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
-            initialNow = today,
+            initialNow = now,
+            initialFocusPresenceIntervals = stale,
+            initialFocusSessionIntervals = stale,
+        )
+        val session = DayViewSession(controller, backgroundScope, now = { now }, restoreDayKey = yesterdayKey)
+
+        assertEquals(stale, controller.stateFlow.value.focusPresenceIntervals, "the archive still needs them")
+
+        // Every projection clips to the day window, so a closed day's intervals draw nothing.
+        val snapshot = session.currentSnapshot()
+        assertTrue(snapshot.focusArcs.isEmpty(), "yesterday's intervals must not draw as today's arcs")
+        assertEquals("", snapshot.focusTotalLabel)
+    }
+
+    @Test
+    fun aNewSessionDoesNotInheritThePreviousDaysIntervals() = runTest {
+        // What restoreDayKey actually buys: the accumulator holds the seeded intervals under
+        // the day they belong to, so the first tick of a new day's session discards them
+        // instead of committing them as today's runs. Seeded under today's key they would be
+        // kept, and yesterday's engaged time would reappear inside today's window.
+        val dayStart = dayWindow(Instant.fromEpochMilliseconds(1_700_042_400_000L), 0, 1439).first
+        var clock = dayStart + 10.hours
+        val yesterdayKey = dayKeyOf(clock) - 1
+        val stale = listOf(FocusPresenceInterval(dayStart - 3.hours, dayStart - 2.hours))
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = clock,
             initialFocusPresenceIntervals = stale,
             initialFocusSessionIntervals = stale,
         )
         val session = DayViewSession(
             controller,
             backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.on.goal"),
             now = { clock },
             restoreDayKey = yesterdayKey,
         )
+        session.startFocus("Ship it")
 
-        // Before any tick the state still carries them — that is what lets the controller's
-        // archival capture the day that ended.
-        assertEquals(stale, controller.stateFlow.value.focusPresenceIntervals)
+        repeat(180) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
 
-        clock += 1.seconds
-        session.tick()
-
-        assertEquals(
-            emptyList(),
-            controller.stateFlow.value.focusPresenceIntervals,
-            "a new day's first tick clears the previous day's intervals",
+        val accrued = controller.stateFlow.value.focusPresenceIntervals
+        assertTrue(accrued.isNotEmpty(), "today's own presence should have accrued")
+        assertTrue(
+            stale.none { it in accrued },
+            "the previous day's intervals must not survive into today's, was $accrued",
         )
     }
 ```
 
-Add `kotlin.time.Duration.Companion.hours` to the imports if the compiler asks for it.
+Add `kotlin.time.Duration.Companion.hours` to the imports if the compiler asks for it. `FakeFrontmostProvider` is an existing private class in this test file.
+
+**Note for the implementer:** the first test deliberately does **not** assert that a tick clears `focusPresenceIntervals`. It does not, and it does not need to: `PresenceCoordinator.observe` only forwards to the accumulator while a focus is active or has just ended, so an idle tick leaves the seeded intervals in place — and `focusArcsState`/`focusedToday` clip to the day window, so a closed day's intervals are invisible anyway. The JVM app has the identical structure. What `restoreDayKey` protects against is the *second* test's scenario.
 
 - [ ] **Step 2: Run the test to verify it fails**
 

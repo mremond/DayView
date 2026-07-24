@@ -6,8 +6,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import platform.Foundation.NSBundle
 import platform.Foundation.NSDateFormatter
+import platform.Foundation.NSHomeDirectory
 import platform.Foundation.NSLocale
 import platform.Foundation.currentLocale
 
@@ -37,10 +40,24 @@ object DayViewNative {
                 StoredPresence()
             }
         }
+        // The archive lives beside the preferences file. maybeArchivePreviousDay already runs
+        // from the controller's init and from tick on a day change; until now both wrote into
+        // the default in-memory store and were lost at quit. Wrapped in the error-swallowing
+        // decorator: the controller archives via an unguarded `scope.launch`, and an
+        // unhandled exception there would otherwise kill the process (see its doc comment).
+        val history = ErrorSwallowingDayHistoryStore(
+            FileDayHistoryStore(
+                OkioHistoryFileSystem(
+                    FileSystem.SYSTEM,
+                    "${NSHomeDirectory()}/Library/Application Support/DayView/history".toPath(),
+                ),
+            ),
+        )
         val controller = DayViewController(
             preferences.dayPreferences,
             scope,
             initialSnapshot = runBlocking { preferences.dayPreferences.snapshots.first() },
+            history = history,
             initialFocusPresenceIntervals = stored.presence,
             initialFocusSessionIntervals = stored.session,
         )
@@ -58,6 +75,7 @@ object DayViewNative {
             // every config instead of only in Release.
             dayViewBundleId = NSBundle.mainBundle.bundleIdentifier ?: DAYVIEW_BUNDLE_ID,
             presencePersistence = preferences.presencePersistence,
+            restoreDayKey = stored.dayKey,
         )
         // After the user answers the access prompt, re-read immediately instead of
         // waiting for the next minute tick.

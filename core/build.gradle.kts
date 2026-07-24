@@ -31,6 +31,7 @@ kotlin {
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.androidx.datastore.preferences.core)
+                implementation(libs.okio)
             }
         }
         val commonTest by getting {

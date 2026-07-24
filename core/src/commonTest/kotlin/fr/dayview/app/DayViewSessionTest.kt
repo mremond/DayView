@@ -1676,4 +1676,77 @@ class DayViewSessionTest {
 
         assertEquals("ACTIVE", controller.stateFlow.value.toTodaySnapshot().pomodoroStatus)
     }
+
+    @Test
+    fun staleIntervalsStayAvailableToTheArchiveWithoutRenderingAsToday() = runTest {
+        // A relaunch the day after a session. The intervals must survive in state — that is
+        // what lets the controller's archival capture the day that ended with its engaged
+        // time intact — while contributing nothing to today.
+        val dayStart = dayWindow(Instant.fromEpochMilliseconds(1_700_042_400_000L), 0, 1439).first
+        val now = dayStart + 10.hours
+        val yesterdayKey = dayKeyOf(now) - 1
+        val stale = listOf(FocusPresenceInterval(dayStart - 3.hours, dayStart - 2.hours))
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = now,
+            initialFocusPresenceIntervals = stale,
+            initialFocusSessionIntervals = stale,
+        )
+        val session = DayViewSession(controller, backgroundScope, now = { now }, restoreDayKey = yesterdayKey)
+
+        assertEquals(stale, controller.stateFlow.value.focusPresenceIntervals, "the archive still needs them")
+
+        // Every projection clips to the day window, so a closed day's intervals draw nothing.
+        val snapshot = session.currentSnapshot()
+        assertTrue(snapshot.focusArcs.isEmpty(), "yesterday's intervals must not draw as today's arcs")
+        assertEquals("", snapshot.focusTotalLabel)
+    }
+
+    @Test
+    fun aNewSessionDoesNotInheritThePreviousDaysIntervals() = runTest {
+        // What restoreDayKey actually buys: the accumulator holds the seeded intervals under
+        // the day they belong to, so the first tick of a new day's session discards them
+        // instead of committing them as today's runs. Seeded under today's key they would be
+        // kept, and yesterday's engaged time would reappear inside today's window.
+        val dayStart = dayWindow(Instant.fromEpochMilliseconds(1_700_042_400_000L), 0, 1439).first
+        var clock = dayStart + 10.hours
+        val yesterdayKey = dayKeyOf(clock) - 1
+        val stale = listOf(FocusPresenceInterval(dayStart - 3.hours, dayStart - 2.hours))
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(
+                startMinutes = 0,
+                endMinutes = 1439,
+                pomodoroMinutes = 25,
+                onGoalApps = setOf(AppRef("com.on.goal", "On Goal")),
+            ),
+            initialNow = clock,
+            initialFocusPresenceIntervals = stale,
+            initialFocusSessionIntervals = stale,
+        )
+        val session = DayViewSession(
+            controller,
+            backgroundScope,
+            frontmostAppProvider = FakeFrontmostProvider(bundleId = "com.on.goal"),
+            now = { clock },
+            restoreDayKey = yesterdayKey,
+        )
+        session.startFocus("Ship it")
+
+        repeat(180) {
+            clock += 1.seconds
+            session.tick()
+        }
+        runCurrent()
+
+        val accrued = controller.stateFlow.value.focusPresenceIntervals
+        assertTrue(accrued.isNotEmpty(), "today's own presence should have accrued")
+        assertTrue(
+            stale.none { it in accrued },
+            "the previous day's intervals must not survive into today's, was $accrued",
+        )
+    }
 }

@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
-import kotlin.time.Clock
 
 // The presence pair reuses the Compose/JVM app's key names: DayPreferencesStore has no such
 // keys, so there is no collision. The session list deliberately does NOT reuse the JVM's
@@ -28,11 +27,12 @@ class MacosPresencePersistence(
 ) : PresencePersistence {
     override suspend fun load(): StoredPresence {
         val prefs = dataStore.data.first()
-        val day = prefs[presenceDayKey] ?: -1L
-        // Staleness applied at read time: yesterday's arcs can never resurrect.
-        if (day != dayKeyOf(Clock.System.now())) return StoredPresence()
+        // Returned raw, with the day they belong to: the desktop app's shape. Discarding a
+        // stale day here would be simpler, but the controller archives the previous day from
+        // this same seeded state, so filtering would write an archive with no engaged time.
+        // Staleness is handled downstream — the accumulators reset on a day-key change.
         return StoredPresence(
-            dayKey = day,
+            dayKey = prefs[presenceDayKey] ?: -1L,
             presence = decodeFocusPresence(prefs[presenceKey].orEmpty()),
             session = decodeFocusPresence(prefs[sessionKey].orEmpty()),
         )

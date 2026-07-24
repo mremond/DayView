@@ -40,6 +40,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Presence persistence: intervals written on the desktop cadence, seeded at launch so a relaunch mid-session continues the run | 11 |
 | Focus exit: closure sheet (intention + three outcomes), exit-toll detour capture, open-detour banner in both windows | 12a |
 | Focus entry: free start, 5-min preset, a break offers the entry panel alongside its relaunch, overtime reads as overtime in the mini window and the resume ritual | 12b |
+| History storage: `HistoryFileSystem`/`FileDayHistoryStore` moved to `:core` with an Okio implementation, native archiving wired (it was writing to an in-memory store and losing every day), presence seeded raw so the archive keeps the day's engaged time | 13a |
 
 ## Today screen
 
@@ -76,8 +77,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Day-rollover archiving wired natively | **PORT** | ⚠️ Verify first: `DayViewNative.create()` passes no history store — native rollover may not archive today. Behavior-layer item. When this lands, presence seeding must switch to the JVM's shape at the same time: seed the stored intervals raw and let the accumulators reset themselves on the day-key change, otherwise the archived record for the previous day carries no presence intervals |
-| Week screen (mini rings) + day screen (date label, back nav) | **PORT** | After the visual pass (reuses ring rendering) |
+| Week screen (mini rings) + day screen (date label, back nav) | **PORT** | 13b. The week-grid logic (`HistoryWeek.kt`) is already in `:core`; the storage landed in 13a |
 
 ## Sync
 
@@ -105,6 +105,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Notarization + DMG for the native app | **PORT** | |
 | Release CI: `v*` workflow builds/attaches the native DMG instead of `:shared:packageDmg` | **PORT** | The final gate; Linux keeps the Compose chain |
 | Stable bundle identity across reinstalls (TCC survival) | **PORT** | `fr.dayview.app` for release (debug stays `.debug`) |
+| Decide the fate of the existing `~/.dayview/history` archive | **DECIDE** | The native app archives to `~/Library/Application Support/DayView/history` (13a); the shipping JVM app's archive lives at `~/.dayview/history` and is a different location. Cutover must decide: migrate the old archive, read both locations, or accept the loss — otherwise every existing macOS user's history is silently orphaned |
 
 ## Explicitly post-cutover (DEFER)
 
@@ -121,6 +122,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 - `FocusClosureButtons` for a third surface (widget) when it comes.
 - Menu-bar icon *option* (text is the identity today; some users may prefer an icon).
 - Probe logging in `probeNetTime` (needs a `:core` logging seam).
+- Two `HistoryFileSystem` implementations coexist: `JvmHistoryFileSystem` (`:shared`, desktop + Android, itself duplicated across the two source sets) and `OkioHistoryFileSystem` (`:core`). Okio runs on every target, so one could serve all three — but converging them rewrites the shipping apps' storage I/O, which 13a deliberately did not touch. Revisit after cutover.
 - Any workflow redesigns ("this feature should work differently") — collect here with a
   one-line rationale, revisit after cutover.
 

@@ -33,6 +33,10 @@ class DayViewSession internal constructor(
     private val dayViewBundleId: String = DAYVIEW_BUNDLE_ID,
     private val dockAttention: DockAttentionProvider = NoopDockAttentionProvider,
     private val presencePersistence: PresencePersistence = NoopPresencePersistence,
+    // The day the seeded presence intervals belong to. -1 means "no stored day" and falls back
+    // to the current one. Restoring yesterday's intervals under today's key would make them
+    // render as today's arcs; the accumulators clear them on the first tick of the new day.
+    private val restoreDayKey: Long = -1L,
 ) {
     private var ticksSinceCalendarRefresh = 0
     private val presence = PresenceCoordinator(dayViewBundleId)
@@ -62,7 +66,11 @@ class DayViewSession internal constructor(
         refreshCalendar()
         run {
             val state = controller.stateFlow.value
-            presence.restore(state.focusPresenceIntervals, state.focusSessionIntervals, dayKeyOf(state.now))
+            presence.restore(
+                state.focusPresenceIntervals,
+                state.focusSessionIntervals,
+                restoreDayKey.takeIf { it >= 0 } ?: dayKeyOf(state.now),
+            )
             savedPresence = state.focusPresenceIntervals
             savedSession = state.focusSessionIntervals
         }
