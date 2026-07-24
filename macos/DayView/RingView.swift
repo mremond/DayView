@@ -12,6 +12,7 @@ struct RingView: View {
     @State private var lastPomodoroStatus = "IDLE"
     @State private var showDetourCapture = false
     @State private var showDetourList = false
+    @State private var showClosureSheet = false
 
     private struct HoveredArc {
         let label: String
@@ -35,7 +36,13 @@ struct RingView: View {
                 }
                 ringSection
                 detourSection
-                focusSection
+                // A running detour and a focus are mutually exclusive in the core, so the
+                // panel that is live replaces the other rather than stacking with it.
+                if model.snapshot.detourOpenRunning {
+                    OpenDetourBanner(model: model)
+                } else {
+                    focusSection
+                }
                 goalSection
             }
             .padding(32)
@@ -49,6 +56,7 @@ struct RingView: View {
         )
         .sheet(isPresented: $showDetourCapture) { DetourCaptureSheet(model: model, isPresented: $showDetourCapture) }
         .sheet(isPresented: $showDetourList) { DetourListSheet(model: model, isPresented: $showDetourList) }
+        .sheet(isPresented: $showClosureSheet) { FocusClosureSheet(model: model, isPresented: $showClosureSheet) }
         .onChange(of: model.snapshot.showResumeRitual) { _, showing in
             // The ritual is deliberately interruptive: surface the window it lives in.
             if showing { NSApplication.shared.activate(ignoringOtherApps: true) }
@@ -188,36 +196,28 @@ struct RingView: View {
                     .tint(palette.amber)
                     .disabled(intention.isEmpty)
                 case "BREAK", "OVERTIME":
-                    // Task 10/11/12 gives this its real behaviour
-                    // Relaunch the next session of the sequence, keeping the intention.
-                    Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
-                        .tint(palette.amber)
-                    Button("Stop focus") { model.stopFocus() }
-                        .tint(palette.red)
+                    // Relaunch only applies to BREAK (a break has no session left to close,
+                    // so closePomodoro would be a no-op) and Stop only to OVERTIME (a running
+                    // session can't be relaunched: startPomodoro returns early while one is
+                    // active). Each button is dead in the state where the other is offered.
+                    if model.snapshot.pomodoroStatus == "BREAK" {
+                        // Relaunch the next session of the sequence, keeping the intention.
+                        Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
+                            .tint(palette.amber)
+                    }
+                    if model.snapshot.pomodoroStatus == "OVERTIME" {
+                        Button("Stop focus") { showClosureSheet = true }
+                            .tint(palette.red)
+                    }
                 default: // "ACTIVE"
-                    Button("Stop focus") { model.stopFocus() }
+                    Button("Stop focus") { showClosureSheet = true }
                         .tint(palette.red)
                 }
             }
             Text(model.snapshot.focusLine.isEmpty ? "Idle" : model.snapshot.focusLine)
                 .foregroundStyle(.secondary)
-            // Task 10/11/12 gives this its real behaviour
-            if model.snapshot.pomodoroStatus == "BREAK" || model.snapshot.pomodoroStatus == "OVERTIME" {
-                closureSection
-            }
         }
         .dayViewPanel(palette)
-    }
-
-    // The closure ritual: name how the sequence ends so the session record and
-    // clean-session ledger stay honest. Break-only; Stop stays an outcome-less abort.
-    private var closureSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Close this focus")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            FocusClosureButtons(model: model)
-        }
     }
 
     // Drift nudge: an amber panel restating the intention, dismissable in one click.
@@ -250,7 +250,7 @@ struct RingView: View {
             }
             HStack {
                 Spacer()
-                Button("Stop") { model.stopFocus(); model.dismissResumeRitual() }
+                Button("Stop") { model.dismissResumeRitual(); showClosureSheet = true }
                     .buttonStyle(.bordered)
                     .tint(palette.red)
                 Button("Resume") { model.dismissResumeRitual() }

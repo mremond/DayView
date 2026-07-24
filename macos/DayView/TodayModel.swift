@@ -19,8 +19,9 @@ final class TodayModel: ObservableObject {
         timer = t
     }
 
-    func stopFocus() { session.stopFocus() }
-    func closeFocus(_ outcome: String) { session.closeFocus(outcome: outcome) }
+    func closeFocus(_ outcome: String, intention: String, detourCategory: String, detourDescription: String) {
+        session.closeFocus(outcome: outcome, intention: intention, detourCategory: detourCategory, detourDescription: detourDescription)
+    }
     func setDayStart(minutes: Int32) { session.setDayStart(minutes: minutes) }
     func setDayEnd(minutes: Int32) { session.setDayEnd(minutes: minutes) }
     func setShowSeconds(_ enabled: Bool) { session.setShowSeconds(enabled: enabled) }
@@ -43,6 +44,7 @@ final class TodayModel: ObservableObject {
     }
     func removeDetour(index: Int32) { session.removeDetour(index: index) }
     func restoreLastRemovedDetour() { session.restoreLastRemovedDetour() }
+    func stopOpenDetour() { session.stopOpenDetour() }
     func forgetRecentDetourCategory(_ category: String) { session.forgetRecentDetourCategory(category: category) }
 
     func addOnGoalApp(bundleId: String, name: String) { session.addOnGoalApp(bundleId: bundleId, name: name) }

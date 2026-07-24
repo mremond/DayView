@@ -195,28 +195,44 @@ class DayViewSession internal constructor(
     }
 
     /**
-     * The native window's Stop, still a bridge rather than the closure ritual: it picks
-     * TO_RESUME and names no detour, so before the term the controller silently refuses it
-     * and the button does nothing; past the term it closes normally. Giving the native
-     * window the real closure sheet — outcomes, the intention, the detour capture — is a
-     * known, accepted gap, tracked with the rest of the native parity work.
-     */
-    fun stopFocus() = controller.closePomodoro(FocusClosureOutcome.TO_RESUME)
-
-    /**
      * Ends the session through the closure ritual. [outcome] is one of "COMPLETED",
      * "PROGRESSED", "TO_RESUME" (string-typed for the primitives-only Swift facade,
      * symmetric with TodaySnapshot.pomodoroStatus); anything else degrades to
      * COMPLETED rather than throwing across the FFI boundary.
+     *
+     * Full arity rather than default parameters: Kotlin defaults change the exported
+     * Swift selector, so a later default would silently break the Swift call sites.
+     *
+     * A [detourCategory] pays the exit toll — leaving before the term with PROGRESSED or
+     * TO_RESUME. Without it the controller refuses the closure silently and the session
+     * simply keeps running; the Swift sheet keeps Confirm disabled so that never happens.
      */
-    fun closeFocus(outcome: String) {
+    fun closeFocus(
+        outcome: String,
+        intention: String,
+        detourCategory: String,
+        detourDescription: String,
+    ) {
         controller.closePomodoro(
             when (outcome) {
                 "PROGRESSED" -> FocusClosureOutcome.PROGRESSED
                 "TO_RESUME" -> FocusClosureOutcome.TO_RESUME
                 else -> FocusClosureOutcome.COMPLETED
             },
+            intention = intention,
+            detourCategory = detourCategory,
+            detourDescription = detourDescription,
         )
+    }
+
+    /**
+     * Closes the running open detour into an episode, reusing the motif it was opened
+     * with — the same delegation the Compose app does. The controller refuses a blank
+     * motif; natively one cannot occur, since only the exit toll opens a detour and it
+     * always names it (see the phase 12a spec's note on what changes when sync lands).
+     */
+    fun stopOpenDetour() {
+        controller.stopOpenDetour(controller.stateFlow.value.openDetourCategory)
     }
 
     fun setDayStart(minutes: Int) = controller.setStartMinutes(minutes)

@@ -38,6 +38,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Attention layer: drift nudges (4-switch / 2-min rules), Dock badge + single bounce, in-app drift banner, resumption ritual with window restore | 10b |
 | App icon shared with the JVM build | (main, 89e4c6b) |
 | Presence persistence: intervals written on the desktop cadence, seeded at launch so a relaunch mid-session continues the run | 11 |
+| Focus exit: closure sheet (intention + three outcomes), exit-toll detour capture, open-detour banner in both windows | 12a |
 
 ## Today screen
 
@@ -56,7 +57,6 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 |---|---|---|
 | Keyboard shortcuts: ⌘↩ start focus, ←/→ duration, Esc closes dialogs | **PORT** | Cheap; native `.keyboardShortcut` |
 | `"OVERTIME"` pomodoroStatus value in the Swift status switch | **PORT** | `MiniView.focusCard` and `RingView.focusSection` (`// Task 10/11/12 gives this its real behaviour`) still fold `OVERTIME` into the `"BREAK"` case — same "Break" text and a "Relaunch" button appear while the session is still open, before it has ever been closed |
-| Closure sheet with intention field + exit-toll detour capture in native | **PORT** | `FocusClosureButtons` calls `TodayModel.closeFocus(_ outcome:)`, which forwards to `DayViewSession.closeFocus(outcome:)` with no intention or detour text; `TodayModel.stopFocus()` likewise calls `closePomodoro(TO_RESUME)` with no detour category. Since `:core`'s `closePomodoro` silently no-ops an early exit without a named detour (`earlyExitRequiresDetour`), native's Stop button currently does nothing before the term is reached |
 | 5-min preset button | **PORT** | `RingView.focusSection`/`MiniView.intentionSheet` still require a non-empty intention before Start (`.disabled(intention.isEmpty)`) and start only at the stepper-set duration; the shared Compose UI's free entry plus one-tap 5-minute preset (56d7896) isn't ported |
 | Overtime `"+N min"` in MenuBarContent/MiniView | **PORT** | Partial gap: `focusLine`/`menuBarTitle` already read `"+N min"` for free via the Kotlin-computed snapshot (bf235ff), so `MenuBarContent`'s dropdown line and `RingView.focusSection`'s secondary line are already correct; `MiniView.focusCard`'s primary status row still hardcodes `"Break · …"` for OVERTIME (same gap as the status-switch item above) |
 | Resume-ritual copy during overtime | **PORT** | `RingView.swift:246` renders `"\(pomodoroClock) left to stay on track."`, and `pomodoroClock` is `"+12 min"` in OVERTIME — newly reachable now that the resume ritual is no longer gated to the pre-term phase, so it reads "+12 min left to stay on track." The Compose panel got a dedicated `focus_resume_overtime` string in both locales; native needs the equivalent conditional |
@@ -86,6 +86,8 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 |---|---|---|
 | E2EE sync (server transport, crypto, recovery phrase, first-sync choice, auto-retry) | **PORT** | Required for cutover (Mac↔Android is in active use). The biggest open question: sync code lives in `:shared` — needs a `:shared`→`:core` migration or a native client. Spec carefully |
 | Sync settings screen | **PORT** | With the sync phase |
+
+**New (from phase 12a):** `stopOpenDetour` refuses a blank motif and leaves the detour open. Natively that cannot happen today — only the exit toll opens a detour and it always names one — but a motif-less detour started on Android or the JVM app will sync over once sync lands, and the native Stop would then silently do nothing. The sync phase must add stop-time motif collection.
 
 ## Settings & system
 

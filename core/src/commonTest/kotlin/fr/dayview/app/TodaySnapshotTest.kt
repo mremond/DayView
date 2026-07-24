@@ -4,8 +4,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class TodaySnapshotTest {
@@ -134,5 +137,66 @@ class TodaySnapshotTest {
         val snap = stateAt(breakStart + 5.minutes, end = null, breakStart = breakStart).toTodaySnapshot()
         assertEquals("BREAK", snap.pomodoroStatus)
         assertEquals("Break · 05:00", snap.focusLine)
+    }
+
+    @Test
+    fun earlyExitCostsNameOnlyBeforeTheTerm() {
+        val nowMillis = 1_699_956_000_000L
+        val start = Instant.fromEpochMilliseconds(nowMillis)
+        val controller = controllerWith(
+            DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            nowMillis,
+        )
+        controller.startPomodoro()
+
+        controller.tick(start + 5.minutes)
+        assertTrue(
+            controller.stateFlow.value.toTodaySnapshot().earlyExitCostsName,
+            "mid-session, leaving costs a name",
+        )
+
+        controller.tick(start + 25.minutes)
+        assertFalse(
+            controller.stateFlow.value.toTodaySnapshot().earlyExitCostsName,
+            "at the term the toll lifts",
+        )
+    }
+
+    @Test
+    fun earlyExitIsFreeWhileADetourIsAlreadyOpen() {
+        val nowMillis = 1_699_956_000_000L
+        val start = Instant.fromEpochMilliseconds(nowMillis)
+        val controller = controllerWith(
+            DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            nowMillis,
+        )
+        controller.startPomodoro()
+        controller.tick(start + 5.minutes)
+        controller.startOpenDetour("email", "inbox")
+
+        // The running detour IS the named exit; no second name is owed.
+        assertFalse(controller.stateFlow.value.toTodaySnapshot().earlyExitCostsName)
+    }
+
+    @Test
+    fun openDetourFieldsRenderTheRunningDetour() {
+        val nowMillis = 1_699_956_000_000L
+        val start = Instant.fromEpochMilliseconds(nowMillis)
+        val controller = controllerWith(
+            DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            nowMillis,
+        )
+        val idle = controller.stateFlow.value.toTodaySnapshot()
+        assertFalse(idle.detourOpenRunning)
+        assertEquals("", idle.detourOpenCategory)
+        assertEquals("", idle.detourOpenClock)
+
+        controller.startOpenDetour("email", "inbox triage")
+        controller.tick(start + 65.seconds)
+        val running = controller.stateFlow.value.toTodaySnapshot()
+        assertTrue(running.detourOpenRunning)
+        assertEquals("email", running.detourOpenCategory)
+        assertEquals("inbox triage", running.detourOpenDescription)
+        assertEquals("01:05", running.detourOpenClock)
     }
 }

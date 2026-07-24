@@ -10,6 +10,7 @@ struct MiniView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @State private var showIntentionSheet = false
     @State private var draftIntention = ""
+    @State private var showClosureSheet = false
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: DayViewPalette { DayViewPalette.current(for: colorScheme) }
@@ -47,7 +48,11 @@ struct MiniView: View {
                     if proxy.size.height >= 400 {
                         goalCard
                     }
-                    focusCard
+                    if model.snapshot.detourOpenRunning {
+                        OpenDetourBanner(model: model)
+                    } else {
+                        focusCard
+                    }
                 }
                 .padding(16)
                 // Expand back to the full window (mirrors the JVM's expand glyph).
@@ -70,6 +75,7 @@ struct MiniView: View {
             )
         }
         .sheet(isPresented: $showIntentionSheet) { intentionSheet }
+        .sheet(isPresented: $showClosureSheet) { FocusClosureSheet(model: model, isPresented: $showClosureSheet) }
         .onChange(of: model.snapshot.showResumeRitual) { _, showing in
             // A ritual while in mini mode restores full mode (JVM parity), where the
             // ritual panel is rendered.
@@ -104,23 +110,29 @@ struct MiniView: View {
                         .lineLimit(1)
                     Spacer()
                     Text(model.snapshot.pomodoroClock).monospacedDigit()
-                    Button("Stop") { model.stopFocus() }
+                    Button("Stop") { showClosureSheet = true }
                         .tint(palette.red)
                 }
             case "BREAK", "OVERTIME":
-                // Task 10/11/12 gives this its real behaviour
                 HStack(spacing: 8) {
                     Text("Break · \(model.snapshot.focusIntention)")
                         .lineLimit(1)
                     Spacer()
                     Text(model.snapshot.pomodoroClock).monospacedDigit()
-                    // Relaunch the next session of the sequence, keeping the intention.
-                    Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
-                        .tint(palette.amber)
-                    Button("Stop") { model.stopFocus() }
-                        .tint(palette.red)
+                    // Relaunch only applies to BREAK (a break has no session left to close,
+                    // so closePomodoro would be a no-op) and Stop only to OVERTIME (a running
+                    // session can't be relaunched: startPomodoro returns early while one is
+                    // active). Each button is dead in the state where the other is offered.
+                    if model.snapshot.pomodoroStatus == "BREAK" {
+                        // Relaunch the next session of the sequence, keeping the intention.
+                        Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
+                            .tint(palette.amber)
+                    }
+                    if model.snapshot.pomodoroStatus == "OVERTIME" {
+                        Button("Stop") { showClosureSheet = true }
+                            .tint(palette.red)
+                    }
                 }
-                FocusClosureButtons(model: model)
             default: // "IDLE"
                 Button("Start focus") {
                     draftIntention = model.snapshot.focusIntention

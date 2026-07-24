@@ -2,12 +2,14 @@ package fr.dayview.app
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
@@ -158,7 +160,7 @@ class DayViewSessionTest {
         runCurrent()
         assertEquals("ACTIVE", seen.last().pomodoroStatus)
 
-        session.closeFocus("COMPLETED")
+        session.closeFocus("COMPLETED", "Ship it", "", "")
         runCurrent()
         // A closed session opens a break, so the panel reads BREAK rather than IDLE.
         assertEquals("BREAK", seen.last().pomodoroStatus)
@@ -185,7 +187,7 @@ class DayViewSessionTest {
         // primitives-only facade has no way to name one yet (Task 10/11), so let the
         // session reach its term first: this test pins the outcome mapping, not the gate.
         controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L) + 25.minutes)
-        session.closeFocus("TO_RESUME")
+        session.closeFocus("TO_RESUME", "Ship it", "", "")
         runCurrent()
         assertEquals("BREAK", seen.last().pomodoroStatus)
         assertEquals("Ship it", seen.last().focusIntention)
@@ -207,7 +209,7 @@ class DayViewSessionTest {
 
         session.startFocus("Ship it")
         runCurrent()
-        session.closeFocus("garbage")
+        session.closeFocus("garbage", "Ship it", "", "")
         runCurrent()
         // COMPLETED semantics: session ends into a break, intention cleared.
         assertEquals("BREAK", seen.last().pomodoroStatus)
@@ -233,7 +235,7 @@ class DayViewSessionTest {
         // Past the term first: PROGRESSED before it would need a named detour, which the
         // primitives-only facade cannot supply yet (Task 10/11).
         controller.tick(Instant.fromEpochMilliseconds(1_700_000_000_000L) + 25.minutes)
-        session.closeFocus("PROGRESSED")
+        session.closeFocus("PROGRESSED", "Ship it", "", "")
         runCurrent()
         assertEquals("BREAK", seen.last().pomodoroStatus)
         assertEquals("", seen.last().focusIntention)
@@ -349,7 +351,7 @@ class DayViewSessionTest {
         // Ending a session at its term opens a break, so the idle presentation only
         // returns once that break has aged out (BREAK_VISIBLE_MAX).
         controller.tick(start + 25.minutes)
-        session.stopFocus()
+        session.closeFocus(outcome = "TO_RESUME", intention = "Ship it", detourCategory = "", detourDescription = "")
         runCurrent()
         assertTrue(seen.last().focusLine.startsWith("Break · "))
 
@@ -1242,7 +1244,7 @@ class DayViewSessionTest {
 
         // COMPLETED is the outcome that may end a session before its term without naming
         // a detour; the point here is the latches, not which closure was chosen.
-        session.closeFocus("COMPLETED")
+        session.closeFocus("COMPLETED", "Ship it", "", "")
         clock += 1.seconds
         session.tick()
         runCurrent()
@@ -1550,5 +1552,86 @@ class DayViewSessionTest {
         // This closure hands off to the already-running detour, so no break starts either —
         // otherwise a break and an open detour would be simultaneously live.
         assertNull(c.state.breakStart)
+    }
+
+    private fun TestScope.closureController(now: Instant) = DayViewController(
+        DefaultDayPreferences,
+        backgroundScope,
+        initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+        initialNow = now,
+    )
+
+    @Test
+    fun earlyProgressedWithAMotifClosesTheSessionAndOpensTheDetour() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = closureController(start)
+        val session = DayViewSession(controller, backgroundScope)
+        session.startFocus("Ship it")
+        controller.tick(start + 5.minutes)
+
+        session.closeFocus("PROGRESSED", "Shipped half of it", "email", "inbox triage")
+        runCurrent()
+
+        val state = controller.stateFlow.value
+        assertEquals("IDLE", state.toTodaySnapshot().pomodoroStatus, "the session closed")
+        assertTrue(state.openDetourRunning, "the exit toll opened a detour")
+        assertEquals("email", state.openDetourCategory)
+        // The day-scoped accessor, not the raw `focusSessionRecords` field.
+        assertEquals(1, state.focusSessionRecordsToday.size, "the closing session was recorded")
+        assertEquals("Shipped half of it", state.focusSessionRecordsToday.last().intention)
+    }
+
+    @Test
+    fun earlyProgressedWithoutAMotifChangesNothing() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = closureController(start)
+        val session = DayViewSession(controller, backgroundScope)
+        session.startFocus("Ship it")
+        controller.tick(start + 5.minutes)
+
+        session.closeFocus("PROGRESSED", "Ship it", "", "")
+        runCurrent()
+
+        // The controller refuses silently; the Swift sheet keeps Confirm disabled so the
+        // user never reaches this path, and this asserts what happens if they did.
+        val state = controller.stateFlow.value
+        assertEquals("ACTIVE", state.toTodaySnapshot().pomodoroStatus, "the session kept running")
+        assertFalse(state.openDetourRunning)
+    }
+
+    @Test
+    fun earlyCompletedIsFreeOfAnyToll() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = closureController(start)
+        val session = DayViewSession(controller, backgroundScope)
+        session.startFocus("Ship it")
+        controller.tick(start + 5.minutes)
+
+        session.closeFocus("COMPLETED", "Done early", "", "")
+        runCurrent()
+
+        val state = controller.stateFlow.value
+        // A closed session opens a break (same as any other close), so the panel reads
+        // BREAK rather than IDLE — "free" means no detour is demanded, not that the
+        // session vanishes without a trace.
+        assertEquals("BREAK", state.toTodaySnapshot().pomodoroStatus)
+        assertFalse(state.openDetourRunning, "done early is done — no detour demanded")
+    }
+
+    @Test
+    fun stopOpenDetourCommitsTheEpisode() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = closureController(start)
+        val session = DayViewSession(controller, backgroundScope)
+        controller.startOpenDetour("email", "inbox triage")
+        controller.tick(start + 10.minutes)
+
+        session.stopOpenDetour()
+        runCurrent()
+
+        val state = controller.stateFlow.value
+        assertFalse(state.openDetourRunning, "the detour closed")
+        assertEquals(1, state.detoursToday.size, "the episode was committed")
+        assertEquals("email", state.detoursToday.last().category)
     }
 }

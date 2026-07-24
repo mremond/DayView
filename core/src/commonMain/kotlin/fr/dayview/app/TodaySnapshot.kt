@@ -163,6 +163,16 @@ data class TodaySnapshot(
     val focusTotalLabel: String,
     val showDriftReminder: Boolean,
     val showResumeRitual: Boolean,
+    // Leaving now with PROGRESSED or TO_RESUME costs a named detour. One boolean covers
+    // both tolled outcomes exactly: the predicate's only outcome-dependence is
+    // `outcome != COMPLETED`, so COMPLETED is always free and the other two always share
+    // a verdict. It falls to false on its own at the term and while a detour is already
+    // running, which is what lets the Swift capture collapse without any timing logic.
+    val earlyExitCostsName: Boolean,
+    val detourOpenRunning: Boolean,
+    val detourOpenCategory: String,
+    val detourOpenDescription: String,
+    val detourOpenClock: String, // "MM:SS" elapsed, "" when none is running
 )
 
 internal fun DayViewUiState.toTodaySnapshot(
@@ -277,5 +287,15 @@ internal fun DayViewUiState.toTodaySnapshot(
         focusTotalLabel = if (focusedToday > Duration.ZERO) "Focus ${formatDurationHm(focusedToday)}" else "",
         showDriftReminder = showDriftReminder,
         showResumeRitual = showResumeRitual,
+        earlyExitCostsName = earlyExitRequiresDetour(
+            now = now,
+            end = pomodoroEnd,
+            outcome = FocusClosureOutcome.PROGRESSED,
+            detourAlreadyRunning = openDetourRunning,
+        ),
+        detourOpenRunning = openDetourRunning,
+        detourOpenCategory = openDetourCategory,
+        detourOpenDescription = openDetourDescription,
+        detourOpenClock = if (openDetourRunning) formatElapsedClock(openDetourElapsed) else "",
     )
 }
