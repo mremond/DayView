@@ -199,4 +199,50 @@ class TodaySnapshotTest {
         assertEquals("inbox triage", running.detourOpenDescription)
         assertEquals("01:05", running.detourOpenClock)
     }
+
+    @Test
+    fun resumeRitualLineReadsTheTimeLeftWhileActive() {
+        val nowMillis = 1_699_956_000_000L
+        val start = Instant.fromEpochMilliseconds(nowMillis)
+        val controller = controllerWith(
+            DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            nowMillis,
+        )
+        controller.startPomodoro()
+        controller.tick(start + 5.minutes)
+
+        assertEquals(
+            "20:00 left to stay on track.",
+            controller.stateFlow.value.toTodaySnapshot().resumeRitualLine,
+        )
+    }
+
+    @Test
+    fun resumeRitualLinePastTheTermSpeaksOfOvertimeNotTimeLeft() {
+        val nowMillis = 1_699_956_000_000L
+        val start = Instant.fromEpochMilliseconds(nowMillis)
+        val controller = controllerWith(
+            DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439, pomodoroMinutes = 25),
+            nowMillis,
+        )
+        controller.startPomodoro()
+        controller.tick(start + 37.minutes)
+
+        // The bug this replaces: Swift composed "<clock> left to stay on track." from
+        // pomodoroClock, which past the term is "+12 min" — "+12 min left to stay on track."
+        assertEquals(
+            "+12 min past the term — closing stays a choice.",
+            controller.stateFlow.value.toTodaySnapshot().resumeRitualLine,
+        )
+    }
+
+    @Test
+    fun resumeRitualLineIsEmptyWithNoOpenSession() {
+        val nowMillis = 1_699_956_000_000L
+        val controller = controllerWith(
+            DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            nowMillis,
+        )
+        assertEquals("", controller.stateFlow.value.toTodaySnapshot().resumeRitualLine)
+    }
 }

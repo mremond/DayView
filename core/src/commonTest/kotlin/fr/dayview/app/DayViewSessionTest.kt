@@ -1634,4 +1634,46 @@ class DayViewSessionTest {
         assertEquals(1, state.detoursToday.size, "the episode was committed")
         assertEquals("email", state.detoursToday.last().category)
     }
+
+    @Test
+    fun quickStartRunsFiveMinutesWithoutRewritingThePreference() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = closureController(start)
+        val session = DayViewSession(controller, backgroundScope)
+
+        session.quickStartFocus("")
+        runCurrent()
+
+        val state = controller.stateFlow.value
+        assertEquals(start + 5.minutes, state.pomodoroEnd, "the session runs five minutes")
+        // The preference is the user's chosen default; a preset borrows a duration, it does
+        // not change what Start will use next time.
+        assertEquals(25, state.pomodoroMinutes, "the preferred duration is untouched")
+    }
+
+    @Test
+    fun quickStartAppliesTheIntentionItIsGiven() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = closureController(start)
+        val session = DayViewSession(controller, backgroundScope)
+
+        session.quickStartFocus("Ship it")
+        runCurrent()
+
+        assertEquals("Ship it", controller.stateFlow.value.focusIntention)
+    }
+
+    @Test
+    fun startingWithNoIntentionIsAllowed() = runTest {
+        val start = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val controller = closureController(start)
+        val session = DayViewSession(controller, backgroundScope)
+
+        // Entering focus is free: the blank-intention guard is gone from the controller, and
+        // this is the bridge-level proof the native UI is finally free to honour it.
+        session.startFocus("")
+        runCurrent()
+
+        assertEquals("ACTIVE", controller.stateFlow.value.toTodaySnapshot().pomodoroStatus)
+    }
 }

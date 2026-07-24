@@ -2,8 +2,8 @@ import SwiftUI
 import DayViewKit
 
 /// Compact always-on-top companion: ring + countdown, a display-only goal card, and the
-/// full focus card (intention sheet, live clock, stop/relaunch, closure ritual). Mirrors
-/// the JVM mini window; observes the same TodayModel as the main window and menu bar.
+/// full focus card (intention sheet, live clock, closure ritual). Mirrors the JVM mini
+/// window; observes the same TodayModel as the main window and menu bar.
 struct MiniView: View {
     @ObservedObject var model: TodayModel
     @Environment(\.openWindow) private var openWindow
@@ -104,36 +104,38 @@ struct MiniView: View {
     private var focusCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             switch model.snapshot.pomodoroStatus {
-            case "ACTIVE":
+            case "ACTIVE", "OVERTIME":
                 HStack(spacing: 8) {
-                    Text("Focus · \(model.snapshot.focusIntention)")
+                    // focusLine is computed in Kotlin and already says "+N min" past the
+                    // term; composing the row here is what used to print "Break · …" for a
+                    // session that was still running.
+                    Text(model.snapshot.focusLine)
                         .lineLimit(1)
                     Spacer()
-                    Text(model.snapshot.pomodoroClock).monospacedDigit()
-                    Button("Stop") { showClosureSheet = true }
-                        .tint(palette.red)
+                    Button(model.snapshot.pomodoroStatus == "OVERTIME" ? "Close" : "Stop") {
+                        showClosureSheet = true
+                    }
+                    .tint(palette.red)
                 }
-            case "BREAK", "OVERTIME":
+            case "BREAK":
+                // Compose's mini window shows the break label/clock plus a relaunch as its
+                // only affordance; the "Start focus" entry this phase added stays reachable
+                // alongside it, exactly as it is in the "IDLE" case below.
                 HStack(spacing: 8) {
-                    Text("Break · \(model.snapshot.focusIntention)")
+                    Text(model.snapshot.focusLine)
                         .lineLimit(1)
                     Spacer()
-                    Text(model.snapshot.pomodoroClock).monospacedDigit()
-                    // Relaunch only applies to BREAK (a break has no session left to close,
-                    // so closePomodoro would be a no-op) and Stop only to OVERTIME (a running
-                    // session can't be relaunched: startPomodoro returns early while one is
-                    // active). Each button is dead in the state where the other is offered.
-                    if model.snapshot.pomodoroStatus == "BREAK" {
-                        // Relaunch the next session of the sequence, keeping the intention.
-                        Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
-                            .tint(palette.amber)
+                    Button("Relaunch") {
+                        model.startFocus(intention: model.snapshot.focusIntention)
                     }
-                    if model.snapshot.pomodoroStatus == "OVERTIME" {
-                        Button("Stop") { showClosureSheet = true }
-                            .tint(palette.red)
+                    .tint(palette.amber)
+                    Button("Start focus") {
+                        draftIntention = model.snapshot.focusIntention
+                        showIntentionSheet = true
                     }
+                    .tint(palette.amber)
                 }
-            default: // "IDLE"
+            default: // "IDLE" — entering is free
                 Button("Start focus") {
                     draftIntention = model.snapshot.focusIntention
                     showIntentionSheet = true
@@ -153,12 +155,15 @@ struct MiniView: View {
             HStack {
                 Spacer()
                 Button("Cancel") { showIntentionSheet = false }
+                Button("5 min") {
+                    model.quickStartFocus(intention: draftIntention)
+                    showIntentionSheet = false
+                }
                 Button("Start") {
                     model.startFocus(intention: draftIntention)
                     showIntentionSheet = false
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(draftIntention.isEmpty)
             }
         }
         .padding(20)

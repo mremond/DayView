@@ -195,6 +195,18 @@ class DayViewSession internal constructor(
     }
 
     /**
+     * The one-tap preset: a five-minute session, whatever the preferred duration is. The
+     * controller snapshots the session's own length, so the preference is never rewritten.
+     * Takes the intention for the same reason [startFocus] does — the native field is Swift
+     * local state, so a draft typed but not submitted would otherwise be lost. A blank
+     * intention is legitimate: entering focus is free.
+     */
+    fun quickStartFocus(intention: String) {
+        controller.setFocusIntention(intention)
+        controller.startPomodoro(minutes = 5)
+    }
+
+    /**
      * Ends the session through the closure ritual. [outcome] is one of "COMPLETED",
      * "PROGRESSED", "TO_RESUME" (string-typed for the primitives-only Swift facade,
      * symmetric with TodaySnapshot.pomodoroStatus); anything else degrades to

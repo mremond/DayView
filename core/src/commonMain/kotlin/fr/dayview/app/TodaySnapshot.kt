@@ -146,6 +146,11 @@ data class TodaySnapshot(
     val secondsLabel: String, // e.g. "07s" when showSeconds && !isFinished, else ""
     val focusLine: String, // "Focus · <intention> · <clock>" / "Break · <clock>" / ""
     val menuBarTitle: String, // the clock during ACTIVE/BREAK, else dayStatus
+    // The resume ritual's second line. Computed here rather than in Swift because the
+    // sentence depends on which side of the term the session is on — and `pomodoroClock`
+    // silently changes meaning at that boundary, which is how the Swift-composed version
+    // came to read "+12 min left to stay on track."
+    val resumeRitualLine: String,
     val netTimeEnabled: Boolean,
     val calendarPermission: Boolean,
     val calendarReadError: Boolean,
@@ -230,6 +235,11 @@ internal fun DayViewUiState.toTodaySnapshot(
             PomodoroStatus.IDLE -> ""
         },
         menuBarTitle = if (pomodoro.status == PomodoroStatus.IDLE) status else clock,
+        resumeRitualLine = when (pomodoro.status) {
+            PomodoroStatus.ACTIVE -> "${formatPomodoroClock(pomodoro)} left to stay on track."
+            PomodoroStatus.OVERTIME -> "${formatOvertimeLabel(pomodoro)} past the term — closing stays a choice."
+            PomodoroStatus.BREAK, PomodoroStatus.IDLE -> ""
+        },
         netTimeEnabled = netTimeSettings.enabled,
         calendarPermission = netCalendarPermission,
         calendarReadError = netCalendarError,

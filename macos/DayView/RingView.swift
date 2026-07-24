@@ -23,6 +23,10 @@ struct RingView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: DayViewPalette { DayViewPalette.current(for: colorScheme) }
+    private var sessionIsOpen: Bool {
+        let status = model.snapshot.pomodoroStatus
+        return status == "ACTIVE" || status == "OVERTIME"
+    }
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
@@ -78,9 +82,13 @@ struct RingView: View {
             }
             // A session just ended (closure or stop): the persisted intention is the
             // source of truth — Completed/Progressed cleared it, Resume later kept it —
-            // so re-sync the field. Scoped to the non-IDLE -> IDLE transition so it
-            // never clobbers mid-typing edits during normal ticks.
-            if lastPomodoroStatus != "IDLE" && snap.pomodoroStatus == "IDLE" {
+            // so re-sync the field. Scoped to the transition out of an open session, not
+            // to arriving at IDLE: a closure now lands on BREAK, and watching for IDLE
+            // would leave the field holding the closed session's text. Still a transition,
+            // so it never clobbers mid-typing edits during normal ticks.
+            let wasOpen = lastPomodoroStatus == "ACTIVE" || lastPomodoroStatus == "OVERTIME"
+            let isOpen = snap.pomodoroStatus == "ACTIVE" || snap.pomodoroStatus == "OVERTIME"
+            if wasOpen && !isOpen {
                 intention = snap.focusIntention
             }
             lastPomodoroStatus = snap.pomodoroStatus
@@ -175,6 +183,20 @@ struct RingView: View {
         }
     }
 
+    // Shared by the "IDLE" and "BREAK" cases below: entering a session is free in both.
+    @ViewBuilder
+    private var focusEntryButtons: some View {
+        Button("Start focus") {
+            model.startFocus(intention: intention)
+        }
+        .tint(palette.amber)
+        Button("5 min") {
+            model.quickStartFocus(intention: intention)
+        }
+        .buttonStyle(.bordered)
+        .tint(palette.muted)
+    }
+
     private var focusSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("FOCUS")
@@ -183,35 +205,34 @@ struct RingView: View {
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { model.setFocusIntention(intention) }
             HStack {
-                Stepper("Duration: \(model.snapshot.pomodoroMinutes) min",
-                        onIncrement: { model.changePomodoroDuration(5) },
-                        onDecrement: { model.changePomodoroDuration(-5) })
-                    .disabled(model.snapshot.pomodoroStatus != "IDLE")
+                // A duration preference only means something before a session opens; once
+                // one is running (or overtime), showing it beside a counting-down clock set
+                // by the 5-min preset would contradict what's actually playing.
+                if !sessionIsOpen {
+                    Stepper("Duration: \(model.snapshot.pomodoroMinutes) min",
+                            onIncrement: { model.changePomodoroDuration(5) },
+                            onDecrement: { model.changePomodoroDuration(-5) })
+                }
                 Spacer()
                 switch model.snapshot.pomodoroStatus {
-                case "IDLE":
-                    Button("Start focus") {
-                        model.startFocus(intention: intention)
-                    }
-                    .tint(palette.amber)
-                    .disabled(intention.isEmpty)
-                case "BREAK", "OVERTIME":
-                    // Relaunch only applies to BREAK (a break has no session left to close,
-                    // so closePomodoro would be a no-op) and Stop only to OVERTIME (a running
-                    // session can't be relaunched: startPomodoro returns early while one is
-                    // active). Each button is dead in the state where the other is offered.
-                    if model.snapshot.pomodoroStatus == "BREAK" {
-                        // Relaunch the next session of the sequence, keeping the intention.
-                        Button("Relaunch") { model.startFocus(intention: model.snapshot.focusIntention) }
-                            .tint(palette.amber)
-                    }
-                    if model.snapshot.pomodoroStatus == "OVERTIME" {
-                        Button("Stop focus") { showClosureSheet = true }
-                            .tint(palette.red)
-                    }
-                default: // "ACTIVE"
+                case "ACTIVE":
                     Button("Stop focus") { showClosureSheet = true }
                         .tint(palette.red)
+                case "OVERTIME":
+                    // Past the term the session is still running and still counted; closing
+                    // is the invitation, so the button is named for what it does.
+                    Button("Close this focus") { showClosureSheet = true }
+                        .tint(palette.red)
+                case "BREAK":
+                    // A break offers both a fresh entry and a one-tap return to the
+                    // intention that was just closed — no session is open, so this is safe.
+                    focusEntryButtons
+                    Button("Relaunch") {
+                        model.startFocus(intention: model.snapshot.focusIntention)
+                    }
+                    .tint(palette.amber)
+                default: // "IDLE" — entering is free
+                    focusEntryButtons
                 }
             }
             Text(model.snapshot.focusLine.isEmpty ? "Idle" : model.snapshot.focusLine)
@@ -244,8 +265,8 @@ struct RingView: View {
                 .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.mint)
             Text(model.snapshot.focusIntention.isEmpty ? "One thing at a time." : model.snapshot.focusIntention)
                 .foregroundStyle(palette.cloud)
-            if !model.snapshot.pomodoroClock.isEmpty {
-                Text("\(model.snapshot.pomodoroClock) left to stay on track.")
+            if !model.snapshot.resumeRitualLine.isEmpty {
+                Text(model.snapshot.resumeRitualLine)
                     .font(.caption).foregroundStyle(palette.muted)
             }
             HStack {

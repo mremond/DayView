@@ -32,6 +32,7 @@ final class TodayModel: ObservableObject {
     func setFocusIntention(_ text: String) { session.setFocusIntention(intention: text) }
     func changePomodoroDuration(_ delta: Int32) { session.changePomodoroDuration(deltaMinutes: delta) }
     func startFocus(intention: String) { session.startFocus(intention: intention) }
+    func quickStartFocus(intention: String) { session.quickStartFocus(intention: intention) }
     func setGoalTitle(_ title: String) { session.setGoalTitle(title: title) }
     func setGoalDeadline(epochMillis: Int64) { session.setGoalDeadline(epochMillis: epochMillis) }
     func clearGoalDeadline() { session.setGoalDeadline(epochMillis: 0) }
