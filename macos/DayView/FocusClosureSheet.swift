@@ -19,9 +19,9 @@ struct FocusClosureSheet: View {
 
     private func label(_ outcome: String) -> String {
         switch outcome {
-        case "COMPLETED": return "Completed"
-        case "PROGRESSED": return "Progressed"
-        default: return "Resume later"
+        case "COMPLETED": return L("Completed")
+        case "PROGRESSED": return L("Progressed")
+        default: return L("Resume later")
         }
     }
 

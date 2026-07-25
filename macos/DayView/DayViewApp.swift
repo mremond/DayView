@@ -9,6 +9,32 @@ struct DayViewApp: App {
         Window("DayView", id: "main") {
             MainWindowRoot(model: model, windows: windows)
         }
+        .commands {
+            CommandMenu("Focus") {
+                Button("Start focus") {
+                    model.startFocus(intention: model.snapshot.focusIntention)
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(
+                    model.snapshot.detourOpenRunning ||
+                    model.snapshot.pomodoroStatus == "ACTIVE" ||
+                    model.snapshot.pomodoroStatus == "OVERTIME"
+                )
+                Divider()
+                Button("Shorter focus") { model.changePomodoroDuration(-5) }
+                    .keyboardShortcut(.leftArrow, modifiers: [])
+                    .disabled(
+                        model.snapshot.pomodoroStatus == "ACTIVE" ||
+                        model.snapshot.pomodoroStatus == "OVERTIME"
+                    )
+                Button("Longer focus") { model.changePomodoroDuration(5) }
+                    .keyboardShortcut(.rightArrow, modifiers: [])
+                    .disabled(
+                        model.snapshot.pomodoroStatus == "ACTIVE" ||
+                        model.snapshot.pomodoroStatus == "OVERTIME"
+                    )
+            }
+        }
         MenuBarExtra(model.snapshot.menuBarTitle) {
             MenuBarContent(model: model, windows: windows)
         }

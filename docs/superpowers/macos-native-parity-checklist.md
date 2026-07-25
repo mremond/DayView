@@ -41,15 +41,16 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 | Focus exit: closure sheet (intention + three outcomes), exit-toll detour capture, open-detour banner in both windows | 12a |
 | Focus entry: free start, 5-min preset, a break offers the entry panel alongside its relaunch, overtime reads as overtime in the mini window and the resume ritual | 12b |
 | History storage: `HistoryFileSystem`/`FileDayHistoryStore` moved to `:core` with an Okio implementation, native archiving wired (it was writing to an in-memory store and losing every day), presence seeded raw so the archive keeps the day's engaged time | 13a |
+| Native interface completion: must-dos, Focus detail sheet, day-over upcoming availability, hero quotes, week/day history, keyboard shortcuts, login launch, goal-label states, English/French localization | 13b |
 
 ## Today screen
 
 | Item | Status | Notes |
 |---|---|---|
-| Must-dos (up to 3 planned obligations, complete/free slot) | **PORT** | Small; `:core` logic exists |
-| Focus-session detail pop-up (intention, engaged, deep-focus per session) | **PORT** | Records exist since 5a; engaged/deep-focus figures need presence |
-| Day-over screen + next-3-days availability | **PORT** | `updateUpcomingData` exists in `:core`; session must feed it (7a deferred it) |
-| Hero quotes (day-state message) | **PORT** | Confirmed 2026-07-16; pure copy layer over `:core` slots |
+| Must-dos (up to 3 planned obligations, complete/free slot) | ✅ | Native panel, rename, complete and remove |
+| Focus-session detail pop-up (intention, engaged, deep-focus per session) | ✅ | Click a closed Focus band on the ring |
+| Day-over screen + next-3-days availability | ✅ | Native session feeds `updateUpcomingData` from EventKit |
+| Hero quotes (day-state message) | ✅ | Native day-state copy layer |
 | Ring scrubbing/inspection interaction | **DROP** | Confirmed 2026-07-16: not ported on macOS |
 | Auto display scale / font-scale preference | **DROP** | Confirmed 2026-07-16; macOS has system scaling |
 
@@ -57,10 +58,13 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Keyboard shortcuts: ⌘↩ start focus, ←/→ duration, Esc closes dialogs | **PORT** | Cheap; native `.keyboardShortcut` |
+| Keyboard shortcuts: ⌘↩ start focus, ←/→ duration, Esc closes dialogs | ✅ | Native commands and cancel actions |
 | Break anchored on `breakStart` | **PORT** | The progress calculation itself is shared `:core` and `breakStart` already persists through the reused `DayPreferencesStore`, so timing is correct; the gap is the reminder/notification scheduling that keys off the closure-time `breakStart` anchor (desktop 8161833, Android d76d72b) — native has neither the drift/overtime notification plumbing (10b) nor the sound-cue scheduler (Sounds, below) yet |
 
-**New (from the 10b review):** (a) the drift **notification banner** — `UNUserNotificationCenter` needs authorization and does not deliver reliably unsigned, so it waits for the packaging phase (the JVM uses the deprecated `NSUserNotification`); (b) in **menu-bar-only mode** (both windows closed) a resume ritual latches with nothing to surface it — it appears when a window is next opened, but the JVM forces the window visible. Both **PORT** before cutover.
+**New (from the 10b review):** the drift **notification banner** still waits for the
+signed packaging phase (`UNUserNotificationCenter` does not deliver reliably unsigned).
+The menu-bar-only resume gap is fixed: the always-alive menu scene now restores the main
+window as soon as a ritual latches.
 
 **New (from phase 12b):** a sweep for Swift-composed labels — the class of defect behind the resume ritual's "+12 min left to stay on track." — found `goalHoursRemaining` worded three different ways in three surfaces (`MenuBarContent.swift`, `MiniView.swift`, `RingView.swift`: "Nh left" / "Nh left" / "Nh of working time left"). It's worse than wording: `goalHoursRemaining` is `ceil(calculateGoalWorkingTime(...))`, which is zero once the deadline has passed (`GlobalGoal.kt:104`), and Compose routes that number through three distinct states — `DeadlineReached` / `LessThanAnHour` / `HoursRemaining` (`GlobalGoal.kt:155-159`, `GoalStrings.kt:17-22`) — while all three native surfaces just print the raw number. A passed deadline reads "0h left" / "0h of working time left" natively where the JVM build reads "Deadline reached", and under an hour reads "0h left" instead of "Less than an hour of work". All three surfaces need the same three-state translation. Fold it into the French-localization phase, which already revisits the Kotlin-computed labels.
 
@@ -77,7 +81,7 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Week screen (mini rings) + day screen (date label, back nav) | **PORT** | 13b. The week-grid logic (`HistoryWeek.kt`) is already in `:core`; the storage landed in 13a |
+| Week screen (mini rings) + day screen (date label, back nav) | ✅ | Native week grid and read-only day replay |
 
 ## Sync
 
@@ -92,10 +96,10 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 
 | Item | Status | Notes |
 |---|---|---|
-| Launch at login | **PORT** | `SMAppService` — much simpler natively than the JVM path |
+| Launch at login | ✅ | Native `SMAppService` toggle |
 | Monochrome menu-bar icon toggle | **DROP** | Confirmed 2026-07-16; the native menu bar shows live text, no icon |
 | 12/24-hour clock handling | ✅ (7b) | Detected at launch via the NSDateFormatter "j"-probe, threaded through the snapshot; hover labels honor it — future wall-clock surfaces inherit the plumbing |
-| French localization of the native UI | **PORT** | JVM ships FR; native is hardcoded EN. Required for parity — one cross-cutting phase near the end (also revisits the Kotlin-computed labels) |
+| French localization of the native UI | ✅ | Swift resources plus localized Kotlin-computed labels |
 
 ## Packaging / release (the cutover itself)
 
@@ -132,11 +136,11 @@ call needed · **DEFER** explicitly post-cutover · **DROP** not ported (decisio
 2. ~~**Visual identity pass**~~ ✅ merged a4fb363
 3. ~~**Detours**~~ ✅ merged 6d5025b (9a) + bc36539 (9b)
 4. ~~**Presence & on-goal (10a + 10b)**~~ ✅ merged 066c385 + b2f4846
-5. **Resume ritual** + keyboard shortcuts (small)
-6. **Must-dos** + hero quotes (small)
+5. ~~**Resume ritual** + keyboard shortcuts~~ ✅
+6. ~~**Must-dos** + hero quotes~~ ✅
 7. **Sounds**
-8. **History** (verify native archiving first — possible existing gap)
-9. **Day-over / upcoming availability**
+8. ~~**History**~~ ✅
+9. ~~**Day-over / upcoming availability**~~ ✅
 10. **Sync** (largest; spec the `:shared`→`:core` question early)
-11. **i18n (French)**
+11. ~~**i18n (French)**~~ ✅
 12. **Packaging/CI cutover** — flip this checklist to the release gate

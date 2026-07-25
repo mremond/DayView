@@ -6,6 +6,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -37,6 +38,7 @@ class DayViewSession internal constructor(
     // to the current one. Restoring yesterday's intervals under today's key would make them
     // render as today's arcs; the accumulators clear them on the first tick of the new day.
     private val restoreDayKey: Long = -1L,
+    private val languageCode: String = "en",
 ) {
     private var ticksSinceCalendarRefresh = 0
     private val presence = PresenceCoordinator(dayViewBundleId)
@@ -75,12 +77,24 @@ class DayViewSession internal constructor(
             savedSession = state.focusSessionIntervals
         }
     }
-    fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot(use24Hour, driftReminderId != null, resumeRitualId != null)
+    fun currentSnapshot(): TodaySnapshot = controller.stateFlow.value.toTodaySnapshot(
+        use24Hour,
+        driftReminderId != null,
+        resumeRitualId != null,
+        languageCode,
+    )
 
     fun subscribe(onEach: (TodaySnapshot) -> Unit): DayViewSubscription {
         val job = scope.launch {
             combine(controller.stateFlow, latchVersion) { state, _ -> state }.collect {
-                onEach(it.toTodaySnapshot(use24Hour, driftReminderId != null, resumeRitualId != null))
+                onEach(
+                    it.toTodaySnapshot(
+                        use24Hour,
+                        driftReminderId != null,
+                        resumeRitualId != null,
+                        languageCode,
+                    ),
+                )
             }
         }
         return object : DayViewSubscription {
@@ -288,6 +302,24 @@ class DayViewSession internal constructor(
             windowEnd = end,
         )
         controller.updateNetTimeData(probe.permission, probe.busy, probe.calendars, probe.readError)
+        if (state.netTimeSettings.enabled && state.dayProgress.isFinished && probe.permission) {
+            val tomorrowKey = dayKeyOf(state.now) + 1
+            val tomorrow = LocalDate.fromEpochDays(tomorrowKey.toInt())
+            val (upcomingStart, upcomingEnd) = upcomingUnionWindow(
+                tomorrow,
+                UPCOMING_DAY_COUNT,
+                state.startMinutes,
+                state.endMinutes,
+            )
+            val upcoming = calendarSource.busyIntervals(
+                upcomingStart,
+                upcomingEnd,
+                state.netTimeSettings.includedCalendarIds,
+            )
+            controller.updateUpcomingData(tomorrowKey, upcoming)
+        } else {
+            controller.updateUpcomingData(-1L, emptyList())
+        }
     }
 
     fun setNetTimeEnabled(enabled: Boolean) {
@@ -339,6 +371,20 @@ class DayViewSession internal constructor(
     fun restoreLastRemovedDetour() = controller.restoreLastRemovedDetour()
 
     fun forgetRecentDetourCategory(category: String) = controller.forgetRecentDetourCategory(category)
+
+    fun addPlannedObligation(label: String) = controller.addPlannedObligation(label)
+
+    fun removePlannedObligation(label: String) = controller.removePlannedObligation(label)
+
+    fun completePlannedObligation(label: String) = controller.completePlannedObligation(label)
+
+    fun editPlannedObligation(oldLabel: String, newLabel: String) = controller.editPlannedObligation(oldLabel, newLabel)
+
+    fun openHistory() = controller.openHistory()
+
+    fun openHistoryDay(dayKey: Long) = controller.openHistoryDay(dayKey)
+
+    fun closeHistory() = controller.closeHistory()
 
     /** The configured on-goal apps (stored set), for the settings list. */
     fun onGoalApps(): List<AppRef> = controller.stateFlow.value.onGoalApps.toList()

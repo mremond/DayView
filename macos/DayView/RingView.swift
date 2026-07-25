@@ -13,10 +13,13 @@ struct RingView: View {
     @State private var showDetourCapture = false
     @State private var showDetourList = false
     @State private var showClosureSheet = false
+    @State private var selectedFocusSession: FocusSessionSnapshot?
+    @State private var showFocusSessionDetail = false
 
     private struct HoveredArc {
         let label: String
         let position: CGPoint
+        let focusSessionIndex: Int?
     }
 
     @State private var hoveredArc: HoveredArc?
@@ -31,25 +34,48 @@ struct RingView: View {
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 28) {
-                if model.snapshot.showResumeRitual {
-                    resumeRitual
-                } else if model.snapshot.showDriftReminder {
-                    driftBanner
+        Group {
+            if model.snapshot.destination == "HISTORY" {
+                HistoryView(model: model)
+            } else {
+                ScrollView {
+                    VStack(spacing: 24) {
+                        HStack {
+                            Button {
+                                model.openHistory()
+                            } label: {
+                                Label("History", systemImage: "clock.arrow.circlepath")
+                            }
+                            .buttonStyle(.borderless)
+                            Spacer()
+                        }
+                        if model.snapshot.showResumeRitual {
+                            resumeRitual
+                        } else if model.snapshot.showDriftReminder {
+                            driftBanner
+                        }
+                        ringSection
+                        UpcomingDaysView(days: model.snapshot.upcomingDays)
+                        detourSection
+                        MustDosView(model: model)
+                        // A running detour and a focus are mutually exclusive in the core, so the
+                        // panel that is live replaces the other rather than stacking with it.
+                        if model.snapshot.detourOpenRunning {
+                            OpenDetourBanner(model: model)
+                        } else {
+                            focusSection
+                        }
+                        goalSection
+                        HeroQuoteView(
+                            hasStarted: model.snapshot.hasStarted,
+                            isFinished: model.snapshot.isFinished,
+                            remainingRatio: model.snapshot.remainingRatio,
+                            availablePercent: model.snapshot.availablePercent
+                        )
+                    }
+                    .padding(32)
                 }
-                ringSection
-                detourSection
-                // A running detour and a focus are mutually exclusive in the core, so the
-                // panel that is live replaces the other rather than stacking with it.
-                if model.snapshot.detourOpenRunning {
-                    OpenDetourBanner(model: model)
-                } else {
-                    focusSection
-                }
-                goalSection
             }
-            .padding(32)
         }
         .background(
             RadialGradient(
@@ -61,6 +87,11 @@ struct RingView: View {
         .sheet(isPresented: $showDetourCapture) { DetourCaptureSheet(model: model, isPresented: $showDetourCapture) }
         .sheet(isPresented: $showDetourList) { DetourListSheet(model: model, isPresented: $showDetourList) }
         .sheet(isPresented: $showClosureSheet) { FocusClosureSheet(model: model, isPresented: $showClosureSheet) }
+        .sheet(isPresented: $showFocusSessionDetail) {
+            if let selectedFocusSession {
+                FocusSessionDetailSheet(session: selectedFocusSession, isPresented: $showFocusSessionDetail)
+            }
+        }
         .onChange(of: model.snapshot.showResumeRitual) { _, showing in
             // The ritual is deliberately interruptive: surface the window it lives in.
             if showing { NSApplication.shared.activate(ignoringOtherApps: true) }
@@ -116,6 +147,13 @@ struct RingView: View {
                     case .ended:
                         hoveredArc = nil
                     }
+                }
+                .onTapGesture {
+                    guard let index = hoveredArc?.focusSessionIndex,
+                          index >= 0,
+                          index < model.snapshot.focusSessions.count else { return }
+                    selectedFocusSession = model.snapshot.focusSessions[index]
+                    showFocusSessionDetail = true
                 }
                 VStack(spacing: 2) {
                     Text(model.snapshot.dayStatus)
@@ -190,6 +228,7 @@ struct RingView: View {
             model.startFocus(intention: intention)
         }
         .tint(palette.amber)
+        .keyboardShortcut(.return, modifiers: .command)
         Button("5 min") {
             model.quickStartFocus(intention: intention)
         }
@@ -209,7 +248,7 @@ struct RingView: View {
                 // one is running (or overtime), showing it beside a counting-down clock set
                 // by the 5-min preset would contradict what's actually playing.
                 if !sessionIsOpen {
-                    Stepper("Duration: \(model.snapshot.pomodoroMinutes) min",
+                    Stepper(LF("Duration: %lld min", model.snapshot.pomodoroMinutes),
                             onIncrement: { model.changePomodoroDuration(5) },
                             onDecrement: { model.changePomodoroDuration(-5) })
                 }
@@ -235,7 +274,7 @@ struct RingView: View {
                     focusEntryButtons
                 }
             }
-            Text(model.snapshot.focusLine.isEmpty ? "Idle" : model.snapshot.focusLine)
+            Text(model.snapshot.focusLine.isEmpty ? L("Idle") : model.snapshot.focusLine)
                 .foregroundStyle(.secondary)
         }
         .dayViewPanel(palette)
@@ -291,7 +330,7 @@ struct RingView: View {
                 .onSubmit { model.setGoalTitle(goalTitle) }
             HStack {
                 DatePicker("Deadline", selection: $deadline)
-                    .onChange(of: deadline) { newValue in
+                    .onChange(of: deadline) { _, newValue in
                         let millis = Int64(newValue.timeIntervalSince1970 * 1000)
                         // Only persist a genuine user change. Seeding `deadline` from the
                         // snapshot also fires .onChange (with `seeded` already true); guard
@@ -305,7 +344,7 @@ struct RingView: View {
                 }
             }
             if model.snapshot.goalHasDeadline {
-                Text("\(model.snapshot.goalHoursRemaining)h of working time left")
+                Text(model.snapshot.goalTimeLabel)
                     .foregroundStyle(.secondary)
             }
         }
@@ -335,7 +374,22 @@ struct RingView: View {
         if !detours.isEmpty, abs(distance - detourRadius) <= bandHalf {
             let index = Int(TodaySnapshotKt.detourBodyIndexAt(bodies: detours, angleDegrees: angle))
             if index >= 0, index < detours.count {
-                return HoveredArc(label: detours[index].hoverLabel, position: point)
+                return HoveredArc(label: detours[index].hoverLabel, position: point, focusSessionIndex: nil)
+            }
+        }
+
+        // Closed Focus sessions share the main lane. Hover gives a compact hint; clicking
+        // opens the full engaged/deep-focus detail sheet.
+        let sessions = model.snapshot.focusSessions
+        if !sessions.isEmpty, abs(distance - radius) <= lineWidth / 2 + 6 {
+            if let index = focusSessionIndex(at: angle, sessions: sessions) {
+                let session = sessions[index]
+                let title = session.intention.isEmpty ? L("Untitled focus") : session.intention
+                return HoveredArc(
+                    label: "\(title) · \(session.timeRangeLabel)",
+                    position: point,
+                    focusSessionIndex: index
+                )
             }
         }
 
@@ -345,9 +399,32 @@ struct RingView: View {
         if !arcs.isEmpty, abs(distance - busyRadius) <= bandHalf {
             let index = Int(TodaySnapshotKt.busyArcIndexAt(arcs: arcs, angleDegrees: angle))
             if index >= 0, index < arcs.count {
-                return HoveredArc(label: arcs[index].hoverLabel, position: point)
+                return HoveredArc(label: arcs[index].hoverLabel, position: point, focusSessionIndex: nil)
             }
         }
         return nil
+    }
+
+    private func focusSessionIndex(at angle: Double, sessions: [FocusSessionSnapshot]) -> Int? {
+        let probe = normalizedDegrees(angle)
+        var bestIndex: Int?
+        var bestDistance = Double.greatestFiniteMagnitude
+        for (index, session) in sessions.enumerated() {
+            let start = normalizedDegrees(session.startAngleDegrees)
+            let offset = normalizedDegrees(probe - start)
+            let distance = offset <= session.sweepDegrees
+                ? 0
+                : min(offset - session.sweepDegrees, 360 - offset)
+            if distance < bestDistance {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+        return bestDistance <= 4 ? bestIndex : nil
+    }
+
+    private func normalizedDegrees(_ value: Double) -> Double {
+        let remainder = value.truncatingRemainder(dividingBy: 360)
+        return remainder < 0 ? remainder + 360 : remainder
     }
 }

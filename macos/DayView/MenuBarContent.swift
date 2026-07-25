@@ -14,9 +14,14 @@ struct MenuBarContent: View {
             Text(model.snapshot.focusLine)
         }
         if model.snapshot.goalHasDeadline {
-            Text("\(model.snapshot.goalHoursRemaining)h left")
+            Text(model.snapshot.goalTimeLabel)
         }
         Divider()
+        Button("History") {
+            model.openHistory()
+            openWindow(id: "main")
+            dismissWindow(id: "mini")
+        }
         if windows.isMiniOpen {
             Button("Open full window") {
                 openWindow(id: "main")
@@ -30,5 +35,13 @@ struct MenuBarContent: View {
             }
         }
         Button("Quit DayView") { NSApplication.shared.terminate(nil) }
+        .onChange(of: model.snapshot.showResumeRitual) { _, showing in
+            // The menu scene stays alive when both windows are closed. Surface a recovered
+            // Focus immediately instead of waiting for the user to reopen DayView.
+            if showing && !windows.isMainOpen && !windows.isMiniOpen {
+                openWindow(id: "main")
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
     }
 }

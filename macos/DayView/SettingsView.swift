@@ -8,6 +8,7 @@ struct SettingsView: View {
     @ObservedObject var model: TodayModel
     @State private var apps: [AppRef] = []
     @State private var selected: Set<String> = []
+    @StateObject private var loginLaunch = LoginLaunchController()
 
     var body: some View {
         Form {
@@ -108,6 +109,20 @@ struct SettingsView: View {
                 for app in model.runningApps() { byBundleId[app.bundleId] = app }
                 apps = byBundleId.values.sorted { $0.displayName < $1.displayName }
                 selected = Set(model.onGoalBundleIds)
+            }
+            Section("System") {
+                Toggle(
+                    "Launch DayView at login",
+                    isOn: Binding(
+                        get: { loginLaunch.isEnabled },
+                        set: { loginLaunch.setEnabled($0) }
+                    )
+                )
+                if let error = loginLaunch.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
         }
         .formStyle(.grouped)

@@ -23,7 +23,7 @@ private fun systemUses24HourClock(): Boolean {
 
 /** Single entry point Swift calls to build the whole graph with file-backed preferences. */
 object DayViewNative {
-    fun create(): DayViewSession {
+    fun create(languageCode: String): DayViewSession {
         val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         val preferences = macosPreferences()
         // Read the persisted presence once, before the controller exists: seeding it is what
@@ -76,6 +76,7 @@ object DayViewNative {
             dayViewBundleId = NSBundle.mainBundle.bundleIdentifier ?: DAYVIEW_BUNDLE_ID,
             presencePersistence = preferences.presencePersistence,
             restoreDayKey = stored.dayKey,
+            languageCode = languageCode,
         )
         // After the user answers the access prompt, re-read immediately instead of
         // waiting for the next minute tick.

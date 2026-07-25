@@ -88,12 +88,12 @@ struct MiniView: View {
 
     private var goalCard: some View {
         HStack {
-            Text(model.snapshot.goalTitle.isEmpty ? "No goal yet" : model.snapshot.goalTitle)
+            Text(model.snapshot.goalTitle.isEmpty ? L("No goal yet") : model.snapshot.goalTitle)
                 .foregroundStyle(model.snapshot.goalTitle.isEmpty ? Color.secondary : Color.primary)
                 .lineLimit(1)
             Spacer()
             if model.snapshot.goalHasDeadline {
-                Text("\(model.snapshot.goalHoursRemaining)h left")
+                Text(model.snapshot.goalTimeLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

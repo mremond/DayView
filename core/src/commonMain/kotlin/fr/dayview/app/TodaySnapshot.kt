@@ -39,6 +39,46 @@ data class DetourBodySnapshot(
 /** A focus/engaged arc on the ring's main lane (mint; no color index; no hover in 10a). */
 data class FocusArcSnapshot(val startAngleDegrees: Double, val sweepDegrees: Double)
 
+/** One closed Focus projected on the ring, with the detail sheet's ready-to-render values. */
+data class FocusSessionSnapshot(
+    val startAngleDegrees: Double,
+    val sweepDegrees: Double,
+    val intention: String,
+    val timeRangeLabel: String,
+    val durationLabel: String,
+    val engagedLabel: String,
+    val deepFocusLabel: String,
+    val outcome: String,
+)
+
+/** One future day shown on the end-of-day availability strip. Durations are whole minutes. */
+data class UpcomingDaySnapshot(
+    val epochDay: Long,
+    val windowMinutes: Long,
+    val busyMinutes: Long,
+    val netMinutes: Long,
+)
+
+/** Read-only ring projection used by the native week and day history screens. */
+data class HistoryDaySnapshot(
+    val dayKey: Long,
+    val hasData: Boolean,
+    val isToday: Boolean,
+    val remainingRatio: Double,
+    val momentAngleDegrees: Double,
+    val isFinished: Boolean,
+    val hasStarted: Boolean,
+    val dayStatus: String,
+    val netTimeLabel: String,
+    val detourTotalLabel: String,
+    val focusTotalLabel: String,
+    val hasGoal: Boolean,
+    val busyArcs: List<BusyArcSnapshot>,
+    val detourBodies: List<DetourBodySnapshot>,
+    val focusArcs: List<FocusArcSnapshot>,
+    val focusSessionBands: List<FocusArcSnapshot>,
+)
+
 /** One calendar-busy block projected on the ring, ready for native drawing and hover. */
 data class BusyArcSnapshot(
     val startAngleDegrees: Double, // -90° anchor (12 o'clock), clockwise
@@ -136,6 +176,7 @@ data class TodaySnapshot(
     val goalHasDeadline: Boolean,
     val goalDeadlineEpochMillis: Long,
     val goalHoursRemaining: Long,
+    val goalTimeLabel: String,
     val pomodoroMinutes: Long,
     val startMinutes: Long, // day window start, minutes from midnight
     val endMinutes: Long, // day window end, minutes from midnight
@@ -165,7 +206,16 @@ data class TodaySnapshot(
     val detourBodies: List<DetourBodySnapshot>,
     val focusArcs: List<FocusArcSnapshot>,
     val focusSessionBands: List<FocusArcSnapshot>,
+    val focusSessions: List<FocusSessionSnapshot>,
     val focusTotalLabel: String,
+    val plannedObligations: List<String>,
+    val completedObligations: List<String>,
+    val plannedObligationSlotsRemaining: Long,
+    val upcomingDays: List<UpcomingDaySnapshot>,
+    val historyDays: List<HistoryDaySnapshot>,
+    val selectedHistoryDay: Long,
+    val destination: String,
+    val availablePercent: Long,
     val showDriftReminder: Boolean,
     val showResumeRitual: Boolean,
     // Leaving now with PROGRESSED or TO_RESUME costs a named detour. One boolean covers
@@ -184,7 +234,9 @@ internal fun DayViewUiState.toTodaySnapshot(
     use24Hour: Boolean = true,
     showDriftReminder: Boolean = false,
     showResumeRitual: Boolean = false,
+    languageCode: String = "en",
 ): TodaySnapshot {
+    val strings = NativeStrings(languageCode)
     val progress = dayProgress
     val pomodoro = pomodoroProgress
     val clock = when (pomodoro.status) {
@@ -194,12 +246,17 @@ internal fun DayViewUiState.toTodaySnapshot(
         PomodoroStatus.BREAK -> formatBreakClock(pomodoro)
         PomodoroStatus.IDLE -> ""
     }
-    // TODO: localize — hardcoded English until the native macOS UI gains i18n.
     val status = if (progress.isFinished) {
-        "Day over"
+        strings.dayOver
     } else {
         "${progress.remainingHours}h ${progress.remainingMinutes.toString().padStart(2, '0')}m"
     }
+    val goalWorking = goalDeadline?.let { deadline ->
+        calculateGoalWorkingTime(now, deadline, startMinutes, endMinutes)
+    }
+    val goalHours = goalWorking?.let {
+        kotlin.math.ceil(it.toDouble(kotlin.time.DurationUnit.HOURS)).toLong()
+    } ?: 0L
     return TodaySnapshot(
         remainingSeconds = progress.remaining.inWholeSeconds,
         remainingRatio = progress.remainingRatio.toDouble(),
@@ -214,10 +271,13 @@ internal fun DayViewUiState.toTodaySnapshot(
         goalTitle = goalTitle,
         goalHasDeadline = goalDeadline != null,
         goalDeadlineEpochMillis = goalDeadline?.toEpochMilliseconds() ?: 0L,
-        goalHoursRemaining = goalDeadline?.let { deadline ->
-            val working = calculateGoalWorkingTime(now, deadline, startMinutes, endMinutes)
-            kotlin.math.ceil(working.toDouble(kotlin.time.DurationUnit.HOURS)).toLong()
-        } ?: 0L,
+        goalHoursRemaining = goalHours,
+        goalTimeLabel = when {
+            goalDeadline == null -> ""
+            now >= goalDeadline -> strings.deadlineReached
+            goalWorking != null && goalWorking.inWholeMinutes < 60 -> strings.lessThanHour
+            else -> strings.hoursOfWorkLeft(goalHours)
+        },
         pomodoroMinutes = pomodoroMinutes.toLong(),
         startMinutes = startMinutes.toLong(),
         endMinutes = endMinutes.toLong(),
@@ -230,20 +290,20 @@ internal fun DayViewUiState.toTodaySnapshot(
         },
         focusLine = when (pomodoro.status) {
             PomodoroStatus.ACTIVE, PomodoroStatus.OVERTIME ->
-                if (focusIntention.isBlank()) "Focus · $clock" else "Focus · $focusIntention · $clock"
-            PomodoroStatus.BREAK -> "Break · $clock"
+                if (focusIntention.isBlank()) "${strings.focus} · $clock" else "${strings.focus} · $focusIntention · $clock"
+            PomodoroStatus.BREAK -> "${strings.breakLabel} · $clock"
             PomodoroStatus.IDLE -> ""
         },
         menuBarTitle = if (pomodoro.status == PomodoroStatus.IDLE) status else clock,
         resumeRitualLine = when (pomodoro.status) {
-            PomodoroStatus.ACTIVE -> "${formatPomodoroClock(pomodoro)} left to stay on track."
-            PomodoroStatus.OVERTIME -> "${formatOvertimeLabel(pomodoro)} past the term — closing stays a choice."
+            PomodoroStatus.ACTIVE -> strings.resumeActive(formatPomodoroClock(pomodoro))
+            PomodoroStatus.OVERTIME -> strings.resumeOvertime(formatOvertimeLabel(pomodoro))
             PomodoroStatus.BREAK, PomodoroStatus.IDLE -> ""
         },
         netTimeEnabled = netTimeSettings.enabled,
         calendarPermission = netCalendarPermission,
         calendarReadError = netCalendarError,
-        netTimeLabel = netTime?.let { "Net ${formatDurationHm(it.netRemaining)}" } ?: "",
+        netTimeLabel = netTime?.let { "${strings.net} ${formatDurationHm(it.netRemaining)}" } ?: "",
         calendars = availableCalendars.map { cal ->
             CalendarChoice(
                 id = cal.id,
@@ -264,7 +324,7 @@ internal fun DayViewUiState.toTodaySnapshot(
         detourSources = detourSourcesState.map {
             DetourSourceSnapshot(it.label, it.colorIndex.toLong(), formatDurationHm(it.total))
         },
-        detourTotalLabel = if (detoursToday.isEmpty()) "" else "Detours ${formatDurationHm(detoursTotalToday)}",
+        detourTotalLabel = if (detoursToday.isEmpty()) "" else "${strings.detours} ${formatDurationHm(detoursTotalToday)}",
         recentDetourCategories = recentDetourCategories,
         detours = detoursToday.map { episode ->
             val zone = TimeZone.currentSystemDefault()
@@ -294,7 +354,39 @@ internal fun DayViewUiState.toTodaySnapshot(
         },
         focusArcs = focusArcsState.map { FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble()) },
         focusSessionBands = focusSessionBandsState.map { FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble()) },
-        focusTotalLabel = if (focusedToday > Duration.ZERO) "Focus ${formatDurationHm(focusedToday)}" else "",
+        focusSessions = focusSessionBandsState.map { band ->
+            val record = band.record
+            val zone = TimeZone.currentSystemDefault()
+            val start = record.start.toLocalDateTime(zone)
+            val end = record.end.toLocalDateTime(zone)
+            FocusSessionSnapshot(
+                startAngleDegrees = band.startAngleDegrees.toDouble(),
+                sweepDegrees = band.sweepDegrees.toDouble(),
+                intention = record.intention,
+                timeRangeLabel = "${formatWallClock(start.hour, start.minute, use24Hour)} – " +
+                    formatWallClock(end.hour, end.minute, use24Hour),
+                durationLabel = formatDurationHm(record.end - record.start),
+                engagedLabel = formatDurationHm(engagedTimeForSession(record, focusSessionIntervals)),
+                deepFocusLabel = formatDurationHm(deepFocusTimeForSession(record, focusPresenceIntervals)),
+                outcome = record.outcome?.name ?: "",
+            )
+        },
+        focusTotalLabel = if (focusedToday > Duration.ZERO) "${strings.focus} ${formatDurationHm(focusedToday)}" else "",
+        plannedObligations = plannedObligationsToday,
+        completedObligations = plannedObligationsCompletedToday,
+        plannedObligationSlotsRemaining = (MAX_PLANNED_OBLIGATIONS - plannedObligationSlotsUsed).coerceAtLeast(0).toLong(),
+        upcomingDays = upcomingDays.map {
+            UpcomingDaySnapshot(
+                epochDay = it.date.toEpochDays(),
+                windowMinutes = it.window.inWholeMinutes,
+                busyMinutes = it.busy.inWholeMinutes,
+                netMinutes = it.net.inWholeMinutes,
+            )
+        },
+        historyDays = historyWeek.map { it.toNativeSnapshot(use24Hour, strings) },
+        selectedHistoryDay = selectedHistoryDay ?: -1L,
+        destination = destination.name,
+        availablePercent = if (progress.isFinished) 0L else progress.percentageRemaining.toLong(),
         showDriftReminder = showDriftReminder,
         showResumeRitual = showResumeRitual,
         earlyExitCostsName = earlyExitRequiresDetour(
@@ -308,4 +400,94 @@ internal fun DayViewUiState.toTodaySnapshot(
         detourOpenDescription = openDetourDescription,
         detourOpenClock = if (openDetourRunning) formatElapsedClock(openDetourElapsed) else "",
     )
+}
+
+private fun HistoryWeekDay.toNativeSnapshot(
+    use24Hour: Boolean,
+    strings: NativeStrings,
+): HistoryDaySnapshot {
+    val frozen = record?.toFrozenUiState(now = now)
+    if (frozen == null) {
+        return HistoryDaySnapshot(
+            dayKey, false, now != null, 0.0, -90.0, true, false, "", "", "", "",
+            false, emptyList(), emptyList(), emptyList(), emptyList(),
+        )
+    }
+    val progress = frozen.dayProgress
+    return HistoryDaySnapshot(
+        dayKey = dayKey,
+        hasData = true,
+        isToday = now != null,
+        remainingRatio = progress.remainingRatio.toDouble(),
+        momentAngleDegrees = currentMomentAngleDegrees(progress.remainingRatio).toDouble(),
+        isFinished = progress.isFinished,
+        hasStarted = progress.hasStarted,
+        dayStatus = if (progress.isFinished) {
+            strings.dayOver
+        } else {
+            "${progress.remainingHours}h ${progress.remainingMinutes.toString().padStart(2, '0')}m"
+        },
+        netTimeLabel = frozen.netTime?.let { "${strings.net} ${formatDurationHm(it.netRemaining)}" } ?: "",
+        detourTotalLabel = if (frozen.detoursToday.isEmpty()) {
+            ""
+        } else {
+            "${strings.detours} ${formatDurationHm(frozen.detoursTotalToday)}"
+        },
+        focusTotalLabel = if (frozen.focusedToday > Duration.ZERO) {
+            "${strings.focus} ${formatDurationHm(frozen.focusedToday)}"
+        } else {
+            ""
+        },
+        hasGoal = frozen.goalTitle.isNotBlank() || frozen.goalDeadline != null,
+        busyArcs = frozen.busyBlockArcsState.map { arc ->
+            BusyArcSnapshot(
+                arc.startAngleDegrees.toDouble(),
+                arc.sweepDegrees.toDouble(),
+                arc.colorIndex.toLong(),
+                busyArcHoverLabel(arc, use24Hour),
+            )
+        },
+        detourBodies = frozen.detourBodiesState.map { body ->
+            DetourBodySnapshot(
+                body.startAngleDegrees.toDouble(),
+                body.sweepDegrees.toDouble(),
+                body.colorIndex.toLong(),
+                body.category,
+            )
+        },
+        focusArcs = frozen.focusArcsState.map {
+            FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble())
+        },
+        focusSessionBands = frozen.focusSessionBandsState.map {
+            FocusArcSnapshot(it.startAngleDegrees.toDouble(), it.sweepDegrees.toDouble())
+        },
+    )
+}
+
+private class NativeStrings(languageCode: String) {
+    private val french = languageCode.lowercase().startsWith("fr")
+    val dayOver get() = if (french) "Journée terminée" else "Day over"
+    val deadlineReached get() = if (french) "Échéance atteinte" else "Deadline reached"
+    val lessThanHour get() = if (french) "Moins d’une heure de travail" else "Less than an hour of work"
+    val focus get() = "Focus"
+    val breakLabel get() = if (french) "Pause" else "Break"
+    val net get() = if (french) "Net" else "Net"
+    val detours get() = if (french) "Détours" else "Detours"
+    fun hoursOfWorkLeft(hours: Long): String = if (french) {
+        "$hours h de travail restantes"
+    } else {
+        "$hours h of working time left"
+    }
+
+    fun resumeActive(clock: String): String = if (french) {
+        "$clock pour rester sur la voie."
+    } else {
+        "$clock left to stay on track."
+    }
+
+    fun resumeOvertime(clock: String): String = if (french) {
+        "$clock au-delà du terme — fermer reste un choix."
+    } else {
+        "$clock past the term — closing stays a choice."
+    }
 }

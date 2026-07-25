@@ -112,10 +112,12 @@ copy in `/Applications`:
 
 A native SwiftUI version of DayView is in progress. It keeps the business logic in Kotlin —
 exposed to Swift as a Kotlin/Native `DayViewKit` XCFramework — and reimplements only the UI
-natively. It currently draws the live countdown ring and supports editing the Focus
-intention and duration and the long-term goal, with preferences persisted under
+natively. Its native interface now covers the live countdown ring, Focus and its closure
+ritual, long-term goal, must-dos, detours, calendar-aware net time, engaged-time details,
+mini window, menu bar, weekly history, upcoming availability, settings, keyboard shortcuts,
+login launch, and English/French localization. Preferences and history are persisted under
 `~/Library/Application Support/DayView/`. The Compose/JVM `.dmg` above remains the complete
-application; this native app is not yet feature-complete.
+application while sync, sound cues, and native release packaging are still being ported.
 The native app requires macOS 15 or later; the Compose/JVM release above remains the macOS 13+ build.
 
 Prerequisites: Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)

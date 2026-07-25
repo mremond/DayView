@@ -245,4 +245,56 @@ class TodaySnapshotTest {
         )
         assertEquals("", controller.stateFlow.value.toTodaySnapshot().resumeRitualLine)
     }
+
+    @Test
+    fun frenchSnapshotLocalizesComputedLabels() {
+        val end = Instant.parse("2026-07-18T10:00:00Z")
+        val active = stateAt(end - 10.minutes, end, intention = "écrire")
+            .toTodaySnapshot(languageCode = "fr-FR")
+        val pause = stateAt(end + 5.minutes, end = null, breakStart = end)
+            .toTodaySnapshot(languageCode = "fr")
+
+        assertEquals("Focus · écrire · 10:00", active.focusLine)
+        assertEquals("10:00 pour rester sur la voie.", active.resumeRitualLine)
+        assertEquals("Pause · 05:00", pause.focusLine)
+    }
+
+    @Test
+    fun goalTimeLabelCoversUnderAnHourAndReachedStates() {
+        val now = Instant.parse("2026-07-18T10:00:00Z")
+        val upcoming = stateAt(now, end = null).copy(goalDeadline = now + 5.minutes)
+        val reached = stateAt(now, end = null).copy(goalDeadline = now - 5.minutes)
+
+        assertEquals("Less than an hour of work", upcoming.toTodaySnapshot().goalTimeLabel)
+        assertEquals("Échéance atteinte", reached.toTodaySnapshot(languageCode = "fr").goalTimeLabel)
+    }
+
+    @Test
+    fun mapsMustDosAndClosedFocusDetailsForNativeUi() {
+        val now = Instant.parse("2026-07-18T12:00:00Z")
+        val dayKey = dayKeyOf(now)
+        val focusStart = now - 30.minutes
+        val focusEnd = now - 5.minutes
+        val state = stateAt(now, end = null).copy(
+            plannedObligationsDayKey = dayKey,
+            plannedObligations = listOf("Write"),
+            plannedObligationsCompleted = listOf("Review"),
+            focusSessionRecordsDayKey = dayKey,
+            focusSessionRecords = listOf(
+                FocusSessionRecord(focusStart, focusEnd, "Ship native UI", FocusClosureOutcome.COMPLETED),
+            ),
+            focusSessionIntervals = listOf(FocusPresenceInterval(focusStart, focusEnd)),
+            focusPresenceIntervals = listOf(FocusPresenceInterval(focusStart + 5.minutes, focusEnd)),
+        )
+
+        val snapshot = state.toTodaySnapshot()
+
+        assertEquals(listOf("Write"), snapshot.plannedObligations)
+        assertEquals(listOf("Review"), snapshot.completedObligations)
+        assertEquals(1L, snapshot.plannedObligationSlotsRemaining)
+        assertEquals(1, snapshot.focusSessions.size)
+        assertEquals("Ship native UI", snapshot.focusSessions.single().intention)
+        assertEquals("25 min", snapshot.focusSessions.single().engagedLabel)
+        assertEquals("20 min", snapshot.focusSessions.single().deepFocusLabel)
+    }
 }

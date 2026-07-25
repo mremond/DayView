@@ -3,7 +3,9 @@ import DayViewKit
 
 final class TodayModel: ObservableObject {
     @Published var snapshot: TodaySnapshot
-    private let session = DayViewNative.shared.create()
+    private let session = DayViewNative.shared.create(
+        languageCode: Locale.current.language.languageCode?.identifier ?? "en"
+    )
     private var subscription: DayViewSubscription?
     private var timer: Timer?
 
@@ -47,6 +49,16 @@ final class TodayModel: ObservableObject {
     func restoreLastRemovedDetour() { session.restoreLastRemovedDetour() }
     func stopOpenDetour() { session.stopOpenDetour() }
     func forgetRecentDetourCategory(_ category: String) { session.forgetRecentDetourCategory(category: category) }
+    func addPlannedObligation(_ label: String) { session.addPlannedObligation(label: label) }
+    func removePlannedObligation(_ label: String) { session.removePlannedObligation(label: label) }
+    func completePlannedObligation(_ label: String) { session.completePlannedObligation(label: label) }
+    func editPlannedObligation(_ oldLabel: String, newLabel: String) {
+        session.editPlannedObligation(oldLabel: oldLabel, newLabel: newLabel)
+    }
+
+    func openHistory() { session.openHistory() }
+    func openHistoryDay(_ dayKey: Int64) { session.openHistoryDay(dayKey: dayKey) }
+    func closeHistory() { session.closeHistory() }
 
     func addOnGoalApp(bundleId: String, name: String) { session.addOnGoalApp(bundleId: bundleId, name: name) }
     func removeOnGoalApp(bundleId: String) { session.removeOnGoalApp(bundleId: bundleId) }
