@@ -33,8 +33,8 @@ struct WeekSettingsView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 6) {
-                        ForEach(draft.indices, id: \.self) { index in
-                            row(index)
+                        ForEach($draft, id: \.id) { $block in
+                            row($block)
                         }
                     }
                 }
@@ -71,12 +71,12 @@ struct WeekSettingsView: View {
         }
     }
 
-    private func row(_ index: Int) -> some View {
-        let block = draft[index]
+    private func row(_ binding: Binding<TemplateBlock>) -> some View {
+        let block = binding.wrappedValue
         return HStack(spacing: 6) {
-            timePicker(L("Start"), minute: $draft[index].startMinute, range: 0..<1440)
-            timePicker(L("End"), minute: $draft[index].endMinute, range: 5...1440)
-            Picker(L("Area"), selection: $draft[index].areaID) {
+            timePicker(L("Start"), minute: binding.startMinute, range: 0..<1440)
+            timePicker(L("End"), minute: binding.endMinute, range: 5...1440)
+            Picker(L("Area"), selection: binding.areaID) {
                 ForEach(plan.areas) { area in
                     HStack {
                         Circle().fill(palette.areaColor(area.colorIndex)).frame(width: 10, height: 10)
@@ -87,9 +87,9 @@ struct WeekSettingsView: View {
             }
             .labelsHidden()
             .frame(width: 130)
-            TextField(L("Intention"), text: $draft[index].intention)
+            TextField(L("Intention"), text: binding.intention)
             Button {
-                draft.remove(at: index)
+                draft.removeAll { $0.id == block.id }
             } label: {
                 Image(systemName: "trash")
             }
