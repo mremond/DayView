@@ -7,6 +7,7 @@ import DayViewKit
 struct SettingsView: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var plan: PlanModel
+    @ObservedObject var speaker: CueSpeaker
     @State private var apps: [AppRef] = []
     @State private var selected: Set<String> = []
     @StateObject private var loginLaunch = LoginLaunchController()
@@ -95,6 +96,20 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+            Section("Spoken cues") {
+                Toggle("Spoken cues", isOn: Binding(get: { speaker.isEnabled }, set: { speaker.isEnabled = $0 }))
+                Slider(value: Binding(get: { speaker.volume }, set: { speaker.volume = $0 }), in: 0...1) {
+                    Text("Volume")
+                }
+                .disabled(!speaker.isEnabled)
+                Toggle(
+                    "Use a chime instead of voice",
+                    isOn: Binding(get: { speaker.usesChime }, set: { speaker.usesChime = $0 })
+                )
+                .disabled(!speaker.isEnabled)
+                Button("Test") { speaker.test(areas: plan.areas) }
+                    .disabled(plan.areas.isEmpty)
             }
             Section("On-goal apps") {
                 Text("Apps that count as working toward your goal during a Focus.")

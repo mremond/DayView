@@ -150,3 +150,7 @@
 "Covered by meetings" = "Couvert par des réunions";
 "Last 7 days: plan reviewed %lld/%lld days" = "7 derniers jours : plan revu %lld/%lld jours";
 "Deleted area" = "Domaine supprimé";
+"Spoken cues" = "Annonces vocales";
+"Volume" = "Volume";
+"Use a chime instead of voice" = "Utiliser un carillon plutôt que la voix";
+"Test" = "Tester";

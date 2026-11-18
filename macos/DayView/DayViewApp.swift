@@ -7,6 +7,7 @@ struct DayViewApp: App {
     @StateObject private var plan: PlanModel
     @StateObject private var todayPlan: TodayPlanModel
     @StateObject private var focus: FocusModel
+    @StateObject private var speaker: CueSpeaker
 
     init() {
         let model = TodayModel()
@@ -15,9 +16,14 @@ struct DayViewApp: App {
         _plan = StateObject(wrappedValue: plan)
         let todayPlan = TodayPlanModel(plan: plan, meetings: model.meetingSource)
         _todayPlan = StateObject(wrappedValue: todayPlan)
-        _focus = StateObject(wrappedValue: FocusModel(
-            todayPlan: todayPlan, plan: plan, meetings: model.meetingSource
-        ))
+        let focus = FocusModel(todayPlan: todayPlan, plan: plan, meetings: model.meetingSource)
+        let speaker = CueSpeaker()
+        // Assigned right after creation so the buffered launch-time cue is delivered at once.
+        focus.onCues = { [weak plan] due, events, _ in
+            speaker.speak(due: due, events: events, areas: plan?.areas ?? [])
+        }
+        _focus = StateObject(wrappedValue: focus)
+        _speaker = StateObject(wrappedValue: speaker)
     }
 
     var body: some Scene {
@@ -67,7 +73,7 @@ struct DayViewApp: App {
         // open-one-dismiss-the-other swaps and leave both windows open.
         .commandsRemoved()
         Settings {
-            SettingsView(model: model, plan: plan)
+            SettingsView(model: model, plan: plan, speaker: speaker)
         }
     }
 }
