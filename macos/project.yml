@@ -43,3 +43,13 @@ targets:
         # fr.dayview.app (Compose) without confusing LaunchServices/TCC or `open -a DayView`.
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: fr.dayview.app.debug
+        # Release is signed with the hardened runtime and the calendar entitlement. The identity
+        # is passed at build time (CODE_SIGN_IDENTITY), never stored here. Not sandboxed.
+        Release:
+          CODE_SIGNING_ALLOWED: YES
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_ENTITLEMENTS: DayView/DayView.entitlements
+          ENABLE_HARDENED_RUNTIME: YES
+          OTHER_CODE_SIGN_FLAGS: --timestamp
+          # Keep Xcode from injecting get-task-allow, which notarization rejects.
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO

@@ -27,3 +27,6 @@ server/sync-endpoint
 private/
 notes.md
 macos/Packages/DayPlanKit/.build/
+
+# Native macOS packaging output
+dist/
