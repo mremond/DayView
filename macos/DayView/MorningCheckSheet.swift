@@ -19,21 +19,41 @@ struct MorningCheckSheet: View {
     @ObservedObject var todayPlan: TodayPlanModel
     let areas: [Area]
     @Environment(\.colorScheme) private var scheme
-    @State private var draft: [TemplateBlock]
+    @State private var draft: [TemplateBlock] = []
+    @State private var seed: [TemplateBlock] = []
     @State private var isAdjusting = false
+    /// The day this sheet was built for; saves are refused if today has moved on.
+    private let day: LocalDay
 
     private let calendar = Calendar.autoupdatingCurrent
 
     init(todayPlan: TodayPlanModel, areas: [Area]) {
         self.todayPlan = todayPlan
         self.areas = areas
-        _draft = State(initialValue: todayPlan.state.plan.minuteBlocks(calendar: .autoupdatingCurrent))
+        day = todayPlan.state.day
     }
 
     private var state: TodayPlanState { todayPlan.state }
     private var palette: DayViewPalette { DayViewPalette.current(for: scheme) }
     private var weekdayISO: Int { state.day.weekdayISO(in: calendar) }
-    private var isValid: Bool { TemplateRules.isValidDay(draft) }
+    private var hasEdits: Bool { isAdjusting && draft != seed }
+    /// What the primary button saves: the draft while adjusting, otherwise what is shown.
+    private var blocksToSave: [TemplateBlock] {
+        isAdjusting ? draft : state.plan.minuteBlocks(calendar: calendar)
+    }
+    private var isValid: Bool { TemplateRules.isValidDay(blocksToSave) }
+
+    /// Opens the editor on the current plan; collapsing is not possible while it holds unsaved edits.
+    private func toggleAdjust() {
+        if isAdjusting {
+            guard !hasEdits else { return }
+            isAdjusting = false
+        } else {
+            seed = state.plan.minuteBlocks(calendar: calendar)
+            draft = seed
+            isAdjusting = true
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -128,16 +148,17 @@ struct MorningCheckSheet: View {
 
     private var buttons: some View {
         HStack {
-            Button(L("Adjust")) { isAdjusting.toggle() }
+            Button(L("Adjust")) { toggleAdjust() }
+                .disabled(hasEdits)
             Spacer()
             Button(L("Not now")) { todayPlan.isMorningCheckPresented = false }
                 .keyboardShortcut(.cancelAction)
             if state.isAccepted {
-                Button(L("Finished plan")) { todayPlan.saveEdits(draft) }
+                Button(L("Finished plan")) { todayPlan.saveEdits(blocksToSave, for: day) }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!isValid)
             } else {
-                Button(L("Start my day")) { todayPlan.accept(draft) }
+                Button(L("Start my day")) { todayPlan.accept(blocksToSave, for: day) }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!isValid)
             }

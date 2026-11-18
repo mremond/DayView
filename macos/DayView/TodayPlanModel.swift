@@ -76,7 +76,7 @@ final class TodayPlanModel: ObservableObject {
             today: today, lastShown: lastShownDay, isAccepted: state.isAccepted
         ) {
             isMorningCheckPresented = true
-            defaults.set(Self.dayKey(today), forKey: Self.shownDayKey)
+            defaults.set(today.isoKey, forKey: Self.shownDayKey)
         }
     }
 
@@ -84,15 +84,17 @@ final class TodayPlanModel: ObservableObject {
         isMorningCheckPresented = true
     }
 
-    /// Accepts the edited blocks as today's plan, marked reviewed, and closes the sheet.
-    func accept(_ blocks: [TemplateBlock]) {
-        if store(blocks, reviewed: true) { isMorningCheckPresented = false }
+    /// Accepts the blocks built for `day` as that day's plan, marked reviewed, and closes the sheet.
+    /// Refused when `day` is no longer today.
+    func accept(_ blocks: [TemplateBlock], for day: LocalDay) {
+        if store(blocks, for: day, reviewed: true) { isMorningCheckPresented = false }
     }
 
-    /// Saves edits to an already accepted plan, keeping its stored `reviewed` flag.
-    func saveEdits(_ blocks: [TemplateBlock]) {
+    /// Saves edits made for `day` to an already accepted plan, keeping its stored `reviewed` flag.
+    /// Refused when `day` is no longer today.
+    func saveEdits(_ blocks: [TemplateBlock], for day: LocalDay) {
         guard let accepted = state.accepted else { return }
-        if store(blocks, reviewed: accepted.reviewed) { isMorningCheckPresented = false }
+        if store(blocks, for: day, reviewed: accepted.reviewed) { isMorningCheckPresented = false }
     }
 
     var reviewSummary: (reviewed: Int, days: Int)? {
@@ -109,8 +111,11 @@ final class TodayPlanModel: ObservableObject {
 
     // MARK: Helpers
 
-    private func store(_ blocks: [TemplateBlock], reviewed: Bool) -> Bool {
-        let day = state.day
+    private func store(_ blocks: [TemplateBlock], for day: LocalDay, reviewed: Bool) -> Bool {
+        guard day == state.day else {
+            NSLog("DayView: refused to save a plan built for %@ on %@", day.isoKey, state.day.isoKey)
+            return false
+        }
         let planned = DayPlan.fromMinuteBlocks(blocks, day: day, calendar: calendar)
         let saved = plan.saveAccepted(planned, reviewed: reviewed, at: now())
         tick()
@@ -126,17 +131,6 @@ final class TodayPlanModel: ObservableObject {
     }
 
     private var lastShownDay: LocalDay? {
-        defaults.string(forKey: Self.shownDayKey).flatMap(Self.parseDay)
-    }
-
-    /// "YYYY-MM-DD", zero padded.
-    static func dayKey(_ day: LocalDay) -> String {
-        String(format: "%04d-%02d-%02d", day.year, day.month, day.day)
-    }
-
-    static func parseDay(_ key: String) -> LocalDay? {
-        let parts = key.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        return LocalDay(year: parts[0], month: parts[1], day: parts[2])
+        defaults.string(forKey: Self.shownDayKey).flatMap { LocalDay(isoKey: $0) }
     }
 }

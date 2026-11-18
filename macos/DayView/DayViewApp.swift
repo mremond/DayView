@@ -97,6 +97,7 @@ private struct MainWindowRoot: View {
         }
         .sheet(isPresented: $todayPlan.isMorningCheckPresented) {
             MorningCheckSheet(todayPlan: todayPlan, areas: plan.areas)
+                .id(todayPlan.state.day)
         }
         .onDisappear { windows.isMainOpen = false }
         .preferredColorScheme(preferredScheme(for: model.snapshot.themeMode))
