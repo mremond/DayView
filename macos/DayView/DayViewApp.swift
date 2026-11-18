@@ -4,6 +4,7 @@ import SwiftUI
 struct DayViewApp: App {
     @StateObject private var model = TodayModel()
     @StateObject private var windows = WindowVisibility()
+    @StateObject private var plan = PlanModel.live()
 
     var body: some Scene {
         Window("DayView", id: "main") {
@@ -52,7 +53,7 @@ struct DayViewApp: App {
         // open-one-dismiss-the-other swaps and leave both windows open.
         .commandsRemoved()
         Settings {
-            SettingsView(model: model)
+            SettingsView(model: model, plan: plan)
         }
     }
 }

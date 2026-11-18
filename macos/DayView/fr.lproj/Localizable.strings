@@ -106,3 +106,20 @@
 "On-goal apps" = "Applications dans le cap";
 "Apps that count as working toward your goal during a Focus." = "Applications qui comptent comme du travail vers votre cap pendant un Focus.";
 "Launch DayView at login" = "Ouvrir DayView à la connexion";
+
+/* Day plan areas */
+"General" = "Général";
+"Areas" = "Domaines";
+"Week" = "Semaine";
+"Personal life" = "Vie personnelle";
+"Writing" = "Écriture";
+"Work" = "Travail";
+"Health" = "Santé";
+"New area" = "Nouveau domaine";
+"Add area" = "Ajouter un domaine";
+"Delete area" = "Supprimer le domaine";
+"Name" = "Nom";
+"Colour" = "Couleur";
+"Goal" = "Objectif";
+"Delete %@ and its %lld blocks?" = "Supprimer %@ et ses %lld blocs ?";
+"Delete" = "Supprimer";

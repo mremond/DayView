@@ -107,3 +107,20 @@
 "On-goal apps" = "On-goal apps";
 "Apps that count as working toward your goal during a Focus." = "Apps that count as working toward your goal during a Focus.";
 "Launch DayView at login" = "Launch DayView at login";
+
+/* Day plan areas */
+"General" = "General";
+"Areas" = "Areas";
+"Week" = "Week";
+"Personal life" = "Personal life";
+"Writing" = "Writing";
+"Work" = "Work";
+"Health" = "Health";
+"New area" = "New area";
+"Add area" = "Add area";
+"Delete area" = "Delete area";
+"Name" = "Name";
+"Colour" = "Colour";
+"Goal" = "Goal";
+"Delete %@ and its %lld blocks?" = "Delete %@ and its %lld blocks?";
+"Delete" = "Delete";

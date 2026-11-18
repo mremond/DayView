@@ -26,6 +26,8 @@ targets:
         product: DayViewKit
       - package: DayPlanKit
         product: DayPlanKit
+      - package: DayPlanKit
+        product: DayPlanStore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fr.dayview.app

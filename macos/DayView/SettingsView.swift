@@ -6,11 +6,25 @@ import DayViewKit
 /// controller's clamping round-trips back into the pickers via the snapshot.
 struct SettingsView: View {
     @ObservedObject var model: TodayModel
+    @ObservedObject var plan: PlanModel
     @State private var apps: [AppRef] = []
     @State private var selected: Set<String> = []
     @StateObject private var loginLaunch = LoginLaunchController()
 
     var body: some View {
+        TabView {
+            generalTab
+                .tabItem { Label(L("General"), systemImage: "gearshape") }
+            AreasSettingsView(plan: plan, today: model)
+                .tabItem { Label(L("Areas"), systemImage: "circle.grid.2x2") }
+            WeekSettingsView(plan: plan)
+                .tabItem { Label(L("Week"), systemImage: "calendar") }
+        }
+        .frame(width: 560, height: 520)
+        .preferredColorScheme(preferredScheme(for: model.snapshot.themeMode))
+    }
+
+    private var generalTab: some View {
         Form {
             Section("Day") {
                 DatePicker(
@@ -126,8 +140,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 360)
-        .preferredColorScheme(preferredScheme(for: model.snapshot.themeMode))
     }
 
     // Binds a minutes-from-midnight preference to an hour-and-minute DatePicker. Uses a
