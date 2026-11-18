@@ -13,6 +13,8 @@ final class TodayModel: ObservableObject {
 
     init() {
         snapshot = session.currentSnapshot()
+        Self.drainLegacyFocus(session)
+        snapshot = session.currentSnapshot()
         subscription = session.subscribe { [weak self] snap in
             self?.snapshot = snap
         }
@@ -21,6 +23,25 @@ final class TodayModel: ObservableObject {
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t
+    }
+
+    /// One-time upgrade drain. The Focus now runs in Swift and the native app no longer drives the
+    /// Kotlin Focus, so a Kotlin session left ACTIVE / OVERTIME by an earlier version would stay
+    /// open forever: presence keeps sampling, drift keeps badging the Dock with nothing to clear
+    /// it, and the focus totals keep growing. Close it once at launch as COMPLETED (the outcome
+    /// the controller accepts without an early-exit detour name), then clear any drift reminder
+    /// (and its Dock attention) or resume-ritual latch an earlier version left behind: the views
+    /// that dismissed them are gone. This is the only place the app calls `closeFocus`; once
+    /// drained the Kotlin Focus stays idle, so later launches only re-clear empty latches.
+    private static func drainLegacyFocus(_ session: DayViewSession) {
+        let snapshot = session.currentSnapshot()
+        if snapshot.pomodoroStatus == "ACTIVE" || snapshot.pomodoroStatus == "OVERTIME" {
+            session.closeFocus(
+                outcome: "COMPLETED", intention: snapshot.focusIntention, detourCategory: "", detourDescription: ""
+            )
+        }
+        session.dismissDriftReminder()
+        session.dismissResumeRitual()
     }
 
     func setDayStart(minutes: Int32) { session.setDayStart(minutes: minutes) }
@@ -57,7 +78,6 @@ final class TodayModel: ObservableObject {
     func onGoalApps() -> [AppRef] { session.onGoalApps() }
     func runningApps() -> [AppRef] { session.runningApps() }
     var onGoalBundleIds: [String] { session.onGoalBundleIds() }
-
 
     deinit {
         subscription?.cancel()
