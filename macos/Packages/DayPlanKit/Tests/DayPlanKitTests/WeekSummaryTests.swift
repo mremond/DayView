@@ -65,3 +65,18 @@ private func compute(
     #expect(sunday.first == day(3, 23))
     #expect(sunday.last == day(3, 29))
 }
+
+@Test func weekDeepSumsNonNilAndNilWhenUnmeasured() {
+    let writing = AreaID(), health = AreaID()
+    let mon = day(11, 16), tue = day(11, 17)
+    let focus = [
+        FocusTime(day: mon, areaID: writing, seconds: 3000, deep: 1200),
+        FocusTime(day: tue, areaID: writing, seconds: 600, deep: nil),
+        FocusTime(day: tue, areaID: health, seconds: 900, deep: nil)
+    ]
+    let week = compute(today: tue, focus: focus, order: [writing, health])
+    #expect(week.areas == [
+        AreaWeekLine(areaID: writing, planned: 0, focused: 3600, deep: 1200),
+        AreaWeekLine(areaID: health, planned: 0, focused: 900, deep: nil)
+    ])
+}

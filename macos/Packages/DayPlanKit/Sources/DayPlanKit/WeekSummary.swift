@@ -4,11 +4,14 @@ public struct AreaWeekLine: Sendable, Hashable {
     public let areaID: AreaID
     public let planned: TimeInterval
     public let focused: TimeInterval
+    /// Deep-focus time, nil when it was never measured for this area.
+    public let deep: TimeInterval?
 
-    public init(areaID: AreaID, planned: TimeInterval, focused: TimeInterval) {
+    public init(areaID: AreaID, planned: TimeInterval, focused: TimeInterval, deep: TimeInterval? = nil) {
         self.areaID = areaID
         self.planned = planned
         self.focused = focused
+        self.deep = deep
     }
 }
 
@@ -31,12 +34,16 @@ public struct DaySignals: Sendable, Hashable {
 public struct FocusTime: Sendable, Hashable {
     public let day: LocalDay
     public let areaID: AreaID
+    /// The engaged Focus time.
     public let seconds: TimeInterval
+    /// Deep-focus time, nil when it was not measured.
+    public let deep: TimeInterval?
 
-    public init(day: LocalDay, areaID: AreaID, seconds: TimeInterval) {
+    public init(day: LocalDay, areaID: AreaID, seconds: TimeInterval, deep: TimeInterval? = nil) {
         self.day = day
         self.areaID = areaID
         self.seconds = seconds
+        self.deep = deep
     }
 }
 
@@ -60,6 +67,7 @@ public struct WeekSummary: Sendable, Hashable {
         let inRange = Set(days)
         var planned: [AreaID: TimeInterval] = [:]
         var focused: [AreaID: TimeInterval] = [:]
+        var deep: [AreaID: TimeInterval] = [:]
         var order = areaOrder
         var seen = Set(areaOrder)
         func note(_ id: AreaID) {
@@ -74,9 +82,10 @@ public struct WeekSummary: Sendable, Hashable {
         for entry in focus where inRange.contains(entry.day) {
             note(entry.areaID)
             focused[entry.areaID, default: 0] += entry.seconds
+            if let value = entry.deep { deep[entry.areaID, default: 0] += value }
         }
         let lines = order.compactMap { id -> AreaWeekLine? in
-            let line = AreaWeekLine(areaID: id, planned: planned[id] ?? 0, focused: focused[id] ?? 0)
+            let line = AreaWeekLine(areaID: id, planned: planned[id] ?? 0, focused: focused[id] ?? 0, deep: deep[id])
             return line.planned == 0 && line.focused == 0 ? nil : line
         }
         let signals = days.map { day in
