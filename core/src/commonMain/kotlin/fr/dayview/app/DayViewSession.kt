@@ -63,6 +63,7 @@ class DayViewSession internal constructor(
     private fun bumpLatchVersion() {
         latchVersion.value++
     }
+    private var dayMeetings: List<BusyInterval> = emptyList()
 
     init {
         refreshCalendar()
@@ -320,7 +321,13 @@ class DayViewSession internal constructor(
         } else {
             controller.updateUpcomingData(-1L, emptyList())
         }
+        dayMeetings = probeDayMeetings(calendarSource, state.netTimeSettings.includedCalendarIds, state.now)
     }
+
+    /** Flat `[start0, end0, start1, end1, ...]` epoch millis of today's meetings from the last probe. */
+    fun dayMeetingsEpochMillis(): LongArray = dayMeetings
+        .flatMap { listOf(it.start.toEpochMilliseconds(), it.end.toEpochMilliseconds()) }
+        .toLongArray()
 
     fun setNetTimeEnabled(enabled: Boolean) {
         val settings = controller.stateFlow.value.netTimeSettings

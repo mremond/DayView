@@ -23,6 +23,7 @@ business logic are shared through Compose Multiplatform. See [README.md](../READ
 
 # Tests and lint (run before every commit)
 ./gradlew ktlintCheck :core:jvmTest :shared:testAndroidHostTest :shared:desktopTest :androidApp:testDebugUnitTest
+swift test --package-path macos/Packages/DayPlanKit
 ```
 
 Prerequisites: JDK 21 (the build uses `jvmToolchain(21)`; Robolectric needs 21 for

@@ -1,4 +1,5 @@
 import SwiftUI
+import DayPlanKit
 import DayViewKit
 
 final class TodayModel: ObservableObject {
@@ -6,6 +7,7 @@ final class TodayModel: ObservableObject {
     private let session = DayViewNative.shared.create(
         languageCode: Locale.current.language.languageCode?.identifier ?? "en"
     )
+    private(set) lazy var meetingSource: MeetingSource = SessionMeetingSource(session: session)
     private var subscription: DayViewSubscription?
     private var timer: Timer?
 
