@@ -57,3 +57,31 @@ private func feed(_ acc: inout PresenceAccumulator, onGoal: Bool, from: TimeInte
     #expect(acc.stretches.isEmpty)
     #expect(acc.live(at: t(31)) == [DateInterval(start: t(0), end: t(30))])
 }
+
+@Test func backwardsClockStepClosesStretchWithoutCrashing() {
+    var acc = PresenceAccumulator()
+    feed(&acc, onGoal: true, from: 100, to: 300)
+    acc.sample(onGoal: true, at: t(50))
+    #expect(acc.stretches == [DateInterval(start: t(100), end: t(300))])
+    #expect(acc.live(at: t(51)) == [DateInterval(start: t(100), end: t(300)), DateInterval(start: t(50), end: t(50))])
+    feed(&acc, onGoal: true, from: 51, to: 60)
+    #expect(acc.finish(at: t(61)) == [DateInterval(start: t(100), end: t(300))])
+}
+
+@Test func backwardsClockStepWithShortOpenStretchDropsIt() {
+    var acc = PresenceAccumulator()
+    feed(&acc, onGoal: true, from: 100, to: 130)
+    acc.sample(onGoal: true, at: t(10))
+    #expect(acc.live(at: t(11)) == [DateInterval(start: t(10), end: t(10))])
+    #expect(acc.finish(at: t(11)).isEmpty)
+}
+
+@Test func liveTotalCountsOnlyStretchesReachingTheMinimum() {
+    var acc = PresenceAccumulator()
+    feed(&acc, onGoal: true, from: 0, to: 200)
+    feed(&acc, onGoal: false, from: 201, to: 270)
+    feed(&acc, onGoal: true, from: 271, to: 300)
+    #expect(acc.liveTotal(at: t(301)) == 200)
+    feed(&acc, onGoal: true, from: 301, to: 400)
+    #expect(acc.liveTotal(at: t(401)) == 329)
+}
