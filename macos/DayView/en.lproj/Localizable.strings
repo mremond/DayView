@@ -33,15 +33,10 @@
 "Idle" = "Idle";
 "No goal yet" = "No goal yet";
 "Duration: %lld min" = "Duration: %lld min";
-"FOCUS SESSION" = "FOCUS SESSION";
 "Duration" = "Duration";
-"Engaged" = "Engaged";
-"Deep focus" = "Deep focus";
-"Outcome" = "Outcome";
 "Completed" = "Completed";
 "Progressed" = "Progressed";
 "Resume later" = "Resume later";
-"Done" = "Done";
 
 "One thing at a time." = "One thing at a time.";
 

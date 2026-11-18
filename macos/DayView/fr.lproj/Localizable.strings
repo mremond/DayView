@@ -33,15 +33,10 @@
 "Idle" = "Au repos";
 "No goal yet" = "Aucun cap";
 "Duration: %lld min" = "Durée : %lld min";
-"FOCUS SESSION" = "SESSION FOCUS";
 "Duration" = "Durée";
-"Engaged" = "Engagé";
-"Deep focus" = "Concentration profonde";
-"Outcome" = "Résultat";
 "Completed" = "Terminé";
 "Progressed" = "Avancé";
 "Resume later" = "À reprendre";
-"Done" = "Fermer";
 
 "One thing at a time." = "Une chose à la fois.";
 
@@ -160,4 +155,4 @@
 "%lld days overdue" = "%lld jours de retard";
 "1 day overdue" = "1 jour de retard";
 "You planned %@" = "Vous aviez prévu %@";
-"Dismiss" = "Ignorer";
+"Dismiss" = "Fermer";
