@@ -23,7 +23,7 @@ struct PlanModelTests {
         #expect(plan.blocks[0].start == at("09:00"))
         #expect(plan.blocks[0].end == at("12:00"))
         #expect(plan.blocks[0].intention == "Writing")
-        #expect(plan.blocks[0].id != template[0].id)
+        #expect(plan.blocks[0].id == template[0].id)
     }
 
     @Test func instantiateEndOfDay() {

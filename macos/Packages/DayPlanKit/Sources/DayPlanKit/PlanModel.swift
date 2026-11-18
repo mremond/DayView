@@ -48,16 +48,37 @@ public struct DayPlan: Sendable, Hashable, Codable {
 
     public static func instantiate(template: [TemplateBlock], day: LocalDay, calendar: Calendar) -> DayPlan {
         let weekday = day.weekdayISO(in: calendar)
-        let blocks = template.filter { $0.weekdayISO == weekday }.map { t in
+        return fromMinuteBlocks(template.filter { $0.weekdayISO == weekday }, day: day, calendar: calendar)
+    }
+
+    /// Places minute-based blocks on `day`, keeping their IDs; `weekdayISO` is ignored.
+    public static func fromMinuteBlocks(_ blocks: [TemplateBlock], day: LocalDay, calendar: Calendar) -> DayPlan {
+        DayPlan(day: day, blocks: blocks.map { t in
             PlannedBlock(
-                id: BlockID(),
+                id: t.id,
                 start: instant(minute: t.startMinute, of: day, calendar: calendar),
                 end: instant(minute: t.endMinute, of: day, calendar: calendar),
                 areaID: t.areaID,
                 intention: t.intention
             )
+        })
+    }
+
+    /// The inverse of `fromMinuteBlocks`, for editing: wall-clock minutes from local midnight.
+    public func minuteBlocks(calendar: Calendar) -> [TemplateBlock] {
+        let weekday = day.weekdayISO(in: calendar)
+        let limit = day.nextMidnight(in: calendar)
+        func minute(_ date: Date) -> Int {
+            if date == limit { return 1440 }
+            let c = calendar.dateComponents([.hour, .minute], from: date)
+            return c.hour! * 60 + c.minute!
         }
-        return DayPlan(day: day, blocks: blocks)
+        return blocks.map {
+            TemplateBlock(
+                id: $0.id, weekdayISO: weekday, startMinute: minute($0.start), endMinute: minute($0.end),
+                areaID: $0.areaID, intention: $0.intention
+            )
+        }
     }
 
     /// Extends the block's end by `by` and shifts every block starting at or after its old end.
