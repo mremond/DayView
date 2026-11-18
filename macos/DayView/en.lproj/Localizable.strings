@@ -124,3 +124,14 @@
 "Goal" = "Goal";
 "Delete %@ and its %lld blocks?" = "Delete %@ and its %lld blocks?";
 "Delete" = "Delete";
+"Add block" = "Add block";
+"Copy this day to…" = "Copy this day to…";
+"Copy" = "Copy";
+"Blocks on the chosen days are replaced." = "Blocks on the chosen days are replaced.";
+"Blocks overlap" = "Blocks overlap";
+"End must be after start" = "End must be after start";
+"No blocks on this day." = "No blocks on this day.";
+"Intention" = "Intention";
+"Midnight" = "Midnight";
+"24:00" = "24:00";
+"Area" = "Area";

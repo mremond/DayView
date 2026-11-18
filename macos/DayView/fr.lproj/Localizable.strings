@@ -123,3 +123,14 @@
 "Goal" = "Objectif";
 "Delete %@ and its %lld blocks?" = "Supprimer %@ et ses %lld blocs ?";
 "Delete" = "Supprimer";
+"Add block" = "Ajouter un bloc";
+"Copy this day to…" = "Copier ce jour vers…";
+"Copy" = "Copier";
+"Blocks on the chosen days are replaced." = "Les blocs des jours choisis sont remplacés.";
+"Blocks overlap" = "Les blocs se chevauchent";
+"End must be after start" = "La fin doit être après le début";
+"No blocks on this day." = "Aucun bloc ce jour-là.";
+"Intention" = "Intention";
+"Midnight" = "Minuit";
+"24:00" = "24:00";
+"Area" = "Domaine";
