@@ -50,12 +50,12 @@ struct FocusPersistenceTests {
         let plan2 = fitted([block("09:00", "10:00", on: day2, id: id)], day: day2)
 
         var engine = FocusEngine()
-        engine.beginDay(.nov18)
+        engine.beginDay(.nov18, calendar: paris)
         _ = engine.advance(to: at("09:00"), plan: plan1)
         _ = engine.advance(to: at("10:00"), plan: plan1)
         var withoutBegin = engine
 
-        engine.beginDay(day2)
+        engine.beginDay(day2, calendar: paris)
         let events = engine.advance(to: at("09:00", on: day2), plan: plan2)
         guard events.count == 1, case .started = events[0] else {
             Issue.record("expected a start, got \(events)")
@@ -92,5 +92,67 @@ struct FocusPersistenceTests {
             return
         }
         #expect(record.actualEnd == at("14:00"))
+    }
+
+    private static let day2 = LocalDay(year: 2026, month: 11, day: 19)
+
+    @Test func plannedFocusEndsAtItsEndAcrossDays() {
+        var engine = FocusEngine()
+        engine.beginDay(.nov18, calendar: paris)
+        _ = engine.advance(to: at("09:00"), plan: fitted([block("09:00", "11:00")]))
+
+        engine.beginDay(Self.day2, calendar: paris)
+
+        #expect(engine.current == nil)
+        #expect(engine.pendingClosures.count == 1)
+        let record = engine.pendingClosures[0]
+        #expect(record.actualEnd == at("11:00"))
+        #expect(record.reason == .completed)
+        #expect(record.focused == 2 * 3600)
+    }
+
+    @Test func plannedFocusEndsAtMidnight() {
+        var engine = FocusEngine()
+        engine.beginDay(.nov18, calendar: paris)
+        _ = engine.advance(to: at("23:30"), plan: fitted([block("22:00", "24:00")]))
+
+        engine.beginDay(Self.day2, calendar: paris)
+
+        #expect(engine.pendingClosures.count == 1)
+        #expect(engine.pendingClosures[0].actualEnd == at("00:00", on: Self.day2))
+    }
+
+    @Test func plannedFocusRunningPastMidnightIsStopped() {
+        var engine = FocusEngine()
+        engine.beginDay(.nov18, calendar: paris)
+        let late = PlannedBlock(
+            id: BlockID(), start: at("23:00"), end: at("01:00", on: Self.day2), areaID: AreaID(), intention: ""
+        )
+        _ = engine.advance(to: at("23:30"), plan: PlanFitter.fit(DayPlan(day: .nov18, blocks: [late]), meetings: []))
+
+        engine.beginDay(Self.day2, calendar: paris)
+
+        #expect(engine.pendingClosures.first?.actualEnd == at("00:00", on: Self.day2))
+        #expect(engine.pendingClosures.first?.reason == .stopped)
+    }
+
+    @Test func manualFocusSurvivesMidnight() {
+        var engine = FocusEngine()
+        engine.beginDay(.nov18, calendar: paris)
+        _ = engine.startManual(areaID: AreaID(), intention: "Read", minutes: 60, now: at("23:50"))
+
+        engine.beginDay(Self.day2, calendar: paris)
+
+        #expect(engine.current != nil)
+        #expect(engine.pendingClosures.isEmpty)
+    }
+
+    @Test func withoutClockIgnoresAdvanceTime() {
+        var engine = FocusEngine()
+        _ = engine.advance(to: at("09:00"), plan: [])
+        let first = engine.withoutClock()
+        _ = engine.advance(to: at("09:01"), plan: [])
+
+        #expect(engine.withoutClock() == first)
     }
 }

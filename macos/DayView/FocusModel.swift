@@ -13,7 +13,12 @@ final class FocusModel: ObservableObject {
     @Published private(set) var lastEvents: [FocusEvent] = []
 
     /// Cue pipeline hook (Task 5): due cues, the tick's events and the plan state.
-    var onCues: (([ScheduledCue], [FocusEvent], TodayPlanState) -> Void)?
+    /// Cues from ticks that ran before this was set are buffered and delivered when it is assigned,
+    /// so the launch-time start cue is not lost.
+    var onCues: (([ScheduledCue], [FocusEvent], TodayPlanState) -> Void)? {
+        didSet { flushBufferedCues() }
+    }
+    private var bufferedCues: (due: [ScheduledCue], events: [FocusEvent], state: TodayPlanState)?
 
     static let engineKey = "focus.engineState"
     static let lastAreaKey = "focus.lastAreaID"
@@ -26,7 +31,7 @@ final class FocusModel: ObservableObject {
     private let defaults: UserDefaults
     private let now: () -> Date
     private var engine: FocusEngine
-    private var savedData: Data?
+    private var savedEngine: FocusEngine?
     private var timer: Timer?
     private var delivery = CueDelivery()
     private var cachedSchedule: (fitted: [FittedBlock], meetings: [DateInterval], cues: [ScheduledCue])?
@@ -45,7 +50,7 @@ final class FocusModel: ObservableObject {
         if let data = defaults.data(forKey: Self.engineKey) {
             do {
                 engine = try JSONDecoder().decode(FocusEngine.self, from: data)
-                savedData = data
+                savedEngine = engine.withoutClock()
             } catch {
                 NSLog("DayView: focus engine state unreadable, starting fresh: \(error)")
                 engine = FocusEngine()
@@ -85,14 +90,14 @@ final class FocusModel: ObservableObject {
         todayPlan.tick()
         let state = todayPlan.state
         let current = now()
-        engine.beginDay(state.day)
-        let events = engine.advance(to: current, plan: state.fitted)
+        var events = engine.beginDay(state.day, calendar: calendar)
+        events += engine.advance(to: current, plan: state.fitted)
         let dayMeetings = meetings.meetings(on: state.day)
         let offer = engine.keepGoingOffer(now: current, plan: state.fitted, meetings: dayMeetings)
         publish(offer: offer, events: events)
         persist()
         let due = delivery.due(schedule(state.fitted, dayMeetings), fitted: state.fitted, now: current)
-        if !due.isEmpty || !events.isEmpty { onCues?(due, events, state) }
+        if !due.isEmpty || !events.isEmpty { deliver(due, events, state) }
     }
 
     func startManual(areaID: AreaID, intention: String, minutes: Int) {
@@ -127,8 +132,10 @@ final class FocusModel: ObservableObject {
     }
 
     func close(_ recordID: UUID, outcome: ClosureOutcome, intention: String) {
-        guard let record = engine.close(recordID: recordID) else { return }
-        plan.saveClosedFocus(record, outcome: outcome, intention: intention, area: area(for: record), calendar: calendar)
+        guard let record = engine.pendingClosures.first(where: { $0.session.id == recordID }),
+              plan.saveClosedFocus(record, outcome: outcome, intention: intention, area: area(for: record), calendar: calendar)
+        else { return }
+        _ = engine.close(recordID: recordID)
         publish()
         persist()
     }
@@ -148,7 +155,7 @@ final class FocusModel: ObservableObject {
         )
         publish(offer: offer, events: events)
         persist()
-        if !events.isEmpty { onCues?([], events, state) }
+        if !events.isEmpty { deliver([], events, state) }
     }
 
     private func publish(offer: KeepGoingOffer? = nil, events: [FocusEvent] = []) {
@@ -159,10 +166,27 @@ final class FocusModel: ObservableObject {
         if !events.isEmpty { lastEvents = events }
     }
 
+    private func deliver(_ due: [ScheduledCue], _ events: [FocusEvent], _ state: TodayPlanState) {
+        if let onCues {
+            onCues(due, events, state)
+        } else {
+            let old = bufferedCues
+            bufferedCues = ((old?.due ?? []) + due, (old?.events ?? []) + events, state)
+        }
+    }
+
+    private func flushBufferedCues() {
+        guard let onCues, let buffered = bufferedCues else { return }
+        bufferedCues = nil
+        onCues(buffered.due, buffered.events, buffered.state)
+    }
+
+    /// Writes the engine only when its state changed; the advance clock alone does not count.
     private func persist() {
-        guard let data = try? JSONEncoder().encode(engine), data != savedData else { return }
+        let comparable = engine.withoutClock()
+        guard comparable != savedEngine, let data = try? JSONEncoder().encode(engine) else { return }
         defaults.set(data, forKey: Self.engineKey)
-        savedData = data
+        savedEngine = comparable
     }
 
     private func schedule(_ fitted: [FittedBlock], _ dayMeetings: [DateInterval]) -> [ScheduledCue] {

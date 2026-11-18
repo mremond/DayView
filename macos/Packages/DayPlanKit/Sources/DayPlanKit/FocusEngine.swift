@@ -70,7 +70,7 @@ public enum ClosureOutcome: String, Codable, Sendable {
 
 /// Runs the Focus: a planned block's Focus starts by itself, a manual Focus can start anytime,
 /// and when a block starts during a manual Focus the plan wins.
-public struct FocusEngine: Codable, Sendable {
+public struct FocusEngine: Codable, Sendable, Equatable {
     public static let manualMinutes = 5...180
     /// The single source of the Keep going extension: 15 minutes.
     public static let keepGoingExtension: TimeInterval = 900
@@ -92,21 +92,38 @@ public struct FocusEngine: Codable, Sendable {
     /// The day the engine is running; see `beginDay`.
     private var day: LocalDay?
 
-    private struct Takeover: Codable, Sendable {
+    private struct Takeover: Codable, Sendable, Equatable {
         let interrupted: FocusRecord
         let blockID: BlockID
     }
 
     public init() {}
 
-    /// Scopes the engine to `day`. A new day clears started blocks and the last takeover, because
-    /// planned block IDs repeat from day to day. Current, pending and break state are kept.
-    public mutating func beginDay(_ day: LocalDay) {
+    /// Scopes the engine to `day`. A new day first ends a planned session still running from the
+    /// previous day, at the earlier of its end and midnight (its record goes to `pendingClosures`),
+    /// then clears started blocks and the last takeover, because planned block IDs repeat from day
+    /// to day. A manual session, pending and break state are kept.
+    @discardableResult
+    public mutating func beginDay(_ day: LocalDay, calendar: Calendar) -> [FocusEvent] {
+        var events: [FocusEvent] = []
         if let stored = self.day, stored != day {
+            if let session = current, case .planned = session.origin {
+                let dayStart = day.start(in: calendar)
+                let completed = session.end <= dayStart
+                events.append(.ended(finish(at: min(session.end, dayStart), reason: completed ? .completed : .stopped)))
+            }
             startedBlockIDs = []
             lastTakeover = nil
         }
         self.day = day
+        return events
+    }
+
+    /// A copy without the advance clock, to detect real state changes: `lastAdvance` moves every tick.
+    public func withoutClock() -> FocusEngine {
+        var copy = self
+        copy.lastAdvance = nil
+        return copy
     }
 
     public mutating func advance(to now: Date, plan: [FittedBlock]) -> [FocusEvent] {
