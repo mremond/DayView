@@ -71,9 +71,23 @@ struct TodayPlannerTests {
     @Test func reviewSummary() {
         func day(_ d: Int) -> LocalDay { LocalDay(year: 2026, month: 11, day: d) }
         let history = [day(17): true, day(16): false, day(12): true, day(10): true, day(18): true]
-        let summary = ReviewSummary.lastSevenDays(before: .nov18, history: history, calendar: paris)
+        let summary = ReviewSummary.lastSevenDays(before: .nov18, history: history, ignored: [:], calendar: paris)
         #expect(summary?.reviewed == 2)
         #expect(summary?.days == 7)
-        #expect(ReviewSummary.lastSevenDays(before: .nov18, history: [:], calendar: paris) == nil)
+        #expect(ReviewSummary.lastSevenDays(before: .nov18, history: [:], ignored: [:], calendar: paris) == nil)
+    }
+
+    @Test func reviewSummaryWithIgnored() {
+        func day(_ d: Int) -> LocalDay { LocalDay(year: 2026, month: 11, day: d) }
+        let history = [day(17): true, day(16): false]
+        let both = ReviewSummary.lastSevenDays(
+            before: .nov18, history: history, ignored: [day(17): 2, day(12): 1], calendar: paris)
+        #expect(both?.reviewed == 1)
+        #expect(both?.days == 7)
+        #expect(both?.ignored == 3)
+        let onlyIgnored = ReviewSummary.lastSevenDays(
+            before: .nov18, history: [:], ignored: [day(15): 1], calendar: paris)
+        #expect(onlyIgnored?.reviewed == 0)
+        #expect(onlyIgnored?.ignored == 1)
     }
 }

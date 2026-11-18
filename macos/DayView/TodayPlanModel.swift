@@ -119,7 +119,10 @@ final class TodayPlanModel: ObservableObject {
             from: LocalDay(containing: from, calendar: calendar),
             through: LocalDay(containing: through, calendar: calendar)
         )
-        return ReviewSummary.lastSevenDays(before: today, history: history, calendar: calendar)
+        guard let summary = ReviewSummary.lastSevenDays(
+            before: today, history: history, ignored: [:], calendar: calendar
+        ) else { return nil }
+        return (summary.reviewed, summary.days)
     }
 
     // MARK: Helpers

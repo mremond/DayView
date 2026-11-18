@@ -55,16 +55,20 @@ public enum MorningCheckPolicy {
 }
 
 public enum ReviewSummary {
-    /// Reviewed-day count over the 7 days before `today`; nil when none of them has a stored plan.
+    /// Reviewed-day and ignored-cue counts over the 7 days before `today`;
+    /// nil when none of them has a stored plan or an ignored cue.
     public static func lastSevenDays(
-        before today: LocalDay, history: [LocalDay: Bool], calendar: Calendar
-    ) -> (reviewed: Int, days: Int)? {
+        before today: LocalDay, history: [LocalDay: Bool], ignored: [LocalDay: Int], calendar: Calendar
+    ) -> (reviewed: Int, days: Int, ignored: Int)? {
         let start = today.start(in: calendar)
-        let flags = (1...7).compactMap { offset -> Bool? in
-            guard let date = calendar.date(byAdding: .day, value: -offset, to: start) else { return nil }
-            return history[LocalDay(containing: date, calendar: calendar)]
+        let days = (1...7).compactMap { offset -> LocalDay? in
+            calendar.date(byAdding: .day, value: -offset, to: start)
+                .map { LocalDay(containing: $0, calendar: calendar) }
         }
-        if flags.isEmpty { return nil }
-        return (flags.filter { $0 }.count, 7)
+        let flags = days.compactMap { history[$0] }
+        let ignoredCount = days.reduce(0) { $0 + (ignored[$1] ?? 0) }
+        let hasIgnored = days.contains { ignored[$0] != nil }
+        if flags.isEmpty && !hasIgnored { return nil }
+        return (flags.filter { $0 }.count, 7, ignoredCount)
     }
 }
