@@ -56,7 +56,9 @@ public enum FocusEvent: Hashable, Sendable {
 /// - `.extendBlock(id)`: apply `plan.keepingGoing(blockID: id, by: extension, calendar:)` and refit;
 ///   the running session follows its block's new end.
 /// - `.reopenInterrupted(_, blockID)`: apply `plan.shiftingFrom(blockID:, by: extension, calendar:)`,
-///   refit, then call `FocusEngine.reopenInterrupted(until:now:)` with the shifted block's new start.
+///   refit, then call `FocusEngine.reopenInterrupted(until:)` with the shifted block's FITTED start
+///   after refitting (not its planned start). If `shiftingFrom` dropped the block (it moved past
+///   midnight), the caller must not call `reopenInterrupted`.
 public enum KeepGoingOffer: Hashable, Sendable {
     case extendBlock(BlockID)
     case reopenInterrupted(FocusRecord, blockID: BlockID)
@@ -70,6 +72,7 @@ public enum ClosureOutcome: String, Codable, Sendable {
 /// and when a block starts during a manual Focus the plan wins.
 public struct FocusEngine: Sendable {
     public static let manualMinutes = 5...180
+    private static let keepGoingExtension: TimeInterval = 900
 
     public private(set) var current: FocusSession?
     /// Closing ritual queue: every ended or taken-over Focus, until closed.
@@ -122,19 +125,25 @@ public struct FocusEngine: Sendable {
     }
 
     /// Pure query. Reopening a just-taken-over manual Focus wins over extending the block.
-    public func keepGoingOffer(now: Date, plan: [FittedBlock], window: TimeInterval = 120) -> KeepGoingOffer? {
+    /// `.extendBlock` is withheld when a meeting starts within 15 minutes after the fitted end:
+    /// extending would be cut back by the refit while the rest of the day shifted.
+    public func keepGoingOffer(
+        now: Date, plan: [FittedBlock], meetings: [DateInterval], window: TimeInterval = 120
+    ) -> KeepGoingOffer? {
         guard let current, case let .planned(id) = current.origin else { return nil }
         if let takeover = lastTakeover, takeover.blockID == id {
             let since = now.timeIntervalSince(takeover.interrupted.actualEnd)
             if since >= 0, since <= window { return .reopenInterrupted(takeover.interrupted, blockID: id) }
         }
         guard let end = kept(id, in: plan)?.end, now < end, end.timeIntervalSince(now) <= window else { return nil }
+        let extensionReach = end.addingTimeInterval(Self.keepGoingExtension)
+        if PlanFitter.merge(meetings).contains(where: { $0.start >= end && $0.start < extensionReach }) { return nil }
         return .extendBlock(id)
     }
 
     /// Gives back the manual Focus the plan just took over, until `until`: the planned session is
     /// discarded without a record and its block may start again; the interrupted record leaves the queue.
-    public mutating func reopenInterrupted(until: Date, now: Date) -> [FocusEvent] {
+    public mutating func reopenInterrupted(until: Date) -> [FocusEvent] {
         guard let takeover = lastTakeover, let current, current.origin == .planned(takeover.blockID) else { return [] }
         let record = takeover.interrupted
         startedBlockIDs.remove(takeover.blockID)

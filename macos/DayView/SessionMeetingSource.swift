@@ -3,11 +3,13 @@ import DayViewKit
 import Foundation
 
 /// Adapts the Kotlin session's meeting list (epoch-millis pairs) to the day plan's `MeetingSource`.
+///
+/// Answers for today only: the Kotlin session caches today's meetings, whatever day is asked.
 final class SessionMeetingSource: MeetingSource {
     private let session: DayViewSession
     private let calendar: Calendar
 
-    init(session: DayViewSession, calendar: Calendar = .current) {
+    init(session: DayViewSession, calendar: Calendar = .autoupdatingCurrent) {
         self.session = session
         self.calendar = calendar
     }

@@ -32,8 +32,39 @@ struct KeepGoingTests {
         var engine = FocusEngine()
         _ = engine.advance(to: at("09:00"), plan: plan)
 
-        #expect(engine.keepGoingOffer(now: at("09:57"), plan: plan) == nil)
-        #expect(engine.keepGoingOffer(now: at("09:58"), plan: plan) == .extendBlock(a.id))
+        #expect(engine.keepGoingOffer(now: at("09:57"), plan: plan, meetings: []) == nil)
+        #expect(engine.keepGoingOffer(now: at("09:58"), plan: plan, meetings: []) == .extendBlock(a.id))
+    }
+
+    @Test func noExtendWhenMeetingFollows() {
+        let writing = block("09:00", "10:00", intention: "Writing")
+        let health = block("13:00", "14:00", intention: "Health")
+        let meetings = [DateInterval(start: at("10:00"), end: at("10:30"))]
+        let plan = PlanFitter.fit(plan([writing, health]), meetings: meetings)
+        var engine = FocusEngine()
+        _ = engine.advance(to: at("09:00"), plan: plan)
+
+        #expect(engine.keepGoingOffer(now: at("09:58"), plan: plan, meetings: meetings) == nil)
+    }
+
+    @Test func noExtendWhenMeetingTrimsEnd() {
+        let writing = block("09:00", "12:00", intention: "Writing")
+        let meetings = [DateInterval(start: at("11:30"), end: at("13:00"))]
+        let plan = PlanFitter.fit(plan([writing]), meetings: meetings)
+        var engine = FocusEngine()
+        _ = engine.advance(to: at("09:00"), plan: plan)
+
+        #expect(engine.keepGoingOffer(now: at("11:28"), plan: plan, meetings: meetings) == nil)
+    }
+
+    @Test func extendWhenMeetingIsLater() {
+        let writing = block("09:00", "10:00", intention: "Writing")
+        let meetings = [DateInterval(start: at("10:20"), end: at("10:40"))]
+        let plan = PlanFitter.fit(plan([writing]), meetings: meetings)
+        var engine = FocusEngine()
+        _ = engine.advance(to: at("09:00"), plan: plan)
+
+        #expect(engine.keepGoingOffer(now: at("09:58"), plan: plan, meetings: meetings) == .extendBlock(writing.id))
     }
 
     @Test func extendedBlockKeepsSameSession() throws {
@@ -59,19 +90,19 @@ struct KeepGoingTests {
 
     @Test func reopenAfterTakeover() throws {
         var (engine, day, health, record) = try #require(takenOver())
-        #expect(engine.keepGoingOffer(now: at("14:01"), plan: fitted(day))
+        #expect(engine.keepGoingOffer(now: at("14:01"), plan: fitted(day), meetings: [])
             == .reopenInterrupted(record, blockID: health.id))
 
         day = day.shiftingFrom(blockID: health.id, by: 900, calendar: paris)
         let shifted = fitted(day)
-        let events = engine.reopenInterrupted(until: at("14:15"), now: at("14:01"))
+        let events = engine.reopenInterrupted(until: at("14:15"))
         var manual = record.session
         manual.end = at("14:15")
         #expect(events == [.reopened(manual, discardedRecordID: record.session.id)])
         #expect(engine.pendingClosures.isEmpty)
         #expect(engine.current == manual)
         #expect(engine.current?.origin == .manual)
-        #expect(engine.keepGoingOffer(now: at("14:02"), plan: shifted) == nil)
+        #expect(engine.keepGoingOffer(now: at("14:02"), plan: shifted, meetings: []) == nil)
 
         #expect(engine.advance(to: at("14:05"), plan: shifted) == [])
         let later = engine.advance(to: at("14:15"), plan: shifted)
@@ -87,13 +118,13 @@ struct KeepGoingTests {
 
     @Test func noReopenAfterWindow() throws {
         let (engine, day, _, _) = try #require(takenOver())
-        #expect(engine.keepGoingOffer(now: at("14:03"), plan: fitted(day)) == nil)
+        #expect(engine.keepGoingOffer(now: at("14:03"), plan: fitted(day), meetings: []) == nil)
     }
 
     @Test func noReopenOnceThePlannedFocusEnded() throws {
         var (engine, day, _, _) = try #require(takenOver())
         _ = engine.stop(now: at("14:01"), plan: fitted(day))
-        #expect(engine.keepGoingOffer(now: at("14:01"), plan: fitted(day)) == nil)
-        #expect(engine.reopenInterrupted(until: at("14:15"), now: at("14:01")) == [])
+        #expect(engine.keepGoingOffer(now: at("14:01"), plan: fitted(day), meetings: []) == nil)
+        #expect(engine.reopenInterrupted(until: at("14:15")) == [])
     }
 }
