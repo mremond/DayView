@@ -6,13 +6,18 @@ struct DayViewApp: App {
     @StateObject private var windows = WindowVisibility()
     @StateObject private var plan: PlanModel
     @StateObject private var todayPlan: TodayPlanModel
+    @StateObject private var focus: FocusModel
 
     init() {
         let model = TodayModel()
         let plan = PlanModel.live()
         _model = StateObject(wrappedValue: model)
         _plan = StateObject(wrappedValue: plan)
-        _todayPlan = StateObject(wrappedValue: TodayPlanModel(plan: plan, meetings: model.meetingSource))
+        let todayPlan = TodayPlanModel(plan: plan, meetings: model.meetingSource)
+        _todayPlan = StateObject(wrappedValue: todayPlan)
+        _focus = StateObject(wrappedValue: FocusModel(
+            todayPlan: todayPlan, plan: plan, meetings: model.meetingSource
+        ))
     }
 
     var body: some Scene {

@@ -97,6 +97,19 @@ final class TodayPlanModel: ObservableObject {
         if store(blocks, for: day, reviewed: accepted.reviewed) { isMorningCheckPresented = false }
     }
 
+    /// Replaces today's accepted plan with `newPlan` (Keep going), keeping the stored `reviewed` flag.
+    /// Refused when `newPlan` is not for the current day.
+    @discardableResult
+    func replaceAccepted(_ newPlan: DayPlan) -> Bool {
+        guard newPlan.day == state.day else {
+            NSLog("DayView: refused to replace the plan of %@ on %@", newPlan.day.isoKey, state.day.isoKey)
+            return false
+        }
+        let saved = plan.saveAccepted(newPlan, reviewed: state.accepted?.reviewed ?? false, at: now())
+        tick()
+        return saved
+    }
+
     var reviewSummary: (reviewed: Int, days: Int)? {
         let today = state.day
         let start = today.start(in: calendar)

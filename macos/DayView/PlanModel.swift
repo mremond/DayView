@@ -97,6 +97,16 @@ final class PlanModel: ObservableObject {
         attempt("save accepted plan") { try store.saveAccepted(plan, reviewed: reviewed, at: date) }
     }
 
+    /// Returns false when the store rejects the write.
+    @discardableResult
+    func saveClosedFocus(
+        _ record: FocusRecord, outcome: ClosureOutcome, intention: String, area: Area, calendar: Calendar
+    ) -> Bool {
+        attempt("save closed focus") {
+            try store.saveClosedFocus(record, outcome: outcome, intention: intention, area: area, calendar: calendar)
+        }
+    }
+
     func reviewHistory(from: LocalDay, through: LocalDay) -> [LocalDay: Bool] {
         store.reviewHistory(from: from, through: through)
     }
