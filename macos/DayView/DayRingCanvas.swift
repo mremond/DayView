@@ -1,5 +1,14 @@
 import SwiftUI
 import DayViewKit
+import DayPlanKit
+
+/// One plan segment for the plan lane: the arc, its area colour index and whether its
+/// block is running right now.
+struct PlanArcStyle {
+    let arc: PlanArc
+    let colorIndex: Int
+    let isRunning: Bool
+}
 
 /// The DayView dial, shared by the main and mini windows. Draws (in order) the track, an
 /// optional goal halo, 24 hour ticks, the ratio-accented remaining sweep (a rotated
@@ -17,6 +26,7 @@ struct DayRingCanvas: View {
     var detourBodies: [DetourBodySnapshot] = []
     var focusArcs: [FocusArcSnapshot] = []
     var focusSessionBands: [FocusArcSnapshot] = []
+    var planArcs: [PlanArcStyle] = []
     var lineWidth: CGFloat = DayRingCanvas.defaultLineWidth
     var inset: CGFloat = DayRingCanvas.defaultInset
 
@@ -29,6 +39,8 @@ struct DayRingCanvas: View {
     static let busyRadiusFactor: CGFloat = 0.95
     static let busyWidthFactor: CGFloat = 0.7
     static let detourRadiusFactor: CGFloat = 0.95
+    static let planRadiusFactor: CGFloat = 1.75
+    static let planWidthFactor: CGFloat = 0.42
 
     var body: some View {
         Canvas { context, size in
@@ -130,6 +142,20 @@ struct DayRingCanvas: View {
                 lane.addArc(center: center, radius: busyRadius, startAngle: .degrees(arc.startAngleDegrees), endAngle: .degrees(arc.startAngleDegrees + arc.sweepDegrees), clockwise: false)
                 context.stroke(lane, with: .color(color.opacity(0.16)), style: StrokeStyle(lineWidth: lineWidth * 0.7, lineCap: .round))
                 context.stroke(lane, with: .color(color.opacity(0.92)), style: StrokeStyle(lineWidth: lineWidth * 0.42, lineCap: .round))
+            }
+
+            // 7b. Plan lane (inside the busy lane): area-coloured segments, running one brighter.
+            let planRadius = radius - lineWidth * Self.planRadiusFactor
+            for style in planArcs {
+                let color = palette.areaColor(style.colorIndex)
+                var lane = Path()
+                lane.addArc(center: center, radius: planRadius, startAngle: .degrees(style.arc.startAngleDegrees), endAngle: .degrees(style.arc.startAngleDegrees + style.arc.sweepDegrees), clockwise: false)
+                if style.isRunning {
+                    context.stroke(lane, with: .color(color.opacity(0.16)), style: StrokeStyle(lineWidth: lineWidth * 0.7, lineCap: .round))
+                    context.stroke(lane, with: .color(color.opacity(0.95)), style: StrokeStyle(lineWidth: lineWidth * Self.planWidthFactor, lineCap: .round))
+                } else {
+                    context.stroke(lane, with: .color(color.opacity(0.55)), style: StrokeStyle(lineWidth: lineWidth * 0.3, lineCap: .round))
+                }
             }
 
             // 8. Detour lane (outer, glow + core).

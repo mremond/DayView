@@ -2,9 +2,12 @@ import SwiftUI
 import Foundation
 import AppKit
 import DayViewKit
+import DayPlanKit
 
 struct RingView: View {
     @ObservedObject var model: TodayModel
+    @ObservedObject var plan: PlanModel
+    @ObservedObject var todayPlan: TodayPlanModel
     @State private var intention: String = ""
     @State private var goalTitle: String = ""
     @State private var deadline: Date = Date()
@@ -138,7 +141,8 @@ struct RingView: View {
                     busyArcs: model.snapshot.busyArcs,
                     detourBodies: model.snapshot.detourBodies,
                     focusArcs: model.snapshot.focusArcs,
-                    focusSessionBands: model.snapshot.focusSessionBands
+                    focusSessionBands: model.snapshot.focusSessionBands,
+                    planArcs: planArcStyles(now: Date())
                 )
                 .onContinuousHover(coordinateSpace: .local) { phase in
                     switch phase {
@@ -402,7 +406,59 @@ struct RingView: View {
                 return HoveredArc(label: arcs[index].hoverLabel, position: point, focusSessionIndex: nil)
             }
         }
+
+        // Plan lane (innermost).
+        let planRadius = radius - lineWidth * DayRingCanvas.planRadiusFactor
+        let planBandHalf = lineWidth * DayRingCanvas.planWidthFactor / 2 + 6
+        if abs(distance - planRadius) <= planBandHalf, let label = planHoverLabel(at: angle) {
+            return HoveredArc(label: label, position: point, focusSessionIndex: nil)
+        }
         return nil
+    }
+
+    // MARK: Plan lane
+
+    /// Today's day window: local midnight plus the configured start/end minutes.
+    private var planWindow: (start: Date, end: Date) {
+        let midnight = Calendar.autoupdatingCurrent.startOfDay(for: Date())
+        let snap = model.snapshot
+        return (
+            midnight.addingTimeInterval(TimeInterval(snap.startMinutes) * 60),
+            midnight.addingTimeInterval(TimeInterval(snap.endMinutes) * 60)
+        )
+    }
+
+    private var visiblePlan: [FittedBlock] {
+        todayPlan.state.fitted.filter { !$0.isDropped }
+    }
+
+    private func planArcs() -> [PlanArc] {
+        let window = planWindow
+        return PlanRing.arcs(visiblePlan, windowStart: window.start, windowEnd: window.end)
+    }
+
+    private func planArcStyles(now: Date) -> [PlanArcStyle] {
+        let fitted = visiblePlan
+        guard !fitted.isEmpty else { return [] }
+        let areasByID = Dictionary(plan.areas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return planArcs().compactMap { arc in
+            guard let area = areasByID[arc.areaID] else { return nil }
+            let block = fitted.first { $0.block.id == arc.blockID }
+            let running = block.map { $0.isRunning(at: now) && !$0.isPaused(at: now) } ?? false
+            return PlanArcStyle(arc: arc, colorIndex: area.colorIndex, isRunning: running)
+        }
+    }
+
+    private func planHoverLabel(at angle: Double) -> String? {
+        let arcs = planArcs()
+        guard let index = PlanRing.arcIndex(at: angle, in: arcs),
+              let fitted = visiblePlan.first(where: { $0.block.id == arcs[index].blockID }),
+              let start = fitted.start, let end = fitted.end,
+              let area = plan.areas.first(where: { $0.id == arcs[index].areaID }) else { return nil }
+        var label = "\(area.name) · \(PlanTimeFormat.range(start, end))"
+        let intention = fitted.block.intention.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !intention.isEmpty { label += " · \(intention)" }
+        return label
     }
 
     private func focusSessionIndex(at angle: Double, sessions: [FocusSessionSnapshot]) -> Int? {

@@ -79,7 +79,7 @@ private struct MainWindowRoot: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            RingView(model: model)
+            RingView(model: model, plan: plan, todayPlan: todayPlan)
             Button {
                 openWindow(id: "mini")
                 dismissWindow(id: "main")
