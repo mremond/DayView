@@ -48,13 +48,13 @@ public final class PlanStore {
             record.apply(area)
             context.insert(record)
         }
-        try context.save()
+        try commit()
     }
 
     public func deleteArea(_ id: AreaID) throws {
         guard let record = areaRecord(id) else { return }
         context.delete(record)
-        try context.save()
+        try commit()
     }
 
     public func reorderAreas(_ ids: [AreaID]) throws {
@@ -62,7 +62,7 @@ public final class PlanStore {
         for (index, id) in ids.enumerated() {
             records.first { $0.id == id.raw }?.order = index
         }
-        try context.save()
+        try commit()
     }
 
     public func blockCount(for id: AreaID) -> Int {
@@ -72,14 +72,17 @@ public final class PlanStore {
     /// Inserts `seeds` once, only if never seeded and no areas exist. Returns whether it seeded.
     public func seedIfNeeded(_ seeds: [Area]) throws -> Bool {
         guard !defaults.bool(forKey: Self.seededKey) else { return false }
-        defer { defaults.set(true, forKey: Self.seededKey) }
-        guard areaRecords().isEmpty else { return false }
+        guard areaRecords().isEmpty else {
+            defaults.set(true, forKey: Self.seededKey)
+            return false
+        }
         for seed in seeds {
             let record = AreaRecord()
             record.apply(seed)
             context.insert(record)
         }
-        try context.save()
+        try commit()
+        defaults.set(true, forKey: Self.seededKey)
         return true
     }
 
@@ -95,7 +98,7 @@ public final class PlanStore {
             throw PlanStoreError.invalidDay
         }
         replaceRecords(forDay: weekdayISO, with: blocks)
-        try context.save()
+        try commit()
     }
 
     public func replaceTemplate(_ blocks: [TemplateBlock]) throws {
@@ -106,10 +109,20 @@ public final class PlanStore {
         for weekday in 1...7 {
             replaceRecords(forDay: weekday, with: byDay[weekday] ?? [])
         }
-        try context.save()
+        try commit()
     }
 
     // MARK: Private
+
+    /// Saves the context; on failure discards pending changes so they can't leak into a later save.
+    private func commit() throws {
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
 
     private func replaceRecords(forDay weekday: Int, with blocks: [TemplateBlock]) {
         for record in blockRecords() where record.weekdayISO == weekday {

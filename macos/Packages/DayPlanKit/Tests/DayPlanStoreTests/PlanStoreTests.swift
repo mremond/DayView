@@ -70,7 +70,7 @@ struct PlanStoreTests {
     }
 
     @Test func deleteAreaCascadesBlocks() throws {
-        let (store, _, _, suite) = try makeStore()
+        let (store, container, _, suite) = try makeStore()
         defer { UserDefaults().removePersistentDomain(forName: suite) }
         let w = area("W", order: 0), h = area("H", order: 1)
         try store.save(w)
@@ -80,6 +80,9 @@ struct PlanStoreTests {
         #expect(store.blockCount(for: w.id) == 1)
         try store.deleteArea(w.id)
         #expect(store.template() == [bh])
+        let records = try container.mainContext.fetch(FetchDescriptor<TemplateBlockRecord>())
+        #expect(records.count == 1)
+        #expect(records.allSatisfy { $0.area != nil })
     }
 
     @Test func replaceDayRejectsInvalid() throws {
