@@ -79,3 +79,69 @@ final class AcceptedPlanRecord {
 
     init() {}
 }
+
+/// Persisted closed Focus: one per finished session (`id` is the session id). The area's name and colour
+/// are copied so history survives area edits and deletion.
+@Model
+final class FocusRecordEntry {
+    var id: UUID = UUID()
+    /// `"YYYY-MM-DD"` of the session start.
+    var dayKey: String = ""
+    var areaID: UUID = UUID()
+    var areaName: String = ""
+    var colorIndex: Int = 0
+    var intention: String = ""
+    var start: Date = Date.distantPast
+    var end: Date = Date.distantPast
+    var focusedSeconds: Double = 0
+    var isPlanned: Bool = false
+    var blockID: UUID?
+    /// "completed", "stopped" or "tookOver".
+    var reason: String = ""
+    /// `ClosureOutcome.rawValue`.
+    var outcome: String = ""
+
+    init() {}
+
+    /// Nil when the stored outcome is unknown.
+    func value(day: LocalDay) -> ClosedFocus? {
+        guard let outcome = ClosureOutcome(rawValue: outcome) else { return nil }
+        return ClosedFocus(
+            id: id, day: day, areaID: AreaID(areaID), areaName: areaName, colorIndex: colorIndex,
+            intention: intention, start: start, end: end, focused: focusedSeconds,
+            isPlanned: isPlanned, outcome: outcome
+        )
+    }
+}
+
+/// A closed Focus as read back from the store.
+public struct ClosedFocus: Sendable, Hashable {
+    public let id: UUID
+    public let day: LocalDay
+    public let areaID: AreaID
+    public let areaName: String
+    public let colorIndex: Int
+    public let intention: String
+    public let start: Date
+    public let end: Date
+    public let focused: TimeInterval
+    public let isPlanned: Bool
+    public let outcome: ClosureOutcome
+
+    public init(
+        id: UUID, day: LocalDay, areaID: AreaID, areaName: String, colorIndex: Int, intention: String,
+        start: Date, end: Date, focused: TimeInterval, isPlanned: Bool, outcome: ClosureOutcome
+    ) {
+        self.id = id
+        self.day = day
+        self.areaID = areaID
+        self.areaName = areaName
+        self.colorIndex = colorIndex
+        self.intention = intention
+        self.start = start
+        self.end = end
+        self.focused = focused
+        self.isPlanned = isPlanned
+        self.outcome = outcome
+    }
+}

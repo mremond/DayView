@@ -16,7 +16,7 @@ public final class PlanStore {
     private let defaults: UserDefaults
     private var context: ModelContext { container.mainContext }
 
-    private static var schema: Schema { Schema(versionedSchema: DayPlanSchemaV2.self) }
+    private static var schema: Schema { Schema(versionedSchema: DayPlanSchemaV3.self) }
 
     /// An in-memory container for tests and the fallback when the store cannot be opened.
     /// With `inMemory: false` the store lands in the default (shared) location: prefer `makeContainer(url:)`.
@@ -160,7 +160,64 @@ public final class PlanStore {
         return result
     }
 
+    // MARK: Closed Focus
+
+    /// Stores a closed Focus, replacing any earlier entry with the same session id.
+    /// `intention` is the user-edited intention at close time.
+    public func saveClosedFocus(
+        _ record: FocusRecord, outcome: ClosureOutcome, intention: String, area: Area, calendar: Calendar
+    ) throws {
+        let day = LocalDay(containing: record.session.start, calendar: calendar)
+        let id = record.session.id
+        let existing = closedRecords(id: id)
+        let entry = existing.first ?? FocusRecordEntry()
+        if existing.isEmpty { context.insert(entry) }
+        for duplicate in existing.dropFirst() { context.delete(duplicate) }
+        entry.id = id
+        entry.dayKey = day.isoKey
+        entry.areaID = area.id.raw
+        entry.areaName = area.name
+        entry.colorIndex = area.colorIndex
+        entry.intention = intention
+        entry.start = record.session.start
+        entry.end = record.actualEnd
+        entry.focusedSeconds = record.focused
+        if case .planned(let block) = record.session.origin {
+            entry.isPlanned = true
+            entry.blockID = block.raw
+        } else {
+            entry.isPlanned = false
+            entry.blockID = nil
+        }
+        entry.reason = Self.reasonName(record.reason)
+        entry.outcome = outcome.rawValue
+        try commit()
+    }
+
+    /// The closed Focus records that started on `day`, by start time.
+    public func closedFocus(on day: LocalDay) -> [ClosedFocus] {
+        let key = day.isoKey
+        let descriptor = FetchDescriptor<FocusRecordEntry>(
+            predicate: #Predicate { $0.dayKey == key }, sortBy: [SortDescriptor(\.start)]
+        )
+        let entries = (try? context.fetch(descriptor)) ?? []
+        return entries.compactMap { $0.value(day: day) }
+    }
+
+    private static func reasonName(_ reason: FocusEndReason) -> String {
+        switch reason {
+        case .completed: "completed"
+        case .stopped: "stopped"
+        case .tookOver: "tookOver"
+        }
+    }
+
     // MARK: Private
+
+    private func closedRecords(id: UUID) -> [FocusRecordEntry] {
+        let descriptor = FetchDescriptor<FocusRecordEntry>(predicate: #Predicate { $0.id == id })
+        return (try? context.fetch(descriptor)) ?? []
+    }
 
     private func allAcceptedRecords() -> [AcceptedPlanRecord] {
         (try? context.fetch(FetchDescriptor<AcceptedPlanRecord>())) ?? []

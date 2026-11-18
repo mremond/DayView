@@ -14,7 +14,20 @@ enum DayPlanSchemaV2: VersionedSchema {
     }
 }
 
+/// Adds closed Focus records.
+enum DayPlanSchemaV3: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
+    static var models: [any PersistentModel.Type] {
+        [AreaRecord.self, TemplateBlockRecord.self, AcceptedPlanRecord.self, FocusRecordEntry.self]
+    }
+}
+
 enum DayPlanMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [DayPlanSchemaV1.self, DayPlanSchemaV2.self] }
-    static var stages: [MigrationStage] { [.lightweight(fromVersion: DayPlanSchemaV1.self, toVersion: DayPlanSchemaV2.self)] }
+    static var schemas: [any VersionedSchema.Type] { [DayPlanSchemaV1.self, DayPlanSchemaV2.self, DayPlanSchemaV3.self] }
+    static var stages: [MigrationStage] {
+        [
+            .lightweight(fromVersion: DayPlanSchemaV1.self, toVersion: DayPlanSchemaV2.self),
+            .lightweight(fromVersion: DayPlanSchemaV2.self, toVersion: DayPlanSchemaV3.self),
+        ]
+    }
 }
