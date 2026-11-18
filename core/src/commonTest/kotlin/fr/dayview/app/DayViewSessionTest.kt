@@ -12,6 +12,9 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
+/** Each refresh reads the net-time window and the whole-day meetings window. */
+private const val READS_PER_REFRESH = 2
+
 class DayViewSessionTest {
     @Test
     fun emitsInitialThenReactsToStartFocus() = runTest {
@@ -476,13 +479,13 @@ class DayViewSessionTest {
         )
         val session = DayViewSession(controller, backgroundScope, source)
         runCurrent()
-        assertEquals(1, source.busyReads) // the creation probe
+        assertEquals(1 * READS_PER_REFRESH, source.busyReads) // the creation probe
 
         repeat(59) { session.tick() }
-        assertEquals(1, source.busyReads)
+        assertEquals(1 * READS_PER_REFRESH, source.busyReads)
 
         session.tick() // 60th
-        assertEquals(2, source.busyReads)
+        assertEquals(2 * READS_PER_REFRESH, source.busyReads)
     }
 
     @Test
@@ -561,14 +564,14 @@ class DayViewSessionTest {
         )
         val session = DayViewSession(controller, backgroundScope, source)
         runCurrent()
-        assertEquals(1, source.busyReads)
+        assertEquals(1 * READS_PER_REFRESH, source.busyReads)
 
         repeat(60) { session.tick() }
-        assertEquals(2, source.busyReads)
+        assertEquals(2 * READS_PER_REFRESH, source.busyReads)
 
         // The counter resets: a second full cycle probes again on the 120th tick.
         repeat(60) { session.tick() }
-        assertEquals(3, source.busyReads)
+        assertEquals(3 * READS_PER_REFRESH, source.busyReads)
     }
 
     @Test
@@ -719,6 +722,26 @@ class DayViewSessionTest {
         assertTrue(seen.last().busyArcs.isEmpty())
 
         sub.cancel()
+    }
+
+    @Test
+    fun dayMeetingsExposedEvenWhenNetTimeDisabled() = runTest {
+        val now = Instant.fromEpochMilliseconds(1_699_956_000_000L)
+        val source = FakeCalendarSource(
+            busy = listOf(BusyInterval(now, now + 1.hours, titles = listOf("Standup"), calendarId = "c1")),
+        )
+        val controller = DayViewController(
+            DefaultDayPreferences,
+            backgroundScope,
+            initialSnapshot = DayPreferencesSnapshot(startMinutes = 0, endMinutes = 1439),
+            initialNow = now,
+        )
+        val session = DayViewSession(controller, backgroundScope, source)
+
+        assertEquals(
+            listOf(now.toEpochMilliseconds(), (now + 1.hours).toEpochMilliseconds()),
+            session.dayMeetingsEpochMillis().toList(),
+        )
     }
 
     @Test
