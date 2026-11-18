@@ -140,3 +140,13 @@
 "Skip" = "Skip";
 "Apps:" = "Apps:";
 "Changes can't be saved this session." = "Changes can't be saved this session.";
+"Plan today…" = "Plan today…";
+"Adjust" = "Adjust";
+"Not now" = "Not now";
+"Start my day" = "Start my day";
+"Finished plan" = "Done";
+"No plan for today" = "No plan for today";
+"Split around the %@ meeting" = "Split around the %@ meeting";
+"Shortened by a meeting" = "Shortened by a meeting";
+"Covered by meetings" = "Covered by meetings";
+"Last 7 days: plan reviewed %lld/%lld days" = "Last 7 days: plan reviewed %lld/%lld days";

@@ -17,7 +17,7 @@ struct DayViewApp: App {
 
     var body: some Scene {
         Window("DayView", id: "main") {
-            MainWindowRoot(model: model, windows: windows, todayPlan: todayPlan)
+            MainWindowRoot(model: model, windows: windows, plan: plan, todayPlan: todayPlan)
         }
         .commands {
             CommandMenu("Focus") {
@@ -72,6 +72,7 @@ struct DayViewApp: App {
 private struct MainWindowRoot: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var windows: WindowVisibility
+    @ObservedObject var plan: PlanModel
     @ObservedObject var todayPlan: TodayPlanModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -90,7 +91,13 @@ private struct MainWindowRoot: View {
             .padding(10)
         }
         .frame(minWidth: 420, minHeight: 680)
-        .onAppear { windows.isMainOpen = true }
+        .onAppear {
+            windows.isMainOpen = true
+            todayPlan.mainWindowShown()
+        }
+        .sheet(isPresented: $todayPlan.isMorningCheckPresented) {
+            MorningCheckSheet(todayPlan: todayPlan, areas: plan.areas)
+        }
         .onDisappear { windows.isMainOpen = false }
         .preferredColorScheme(preferredScheme(for: model.snapshot.themeMode))
     }

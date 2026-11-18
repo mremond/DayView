@@ -35,6 +35,11 @@ struct MenuBarContent: View {
                 dismissWindow(id: "main")
             }
         }
+        Button(L("Plan today…")) {
+            openWindow(id: "main")
+            dismissWindow(id: "mini")
+            todayPlan.presentMorningCheck()
+        }
         Button("Quit DayView") { NSApplication.shared.terminate(nil) }
         .onChange(of: model.snapshot.showResumeRitual) { _, showing in
             // The menu scene stays alive when both windows are closed. Surface a recovered
