@@ -46,7 +46,7 @@ struct MiniView: View {
                     .frame(maxHeight: .infinity)
                     // Height-gated like the JVM mini (showGoalInMiniWindow: 400 at font scale 1).
                     if proxy.size.height >= 400 {
-                        ActiveAreaGoalCard(focus: focus, compact: true)
+                        ActiveAreaGoalCard(focus: focus, plan: plan, compact: true)
                     }
                     if model.snapshot.detourOpenRunning {
                         OpenDetourBanner(model: model)

@@ -51,7 +51,7 @@ struct RingView: View {
                             OpenDetourBanner(model: model)
                         }
                         FocusPanel(focus: focus, plan: plan, todayPlan: todayPlan)
-                        ActiveAreaGoalCard(focus: focus)
+                        ActiveAreaGoalCard(focus: focus, plan: plan)
                         HeroQuoteView(
                             hasStarted: model.snapshot.hasStarted,
                             isFinished: model.snapshot.isFinished,

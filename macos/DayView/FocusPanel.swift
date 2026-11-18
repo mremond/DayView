@@ -86,8 +86,10 @@ struct FocusPanel: View {
             if !session.intention.isEmpty {
                 Text(session.intention).foregroundStyle(palette.cloud).lineLimit(compact ? 2 : 4)
             }
-            if isPaused(session) {
-                Text("Paused for a meeting").font(.caption).foregroundStyle(palette.muted)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                if isPaused(session, at: context.date) {
+                    Text("Paused for a meeting").font(.caption).foregroundStyle(palette.muted)
+                }
             }
             HStack {
                 Spacer()
@@ -101,10 +103,10 @@ struct FocusPanel: View {
         }
     }
 
-    private func isPaused(_ session: FocusSession) -> Bool {
+    private func isPaused(_ session: FocusSession, at now: Date) -> Bool {
         guard case .planned(let blockID) = session.origin,
               let block = todayPlan.state.fitted.first(where: { $0.block.id == blockID }) else { return false }
-        return block.isPaused(at: Date())
+        return block.isPaused(at: now)
     }
 
     // MARK: Idle / break
@@ -200,6 +202,7 @@ struct FocusClosureCard: View {
 /// The active area's goal, shown only while a Focus runs.
 struct ActiveAreaGoalCard: View {
     @ObservedObject var focus: FocusModel
+    @ObservedObject var plan: PlanModel
     var compact = false
 
     @Environment(\.colorScheme) private var colorScheme
