@@ -73,20 +73,12 @@ public struct FocusEngine: Sendable {
     public init() {}
 
     public mutating func advance(to now: Date, plan: [FittedBlock]) -> [FocusEvent] {
+        if let takeover = takeOverManual(at: now, plan: plan) { return [takeover] }
         var events: [FocusEvent] = []
         if let ended = endCurrentIfDue(now: now, plan: plan) {
             events.append(.ended(ended))
         }
-        // A planned session still running is the running block: nothing new starts.
-        guard !isPlannedRunning,
-              let running = nextBlockToStart(at: now, plan: plan)
-        else { return events }
-
-        if current != nil {
-            let interrupted = finish(at: now, reason: .tookOver)
-            let session = startPlanned(running, now: now)
-            events.append(.tookOver(interrupted: interrupted, by: session))
-        } else {
+        if current == nil, let running = nextBlockToStart(at: now, plan: plan) {
             events.append(.started(startPlanned(running, now: now)))
         }
         return events
@@ -121,6 +113,18 @@ public struct FocusEngine: Sendable {
     }
 
     // MARK: - State transitions
+
+    /// Plan wins: a block that started while the manual Focus was still on (its end included)
+    /// interrupts it at the block's start, even when the manual Focus is already due.
+    private mutating func takeOverManual(at now: Date, plan: [FittedBlock]) -> FocusEvent? {
+        guard let manual = current, manual.origin == .manual,
+              let running = nextBlockToStart(at: now, plan: plan),
+              let blockStart = running.start, blockStart <= manual.end
+        else { return nil }
+        let actualEnd = min(max(blockStart, manual.start), manual.end)
+        let interrupted = finish(at: actualEnd, reason: .tookOver)
+        return .tookOver(interrupted: interrupted, by: startPlanned(running, now: now))
+    }
 
     /// Ends the current session when its time is up, or when its block left the plan.
     private mutating func endCurrentIfDue(now: Date, plan: [FittedBlock]) -> FocusRecord? {
@@ -179,10 +183,6 @@ public struct FocusEngine: Sendable {
         return currentParts.reduce(0) { total, part in
             total + max(0, min(part.end, actualEnd).timeIntervalSince(max(part.start, session.start)))
         }
-    }
-
-    private var isPlannedRunning: Bool {
-        if case .planned = current?.origin { true } else { false }
     }
 
     private func nextBlockToStart(at now: Date, plan: [FittedBlock]) -> FittedBlock? {

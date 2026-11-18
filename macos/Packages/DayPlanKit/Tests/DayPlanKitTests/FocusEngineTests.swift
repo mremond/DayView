@@ -123,6 +123,39 @@ struct FocusEngineTests {
         #expect(engine.pendingClosures == [interrupted])
     }
 
+    @Test func manualEndingAtBlockStartIsTakeover() {
+        let health = block("14:00", "15:00", intention: "Health")
+        let plan = fitted([health])
+        var engine = FocusEngine()
+        _ = engine.startManual(areaID: AreaID(), intention: "Write", minutes: 30, now: at("13:30"))
+
+        let events = engine.advance(to: at("14:00"), plan: plan)
+        #expect(events.count == 1)
+        guard events.count == 1, case let .tookOver(interrupted, by) = events[0] else { return }
+        #expect(interrupted.reason == .tookOver)
+        #expect(interrupted.actualEnd == at("14:00"))
+        #expect(by.origin == .planned(health.id))
+        #expect(engine.breakStartedAt == nil)
+        #expect(engine.current == by)
+    }
+
+    @Test func manualEndedBeforeBlockCompletes() {
+        let health = block("14:00", "15:00", intention: "Health")
+        let plan = fitted([health])
+        var engine = FocusEngine()
+        _ = engine.startManual(areaID: AreaID(), intention: "Write", minutes: 30, now: at("13:00"))
+
+        let events = engine.advance(to: at("14:00"), plan: plan)
+        #expect(events.count == 2)
+        guard events.count == 2,
+              case let .ended(record) = events[0],
+              case let .started(session) = events[1] else { return }
+        #expect(record.reason == .completed)
+        #expect(record.actualEnd == at("13:30"))
+        #expect(session.origin == .planned(health.id))
+        #expect(engine.breakStartedAt == nil)
+    }
+
     @Test func stoppedBlockDoesNotRestart() throws {
         let a = block("09:00", "10:00")
         let b = block("10:00", "11:00")
