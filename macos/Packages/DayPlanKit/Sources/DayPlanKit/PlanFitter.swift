@@ -67,7 +67,7 @@ public enum PlanFitter {
     }
 
     /// Sorts and merges meetings that overlap or touch.
-    private static func merge(_ meetings: [DateInterval]) -> [DateInterval] {
+    static func merge(_ meetings: [DateInterval]) -> [DateInterval] {
         var result: [DateInterval] = []
         for m in meetings.sorted(by: { $0.start < $1.start }) {
             if let last = result.last, m.start <= last.end {
