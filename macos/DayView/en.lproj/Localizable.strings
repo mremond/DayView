@@ -34,7 +34,6 @@
 "No goal yet" = "No goal yet";
 "Duration: %lld min" = "Duration: %lld min";
 "FOCUS SESSION" = "FOCUS SESSION";
-"Untitled focus" = "Untitled focus";
 "Duration" = "Duration";
 "Engaged" = "Engaged";
 "Deep focus" = "Deep focus";
@@ -92,7 +91,6 @@
 "Calendar could not be read." = "Calendar could not be read.";
 "Only events marked busy (excluding all-day events) are subtracted." = "Only events marked busy (excluding all-day events) are subtracted.";
 "On-goal apps" = "On-goal apps";
-"Apps that count as working toward your goal during a Focus." = "Apps that count as working toward your goal during a Focus.";
 "Launch DayView at login" = "Launch DayView at login";
 
 /* Day plan areas */

@@ -26,6 +26,7 @@ struct DayRingCanvas: View {
     var detourBodies: [DetourBodySnapshot] = []
     var focusArcs: [FocusArcSnapshot] = []
     var focusSessionBands: [FocusArcSnapshot] = []
+    var swiftFocusBands: [SpanArc] = []
     var planArcs: [PlanArcStyle] = []
     var lineWidth: CGFloat = DayRingCanvas.defaultLineWidth
     var inset: CGFloat = DayRingCanvas.defaultInset
@@ -124,6 +125,11 @@ struct DayRingCanvas: View {
 
             // 6b. Engaged focus arcs (main lane): session bands (dim) then on-goal arcs (bright).
             for band in focusSessionBands {
+                var arc = Path()
+                arc.addArc(center: center, radius: radius, startAngle: .degrees(band.startAngleDegrees), endAngle: .degrees(band.startAngleDegrees + band.sweepDegrees), clockwise: false)
+                context.stroke(arc, with: .color(palette.mint.opacity(0.18)), style: StrokeStyle(lineWidth: lineWidth * 0.5, lineCap: .round))
+            }
+            for band in swiftFocusBands {
                 var arc = Path()
                 arc.addArc(center: center, radius: radius, startAngle: .degrees(band.startAngleDegrees), endAngle: .degrees(band.startAngleDegrees + band.sweepDegrees), clockwise: false)
                 context.stroke(arc, with: .color(palette.mint.opacity(0.18)), style: StrokeStyle(lineWidth: lineWidth * 0.5, lineCap: .round))

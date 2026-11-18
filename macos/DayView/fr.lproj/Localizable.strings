@@ -34,7 +34,6 @@
 "No goal yet" = "Aucun cap";
 "Duration: %lld min" = "Durée : %lld min";
 "FOCUS SESSION" = "SESSION FOCUS";
-"Untitled focus" = "Focus sans intention";
 "Duration" = "Durée";
 "Engaged" = "Engagé";
 "Deep focus" = "Concentration profonde";
@@ -91,7 +90,6 @@
 "Calendar could not be read." = "Le calendrier n’a pas pu être lu.";
 "Only events marked busy (excluding all-day events) are subtracted." = "Seuls les événements marqués occupés, hors journées entières, sont soustraits.";
 "On-goal apps" = "Applications dans le cap";
-"Apps that count as working toward your goal during a Focus." = "Applications qui comptent comme du travail vers votre cap pendant un Focus.";
 "Launch DayView at login" = "Ouvrir DayView à la connexion";
 
 /* Day plan areas */

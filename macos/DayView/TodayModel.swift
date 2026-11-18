@@ -73,11 +73,7 @@ final class TodayModel: ObservableObject {
     func openHistoryDay(_ dayKey: Int64) { session.openHistoryDay(dayKey: dayKey) }
     func closeHistory() { session.closeHistory() }
 
-    func addOnGoalApp(bundleId: String, name: String) { session.addOnGoalApp(bundleId: bundleId, name: name) }
-    func removeOnGoalApp(bundleId: String) { session.removeOnGoalApp(bundleId: bundleId) }
     func onGoalApps() -> [AppRef] { session.onGoalApps() }
-    func runningApps() -> [AppRef] { session.runningApps() }
-    var onGoalBundleIds: [String] { session.onGoalBundleIds() }
 
     deinit {
         subscription?.cancel()

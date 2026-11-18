@@ -12,13 +12,10 @@ struct RingView: View {
     @ObservedObject var drift: DriftModel
     @State private var showDetourCapture = false
     @State private var showDetourList = false
-    @State private var selectedFocusSession: FocusSessionSnapshot?
-    @State private var showFocusSessionDetail = false
 
     private struct HoveredArc {
         let label: String
         let position: CGPoint
-        let focusSessionIndex: Int?
     }
 
     @State private var hoveredArc: HoveredArc?
@@ -76,11 +73,6 @@ struct RingView: View {
         )
         .sheet(isPresented: $showDetourCapture) { DetourCaptureSheet(model: model, isPresented: $showDetourCapture) }
         .sheet(isPresented: $showDetourList) { DetourListSheet(model: model, isPresented: $showDetourList) }
-        .sheet(isPresented: $showFocusSessionDetail) {
-            if let selectedFocusSession {
-                FocusSessionDetailSheet(session: selectedFocusSession, isPresented: $showFocusSessionDetail)
-            }
-        }
     }
 
     private var ringSection: some View {
@@ -94,8 +86,7 @@ struct RingView: View {
                     hasGoal: focus.activeArea?.hasGoal ?? false,
                     busyArcs: model.snapshot.busyArcs,
                     detourBodies: model.snapshot.detourBodies,
-                    focusArcs: model.snapshot.focusArcs,
-                    focusSessionBands: model.snapshot.focusSessionBands,
+                    swiftFocusBands: focusSpanArcs(now: Date()),
                     planArcs: planArcStyles(now: Date())
                 )
                 .onContinuousHover(coordinateSpace: .local) { phase in
@@ -105,13 +96,6 @@ struct RingView: View {
                     case .ended:
                         hoveredArc = nil
                     }
-                }
-                .onTapGesture {
-                    guard let index = hoveredArc?.focusSessionIndex,
-                          index >= 0,
-                          index < model.snapshot.focusSessions.count else { return }
-                    selectedFocusSession = model.snapshot.focusSessions[index]
-                    showFocusSessionDetail = true
                 }
                 VStack(spacing: 2) {
                     Text(model.snapshot.dayStatus)
@@ -202,23 +186,13 @@ struct RingView: View {
         if !detours.isEmpty, abs(distance - detourRadius) <= bandHalf {
             let index = Int(TodaySnapshotKt.detourBodyIndexAt(bodies: detours, angleDegrees: angle))
             if index >= 0, index < detours.count {
-                return HoveredArc(label: detours[index].hoverLabel, position: point, focusSessionIndex: nil)
+                return HoveredArc(label: detours[index].hoverLabel, position: point)
             }
         }
 
-        // Closed Focus sessions share the main lane. Hover gives a compact hint; clicking
-        // opens the full engaged/deep-focus detail sheet.
-        let sessions = model.snapshot.focusSessions
-        if !sessions.isEmpty, abs(distance - radius) <= lineWidth / 2 + 6 {
-            if let index = focusSessionIndex(at: angle, sessions: sessions) {
-                let session = sessions[index]
-                let title = session.intention.isEmpty ? L("Untitled focus") : session.intention
-                return HoveredArc(
-                    label: "\(title) · \(session.timeRangeLabel)",
-                    position: point,
-                    focusSessionIndex: index
-                )
-            }
+        // Swift Focus sessions share the main lane.
+        if abs(distance - radius) <= lineWidth / 2 + 6, let label = focusHoverLabel(at: angle, now: Date()) {
+            return HoveredArc(label: label, position: point)
         }
 
         // Busy lane (inner).
@@ -227,7 +201,7 @@ struct RingView: View {
         if !arcs.isEmpty, abs(distance - busyRadius) <= bandHalf {
             let index = Int(TodaySnapshotKt.busyArcIndexAt(arcs: arcs, angleDegrees: angle))
             if index >= 0, index < arcs.count {
-                return HoveredArc(label: arcs[index].hoverLabel, position: point, focusSessionIndex: nil)
+                return HoveredArc(label: arcs[index].hoverLabel, position: point)
             }
         }
 
@@ -235,7 +209,7 @@ struct RingView: View {
         let planRadius = radius - lineWidth * DayRingCanvas.planRadiusFactor
         let planBandHalf = lineWidth * DayRingCanvas.planWidthFactor / 2 + 6
         if abs(distance - planRadius) <= planBandHalf, let label = planHoverLabel(at: angle) {
-            return HoveredArc(label: label, position: point, focusSessionIndex: nil)
+            return HoveredArc(label: label, position: point)
         }
         return nil
     }
@@ -284,26 +258,37 @@ struct RingView: View {
         return label
     }
 
-    private func focusSessionIndex(at angle: Double, sessions: [FocusSessionSnapshot]) -> Int? {
-        let probe = normalizedDegrees(angle)
-        var bestIndex: Int?
-        var bestDistance = Double.greatestFiniteMagnitude
-        for (index, session) in sessions.enumerated() {
-            let start = normalizedDegrees(session.startAngleDegrees)
-            let offset = normalizedDegrees(probe - start)
-            let distance = offset <= session.sweepDegrees
-                ? 0
-                : min(offset - session.sweepDegrees, 360 - offset)
-            if distance < bestDistance {
-                bestDistance = distance
-                bestIndex = index
-            }
+    // MARK: Focus lane
+
+    private typealias FocusSpan = (id: UUID, areaID: AreaID, interval: DateInterval)
+
+    /// Today's Focus: closed records, pending closures and the running session (start to now).
+    private func focusSpans(now: Date) -> [FocusSpan] {
+        let day = todayPlan.state.day
+        var spans: [FocusSpan] = plan.closedFocus(from: day, through: day).map {
+            ($0.id, $0.areaID, DateInterval(start: $0.start, end: max($0.end, $0.start)))
         }
-        return bestDistance <= 4 ? bestIndex : nil
+        for record in focus.pendingClosures {
+            let s = record.session
+            spans.append((s.id, s.areaID, DateInterval(start: s.start, end: max(record.actualEnd, s.start))))
+        }
+        if let s = focus.current {
+            spans.append((s.id, s.areaID, DateInterval(start: s.start, end: max(now, s.start))))
+        }
+        return spans
     }
 
-    private func normalizedDegrees(_ value: Double) -> Double {
-        let remainder = value.truncatingRemainder(dividingBy: 360)
-        return remainder < 0 ? remainder + 360 : remainder
+    private func focusSpanArcs(now: Date) -> [SpanArc] {
+        let window = planWindow
+        return PlanRing.spanArcs(focusSpans(now: now), windowStart: window.start, windowEnd: window.end)
+    }
+
+    private func focusHoverLabel(at angle: Double, now: Date) -> String? {
+        let spans = focusSpans(now: now)
+        let window = planWindow
+        let arcs = PlanRing.spanArcs(spans, windowStart: window.start, windowEnd: window.end)
+        guard let index = PlanRing.spanIndex(at: angle, in: arcs),
+              let span = spans.first(where: { $0.id == arcs[index].id }) else { return nil }
+        return "\(plan.areaName(for: span.areaID)) · \(PlanTimeFormat.range(span.interval.start, span.interval.end))"
     }
 }

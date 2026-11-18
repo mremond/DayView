@@ -49,6 +49,35 @@ struct PlanRingTests {
     }
 }
 
+struct SpanArcTests {
+    private func span(_ start: String, _ end: String) -> (id: UUID, areaID: AreaID, interval: DateInterval) {
+        (UUID(), area, DateInterval(start: at(start), end: at(end)))
+    }
+
+    @Test func spansAreClippedToTheWindow() {
+        let inside = span("08:00", "11:00")
+        let early = span("06:00", "09:00")
+        let outside = span("21:00", "22:00")
+        let result = PlanRing.spanArcs([inside, early, outside], windowStart: at("08:00"), windowEnd: at("20:00"))
+        #expect(result.count == 2)
+        #expect(result[0].id == inside.id && result[0].areaID == area)
+        #expect(result[0].startAngleDegrees == -90 && result[0].sweepDegrees == 90)
+        #expect(result[1].startAngleDegrees == -90 && result[1].sweepDegrees == 30)
+    }
+
+    @Test func emptyWindowGivesNoSpans() {
+        #expect(PlanRing.spanArcs([span("08:00", "09:00")], windowStart: at("08:00"), windowEnd: at("08:00")).isEmpty)
+    }
+
+    @Test func spanHitTest() {
+        let a = SpanArc(id: UUID(), areaID: area, startAngleDegrees: -90, sweepDegrees: 90)
+        let b = SpanArc(id: UUID(), areaID: area, startAngleDegrees: 90, sweepDegrees: 180)
+        #expect(PlanRing.spanIndex(at: -45, in: [a, b]) == 0)
+        #expect(PlanRing.spanIndex(at: 180, in: [a, b]) == 1)
+        #expect(PlanRing.spanIndex(at: 45, in: [a, b]) == nil)
+    }
+}
+
 struct PlanRingWindowTests {
     private func wall(_ day: LocalDay, _ hour: Int, _ minute: Int = 0) -> Date {
         paris.date(from: DateComponents(
