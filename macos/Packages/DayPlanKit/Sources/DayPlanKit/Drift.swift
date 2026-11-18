@@ -70,7 +70,6 @@ public struct DriftMonitor: Sendable {
         currentArea = nil
         streakStart = nil
         lastSample = nil
-        lastReminder = nil
         watch = nil
     }
 

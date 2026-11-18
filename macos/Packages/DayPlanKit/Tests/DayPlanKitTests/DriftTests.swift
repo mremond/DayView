@@ -123,3 +123,13 @@ private func feed(
     _ = other.sample(.offGoal, areaID: AreaID(), at: at("14:00") + 2)
     #expect(other.sample(.offGoal, areaID: a, at: at("14:05")).isEmpty)
 }
+
+@Test func reminderSpacingSurvivesFocusRestart() {
+    var m = DriftMonitor()
+    let a = AreaID()
+    let first = feed(&m, .offGoal, area: a, from: at("10:00"), through: at("10:03"))
+    #expect(first.map(\.0) == [at("10:03")])
+    _ = m.sample(.offGoal, areaID: nil, at: at("10:03") + 1)
+    let second = feed(&m, .offGoal, area: a, from: at("10:03") + 2, through: at("10:13") + 5)
+    #expect(second.map(\.0) == [at("10:13")])
+}
