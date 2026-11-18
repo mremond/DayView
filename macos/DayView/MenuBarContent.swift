@@ -5,6 +5,7 @@ import DayViewKit
 struct MenuBarContent: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var windows: WindowVisibility
+    @ObservedObject var todayPlan: TodayPlanModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 

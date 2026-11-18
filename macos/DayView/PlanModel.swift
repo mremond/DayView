@@ -87,6 +87,20 @@ final class PlanModel: ObservableObject {
         attempt("copy day") { try store.replaceTemplate(updated) }
     }
 
+    func acceptedPlan(for day: LocalDay) -> AcceptedPlan? {
+        store.acceptedPlan(for: day)
+    }
+
+    /// Returns false when the store rejects the write.
+    @discardableResult
+    func saveAccepted(_ plan: DayPlan, reviewed: Bool, at date: Date) -> Bool {
+        attempt("save accepted plan") { try store.saveAccepted(plan, reviewed: reviewed, at: date) }
+    }
+
+    func reviewHistory(from: LocalDay, through: LocalDay) -> [LocalDay: Bool] {
+        store.reviewHistory(from: from, through: through)
+    }
+
     func addArea() {
         let area = Area(
             id: AreaID(),

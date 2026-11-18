@@ -2,13 +2,22 @@ import SwiftUI
 
 @main
 struct DayViewApp: App {
-    @StateObject private var model = TodayModel()
+    @StateObject private var model: TodayModel
     @StateObject private var windows = WindowVisibility()
-    @StateObject private var plan = PlanModel.live()
+    @StateObject private var plan: PlanModel
+    @StateObject private var todayPlan: TodayPlanModel
+
+    init() {
+        let model = TodayModel()
+        let plan = PlanModel.live()
+        _model = StateObject(wrappedValue: model)
+        _plan = StateObject(wrappedValue: plan)
+        _todayPlan = StateObject(wrappedValue: TodayPlanModel(plan: plan, meetings: model.meetingSource))
+    }
 
     var body: some Scene {
         Window("DayView", id: "main") {
-            MainWindowRoot(model: model, windows: windows)
+            MainWindowRoot(model: model, windows: windows, todayPlan: todayPlan)
         }
         .commands {
             CommandMenu("Focus") {
@@ -37,7 +46,7 @@ struct DayViewApp: App {
             }
         }
         MenuBarExtra(model.snapshot.menuBarTitle) {
-            MenuBarContent(model: model, windows: windows)
+            MenuBarContent(model: model, windows: windows, todayPlan: todayPlan)
         }
         Window("DayView Mini", id: "mini") {
             MiniView(model: model)
@@ -63,6 +72,7 @@ struct DayViewApp: App {
 private struct MainWindowRoot: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var windows: WindowVisibility
+    @ObservedObject var todayPlan: TodayPlanModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
