@@ -141,6 +141,11 @@ public struct FocusEngine: Codable, Sendable, Equatable {
         return events
     }
 
+    /// Whether the Focus of block `id` has started today (it never starts again).
+    public func hasStarted(_ id: BlockID) -> Bool {
+        startedBlockIDs.contains(id)
+    }
+
     public mutating func startManual(areaID: AreaID, intention: String, minutes: Int, now: Date) -> [FocusEvent] {
         var events: [FocusEvent] = []
         if current != nil {

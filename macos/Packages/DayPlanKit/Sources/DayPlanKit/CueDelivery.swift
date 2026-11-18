@@ -45,3 +45,40 @@ public struct CueDelivery: Sendable {
         return latest
     }
 }
+
+extension CueDelivery {
+    /// Drops the start and resume cues of blocks `engine` had already started. Used once, on the
+    /// first delivery after launch, with the engine as loaded (after `beginDay`, before `advance`):
+    /// the wake rule then only announces blocks that started while DayView was not observing,
+    /// not a block it already announced, or one the user stopped, before quitting.
+    public static func dropAlreadyStarted(_ due: [ScheduledCue], startedBy engine: FocusEngine) -> [ScheduledCue] {
+        due.filter { cue in
+            guard let id = cue.block?.id else { return true }
+            switch cue.kind {
+            case .blockStart, .resume: return !engine.hasStarted(id)
+            default: return true
+            }
+        }
+    }
+}
+
+/// Announces a takeover the cue schedule cannot see.
+public enum TakeoverCues {
+    /// Adds a block-start cue at `now` for each takeover whose block has no block-start cue in
+    /// `due`. A block that appears mid-Focus (plan edited, a meeting cancelled) takes over at
+    /// once, but its scheduled start cue is already in the past and never delivered; the
+    /// takeover event happens once, so this announces it exactly once.
+    public static func supplement(
+        due: [ScheduledCue], events: [FocusEvent], fitted: [FittedBlock], now: Date
+    ) -> [ScheduledCue] {
+        var result = due
+        for case .tookOver(_, let session) in events {
+            guard case .planned(let id) = session.origin,
+                  !result.contains(where: { $0.kind == .blockStart && $0.block?.id == id }),
+                  let block = fitted.first(where: { $0.block.id == id })?.block
+            else { continue }
+            result.append(ScheduledCue(at: now, kind: .blockStart, block: block))
+        }
+        return result
+    }
+}

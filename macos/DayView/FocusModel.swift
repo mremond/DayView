@@ -39,6 +39,9 @@ final class FocusModel: ObservableObject {
     private var savedEngine: FocusEngine?
     private var timer: Timer?
     private var delivery = CueDelivery()
+    /// True until the first cue delivery after launch, which drops the start cues of blocks the
+    /// loaded engine had already started (the new `CueDelivery` would otherwise re-announce them).
+    private var isFirstDelivery = true
     private var cachedSchedule: (fitted: [FittedBlock], meetings: [DateInterval], cues: [ScheduledCue])?
 
     init(
@@ -96,12 +99,18 @@ final class FocusModel: ObservableObject {
         let state = todayPlan.state
         let current = now()
         var events = engine.beginDay(state.day, calendar: calendar)
+        let loaded = engine
         events += engine.advance(to: current, plan: state.fitted)
         let dayMeetings = meetings.meetings(on: state.day)
         let offer = engine.keepGoingOffer(now: current, plan: state.fitted, meetings: dayMeetings)
         publish(offer: offer, events: events)
         persist()
-        let due = delivery.due(schedule(state.fitted, dayMeetings), fitted: state.fitted, now: current)
+        var due = delivery.due(schedule(state.fitted, dayMeetings), fitted: state.fitted, now: current)
+        if isFirstDelivery {
+            due = CueDelivery.dropAlreadyStarted(due, startedBy: loaded)
+            isFirstDelivery = false
+        }
+        due = TakeoverCues.supplement(due: due, events: events, fitted: state.fitted, now: current)
         if !due.isEmpty || !events.isEmpty { deliver(due, events, state) }
     }
 
