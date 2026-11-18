@@ -147,13 +147,13 @@ Prerequisites:
   and can be changed with `dayview.macos.notaryProfile` in `local.properties`):
 
 ```bash
-xcrun notarytool store-credentials dayview-notary --apple-id <id> --team-id <team>
+xcrun notarytool store-credentials dayview-notary --apple-id <id> --team-id <team>   # prompts for the app-specific password
 ```
 
 Then run:
 
 ```bash
-scripts/package-native-macos.sh 1.4.0              # sign, notarize, staple
+scripts/package-native-macos.sh 1.4.0                   # sign, notarize, staple
 scripts/package-native-macos.sh 1.4.0 --skip-notarize   # signed only, no Apple credentials needed
 ```
 

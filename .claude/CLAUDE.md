@@ -65,6 +65,7 @@ hardened runtime, `macos/DayView/DayView.entitlements`, no sandbox).
 - Needs `dayview.macos.signingIdentity` in `local.properties` (or `DAYVIEW_SIGNING_IDENTITY`).
 - Notarization needs a keychain profile, created once:
   `xcrun notarytool store-credentials dayview-notary --apple-id <id> --team-id <team>`
+  (notarytool prompts for the app-specific password)
   (override the name with `dayview.macos.notaryProfile` / `DAYVIEW_NOTARY_PROFILE`).
   The script fails in preflight, with this command, when the profile is missing.
 - `--skip-notarize` signs only. Build products go to `macos/build/native-release`.
