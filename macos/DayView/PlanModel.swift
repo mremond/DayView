@@ -112,6 +112,12 @@ final class PlanModel: ObservableObject {
         }
     }
 
+    /// Returns false when the store rejects the write.
+    @discardableResult
+    func saveIgnoredCue(areaID: AreaID, at: Date, calendar: Calendar) -> Bool {
+        attempt("save ignored cue") { try store.saveIgnoredCue(areaID: areaID, at: at, calendar: calendar) }
+    }
+
     func reviewHistory(from: LocalDay, through: LocalDay) -> [LocalDay: Bool] {
         store.reviewHistory(from: from, through: through)
     }

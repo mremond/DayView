@@ -153,3 +153,5 @@
 "Due today" = "Due today";
 "%lld days overdue" = "%lld days overdue";
 "1 day overdue" = "1 day overdue";
+"You planned %@" = "You planned %@";
+"Dismiss" = "Dismiss";

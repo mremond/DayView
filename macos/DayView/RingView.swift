@@ -9,6 +9,7 @@ struct RingView: View {
     @ObservedObject var plan: PlanModel
     @ObservedObject var todayPlan: TodayPlanModel
     @ObservedObject var focus: FocusModel
+    @ObservedObject var drift: DriftModel
     @State private var showDetourCapture = false
     @State private var showDetourList = false
     @State private var selectedFocusSession: FocusSessionSnapshot?
@@ -42,6 +43,9 @@ struct RingView: View {
                             }
                             .buttonStyle(.borderless)
                             Spacer()
+                        }
+                        if let areaID = drift.reminderAreaID {
+                            DriftBanner(areaName: plan.areaName(for: areaID), onDismiss: drift.dismissReminder)
                         }
                         ringSection
                         UpcomingDaysView(days: model.snapshot.upcomingDays)

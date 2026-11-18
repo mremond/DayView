@@ -8,6 +8,7 @@ struct DayViewApp: App {
     @StateObject private var todayPlan: TodayPlanModel
     @StateObject private var focus: FocusModel
     @StateObject private var speaker: CueSpeaker
+    @StateObject private var drift: DriftModel
 
     init() {
         let model = TodayModel()
@@ -19,10 +20,13 @@ struct DayViewApp: App {
         let focus = FocusModel(todayPlan: todayPlan, plan: plan, meetings: model.meetingSource)
         let speaker = CueSpeaker()
         // Assigned right after creation so the buffered launch-time cue is delivered at once.
+        let drift = DriftModel(focus: focus, plan: plan)
         focus.onCues = { [weak plan] due, events, _ in
             speaker.speak(due: due, events: events, areas: plan?.areas ?? [])
+            drift.cueDelivered(due, cuesEnabled: speaker.isEnabled)
         }
         _focus = StateObject(wrappedValue: focus)
+        _drift = StateObject(wrappedValue: drift)
         _speaker = StateObject(wrappedValue: speaker)
     }
 
@@ -30,7 +34,7 @@ struct DayViewApp: App {
 
     var body: some Scene {
         Window("DayView", id: "main") {
-            MainWindowRoot(model: model, windows: windows, plan: plan, todayPlan: todayPlan, focus: focus)
+            MainWindowRoot(model: model, windows: windows, plan: plan, todayPlan: todayPlan, focus: focus, drift: drift)
         }
         .commands {
             CommandMenu("Focus") {
@@ -76,12 +80,13 @@ private struct MainWindowRoot: View {
     @ObservedObject var plan: PlanModel
     @ObservedObject var todayPlan: TodayPlanModel
     @ObservedObject var focus: FocusModel
+    @ObservedObject var drift: DriftModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            RingView(model: model, plan: plan, todayPlan: todayPlan, focus: focus)
+            RingView(model: model, plan: plan, todayPlan: todayPlan, focus: focus, drift: drift)
             Button {
                 openWindow(id: "mini")
                 dismissWindow(id: "main")

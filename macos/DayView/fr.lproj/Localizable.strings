@@ -152,3 +152,5 @@
 "Due today" = "Échéance aujourd'hui";
 "%lld days overdue" = "%lld jours de retard";
 "1 day overdue" = "1 jour de retard";
+"You planned %@" = "Vous aviez prévu %@";
+"Dismiss" = "Ignorer";

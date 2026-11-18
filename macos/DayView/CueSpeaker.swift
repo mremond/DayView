@@ -20,7 +20,11 @@ final class CueSpeaker: ObservableObject {
 
     var isEnabled: Bool {
         get { defaults.bool(forKey: Self.enabledKey) }
-        set { objectWillChange.send(); defaults.set(newValue, forKey: Self.enabledKey) }
+        set {
+            objectWillChange.send()
+            defaults.set(newValue, forKey: Self.enabledKey)
+            if !newValue { synthesizer.stopSpeaking(at: .immediate) }
+        }
     }
 
     var volume: Double {
@@ -30,12 +34,21 @@ final class CueSpeaker: ObservableObject {
 
     var usesChime: Bool {
         get { defaults.bool(forKey: Self.chimeKey) }
-        set { objectWillChange.send(); defaults.set(newValue, forKey: Self.chimeKey) }
+        set {
+            objectWillChange.send()
+            defaults.set(newValue, forKey: Self.chimeKey)
+            if newValue { synthesizer.stopSpeaking(at: .immediate) }
+        }
     }
 
     /// Speaks one utterance per sentence in order, or plays a single chime for the batch.
     func speak(_ sentences: [String]) {
-        guard isEnabled, !sentences.isEmpty else { return }
+        guard isEnabled else { return }
+        play(sentences)
+    }
+
+    private func play(_ sentences: [String]) {
+        guard !sentences.isEmpty else { return }
         if usesChime {
             let sound = NSSound(named: "Glass")
             sound?.volume = Float(volume)
@@ -56,16 +69,13 @@ final class CueSpeaker: ObservableObject {
         speak(CueComposer.sentences(due: due, events: events, text: Self.text(areas: areas)))
     }
 
-    /// Plays a sample "Back to <first area> until <in one hour>" cue, bypassing the enabled switch.
+    /// Plays a sample "Back to <first area> until <in one hour>" cue, bypassing the enabled switch without changing it.
     func test(areas: [Area], now: Date = Date()) {
         guard let area = areas.first else { return }
         let block = PlannedBlock(id: BlockID(), start: now, end: now.addingTimeInterval(3600), areaID: area.id, intention: "")
         let cue = ScheduledCue(at: now, kind: .resume(until: now.addingTimeInterval(3600)), block: block)
         let sentences = CueComposer.sentences(due: [cue], events: [], text: Self.text(areas: areas))
-        let wasEnabled = isEnabled
-        if !wasEnabled { defaults.set(true, forKey: Self.enabledKey) }
-        speak(sentences)
-        if !wasEnabled { defaults.set(false, forKey: Self.enabledKey) }
+        play(sentences)
     }
 
     /// The cue language: the system language when it is French, else English.
