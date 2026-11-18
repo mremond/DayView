@@ -81,3 +81,14 @@ final class TodayModel: ObservableObject {
         session.close()
     }
 }
+
+extension TodayModel {
+    /// Today's declared detours as time intervals; unfinished or empty ones are skipped.
+    var detourIntervals: [DateInterval] {
+        snapshot.detours.compactMap { entry in
+            let start = Date(timeIntervalSince1970: Double(entry.startEpochMillis) / 1000)
+            let end = Date(timeIntervalSince1970: Double(entry.endEpochMillis) / 1000)
+            return end > start ? DateInterval(start: start, end: end) : nil
+        }
+    }
+}

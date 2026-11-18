@@ -27,6 +27,8 @@ struct DayRingCanvas: View {
     var focusArcs: [FocusArcSnapshot] = []
     var focusSessionBands: [FocusArcSnapshot] = []
     var swiftFocusBands: [SpanArc] = []
+    /// Deep-focus stretches, drawn bright over the dim Focus bands.
+    var deepArcs: [SpanArc] = []
     var planArcs: [PlanArcStyle] = []
     var lineWidth: CGFloat = DayRingCanvas.defaultLineWidth
     var inset: CGFloat = DayRingCanvas.defaultInset
@@ -133,6 +135,11 @@ struct DayRingCanvas: View {
                 var arc = Path()
                 arc.addArc(center: center, radius: radius, startAngle: .degrees(band.startAngleDegrees), endAngle: .degrees(band.startAngleDegrees + band.sweepDegrees), clockwise: false)
                 context.stroke(arc, with: .color(palette.mint.opacity(0.18)), style: StrokeStyle(lineWidth: lineWidth * 0.5, lineCap: .round))
+            }
+            for band in deepArcs {
+                var arc = Path()
+                arc.addArc(center: center, radius: radius, startAngle: .degrees(band.startAngleDegrees), endAngle: .degrees(band.startAngleDegrees + band.sweepDegrees), clockwise: false)
+                context.stroke(arc, with: .color(palette.mint.opacity(0.55)), style: StrokeStyle(lineWidth: lineWidth * 0.5, lineCap: .round))
             }
             for focus in focusArcs {
                 var arc = Path()

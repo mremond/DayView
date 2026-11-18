@@ -12,6 +12,7 @@ struct RingView: View {
     @ObservedObject var drift: DriftModel
     @State private var showDetourCapture = false
     @State private var showDetourList = false
+    @State private var focusDetail: FocusDetail?
 
     private struct HoveredArc {
         let label: String
@@ -73,6 +74,9 @@ struct RingView: View {
         )
         .sheet(isPresented: $showDetourCapture) { DetourCaptureSheet(model: model, isPresented: $showDetourCapture) }
         .sheet(isPresented: $showDetourList) { DetourListSheet(model: model, isPresented: $showDetourList) }
+        .sheet(item: $focusDetail) { detail in
+            FocusDetailSheet(detail: detail, onClose: { focusDetail = nil })
+        }
     }
 
     private var ringSection: some View {
@@ -87,8 +91,14 @@ struct RingView: View {
                     busyArcs: model.snapshot.busyArcs,
                     detourBodies: model.snapshot.detourBodies,
                     swiftFocusBands: focusSpanArcs(now: Date()),
+                    deepArcs: deepSpanArcs(now: Date()),
                     planArcs: planArcStyles(now: Date())
                 )
+                .gesture(SpatialTapGesture(coordinateSpace: .local).onEnded { tap in
+                    if let span = focusSpanHit(at: tap.location, in: proxy.size) {
+                        focusDetail = detail(for: span, now: Date())
+                    }
+                })
                 .onContinuousHover(coordinateSpace: .local) { phase in
                     switch phase {
                     case .active(let point):
@@ -191,8 +201,8 @@ struct RingView: View {
         }
 
         // Swift Focus sessions share the main lane.
-        if abs(distance - radius) <= lineWidth / 2 + 6, let label = focusHoverLabel(at: angle, now: Date()) {
-            return HoveredArc(label: label, position: point)
+        if abs(distance - radius) <= lineWidth / 2 + 6, let span = focusSpan(atAngle: angle, now: Date()) {
+            return HoveredArc(label: focusHoverLabel(for: span), position: point)
         }
 
         // Busy lane (inner).
@@ -283,12 +293,80 @@ struct RingView: View {
         return PlanRing.spanArcs(focusSpans(now: now), windowStart: window.start, windowEnd: window.end)
     }
 
-    private func focusHoverLabel(at angle: Double, now: Date) -> String? {
+    private func focusSpan(atAngle angle: Double, now: Date) -> FocusSpan? {
         let spans = focusSpans(now: now)
         let window = planWindow
         let arcs = PlanRing.spanArcs(spans, windowStart: window.start, windowEnd: window.end)
-        guard let index = PlanRing.spanIndex(at: angle, in: arcs),
-              let span = spans.first(where: { $0.id == arcs[index].id }) else { return nil }
-        return "\(plan.areaName(for: span.areaID)) · \(PlanTimeFormat.range(span.interval.start, span.interval.end))"
+        guard let index = PlanRing.spanIndex(at: angle, in: arcs) else { return nil }
+        return spans.first { $0.id == arcs[index].id }
+    }
+
+    private func focusHoverLabel(for span: FocusSpan) -> String {
+        "\(plan.areaName(for: span.areaID)) \u{00B7} \(PlanTimeFormat.range(span.interval.start, span.interval.end))"
+    }
+
+    /// The Focus session whose band sits under `point`, same lane geometry as the hover.
+    private func focusSpanHit(at point: CGPoint, in size: CGSize) -> FocusSpan? {
+        let lineWidth = DayRingCanvas.defaultLineWidth
+        let radius = max((min(size.width, size.height) - DayRingCanvas.defaultInset * 2) / 2, 1)
+        let dx = point.x - size.width / 2
+        let dy = point.y - size.height / 2
+        let distance = (dx * dx + dy * dy).squareRoot()
+        guard abs(distance - radius) <= lineWidth / 2 + 6 else { return nil }
+        return focusSpan(atAngle: Double(atan2(dy, dx)) * 180.0 / .pi, now: Date())
+    }
+
+    /// Bright deep-focus arcs: today's stored stretches plus the running Focus's live ones.
+    private func deepSpanArcs(now: Date) -> [SpanArc] {
+        var spans: [FocusSpan] = plan.focusMetrics(on: todayPlan.state.day).values.flatMap { metrics in
+            metrics.deepStretches.map { (metrics.sessionID, metrics.areaID, $0) }
+        }
+        if let s = focus.current {
+            spans += drift.liveDeepStretches(at: now).map { (s.id, s.areaID, $0) }
+        }
+        let window = planWindow
+        return PlanRing.spanArcs(spans, windowStart: window.start, windowEnd: window.end)
+    }
+
+    // MARK: Focus detail
+
+    private func detail(for span: FocusSpan, now: Date) -> FocusDetail? {
+        let day = todayPlan.state.day
+        let metrics = plan.focusMetrics(on: day)[span.id]
+        let colorIndex = plan.areas.first { $0.id == span.areaID }?.colorIndex ?? 0
+        if let closed = plan.closedFocus(on: day).first(where: { $0.id == span.id }) {
+            return FocusDetail(
+                id: closed.id, areaName: plan.areaName(for: closed.areaID), colorIndex: closed.colorIndex,
+                intention: closed.intention, start: closed.start, end: closed.end,
+                engaged: metrics?.engaged ?? closed.focused, deep: metrics?.deep, outcome: Self.outcomeLabel(closed.outcome)
+            )
+        }
+        if let record = focus.pendingClosures.first(where: { $0.session.id == span.id }) {
+            let s = record.session
+            return FocusDetail(
+                id: s.id, areaName: plan.areaName(for: s.areaID), colorIndex: colorIndex, intention: s.intention,
+                start: s.start, end: record.actualEnd, engaged: metrics?.engaged ?? record.focused,
+                deep: metrics?.deep, outcome: L("Not closed yet")
+            )
+        }
+        guard let s = focus.current, s.id == span.id else { return nil }
+        let end = max(now, s.start)
+        let engaged = EngagedTime.compute(
+            focused: focus.focusedSoFar(at: now), window: DateInterval(start: s.start, end: end),
+            detours: model.detourIntervals
+        )
+        let deep = drift.currentDeepMeasured ? drift.liveDeepStretches(at: now).reduce(0) { $0 + $1.duration } : nil
+        return FocusDetail(
+            id: s.id, areaName: plan.areaName(for: s.areaID), colorIndex: colorIndex, intention: s.intention,
+            start: s.start, end: end, engaged: engaged, deep: deep, outcome: L("In progress")
+        )
+    }
+
+    private static func outcomeLabel(_ outcome: ClosureOutcome) -> String {
+        switch outcome {
+        case .completed: L("Completed")
+        case .progressed: L("Progressed")
+        case .toResume: L("Resume later")
+        }
     }
 }

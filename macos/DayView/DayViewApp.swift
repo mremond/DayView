@@ -30,6 +30,9 @@ struct DayViewApp: App {
             OvertimeNotification.post(areaName: plan?.areaName(for: session.areaID) ?? "")
             speaker.chime()
         }
+        focus.onFocusEnded = { [weak drift, weak model] record in
+            drift?.recordMetrics(for: record, detours: model?.detourIntervals ?? [])
+        }
         _focus = StateObject(wrappedValue: focus)
         _drift = StateObject(wrappedValue: drift)
         _speaker = StateObject(wrappedValue: speaker)
@@ -59,7 +62,7 @@ struct DayViewApp: App {
             MenuBarContent(model: model, windows: windows, todayPlan: todayPlan, focus: focus)
         }
         Window(L("This week"), id: "week") {
-            WeekView(plan: plan, focus: focus)
+            WeekView(plan: plan, focus: focus, model: model, drift: drift)
         }
         .defaultSize(width: 420, height: 520)
         Window("DayView Mini", id: "mini") {

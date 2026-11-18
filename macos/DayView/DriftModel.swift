@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import DayPlanKit
+import DayPlanStore
 import Foundation
 @preconcurrency import UserNotifications
 
@@ -16,6 +17,10 @@ final class DriftModel: ObservableObject {
     private let now: () -> Date
     private let calendar: Calendar
     private var monitor = DriftMonitor()
+    /// On-goal presence of the running Focus, for deep-focus stretches; reset when the session changes.
+    private var presence = PresenceAccumulator()
+    private var presenceSessionID: UUID?
+    private var presenceMeasured = false
     private var timer: Timer?
     private var focusSubscription: AnyCancellable?
     private var requestedAuthorization = false
@@ -69,6 +74,44 @@ final class DriftModel: ObservableObject {
         }
     }
 
+    // MARK: Deep focus
+
+    /// Whether deep focus is measured for the running Focus (its area has on-goal apps).
+    var currentDeepMeasured: Bool {
+        presenceMeasured && presenceSessionID == focus.current?.id
+    }
+
+    /// The deep-focus stretches of the running Focus so far, the open one included; empty when not measured.
+    func liveDeepStretches(at time: Date) -> [DateInterval] {
+        currentDeepMeasured ? presence.live(at: time) : []
+    }
+
+    /// Stores the engaged and deep-focus time of a Focus that just ended. `detours` are today's.
+    func recordMetrics(for record: FocusRecord, detours: [DateInterval]) {
+        let session = record.session
+        let end = max(record.actualEnd, session.start)
+        let engaged = EngagedTime.compute(
+            focused: record.focused, window: DateInterval(start: session.start, end: end), detours: detours
+        )
+        var deep: TimeInterval?
+        var stretches: [DateInterval] = []
+        if presenceSessionID == session.id, presenceMeasured {
+            stretches = presence.finish(at: end)
+            deep = stretches.reduce(0) { $0 + $1.duration }
+        }
+        plan.saveFocusMetrics(FocusMetrics(
+            sessionID: session.id, areaID: session.areaID, day: LocalDay(containing: session.start, calendar: calendar),
+            engaged: engaged, deep: deep, deepStretches: stretches
+        ))
+    }
+
+    private func resetPresenceIfNeeded(for session: FocusSession) {
+        guard presenceSessionID != session.id else { return }
+        presence = PresenceAccumulator()
+        presenceSessionID = session.id
+        presenceMeasured = focus.activeArea?.onGoalApps.isEmpty == false
+    }
+
     // MARK: Sampling
 
     private func sampleFrontmostApp() {
@@ -80,7 +123,9 @@ final class DriftModel: ObservableObject {
         }
         idleReset = false
         let time = now()
+        resetPresenceIfNeeded(for: session)
         let classification = classify(at: time)
+        if presenceMeasured { presence.sample(onGoal: classification == .onGoal, at: time) }
         if classification == .onGoal { clearReminder() }
         for event in monitor.sample(classification, areaID: session.areaID, at: time) {
             handle(event)

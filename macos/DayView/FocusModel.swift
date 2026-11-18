@@ -23,6 +23,8 @@ final class FocusModel: ObservableObject {
     }
     /// Called once when a manual Focus has run twice its planned duration (the closing suggestion).
     var onOvertimeReminder: ((FocusSession) -> Void)?
+    /// Called for each record a Focus end produces (ended or taken over), after the record is queued.
+    var onFocusEnded: ((FocusRecord) -> Void)?
     private var bufferedCues: (due: [ScheduledCue], events: [FocusEvent], state: TodayPlanState)?
 
     static let engineKey = "focus.engineState"
@@ -144,6 +146,7 @@ final class FocusModel: ObservableObject {
             isFirstDelivery = false
         }
         due = TakeoverCues.supplement(due: due, events: events, fitted: state.fitted, now: current)
+        notifyEnded(events)
         if !due.isEmpty || !events.isEmpty { deliver(due, events, state) }
     }
 
@@ -220,7 +223,18 @@ final class FocusModel: ObservableObject {
         )
         publish(offer: offer)
         persist()
+        notifyEnded(events)
         if !events.isEmpty { deliver([], events, state) }
+    }
+
+    private func notifyEnded(_ events: [FocusEvent]) {
+        guard let onFocusEnded else { return }
+        for event in events {
+            switch event {
+            case .ended(let record), .tookOver(let record, _): onFocusEnded(record)
+            default: break
+            }
+        }
     }
 
     private func publish(offer: KeepGoingOffer?) {

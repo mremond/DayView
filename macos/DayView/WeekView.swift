@@ -7,6 +7,8 @@ import DayPlanStore
 struct WeekView: View {
     @ObservedObject var plan: PlanModel
     @ObservedObject var focus: FocusModel
+    let model: TodayModel
+    let drift: DriftModel
     @Environment(\.colorScheme) private var scheme
     @State private var summary: WeekSummary?
 
@@ -55,10 +57,16 @@ struct WeekView: View {
             Circle().fill(palette.areaColor(area?.colorIndex ?? 0)).frame(width: 10, height: 10)
             Text(plan.areaName(for: line.areaID)).fontWeight(.semibold)
             Spacer()
-            Text(LF("Planned %@ · Focus %@", Self.hoursMinutes(line.planned), Self.hoursMinutes(line.focused)))
+            Text(lineText(line))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
+    }
+
+    private func lineText(_ line: AreaWeekLine) -> String {
+        let planned = Self.hoursMinutes(line.planned), focused = Self.hoursMinutes(line.focused)
+        guard let deep = line.deep else { return LF("Planned %@ · Focus %@", planned, focused) }
+        return LF("Planned %@ · Focus %@ · Deep %@", planned, focused, Self.hoursMinutes(deep))
     }
 
     private func dayRow(_ signals: DaySignals) -> some View {
@@ -109,17 +117,28 @@ struct WeekView: View {
         let back = today.weekdayISO(in: calendar) - 1
         guard let mondayDate = calendar.date(byAdding: .day, value: -back, to: today.start(in: calendar)) else { return }
         let monday = LocalDay(containing: mondayDate, calendar: calendar)
+        let metrics = plan.focusMetrics(from: monday, through: today)
+        func time(_ id: UUID, _ day: LocalDay, _ areaID: AreaID, focused: TimeInterval) -> FocusTime {
+            FocusTime(day: day, areaID: areaID, seconds: metrics[id]?.engaged ?? focused, deep: metrics[id]?.deep)
+        }
         var times = plan.closedFocus(from: monday, through: today).map {
-            FocusTime(day: $0.day, areaID: $0.areaID, seconds: $0.focused)
+            time($0.id, $0.day, $0.areaID, focused: $0.focused)
         }
         times += focus.pendingClosures.map {
-            FocusTime(day: LocalDay(containing: $0.session.start, calendar: calendar),
-                      areaID: $0.session.areaID, seconds: $0.focused)
+            time($0.session.id, LocalDay(containing: $0.session.start, calendar: calendar),
+                 $0.session.areaID, focused: $0.focused)
         }
         if let session = focus.current {
+            let soFar = focus.focusedSoFar(at: now)
+            let engaged = EngagedTime.compute(
+                focused: soFar, window: DateInterval(start: session.start, end: max(now, session.start)),
+                detours: model.detourIntervals
+            )
+            let deep = drift.currentDeepMeasured
+                ? drift.liveDeepStretches(at: now).reduce(0) { $0 + $1.duration } : nil
             times.append(FocusTime(
                 day: LocalDay(containing: session.start, calendar: calendar),
-                areaID: session.areaID, seconds: focus.focusedSoFar(at: now)
+                areaID: session.areaID, seconds: engaged, deep: deep
             ))
         }
         summary = WeekSummary.compute(

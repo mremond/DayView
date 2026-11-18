@@ -16,6 +16,8 @@ final class PlanModel: ObservableObject {
     /// One day's closed Focus records, so the ring does not fetch on every render or hover.
     /// Keyed by day (a new day misses) and dropped when a closure is saved.
     private var closedFocusCache: (day: LocalDay, records: [ClosedFocus])?
+    /// One day's Focus metrics, dropped when metrics are saved or another day is asked for.
+    private var focusMetricsCache: (day: LocalDay, metrics: [UUID: FocusMetrics])?
 
     init(store: PlanStore, isPersistent: Bool = true) {
         self.store = store
@@ -114,6 +116,25 @@ final class PlanModel: ObservableObject {
         return attempt("save closed focus") {
             try store.saveClosedFocus(record, outcome: outcome, intention: intention, area: area, calendar: calendar)
         }
+    }
+
+    /// Returns false when the store rejects the write.
+    @discardableResult
+    func saveFocusMetrics(_ metrics: FocusMetrics) -> Bool {
+        focusMetricsCache = nil
+        return attempt("save focus metrics") { try store.saveFocusMetrics(metrics) }
+    }
+
+    func focusMetrics(from: LocalDay, through: LocalDay) -> [UUID: FocusMetrics] {
+        store.focusMetrics(from: from, through: through)
+    }
+
+    /// `day`'s Focus metrics by session ID, cached until the next save or another day.
+    func focusMetrics(on day: LocalDay) -> [UUID: FocusMetrics] {
+        if let cached = focusMetricsCache, cached.day == day { return cached.metrics }
+        let metrics = store.focusMetrics(from: day, through: day)
+        focusMetricsCache = (day, metrics)
+        return metrics
     }
 
     /// Returns false when the store rejects the write.

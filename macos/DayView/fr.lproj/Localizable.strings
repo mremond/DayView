@@ -159,3 +159,8 @@
 "In overtime" = "En dépassement";
 "Close this focus" = "Clôturer ce focus";
 "Still on %@? Close this focus when you're ready." = "Toujours sur %@ ? Clôturez ce focus quand vous êtes prêt.";
+"Engaged %@" = "Engagé %@";
+"Deep focus %@" = "Focus profond %@";
+"Not closed yet" = "Pas encore clôturé";
+"In progress" = "En cours";
+"Planned %@ · Focus %@ · Deep %@" = "Prévu %@ · Focus %@ · Profond %@";

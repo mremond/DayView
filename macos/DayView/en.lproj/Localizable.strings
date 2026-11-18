@@ -160,3 +160,8 @@
 "In overtime" = "In overtime";
 "Close this focus" = "Close this focus";
 "Still on %@? Close this focus when you're ready." = "Still on %@? Close this focus when you're ready.";
+"Engaged %@" = "Engaged %@";
+"Deep focus %@" = "Deep focus %@";
+"Not closed yet" = "Not closed yet";
+"In progress" = "In progress";
+"Planned %@ · Focus %@ · Deep %@" = "Planned %@ · Focus %@ · Deep %@";
