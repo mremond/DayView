@@ -123,7 +123,9 @@ final class PlanModel: ObservableObject {
     }
 
     private func reload() {
-        areas = store.areas()
-        template = store.template()
+        let newAreas = store.areas()
+        let newTemplate = store.template()
+        if newAreas != areas { areas = newAreas }
+        if newTemplate != template { template = newTemplate }
     }
 }

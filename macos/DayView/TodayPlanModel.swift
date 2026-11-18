@@ -17,6 +17,8 @@ final class TodayPlanModel: ObservableObject {
     private let defaults: UserDefaults
     private let now: () -> Date
     private var timer: Timer?
+    private var lastFailedAutoAccept: Date?
+    private static let autoAcceptRetryInterval: TimeInterval = 60
     private var cancellables: Set<AnyCancellable> = []
 
     init(
@@ -51,11 +53,21 @@ final class TodayPlanModel: ObservableObject {
     func tick() {
         let current = now()
         var next = computeState(at: current)
-        if TodayPlanner.autoAcceptDue(next, now: current),
-           plan.saveAccepted(next.plan, reviewed: false, at: current) {
-            next = computeState(at: current)
+        if TodayPlanner.autoAcceptDue(next, now: current), autoAcceptAllowed(at: current) {
+            if plan.saveAccepted(next.plan, reviewed: false, at: current) {
+                lastFailedAutoAccept = nil
+                next = computeState(at: current)
+            } else {
+                lastFailedAutoAccept = current
+            }
         }
         if next != state { state = next }
+    }
+
+    /// After a failed save, wait before retrying so a broken store is not hit every tick.
+    private func autoAcceptAllowed(at date: Date) -> Bool {
+        guard let failed = lastFailedAutoAccept else { return true }
+        return date.timeIntervalSince(failed) >= Self.autoAcceptRetryInterval
     }
 
     func mainWindowShown() {
