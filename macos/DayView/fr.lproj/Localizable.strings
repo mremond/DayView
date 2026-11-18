@@ -134,3 +134,7 @@
 "Midnight" = "Minuit";
 "24:00" = "24:00";
 "Area" = "Domaine";
+"Which area does your current goal belong to?" = "À quel domaine appartient votre objectif actuel ?";
+"Which area do your on-goal apps belong to?" = "À quel domaine appartiennent vos apps liées à l'objectif ?";
+"Skip" = "Passer";
+"Apps:" = "Apps :";

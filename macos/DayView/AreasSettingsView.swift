@@ -8,6 +8,7 @@ struct AreasSettingsView: View {
     @Environment(\.colorScheme) private var scheme
     @State private var selection: AreaID?
     @State private var installed: [OnGoalApp] = []
+    @State private var capPrompt: CapPrompt?
 
     private var palette: DayViewPalette { DayViewPalette.current(for: scheme) }
 
@@ -33,7 +34,9 @@ struct AreasSettingsView: View {
             .frame(width: 190)
             Divider()
             Group {
-                if let area = plan.areas.first(where: { $0.id == selection }) {
+                // Hidden while the Cap question is open so the editor is created afterwards
+                // from the migrated area (a stale draft would write the old values back).
+                if capPrompt == nil, let area = plan.areas.first(where: { $0.id == selection }) {
                     AreaEditor(plan: plan, area: area, installed: installed, palette: palette)
                         .id(area.id)
                 } else {
@@ -44,6 +47,18 @@ struct AreasSettingsView: View {
         }
         .onAppear {
             if selection == nil { selection = plan.areas.first?.id }
+            askCapQuestionIfNeeded()
+        }
+        .sheet(item: $capPrompt) { prompt in
+            CapMigrationSheet(
+                prompt: prompt, areas: plan.areas, palette: palette,
+                onChoose: { area in
+                    plan.save(prompt.applying(to: area))
+                    selection = area.id
+                    finishCapQuestion()
+                },
+                onSkip: finishCapQuestion
+            )
         }
         .onChange(of: plan.areas) { _, areas in
             if !areas.contains(where: { $0.id == selection }) { selection = areas.first?.id }
@@ -51,6 +66,24 @@ struct AreasSettingsView: View {
         .task {
             installed = await Task.detached { InstalledApps.scan() }.value
         }
+    }
+
+    private func askCapQuestionIfNeeded() {
+        let snapshot = today.snapshot
+        let deadline = snapshot.goalHasDeadline
+            ? Date(timeIntervalSince1970: Double(snapshot.goalDeadlineEpochMillis) / 1000)
+            : nil
+        let prompt = CapPrompt(
+            goalTitle: snapshot.goalTitle,
+            goalDeadline: deadline,
+            onGoalApps: today.onGoalApps().map { OnGoalApp(bundleID: $0.bundleId, displayName: $0.displayName) }
+        )
+        if prompt.needsQuestion(alreadyAsked: plan.capQuestionAsked) { capPrompt = prompt }
+    }
+
+    private func finishCapQuestion() {
+        plan.capQuestionAsked = true
+        capPrompt = nil
     }
 }
 
