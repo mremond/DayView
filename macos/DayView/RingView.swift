@@ -418,13 +418,12 @@ struct RingView: View {
 
     // MARK: Plan lane
 
-    /// Today's day window: local midnight plus the configured start/end minutes.
-    private var planWindow: (start: Date, end: Date) {
-        let midnight = Calendar.autoupdatingCurrent.startOfDay(for: Date())
+    /// Today's day window in wall-clock time, so it stays aligned with the busy arcs on DST days.
+    private var planWindow: DateInterval {
         let snap = model.snapshot
-        return (
-            midnight.addingTimeInterval(TimeInterval(snap.startMinutes) * 60),
-            midnight.addingTimeInterval(TimeInterval(snap.endMinutes) * 60)
+        return PlanRing.window(
+            day: todayPlan.state.day, startMinute: Int(snap.startMinutes), endMinute: Int(snap.endMinutes),
+            calendar: .autoupdatingCurrent
         )
     }
 

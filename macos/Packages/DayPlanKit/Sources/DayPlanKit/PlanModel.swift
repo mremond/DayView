@@ -117,7 +117,8 @@ public struct DayPlan: Sendable, Hashable, Codable {
         return DayPlan(day: day, blocks: moved.filter { $0.end <= limit })
     }
 
-    private static func instant(minute: Int, of day: LocalDay, calendar: Calendar) -> Date {
+    /// Wall-clock `minute` of `day` as an instant; a time inside a DST gap moves to the next valid time.
+    static func instant(minute: Int, of day: LocalDay, calendar: Calendar) -> Date {
         if minute >= 1440 { return day.nextMidnight(in: calendar) }
         return calendar.date(
             bySettingHour: minute / 60, minute: minute % 60, second: 0,

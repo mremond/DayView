@@ -48,3 +48,30 @@ struct PlanRingTests {
         #expect(PlanRing.arcIndex(at: -100, in: [a, b]) == 1)
     }
 }
+
+struct PlanRingWindowTests {
+    private func wall(_ day: LocalDay, _ hour: Int, _ minute: Int = 0) -> Date {
+        paris.date(from: DateComponents(
+            year: day.year, month: day.month, day: day.day, hour: hour, minute: minute
+        ))!
+    }
+
+    @Test(arguments: [LocalDay(year: 2026, month: 3, day: 29), LocalDay(year: 2026, month: 10, day: 25)])
+    func windowKeepsWallClockOnDSTDays(_ day: LocalDay) {
+        let window = PlanRing.window(day: day, startMinute: 8 * 60, endMinute: 20 * 60, calendar: paris)
+        #expect(window.start == wall(day, 8))
+        #expect(window.end == wall(day, 20))
+    }
+
+    @Test func windowClampsLikeKotlin() {
+        let day = LocalDay.nov18
+        let late = PlanRing.window(day: day, startMinute: 23 * 60 + 50, endMinute: 23 * 60 + 55, calendar: paris)
+        #expect(late.start == wall(day, 23, 29))
+        #expect(late.end == wall(day, 23, 59))
+        let early = PlanRing.window(day: day, startMinute: -30, endMinute: 10, calendar: paris)
+        #expect(early.start == wall(day, 0))
+        #expect(early.end == wall(day, 0, 30))
+        let long = PlanRing.window(day: day, startMinute: 8 * 60, endMinute: 2000, calendar: paris)
+        #expect(long.end == wall(day, 23, 59))
+    }
+}

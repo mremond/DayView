@@ -30,4 +30,23 @@ public struct LocalDay: Sendable, Hashable, Codable {
         let weekday = calendar.component(.weekday, from: start(in: calendar))
         return (weekday + 5) % 7 + 1
     }
+
+    /// "YYYY-MM-DD", zero padded.
+    public var isoKey: String {
+        "\(Self.padded(year, 4))-\(Self.padded(month, 2))-\(Self.padded(day, 2))"
+    }
+
+    /// Parses "YYYY-MM-DD"; nil for anything else.
+    public init?(isoKey: String) {
+        let parts = isoKey.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
+              let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]),
+              (1...12).contains(month), (1...31).contains(day) else { return nil }
+        self.init(year: year, month: month, day: day)
+    }
+
+    private static func padded(_ value: Int, _ width: Int) -> String {
+        let digits = String(value)
+        return String(repeating: "0", count: max(0, width - digits.count)) + digits
+    }
 }

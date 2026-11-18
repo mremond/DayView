@@ -129,7 +129,7 @@ public final class PlanStore {
 
     /// The accepted plan for `day`; nil when absent or undecodable. The latest `acceptedAt` wins on duplicates.
     public func acceptedPlan(for day: LocalDay) -> AcceptedPlan? {
-        guard let record = acceptedRecords(dayKey: Self.dayKey(day)).max(by: { $0.acceptedAt < $1.acceptedAt }),
+        guard let record = acceptedRecords(dayKey: day.isoKey).max(by: { $0.acceptedAt < $1.acceptedAt }),
               let plan = try? JSONDecoder().decode(DayPlan.self, from: record.planData)
         else { return nil }
         return AcceptedPlan(plan: plan, reviewed: record.reviewed)
@@ -137,7 +137,8 @@ public final class PlanStore {
 
     /// Stores `plan` as the accepted plan for its day, replacing any earlier one.
     public func saveAccepted(_ plan: DayPlan, reviewed: Bool, at date: Date) throws {
-        let key = Self.dayKey(plan.day)
+        let key = plan.day.isoKey
+        let data = try JSONEncoder().encode(plan)
         let existing = acceptedRecords(dayKey: key)
         let record = existing.first ?? AcceptedPlanRecord()
         if existing.isEmpty { context.insert(record) }
@@ -145,38 +146,29 @@ public final class PlanStore {
         record.dayKey = key
         record.reviewed = reviewed
         record.acceptedAt = date
-        record.planData = try JSONEncoder().encode(plan)
+        record.planData = data
         try commit()
     }
 
     /// Whether the plan was reviewed, for each day in `from...through` that has an accepted plan.
     public func reviewHistory(from: LocalDay, through: LocalDay) -> [LocalDay: Bool] {
-        let lower = Self.dayKey(from), upper = Self.dayKey(through)
+        let lower = from.isoKey, upper = through.isoKey
         var result: [LocalDay: Bool] = [:]
         for record in allAcceptedRecords() where record.dayKey >= lower && record.dayKey <= upper {
-            if let day = Self.localDay(record.dayKey) { result[day] = record.reviewed }
+            if let day = LocalDay(isoKey: record.dayKey) { result[day] = record.reviewed }
         }
         return result
     }
 
     // MARK: Private
 
-    private static func dayKey(_ day: LocalDay) -> String {
-        String(format: "%04d-%02d-%02d", day.year, day.month, day.day)
-    }
-
-    private static func localDay(_ key: String) -> LocalDay? {
-        let parts = key.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        return LocalDay(year: parts[0], month: parts[1], day: parts[2])
-    }
-
     private func allAcceptedRecords() -> [AcceptedPlanRecord] {
         (try? context.fetch(FetchDescriptor<AcceptedPlanRecord>())) ?? []
     }
 
     private func acceptedRecords(dayKey: String) -> [AcceptedPlanRecord] {
-        allAcceptedRecords().filter { $0.dayKey == dayKey }
+        let descriptor = FetchDescriptor<AcceptedPlanRecord>(predicate: #Predicate { $0.dayKey == dayKey })
+        return (try? context.fetch(descriptor)) ?? []
     }
 
     /// Saves the context; on failure discards pending changes so they can't leak into a later save.

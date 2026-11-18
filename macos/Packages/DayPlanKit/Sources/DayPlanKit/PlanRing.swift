@@ -15,6 +15,17 @@ public struct PlanArc: Sendable, Hashable {
 }
 
 public enum PlanRing {
+    /// The ring's day window from wall-clock minutes, matching the Kotlin `dayWindowFor` clamps:
+    /// start 0...23:29, end start+30...23:59. Wall-clock based, so DST days keep their local times.
+    public static func window(day: LocalDay, startMinute: Int, endMinute: Int, calendar: Calendar) -> DateInterval {
+        let start = min(max(startMinute, 0), 23 * 60 + 29)
+        let end = min(max(endMinute, start + 30), 23 * 60 + 59)
+        return DateInterval(
+            start: DayPlan.instant(minute: start, of: day, calendar: calendar),
+            end: DayPlan.instant(minute: end, of: day, calendar: calendar)
+        )
+    }
+
     /// One arc per fitted part, clipped to the window. Angle is -90 at the window start, clockwise.
     public static func arcs(_ fitted: [FittedBlock], windowStart: Date, windowEnd: Date) -> [PlanArc] {
         let span = windowEnd.timeIntervalSince(windowStart)
