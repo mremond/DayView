@@ -41,6 +41,8 @@ final class FocusModel: ObservableObject {
     /// loaded engine had already started (the new `CueDelivery` would otherwise re-announce them).
     private var isFirstDelivery = true
     private var cachedSchedule: (fitted: [FittedBlock], meetings: [DateInterval], cues: [ScheduledCue])?
+    /// Held while a Focus runs, so App Nap does not coalesce the 1 s timers driving cues and drift.
+    private var focusActivity: NSObjectProtocol?
 
     init(
         todayPlan: TodayPlanModel, plan: PlanModel, meetings: MeetingSource,
@@ -82,6 +84,18 @@ final class FocusModel: ObservableObject {
 
     var activeArea: Area? {
         current.flatMap { session in plan.areas.first { $0.id == session.areaID } }
+    }
+
+    /// Whether the running planned Focus is paused because a meeting splits its block.
+    func isPaused(at now: Date) -> Bool {
+        guard case .planned(let blockID)? = current?.origin,
+              let block = todayPlan.state.fitted.first(where: { $0.block.id == blockID }) else { return false }
+        return block.isPaused(at: now)
+    }
+
+    /// Time focused so far in the running Focus, meeting pauses excluded; 0 when idle.
+    func focusedSoFar(at now: Date) -> TimeInterval {
+        engine.focusedSoFar(at: now)
     }
 
     /// The session's area name, "Deleted area" when the area no longer exists.
@@ -194,10 +208,24 @@ final class FocusModel: ObservableObject {
     }
 
     private func publish(offer: KeepGoingOffer?) {
-        if current != engine.current { current = engine.current }
+        if current != engine.current {
+            current = engine.current
+            updateFocusActivity()
+        }
         if pendingClosures != engine.pendingClosures { pendingClosures = engine.pendingClosures }
         if breakStartedAt != engine.breakStartedAt { breakStartedAt = engine.breakStartedAt }
         if keepGoing != offer { keepGoing = offer }
+    }
+
+    private func updateFocusActivity() {
+        if current != nil, focusActivity == nil {
+            focusActivity = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiatedAllowingIdleSystemSleep], reason: "Focus running"
+            )
+        } else if current == nil, let activity = focusActivity {
+            ProcessInfo.processInfo.endActivity(activity)
+            focusActivity = nil
+        }
     }
 
     private func deliver(_ due: [ScheduledCue], _ events: [FocusEvent], _ state: TodayPlanState) {

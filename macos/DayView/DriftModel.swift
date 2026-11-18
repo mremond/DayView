@@ -19,6 +19,16 @@ final class DriftModel: ObservableObject {
     private var timer: Timer?
     private var focusSubscription: AnyCancellable?
     private var requestedAuthorization = false
+    /// True once the monitor was reset after the Focus ended; sampling then waits for the next Focus.
+    private var idleReset = false
+    /// A reminder (banner or notification) is out and should clear once the user is back on-goal.
+    private var reminderOutstanding = false
+    private var screenLocked = false
+    private var screensAsleep = false
+    private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+
+    /// Each reminder replaces the previous one instead of stacking in Notification Center.
+    static let notificationID = "dayview.drift"
 
     init(
         focus: FocusModel, plan: PlanModel,
@@ -36,9 +46,13 @@ final class DriftModel: ObservableObject {
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
+        observeAwayState()
     }
 
-    deinit { timer?.invalidate() }
+    deinit {
+        timer?.invalidate()
+        for (center, token) in observers { center.removeObserver(token) }
+    }
 
     func dismissReminder() {
         reminderAreaID = nil
@@ -58,10 +72,45 @@ final class DriftModel: ObservableObject {
     // MARK: Sampling
 
     private func sampleFrontmostApp() {
-        let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        let classification = focus.activeArea.map { AppClassifier.classify(bundleID: bundleID, area: $0) } ?? .neutral
-        for event in monitor.sample(classification, areaID: focus.current?.areaID, at: now()) {
+        guard let session = focus.current else {
+            // One nil sample resets the monitor; no frontmost-app queries until a Focus runs again.
+            if !idleReset { _ = monitor.sample(.neutral, areaID: nil, at: now()) }
+            idleReset = true
+            return
+        }
+        idleReset = false
+        let time = now()
+        let classification = classify(at: time)
+        if classification == .onGoal { clearReminder() }
+        for event in monitor.sample(classification, areaID: session.areaID, at: time) {
             handle(event)
+        }
+    }
+
+    /// Neutral while the planned block is paused for a meeting or the user is away (screen locked
+    /// or asleep); otherwise the frontmost app against the active area.
+    private func classify(at time: Date) -> AppClassification {
+        guard !screenLocked, !screensAsleep, !focus.isPaused(at: time), let area = focus.activeArea else { return .neutral }
+        return AppClassifier.classify(bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, area: area)
+    }
+
+    private func observeAwayState() {
+        let distributed = DistributedNotificationCenter.default()
+        let workspace = NSWorkspace.shared.notificationCenter
+        let watch: [(NotificationCenter, Notification.Name, @MainActor (DriftModel) -> Void)] = [
+            (distributed, Notification.Name("com.apple.screenIsLocked"), { $0.screenLocked = true }),
+            (distributed, Notification.Name("com.apple.screenIsUnlocked"), { $0.screenLocked = false }),
+            (workspace, NSWorkspace.screensDidSleepNotification, { $0.screensAsleep = true }),
+            (workspace, NSWorkspace.screensDidWakeNotification, { $0.screensAsleep = false }),
+        ]
+        for (center, name, apply) in watch {
+            let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    apply(self)
+                }
+            }
+            observers.append((center, token))
         }
     }
 
@@ -76,6 +125,7 @@ final class DriftModel: ObservableObject {
 
     private func remind(areaID: AreaID) {
         reminderAreaID = areaID
+        reminderOutstanding = true
         postNotification(areaName: plan.areaName(for: areaID), intention: focus.current?.intention ?? "")
         NSApp.requestUserAttention(.informationalRequest)
     }
@@ -83,10 +133,18 @@ final class DriftModel: ObservableObject {
     private func focusChanged(_ session: FocusSession?) {
         if let session {
             requestAuthorizationOnce()
-            if let id = reminderAreaID, id != session.areaID { reminderAreaID = nil }
+            if let id = reminderAreaID, id != session.areaID { clearReminder() }
         } else {
-            reminderAreaID = nil
+            clearReminder()
         }
+    }
+
+    /// Back on-goal: the banner and the delivered notification are stale.
+    private func clearReminder() {
+        guard reminderOutstanding else { return }
+        reminderOutstanding = false
+        reminderAreaID = nil
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [Self.notificationID])
     }
 
     // MARK: Notifications
@@ -100,13 +158,14 @@ final class DriftModel: ObservableObject {
     private func postNotification(areaName: String, intention: String) {
         let center = UNUserNotificationCenter.current()
         let title = LF("You planned %@", areaName)
+        let identifier = Self.notificationID
         let body = intention.trimmingCharacters(in: .whitespacesAndNewlines)
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
             center.add(request) { _ in }
         }
     }

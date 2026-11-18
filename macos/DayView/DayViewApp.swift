@@ -19,8 +19,8 @@ struct DayViewApp: App {
         _todayPlan = StateObject(wrappedValue: todayPlan)
         let focus = FocusModel(todayPlan: todayPlan, plan: plan, meetings: model.meetingSource)
         let speaker = CueSpeaker()
-        // Assigned right after creation so the buffered launch-time cue is delivered at once.
         let drift = DriftModel(focus: focus, plan: plan)
+        // Assigned right after creation so the buffered launch-time cue is delivered at once.
         focus.onCues = { [weak plan] due, events, _ in
             speaker.speak(due: due, events: events, areas: plan?.areas ?? [])
             drift.cueDelivered(due, cuesEnabled: speaker.isEnabled)
@@ -58,7 +58,7 @@ struct DayViewApp: App {
         }
         .defaultSize(width: 420, height: 520)
         Window("DayView Mini", id: "mini") {
-            MiniView(model: model, plan: plan, todayPlan: todayPlan, focus: focus)
+            MiniView(model: model, plan: plan, todayPlan: todayPlan, focus: focus, drift: drift)
                 .frame(minWidth: 200, minHeight: 300)
                 .background(MiniWindowBehavior())
                 .onAppear { windows.isMiniOpen = true }

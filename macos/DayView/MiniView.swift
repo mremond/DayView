@@ -2,13 +2,14 @@ import SwiftUI
 import DayViewKit
 
 /// Compact always-on-top companion: ring + countdown, the active area's goal card (when tall
-/// enough), and the compact Focus panel (closure card, running / idle controls). Observes the
-/// same models as the main window and the menu bar.
+/// enough), the drift reminder, and the compact Focus panel (closure card, running / idle
+/// controls). Observes the same models as the main window and the menu bar.
 struct MiniView: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var plan: PlanModel
     @ObservedObject var todayPlan: TodayPlanModel
     @ObservedObject var focus: FocusModel
+    @ObservedObject var drift: DriftModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
@@ -47,6 +48,11 @@ struct MiniView: View {
                     // Height-gated like the JVM mini (showGoalInMiniWindow: 400 at font scale 1).
                     if proxy.size.height >= 400 {
                         ActiveAreaGoalCard(focus: focus, plan: plan, compact: true)
+                    }
+                    // The mini runs as an accessory app (no Dock bounce) with the main window
+                    // closed, so the drift reminder must show here too.
+                    if let areaID = drift.reminderAreaID {
+                        DriftBanner(areaName: plan.areaName(for: areaID), onDismiss: drift.dismissReminder)
                     }
                     if model.snapshot.detourOpenRunning {
                         OpenDetourBanner(model: model)

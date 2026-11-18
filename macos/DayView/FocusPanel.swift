@@ -87,7 +87,7 @@ struct FocusPanel: View {
                 Text(session.intention).foregroundStyle(palette.cloud).lineLimit(compact ? 2 : 4)
             }
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                if isPaused(session, at: context.date) {
+                if focus.isPaused(at: context.date) {
                     Text("Paused for a meeting").font(.caption).foregroundStyle(palette.muted)
                 }
             }
@@ -101,12 +101,6 @@ struct FocusPanel: View {
                     .tint(palette.red)
             }
         }
-    }
-
-    private func isPaused(_ session: FocusSession, at now: Date) -> Bool {
-        guard case .planned(let blockID) = session.origin,
-              let block = todayPlan.state.fitted.first(where: { $0.block.id == blockID }) else { return false }
-        return block.isPaused(at: now)
     }
 
     // MARK: Idle / break
