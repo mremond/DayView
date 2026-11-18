@@ -50,6 +50,18 @@ public enum FocusEvent: Hashable, Sendable {
     case reopened(FocusSession, discardedRecordID: UUID)
 }
 
+/// What "Keep going" would do right now.
+///
+/// Caller contract, with `extension = 900` (15 min):
+/// - `.extendBlock(id)`: apply `plan.keepingGoing(blockID: id, by: extension, calendar:)` and refit;
+///   the running session follows its block's new end.
+/// - `.reopenInterrupted(_, blockID)`: apply `plan.shiftingFrom(blockID:, by: extension, calendar:)`,
+///   refit, then call `FocusEngine.reopenInterrupted(until:now:)` with the shifted block's new start.
+public enum KeepGoingOffer: Hashable, Sendable {
+    case extendBlock(BlockID)
+    case reopenInterrupted(FocusRecord, blockID: BlockID)
+}
+
 public enum ClosureOutcome: String, Codable, Sendable {
     case completed, progressed, toResume
 }
@@ -69,6 +81,8 @@ public struct FocusEngine: Sendable {
     private var startedBlockIDs: Set<BlockID> = []
     /// The parts of the current planned session's block, as last seen in the plan.
     private var currentParts: [DateInterval] = []
+    /// The manual Focus the plan just took over, and the block that took over; cleared by any later transition.
+    private var lastTakeover: (interrupted: FocusRecord, blockID: BlockID)?
 
     public init() {}
 
@@ -107,6 +121,31 @@ public struct FocusEngine: Sendable {
         return [.ended(finish(at: now, reason: .stopped))]
     }
 
+    /// Pure query. Reopening a just-taken-over manual Focus wins over extending the block.
+    public func keepGoingOffer(now: Date, plan: [FittedBlock], window: TimeInterval = 120) -> KeepGoingOffer? {
+        guard let current, case let .planned(id) = current.origin else { return nil }
+        if let takeover = lastTakeover, takeover.blockID == id {
+            let since = now.timeIntervalSince(takeover.interrupted.actualEnd)
+            if since >= 0, since <= window { return .reopenInterrupted(takeover.interrupted, blockID: id) }
+        }
+        guard let end = kept(id, in: plan)?.end, now < end, end.timeIntervalSince(now) <= window else { return nil }
+        return .extendBlock(id)
+    }
+
+    /// Gives back the manual Focus the plan just took over, until `until`: the planned session is
+    /// discarded without a record and its block may start again; the interrupted record leaves the queue.
+    public mutating func reopenInterrupted(until: Date, now: Date) -> [FocusEvent] {
+        guard let takeover = lastTakeover, let current, current.origin == .planned(takeover.blockID) else { return [] }
+        let record = takeover.interrupted
+        startedBlockIDs.remove(takeover.blockID)
+        pendingClosures.removeAll { $0.session.id == record.session.id }
+        var session = record.session
+        session.end = until
+        currentParts = []
+        begin(session)
+        return [.reopened(session, discardedRecordID: record.session.id)]
+    }
+
     public mutating func close(recordID: UUID) -> FocusRecord? {
         guard let index = pendingClosures.firstIndex(where: { $0.session.id == recordID }) else { return nil }
         return pendingClosures.remove(at: index)
@@ -123,7 +162,9 @@ public struct FocusEngine: Sendable {
         else { return nil }
         let actualEnd = min(max(blockStart, manual.start), manual.end)
         let interrupted = finish(at: actualEnd, reason: .tookOver)
-        return .tookOver(interrupted: interrupted, by: startPlanned(running, now: now))
+        let planned = startPlanned(running, now: now)
+        lastTakeover = (interrupted, running.block.id)
+        return .tookOver(interrupted: interrupted, by: planned)
     }
 
     /// Ends the current session when its time is up, or when its block left the plan.
@@ -158,6 +199,7 @@ public struct FocusEngine: Sendable {
     private mutating func begin(_ session: FocusSession) {
         current = session
         breakStartedAt = nil
+        lastTakeover = nil
     }
 
     /// Ends the current session at `actualEnd` and queues its record for closing.
@@ -169,6 +211,7 @@ public struct FocusEngine: Sendable {
         )
         current = nil
         currentParts = []
+        lastTakeover = nil
         pendingClosures.append(record)
         return record
     }
