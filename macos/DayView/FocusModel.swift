@@ -22,13 +22,17 @@ final class FocusModel: ObservableObject {
         didSet { flushBufferedCues() }
     }
     /// Called once when a manual Focus has run twice its planned duration (the closing suggestion).
-    var onOvertimeReminder: ((FocusSession) -> Void)?
+    /// A reminder from a tick that ran before this was set is buffered and delivered when it is assigned.
+    var onOvertimeReminder: ((FocusSession) -> Void)? {
+        didSet { flushBufferedOvertime() }
+    }
     /// Called for each record a Focus end produces (ended or taken over), after the record is queued.
     /// Records from ticks that ran before this was set are buffered and delivered when it is assigned.
     var onFocusEnded: ((FocusRecord) -> Void)? {
         didSet { flushBufferedEnded() }
     }
     private var bufferedEnded: [FocusRecord] = []
+    private var bufferedOvertime: FocusSession?
     private var bufferedCues: (due: [ScheduledCue], events: [FocusEvent], state: TodayPlanState)?
 
     static let engineKey = "focus.engineState"
@@ -288,7 +292,15 @@ final class FocusModel: ObservableObject {
         let session = engine.current
         let fired = overtimeReminder.observe(now: time, session: session)
         persistOvertimeReminder()
-        if fired, let session { onOvertimeReminder?(session) }
+        guard fired, let session else { return }
+        if let onOvertimeReminder { onOvertimeReminder(session) } else { bufferedOvertime = session }
+    }
+
+    private func flushBufferedOvertime() {
+        guard let onOvertimeReminder, let session = bufferedOvertime else { return }
+        bufferedOvertime = nil
+        // Only if that Focus is still running: a stale closing suggestion would be confusing.
+        if engine.current?.id == session.id { onOvertimeReminder(session) }
     }
 
     /// Writes the reminder only when its state changed; the observation clock alone does not count.

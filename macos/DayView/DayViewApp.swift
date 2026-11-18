@@ -32,6 +32,7 @@ struct DayViewApp: App {
         }
         focus.onFocusEnded = { [weak drift, weak model] record in
             drift?.recordMetrics(for: record, detours: model?.detourIntervals ?? [])
+            if record.session.origin == .manual { OvertimeNotification.withdraw() }
         }
         _focus = StateObject(wrappedValue: focus)
         _drift = StateObject(wrappedValue: drift)
@@ -97,6 +98,11 @@ enum OvertimeNotification {
             content.title = title
             center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { _ in }
         }
+    }
+
+    /// The suggestion is stale once the Focus has ended.
+    static func withdraw() {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
     }
 }
 

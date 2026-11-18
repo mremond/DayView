@@ -143,8 +143,12 @@ final class DriftModel: ObservableObject {
         resetPresenceIfNeeded(for: session)
         let classification = classify(at: time)
         if presenceMeasured { presence.sample(onGoal: classification == .onGoal, at: time) }
-        if classification == .onGoal { clearReminder() }
-        for event in monitor.sample(classification, areaID: session.areaID, at: time) {
+        // A manual Focus in overtime may be forgotten for hours: deep focus is still measured, but
+        // no drift reminder or ignored cue comes from it.
+        let inOvertime = focus.overtime(at: time) != nil
+        if classification == .onGoal || inOvertime { clearReminder() }
+        let monitored: AppClassification = inOvertime ? .neutral : classification
+        for event in monitor.sample(monitored, areaID: session.areaID, at: time) {
             handle(event)
         }
     }
