@@ -9,8 +9,6 @@ final class FocusModel: ObservableObject {
     @Published private(set) var pendingClosures: [FocusRecord] = []
     @Published private(set) var breakStartedAt: Date?
     @Published private(set) var keepGoing: KeepGoingOffer?
-    /// The events of the last tick that produced any, for cues.
-    @Published private(set) var lastEvents: [FocusEvent] = []
     /// Idle panel preferences (last used area / duration), shared by the panel and the Focus menu.
     @Published private(set) var lastAreaID: AreaID?
     @Published private(set) var lastMinutes: Int = 25
@@ -69,7 +67,7 @@ final class FocusModel: ObservableObject {
         } else {
             engine = FocusEngine()
         }
-        publish()
+        publish(offer: nil)
         tick()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
@@ -84,6 +82,11 @@ final class FocusModel: ObservableObject {
 
     var activeArea: Area? {
         current.flatMap { session in plan.areas.first { $0.id == session.areaID } }
+    }
+
+    /// The session's area name, "Deleted area" when the area no longer exists.
+    func areaName(of session: FocusSession) -> String {
+        plan.areaName(for: session.areaID)
     }
 
     /// The preferred area if it still exists, else the first area.
@@ -103,7 +106,7 @@ final class FocusModel: ObservableObject {
         events += engine.advance(to: current, plan: state.fitted)
         let dayMeetings = meetings.meetings(on: state.day)
         let offer = engine.keepGoingOffer(now: current, plan: state.fitted, meetings: dayMeetings)
-        publish(offer: offer, events: events)
+        publish(offer: offer)
         persist()
         var due = delivery.due(schedule(state.fitted, dayMeetings), fitted: state.fitted, now: current)
         if isFirstDelivery {
@@ -168,7 +171,7 @@ final class FocusModel: ObservableObject {
               plan.saveClosedFocus(record, outcome: outcome, intention: intention, area: area(for: record), calendar: calendar)
         else { return }
         _ = engine.close(recordID: recordID)
-        publish()
+        publish(offer: keepGoing)
         persist()
     }
 
@@ -177,7 +180,7 @@ final class FocusModel: ObservableObject {
     private func area(for record: FocusRecord) -> Area {
         let id = record.session.areaID
         return plan.areas.first { $0.id == id }
-            ?? Area(id: id, name: L("Deleted area"), colorIndex: 0, order: 0)
+            ?? Area(id: id, name: plan.areaName(for: id), colorIndex: 0, order: 0)
     }
 
     private func apply(_ events: [FocusEvent]) {
@@ -185,17 +188,16 @@ final class FocusModel: ObservableObject {
         let offer = engine.keepGoingOffer(
             now: now(), plan: state.fitted, meetings: meetings.meetings(on: state.day)
         )
-        publish(offer: offer, events: events)
+        publish(offer: offer)
         persist()
         if !events.isEmpty { deliver([], events, state) }
     }
 
-    private func publish(offer: KeepGoingOffer? = nil, events: [FocusEvent] = []) {
+    private func publish(offer: KeepGoingOffer?) {
         if current != engine.current { current = engine.current }
         if pendingClosures != engine.pendingClosures { pendingClosures = engine.pendingClosures }
         if breakStartedAt != engine.breakStartedAt { breakStartedAt = engine.breakStartedAt }
         if keepGoing != offer { keepGoing = offer }
-        if !events.isEmpty { lastEvents = events }
     }
 
     private func deliver(_ due: [ScheduledCue], _ events: [FocusEvent], _ state: TodayPlanState) {

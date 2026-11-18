@@ -87,7 +87,7 @@ struct RingView: View {
                     remainingRatio: model.snapshot.remainingRatio,
                     isFinished: model.snapshot.isFinished,
                     hasStarted: model.snapshot.hasStarted,
-                    hasGoal: focus.activeArea.map { !$0.goalTitle.isEmpty || $0.goalDeadline != nil } ?? false,
+                    hasGoal: focus.activeArea?.hasGoal ?? false,
                     busyArcs: model.snapshot.busyArcs,
                     detourBodies: model.snapshot.detourBodies,
                     focusArcs: model.snapshot.focusArcs,

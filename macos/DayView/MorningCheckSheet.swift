@@ -7,6 +7,11 @@ enum PlanTimeFormat {
         date.formatted(.dateTime.hour().minute())
     }
 
+    /// "Mon 16": abbreviated weekday and day of month.
+    static func shortDay(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.abbreviated).day())
+    }
+
     /// "10:00–10:30" with an en dash.
     static func range(_ start: Date, _ end: Date) -> String {
         "\(time(start))–\(time(end))"

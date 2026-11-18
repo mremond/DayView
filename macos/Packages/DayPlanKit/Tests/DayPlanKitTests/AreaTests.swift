@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import DayPlanKit
 
@@ -10,6 +11,16 @@ import Testing
         #expect(areas.map(\.order) == [0, 1, 2, 3])
         #expect(areas.allSatisfy { $0.goalTitle == "" && $0.goalDeadline == nil && $0.onGoalApps.isEmpty })
         #expect(Set(areas.map(\.id)).count == 4)
+    }
+
+    @Test func hasGoal() {
+        var area = Area(id: AreaID(), name: "Writing", colorIndex: 0, order: 0)
+        #expect(!area.hasGoal)
+        area.goalTitle = "Finish the book"
+        #expect(area.hasGoal)
+        area.goalTitle = ""
+        area.goalDeadline = Date(timeIntervalSince1970: 0)
+        #expect(area.hasGoal)
     }
 
     @Test func paletteNormalizes() {

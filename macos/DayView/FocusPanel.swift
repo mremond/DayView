@@ -30,7 +30,7 @@ extension FocusModel {
     func menuLine(at now: Date) -> String? {
         guard let session = current, let remaining = remaining(at: now) else { return nil }
         let intention = session.intention.trimmingCharacters(in: .whitespacesAndNewlines)
-        return [activeArea?.name ?? L("Deleted area"), intention, FocusFormat.clock(remaining)]
+        return [areaName(of: session), intention, FocusFormat.clock(remaining)]
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
@@ -70,11 +70,11 @@ struct FocusPanel: View {
     // MARK: Running
 
     private func running(_ session: FocusSession) -> some View {
-        let area = plan.areas.first { $0.id == session.areaID }
+        let colorIndex = plan.areas.first { $0.id == session.areaID }?.colorIndex ?? 0
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Circle().fill(palette.areaColor(area?.colorIndex ?? 0)).frame(width: 10, height: 10)
-                Text(area?.name ?? L("Deleted area")).fontWeight(.semibold).lineLimit(1)
+                Circle().fill(palette.areaColor(colorIndex)).frame(width: 10, height: 10)
+                Text(plan.areaName(for: session.areaID)).fontWeight(.semibold).lineLimit(1)
                 Spacer()
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(FocusFormat.clock(max(0, session.end.timeIntervalSince(context.date))))
@@ -173,9 +173,14 @@ struct FocusClosureCard: View {
         _intention = State(initialValue: record.session.intention)
     }
 
+    /// "Close: Writing · 09:00–12:00", with the day ("Mon 16 · 09:00–12:00") for an earlier day.
     private var title: String {
-        let name = plan.areas.first { $0.id == record.session.areaID }?.name ?? L("Deleted area")
-        return LF("Close: %@ · %@", name, PlanTimeFormat.range(record.session.start, record.actualEnd))
+        let start = record.session.start
+        var when = PlanTimeFormat.range(start, record.actualEnd)
+        if !Calendar.autoupdatingCurrent.isDateInToday(start) {
+            when = "\(PlanTimeFormat.shortDay(start)) · \(when)"
+        }
+        return LF("Close: %@ · %@", plan.areaName(for: record.session.areaID), when)
     }
 
     var body: some View {

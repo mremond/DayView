@@ -38,6 +38,11 @@ public struct Area: Sendable, Hashable, Codable, Identifiable {
         self.onGoalApps = onGoalApps
         self.order = order
     }
+
+    /// True when the area has a goal title or a goal deadline.
+    public var hasGoal: Bool {
+        !goalTitle.isEmpty || goalDeadline != nil
+    }
 }
 
 public enum AreaPalette {

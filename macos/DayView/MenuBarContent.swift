@@ -20,7 +20,7 @@ struct MenuBarContent: View {
             Button("Stop focus") { focus.stop() }
         }
         if !focus.pendingClosures.isEmpty {
-            Button("Close last focus…") {
+            Button("Close a focus…") {
                 openWindow(id: "main")
                 dismissWindow(id: "mini")
                 NSApplication.shared.activate(ignoringOtherApps: true)

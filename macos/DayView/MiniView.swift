@@ -1,9 +1,9 @@
 import SwiftUI
 import DayViewKit
 
-/// Compact always-on-top companion: ring + countdown, a display-only goal card, and the
-/// full focus card (intention sheet, live clock, closure ritual). Mirrors the JVM mini
-/// window; observes the same TodayModel as the main window and menu bar.
+/// Compact always-on-top companion: ring + countdown, the active area's goal card (when tall
+/// enough), and the compact Focus panel (closure card, running / idle controls). Observes the
+/// same models as the main window and the menu bar.
 struct MiniView: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var plan: PlanModel
@@ -25,7 +25,7 @@ struct MiniView: View {
                             remainingRatio: model.snapshot.remainingRatio,
                             isFinished: model.snapshot.isFinished,
                             hasStarted: model.snapshot.hasStarted,
-                            hasGoal: focus.activeArea.map { !$0.goalTitle.isEmpty || $0.goalDeadline != nil } ?? false,
+                            hasGoal: focus.activeArea?.hasGoal ?? false,
                             busyArcs: model.snapshot.busyArcs,
                             lineWidth: 12,
                             inset: 20

@@ -24,16 +24,12 @@
 "FOCUS" = "FOCUS";
 "Start focus" = "Start focus";
 "Stop focus" = "Stop focus";
-"Close this focus" = "Close this focus";
 "Shorter focus" = "Shorter focus";
 "Longer focus" = "Longer focus";
-"Relaunch" = "Relaunch";
-"Resume" = "Resume";
 "Stop" = "Stop";
 "Start" = "Start";
 "5 min" = "5 min";
 "What are you focusing on?" = "What are you focusing on?";
-"Focus intention" = "Focus intention";
 "Idle" = "Idle";
 "No goal yet" = "No goal yet";
 "Duration: %lld min" = "Duration: %lld min";
@@ -48,15 +44,9 @@
 "Resume later" = "Resume later";
 "Done" = "Done";
 
-"BACK TO THE ESSENTIAL" = "BACK TO THE ESSENTIAL";
-"BACK AT IT" = "BACK AT IT";
-"YOUR RESUME POINT" = "YOUR RESUME POINT";
 "One thing at a time." = "One thing at a time.";
 
-"LONG-TERM GOAL" = "LONG-TERM GOAL";
-"Long-term goal" = "Long-term goal";
 "Deadline" = "Deadline";
-"Clear" = "Clear";
 
 "Detour" = "Detour";
 "DETOUR" = "DETOUR";
@@ -74,9 +64,6 @@
 "EDIT DETOUR" = "EDIT DETOUR";
 "Motif" = "Motif";
 "End" = "End";
-"WHAT WAS IT?" = "WHAT WAS IT?";
-"WHAT PULLS YOU AWAY?" = "WHAT PULLS YOU AWAY?";
-"Confirm" = "Confirm";
 
 "NEXT THREE DAYS" = "NEXT THREE DAYS";
 "%lld%% of the day available" = "%lld%% of the day available";
@@ -159,7 +146,7 @@
 "Paused for a meeting" = "Paused for a meeting";
 "Break since %@" = "Break since %@";
 "Close: %@ · %@" = "Close: %@ · %@";
-"Close last focus…" = "Close last focus…";
+"Close a focus…" = "Close a focus…";
 "Add an area in Settings to start a focus" = "Add an area in Settings to start a focus";
 "%lld days left" = "%lld days left";
 "1 day left" = "1 day left";

@@ -72,6 +72,11 @@ final class PlanModel: ObservableObject {
         attempt("reorder areas") { try store.reorderAreas(ids) }
     }
 
+    /// The area's name, or "Deleted area" when it no longer exists.
+    func areaName(for id: AreaID) -> String {
+        areas.first { $0.id == id }?.name ?? L("Deleted area")
+    }
+
     func blockCount(for id: AreaID) -> Int {
         store.blockCount(for: id)
     }

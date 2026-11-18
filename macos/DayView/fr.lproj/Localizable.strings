@@ -24,16 +24,12 @@
 "FOCUS" = "FOCUS";
 "Start focus" = "Démarrer le Focus";
 "Stop focus" = "Arrêter le Focus";
-"Close this focus" = "Clore ce Focus";
 "Shorter focus" = "Raccourcir le Focus";
 "Longer focus" = "Allonger le Focus";
-"Relaunch" = "Relancer";
-"Resume" = "Reprendre";
 "Stop" = "Arrêter";
 "Start" = "Démarrer";
 "5 min" = "5 min";
 "What are you focusing on?" = "Sur quoi vous concentrez-vous ?";
-"Focus intention" = "Intention du Focus";
 "Idle" = "Au repos";
 "No goal yet" = "Aucun cap";
 "Duration: %lld min" = "Durée : %lld min";
@@ -48,15 +44,9 @@
 "Resume later" = "À reprendre";
 "Done" = "Fermer";
 
-"BACK TO THE ESSENTIAL" = "RETOUR À L’ESSENTIEL";
-"BACK AT IT" = "J’Y RETOURNE";
-"YOUR RESUME POINT" = "VOTRE POINT DE REPRISE";
 "One thing at a time." = "Une chose à la fois.";
 
-"LONG-TERM GOAL" = "CAP";
-"Long-term goal" = "Cap";
 "Deadline" = "Échéance";
-"Clear" = "Effacer";
 
 "Detour" = "Détour";
 "DETOUR" = "DÉTOUR";
@@ -74,9 +64,6 @@
 "EDIT DETOUR" = "MODIFIER LE DÉTOUR";
 "Motif" = "Motif";
 "End" = "Fin";
-"WHAT WAS IT?" = "QU’ÉTAIT-CE ?";
-"WHAT PULLS YOU AWAY?" = "QU’EST-CE QUI VOUS ÉCARTE ?";
-"Confirm" = "Confirmer";
 
 "NEXT THREE DAYS" = "TROIS PROCHAINS JOURS";
 "%lld%% of the day available" = "%lld %% de la journée disponible";
@@ -158,7 +145,7 @@
 "Paused for a meeting" = "En pause pendant une réunion";
 "Break since %@" = "Pause depuis %@";
 "Close: %@ · %@" = "Clôturer : %@ · %@";
-"Close last focus…" = "Clôturer le dernier Focus…";
+"Close a focus…" = "Clôturer un focus…";
 "Add an area in Settings to start a focus" = "Ajoutez un domaine dans Réglages pour démarrer un focus";
 "%lld days left" = "%lld jours restants";
 "1 day left" = "1 jour restant";
