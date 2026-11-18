@@ -6,6 +6,8 @@ options:
 packages:
   DayViewKit:
     path: Packages/DayViewKit
+  DayPlanKit:
+    path: Packages/DayPlanKit
 targets:
   DayView:
     type: application
@@ -22,6 +24,8 @@ targets:
     dependencies:
       - package: DayViewKit
         product: DayViewKit
+      - package: DayPlanKit
+        product: DayPlanKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fr.dayview.app

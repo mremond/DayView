@@ -1,9 +1,11 @@
 import SwiftUI
+import DayPlanKit
 import DayViewKit
 
 final class TodayModel: ObservableObject {
     @Published var snapshot: TodaySnapshot
     private let session = DayViewNative.shared.create()
+    private(set) lazy var meetingSource: MeetingSource = SessionMeetingSource(session: session)
     private var subscription: DayViewSubscription?
     private var timer: Timer?
 
