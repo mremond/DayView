@@ -64,10 +64,11 @@ public struct DayPlan: Sendable, Hashable, Codable {
     public func keepingGoing(blockID: BlockID, by: TimeInterval, calendar: Calendar) -> DayPlan {
         guard let target = blocks.first(where: { $0.id == blockID }) else { return self }
         let oldEnd = target.end
+        let limit = day.nextMidnight(in: calendar)
         let moved = blocks.map { b -> PlannedBlock in
             var b = b
             if b.id == blockID {
-                b.end = b.end.addingTimeInterval(by)
+                b.end = min(b.end.addingTimeInterval(by), limit)
             } else if b.start >= oldEnd {
                 b.start = b.start.addingTimeInterval(by)
                 b.end = b.end.addingTimeInterval(by)

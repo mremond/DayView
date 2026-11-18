@@ -65,6 +65,8 @@ struct PlanModelTests {
         )
         let plan = DayPlan(day: .nov18, blocks: [a, b]).keepingGoing(blockID: a.id, by: 900, calendar: paris)
         #expect(!plan.blocks.contains { $0.id == b.id })
+        #expect(plan.blocks.map(\.id) == [a.id])
+        #expect(plan.blocks[0].end == LocalDay.nov18.nextMidnight(in: paris))
     }
 
     @Test func shiftingFromMovesBlockAndLater() {
