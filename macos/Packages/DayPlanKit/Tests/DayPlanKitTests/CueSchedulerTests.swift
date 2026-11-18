@@ -66,9 +66,10 @@ struct CueSchedulerTests {
     @Test func droppedBlockIgnored() {
         let area = AreaID()
         let c = block("10:05", "11:00", area: area)
-        let result = cues([block("09:00", "10:00"), block("10:00", "10:30"), c], meetings: [interval("10:00", "10:30")])
+        let result = cues([block("09:00", "10:00"), block("10:00", "10:04"), c])
         #expect(result[1].kind == .blockEnding(next: .block(areaID: area, start: at("10:05"))))
         #expect(result.count == 4)
+        #expect(!result.contains { $0.block?.end == at("10:04") })
     }
 
     @Test func noCueInsideMeetings() {
