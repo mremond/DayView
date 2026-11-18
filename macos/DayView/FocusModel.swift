@@ -21,9 +21,12 @@ final class FocusModel: ObservableObject {
     var onCues: (([ScheduledCue], [FocusEvent], TodayPlanState) -> Void)? {
         didSet { flushBufferedCues() }
     }
+    /// Called once when a manual Focus has run twice its planned duration (the closing suggestion).
+    var onOvertimeReminder: ((FocusSession) -> Void)?
     private var bufferedCues: (due: [ScheduledCue], events: [FocusEvent], state: TodayPlanState)?
 
     static let engineKey = "focus.engineState"
+    static let overtimeReminderKey = "focus.overtimeReminder"
     static let lastAreaKey = "focus.lastAreaID"
     static let lastMinutesKey = "focus.lastMinutes"
 
@@ -35,6 +38,8 @@ final class FocusModel: ObservableObject {
     private let now: () -> Date
     private var engine: FocusEngine
     private var savedEngine: FocusEngine?
+    private var overtimeReminder = OvertimeReminder()
+    private var savedReminderState: [String: Any]?
     private var timer: Timer?
     private var delivery = CueDelivery()
     /// True until the first cue delivery after launch, which drops the start cues of blocks the
@@ -69,6 +74,11 @@ final class FocusModel: ObservableObject {
         } else {
             engine = FocusEngine()
         }
+        if let data = defaults.data(forKey: Self.overtimeReminderKey),
+           let stored = try? JSONDecoder().decode(OvertimeReminder.self, from: data) {
+            overtimeReminder = stored
+            savedReminderState = Self.reminderState(data)
+        }
         publish(offer: nil)
         tick()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
@@ -98,6 +108,11 @@ final class FocusModel: ObservableObject {
         engine.focusedSoFar(at: now)
     }
 
+    /// How long the running manual Focus has gone past its term; nil otherwise.
+    func overtime(at now: Date) -> TimeInterval? {
+        engine.overtime(at: now)
+    }
+
     /// The session's area name, "Deleted area" when the area no longer exists.
     func areaName(of session: FocusSession) -> String {
         plan.areaName(for: session.areaID)
@@ -122,6 +137,7 @@ final class FocusModel: ObservableObject {
         let offer = engine.keepGoingOffer(now: current, plan: state.fitted, meetings: dayMeetings)
         publish(offer: offer)
         persist()
+        observeOvertime(at: current)
         var due = delivery.due(schedule(state.fitted, dayMeetings), fitted: state.fitted, now: current)
         if isFirstDelivery {
             due = CueDelivery.dropAlreadyStarted(due, startedBy: loaded)
@@ -241,6 +257,28 @@ final class FocusModel: ObservableObject {
         guard let onCues, let buffered = bufferedCues else { return }
         bufferedCues = nil
         onCues(buffered.due, buffered.events, buffered.state)
+    }
+
+    private func observeOvertime(at time: Date) {
+        let session = engine.current
+        let fired = overtimeReminder.observe(now: time, session: session)
+        persistOvertimeReminder()
+        if fired, let session { onOvertimeReminder?(session) }
+    }
+
+    /// Writes the reminder only when its state changed; the observation clock alone does not count.
+    private func persistOvertimeReminder() {
+        guard let data = try? JSONEncoder().encode(overtimeReminder) else { return }
+        let state = Self.reminderState(data)
+        guard !NSDictionary(dictionary: state ?? [:]).isEqual(to: savedReminderState ?? [:]) else { return }
+        defaults.set(data, forKey: Self.overtimeReminderKey)
+        savedReminderState = state
+    }
+
+    private static func reminderState(_ data: Data) -> [String: Any]? {
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        object.removeValue(forKey: "previous")
+        return object
     }
 
     /// Writes the engine only when its state changed; the advance clock alone does not count.

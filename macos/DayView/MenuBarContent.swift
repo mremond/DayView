@@ -17,7 +17,7 @@ struct MenuBarContent: View {
             if focus.keepGoing != nil {
                 Button("Keep going (+15 min)") { focus.keepGoingNow() }
             }
-            Button("Stop focus") { focus.stop() }
+            Button(focus.overtime(at: Date()) != nil ? "Close this focus" : "Stop focus") { focus.stop() }
         }
         if !focus.pendingClosures.isEmpty {
             Button("Close a focus…") {

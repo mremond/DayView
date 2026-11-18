@@ -156,3 +156,6 @@
 "1 day overdue" = "1 jour de retard";
 "You planned %@" = "Vous aviez prévu %@";
 "Dismiss" = "Fermer";
+"In overtime" = "En dépassement";
+"Close this focus" = "Clôturer ce focus";
+"Still on %@? Close this focus when you're ready." = "Toujours sur %@ ? Clôturez ce focus quand vous êtes prêt.";

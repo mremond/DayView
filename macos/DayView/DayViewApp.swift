@@ -1,4 +1,5 @@
 import SwiftUI
+@preconcurrency import UserNotifications
 
 @main
 struct DayViewApp: App {
@@ -25,6 +26,10 @@ struct DayViewApp: App {
             speaker.speak(due: due, events: events, areas: plan?.areas ?? [])
             drift.cueDelivered(due, cuesEnabled: speaker.isEnabled)
         }
+        focus.onOvertimeReminder = { [weak plan] session in
+            OvertimeNotification.post(areaName: plan?.areaName(for: session.areaID) ?? "")
+            speaker.chime()
+        }
         _focus = StateObject(wrappedValue: focus)
         _drift = StateObject(wrappedValue: drift)
         _speaker = StateObject(wrappedValue: speaker)
@@ -50,7 +55,7 @@ struct DayViewApp: App {
                     .disabled(focusRunning)
             }
         }
-        MenuBarExtra(focus.remaining(at: Date()).map(FocusFormat.clock) ?? model.snapshot.dayStatus) {
+        MenuBarExtra(focus.clockText(at: Date()) ?? model.snapshot.dayStatus) {
             MenuBarContent(model: model, windows: windows, todayPlan: todayPlan, focus: focus)
         }
         Window(L("This week"), id: "week") {
@@ -72,6 +77,22 @@ struct DayViewApp: App {
         .commandsRemoved()
         Settings {
             SettingsView(model: model, plan: plan, speaker: speaker)
+        }
+    }
+}
+
+/// The closing suggestion posted when a manual Focus reaches double its planned time.
+enum OvertimeNotification {
+    static let identifier = "dayview.overtime"
+
+    static func post(areaName: String) {
+        let center = UNUserNotificationCenter.current()
+        let title = LF("Still on %@? Close this focus when you're ready.", areaName)
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { _ in }
         }
     }
 }

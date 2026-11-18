@@ -10,6 +10,11 @@ enum FocusFormat {
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
 
+    /// "+m:ss" / "+h:mm:ss" for time spent past the term.
+    static func overtimeClock(_ seconds: TimeInterval) -> String {
+        "+" + clock(seconds)
+    }
+
     static func deadline(daysLeft n: Int) -> String {
         switch n {
         case 2...: return LF("%lld days left", n)
@@ -26,11 +31,17 @@ extension FocusModel {
         current.map { max(0, $0.end.timeIntervalSince(now)) }
     }
 
+    /// The remaining clock, or the overtime clock once a manual Focus is past its term.
+    func clockText(at now: Date) -> String? {
+        if let over = overtime(at: now) { return FocusFormat.overtimeClock(over) }
+        return remaining(at: now).map(FocusFormat.clock)
+    }
+
     /// "<Area> · <intention> · <m:ss>" for the menu bar, intention omitted when empty.
     func menuLine(at now: Date) -> String? {
-        guard let session = current, let remaining = remaining(at: now) else { return nil }
+        guard let session = current, let clock = clockText(at: now) else { return nil }
         let intention = session.intention.trimmingCharacters(in: .whitespacesAndNewlines)
-        return [areaName(of: session), intention, FocusFormat.clock(remaining)]
+        return [areaName(of: session), intention, clock]
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
@@ -77,7 +88,7 @@ struct FocusPanel: View {
                 Text(plan.areaName(for: session.areaID)).fontWeight(.semibold).lineLimit(1)
                 Spacer()
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(FocusFormat.clock(max(0, session.end.timeIntervalSince(context.date))))
+                    Text(focus.clockText(at: context.date) ?? "")
                         .font(.system(size: compact ? 18 : 24, weight: .light, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(palette.cloud)
@@ -89,6 +100,8 @@ struct FocusPanel: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 if focus.isPaused(at: context.date) {
                     Text("Paused for a meeting").font(.caption).foregroundStyle(palette.muted)
+                } else if focus.overtime(at: context.date) != nil {
+                    Text("In overtime").font(.caption).foregroundStyle(palette.amber)
                 }
             }
             HStack {
@@ -97,8 +110,11 @@ struct FocusPanel: View {
                     Button("Keep going (+15 min)") { focus.keepGoingNow() }
                         .tint(palette.mint)
                 }
-                Button("Stop focus") { focus.stop() }
-                    .tint(palette.red)
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let inOvertime = focus.overtime(at: context.date) != nil
+                    Button(inOvertime ? "Close this focus" : "Stop focus") { focus.stop() }
+                        .tint(palette.red)
+                }
             }
         }
     }

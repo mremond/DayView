@@ -64,6 +64,14 @@ final class CueSpeaker: ObservableObject {
         }
     }
 
+    /// A soft chime at the cue volume, only when cues are enabled.
+    func chime() {
+        guard isEnabled else { return }
+        let sound = NSSound(named: "Glass")
+        sound?.volume = Float(volume)
+        sound?.play()
+    }
+
     /// Speaks the sentences for a tick's cues.
     func speak(due: [ScheduledCue], events: [FocusEvent], areas: [Area]) {
         speak(CueComposer.sentences(due: due, events: events, text: Self.text(areas: areas)))
