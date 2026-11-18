@@ -265,7 +265,7 @@ struct RingView: View {
     /// Today's Focus: closed records, pending closures and the running session (start to now).
     private func focusSpans(now: Date) -> [FocusSpan] {
         let day = todayPlan.state.day
-        var spans: [FocusSpan] = plan.closedFocus(from: day, through: day).map {
+        var spans: [FocusSpan] = plan.closedFocus(on: day).map {
             ($0.id, $0.areaID, DateInterval(start: $0.start, end: max($0.end, $0.start)))
         }
         for record in focus.pendingClosures {

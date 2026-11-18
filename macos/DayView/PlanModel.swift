@@ -13,6 +13,9 @@ final class PlanModel: ObservableObject {
     /// False when the on-disk store could not be opened and changes only live in memory.
     let isPersistent: Bool
     private let store: PlanStore
+    /// One day's closed Focus records, so the ring does not fetch on every render or hover.
+    /// Keyed by day (a new day misses) and dropped when a closure is saved.
+    private var closedFocusCache: (day: LocalDay, records: [ClosedFocus])?
 
     init(store: PlanStore, isPersistent: Bool = true) {
         self.store = store
@@ -107,7 +110,8 @@ final class PlanModel: ObservableObject {
     func saveClosedFocus(
         _ record: FocusRecord, outcome: ClosureOutcome, intention: String, area: Area, calendar: Calendar
     ) -> Bool {
-        attempt("save closed focus") {
+        closedFocusCache = nil
+        return attempt("save closed focus") {
             try store.saveClosedFocus(record, outcome: outcome, intention: intention, area: area, calendar: calendar)
         }
     }
@@ -132,6 +136,14 @@ final class PlanModel: ObservableObject {
 
     func closedFocus(from: LocalDay, through: LocalDay) -> [ClosedFocus] {
         store.closedFocus(from: from, through: through)
+    }
+
+    /// `day`'s closed Focus records, cached until the next closure or another day.
+    func closedFocus(on day: LocalDay) -> [ClosedFocus] {
+        if let cached = closedFocusCache, cached.day == day { return cached.records }
+        let records = store.closedFocus(from: day, through: day)
+        closedFocusCache = (day, records)
+        return records
     }
 
     func addArea() {

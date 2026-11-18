@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import DayPlanKit
 import DayPlanStore
 
@@ -12,7 +11,6 @@ struct WeekView: View {
     @State private var summary: WeekSummary?
 
     private let calendar = Calendar.autoupdatingCurrent
-    private let minute = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     private var palette: DayViewPalette { DayViewPalette.current(for: scheme) }
 
@@ -38,8 +36,15 @@ struct WeekView: View {
             .padding(20)
         }
         .frame(minWidth: 380, minHeight: 300)
-        .onAppear { refresh() }
-        .onReceive(minute) { _ in refresh() }
+        .task {
+            // Recomputed on appear and every minute while the window is open.
+            while !Task.isCancelled {
+                refresh()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+        .onChange(of: focus.current) { refresh() }
+        .onChange(of: focus.pendingClosures) { refresh() }
     }
 
     // MARK: Rows
@@ -114,7 +119,7 @@ struct WeekView: View {
         if let session = focus.current {
             times.append(FocusTime(
                 day: LocalDay(containing: session.start, calendar: calendar),
-                areaID: session.areaID, seconds: max(0, now.timeIntervalSince(session.start))
+                areaID: session.areaID, seconds: focus.focusedSoFar(at: now)
             ))
         }
         summary = WeekSummary.compute(
