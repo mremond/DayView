@@ -102,7 +102,8 @@ public struct FocusEngine: Codable, Sendable, Equatable {
     /// Scopes the engine to `day`. A new day first ends a planned session still running from the
     /// previous day, at the earlier of its end and midnight (its record goes to `pendingClosures`),
     /// then clears started blocks and the last takeover, because planned block IDs repeat from day
-    /// to day. A manual session, pending and break state are kept.
+    /// to day, and the break, which belongs to the previous day. A manual session and pending
+    /// closures are kept.
     @discardableResult
     public mutating func beginDay(_ day: LocalDay, calendar: Calendar) -> [FocusEvent] {
         var events: [FocusEvent] = []
@@ -114,6 +115,7 @@ public struct FocusEngine: Codable, Sendable, Equatable {
             }
             startedBlockIDs = []
             lastTakeover = nil
+            breakStartedAt = nil
         }
         self.day = day
         return events
