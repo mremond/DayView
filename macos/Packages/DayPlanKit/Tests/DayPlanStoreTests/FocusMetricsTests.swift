@@ -131,4 +131,38 @@ struct FocusMetricsTests {
         try store.saveFocusMetrics(saved)
         #expect(store.focusMetrics(from: planDay, through: planDay) == [saved.sessionID: saved])
     }
+
+    @Test func mergedSaveKeepsStoredStretches() throws {
+        let (store, suite) = try makeStore()
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let id = UUID()
+        try store.saveFocusMetrics(metrics(id: id, deep: 200, stretches: [stretch(0, 200)]))
+        var second = metrics(id: id, deep: 150, stretches: [stretch(900, 150)])
+        second.engaged = 1500
+        let stored = store.focusMetrics(from: day(0), through: day(0))[id]
+        try store.saveFocusMetrics(second.merged(withStored: stored))
+        let loaded = store.focusMetrics(from: day(0), through: day(0))[id]
+        #expect(loaded?.deepStretches == [stretch(0, 200), stretch(900, 150)])
+        #expect(loaded?.deep == 350)
+        #expect(loaded?.engaged == 1500)
+    }
+
+    @Test func mergeKeepsStoredDeepWhenNotMeasuredNow() {
+        let id = UUID()
+        let stored = metrics(id: id, deep: 200, stretches: [stretch(0, 200)])
+        let merged = metrics(id: id, deep: nil).merged(withStored: stored)
+        #expect(merged.deep == 200)
+        #expect(merged.deepStretches == [stretch(0, 200)])
+    }
+
+    @Test func mergeDropsDuplicateStretchesAndIgnoresOtherSessions() {
+        let id = UUID()
+        let stored = metrics(id: id, deep: 200, stretches: [stretch(0, 200)])
+        let again = metrics(id: id, deep: 200, stretches: [stretch(0, 200)])
+        #expect(again.merged(withStored: stored).deepStretches == [stretch(0, 200)])
+        #expect(again.merged(withStored: stored).deep == 200)
+        let other = metrics(deep: nil)
+        #expect(other.merged(withStored: stored) == other)
+        #expect(metrics(id: id, deep: nil).merged(withStored: nil).deep == nil)
+    }
 }

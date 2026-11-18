@@ -205,4 +205,20 @@ public struct FocusMetrics: Sendable, Hashable {
         self.deep = deep
         self.deepStretches = deepStretches
     }
+
+    /// These metrics with the deep-focus stretches already stored for the same session kept, for a
+    /// session saved more than once (a Focus reopened by Keep going). Engaged time is this record's,
+    /// which covers the whole session; deep time is the total of the merged stretches, measured when
+    /// either save measured it.
+    public func merged(withStored stored: FocusMetrics?) -> FocusMetrics {
+        guard let stored, stored.sessionID == sessionID else { return self }
+        let stretches = Array(Set(stored.deepStretches + deepStretches)).sorted {
+            ($0.start, $0.end) < ($1.start, $1.end)
+        }
+        let measured = deep != nil || stored.deep != nil
+        var result = self
+        result.deepStretches = stretches
+        result.deep = measured ? stretches.reduce(0) { $0 + $1.duration } : nil
+        return result
+    }
 }

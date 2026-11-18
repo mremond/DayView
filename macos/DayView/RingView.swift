@@ -355,7 +355,7 @@ struct RingView: View {
             focused: focus.focusedSoFar(at: now), window: DateInterval(start: s.start, end: end),
             detours: model.detourIntervals
         )
-        let deep = drift.currentDeepMeasured ? drift.liveDeepStretches(at: now).reduce(0) { $0 + $1.duration } : nil
+        let deep = drift.liveDeepTotal(at: now)
         return FocusDetail(
             id: s.id, areaName: plan.areaName(for: s.areaID), colorIndex: colorIndex, intention: s.intention,
             start: s.start, end: end, engaged: engaged, deep: deep, outcome: L("In progress")

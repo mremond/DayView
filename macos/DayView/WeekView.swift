@@ -134,8 +134,7 @@ struct WeekView: View {
                 focused: soFar, window: DateInterval(start: session.start, end: max(now, session.start)),
                 detours: model.detourIntervals
             )
-            let deep = drift.currentDeepMeasured
-                ? drift.liveDeepStretches(at: now).reduce(0) { $0 + $1.duration } : nil
+            let deep = drift.liveDeepTotal(at: now)
             times.append(FocusTime(
                 day: LocalDay(containing: session.start, calendar: calendar),
                 areaID: session.areaID, seconds: engaged, deep: deep
