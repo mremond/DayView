@@ -1,5 +1,5 @@
 import Foundation
-import SwiftUI
+import Combine
 import DayPlanKit
 import DayPlanStore
 
@@ -10,10 +10,13 @@ final class PlanModel: ObservableObject {
     @Published private(set) var areas: [Area] = []
     @Published private(set) var template: [TemplateBlock] = []
 
+    /// False when the on-disk store could not be opened and changes only live in memory.
+    let isPersistent: Bool
     private let store: PlanStore
 
-    init(store: PlanStore) {
+    init(store: PlanStore, isPersistent: Bool = true) {
         self.store = store
+        self.isPersistent = isPersistent
         do {
             _ = try store.seedIfNeeded(AreaSeed.defaults(names: [
                 L("Personal life"), L("Writing"), L("Work"), L("Health")
@@ -26,15 +29,28 @@ final class PlanModel: ObservableObject {
 
     static func live() -> PlanModel {
         do {
-            let container = try PlanStore.makeContainer(inMemory: false)
+            let container = try PlanStore.makeContainer(url: try storeURL())
             return PlanModel(store: PlanStore(container: container, defaults: .standard))
         } catch {
             NSLog("DayView: opening the plan store failed, using memory: \(error)")
-            // An in-memory container is not expected to fail; there is nothing left to fall back on.
-            // swiftlint:disable:next force_try
-            let container = try! PlanStore.makeContainer(inMemory: true)
-            return PlanModel(store: PlanStore(container: container, defaults: .standard))
+            guard let container = try? PlanStore.makeContainer(inMemory: true) else {
+                fatalError("DayView: cannot create an in-memory plan store")
+            }
+            // A throwaway suite: the seeded / cap-asked flags must not outlive data lost at quit.
+            let volatile = UserDefaults(suiteName: "dayplan.volatile.\(UUID().uuidString)") ?? UserDefaults()
+            return PlanModel(store: PlanStore(container: container, defaults: volatile), isPersistent: false)
         }
+    }
+
+    /// `<Application Support>/<bundle id>/DayPlan.store`, so Debug and Release builds (whose
+    /// seeded / cap-asked flags are per-bundle) never share one store.
+    private static func storeURL() throws -> URL {
+        let fm = FileManager.default
+        let support = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                 appropriateFor: nil, create: true)
+        let folder = support.appendingPathComponent(Bundle.main.bundleIdentifier ?? "fr.dayview.app", isDirectory: true)
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent("DayPlan.store")
     }
 
     var capQuestionAsked: Bool {

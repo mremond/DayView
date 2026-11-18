@@ -25,6 +25,22 @@ struct PlanStoreTests {
         TemplateBlock(id: BlockID(), weekdayISO: weekday, startMinute: start, endMinute: end, areaID: area.id, intention: "")
     }
 
+    @Test func fileContainerPersistsAcrossOpens() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("DayPlan.store")
+        let (defaults, suite) = makeDefaults()
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let saved = area("Writing")
+        do {
+            let store = PlanStore(container: try PlanStore.makeContainer(url: url), defaults: defaults)
+            try store.save(saved)
+        }
+        let reopened = PlanStore(container: try PlanStore.makeContainer(url: url), defaults: defaults)
+        #expect(reopened.areas() == [saved])
+    }
+
     @Test func areaRoundTrip() throws {
         let (store, _, _, suite) = try makeStore()
         defer { UserDefaults().removePersistentDomain(forName: suite) }

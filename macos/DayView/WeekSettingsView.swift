@@ -20,6 +20,7 @@ struct WeekSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if !plan.isPersistent { UnsavedBanner() }
             Picker("", selection: $weekday) {
                 ForEach(1...7, id: \.self) { Text(WeekSettingsView.weekdayLabel($0)).tag($0) }
             }
@@ -63,6 +64,10 @@ struct WeekSettingsView: View {
         .padding()
         .onAppear(perform: reload)
         .onChange(of: weekday) { _, _ in reload() }
+        .onChange(of: plan.areas) { _, areas in
+            let known = Set(areas.map(\.id))
+            draft.removeAll { !known.contains($0.areaID) }
+        }
         .onChange(of: plan.template) { _, _ in
             if isValid && Set(draft) != Set(storedDay) { reload() }
         }
@@ -74,7 +79,7 @@ struct WeekSettingsView: View {
     private func row(_ binding: Binding<TemplateBlock>) -> some View {
         let block = binding.wrappedValue
         return HStack(spacing: 6) {
-            timePicker(L("Start"), minute: binding.startMinute, range: 0..<1440)
+            timePicker(L("Start"), minute: binding.startMinute, range: 0...1435)
             timePicker(L("End"), minute: binding.endMinute, range: 5...1440)
             Picker(L("Area"), selection: binding.areaID) {
                 ForEach(plan.areas) { area in
@@ -101,10 +106,11 @@ struct WeekSettingsView: View {
                     in: RoundedRectangle(cornerRadius: 6))
     }
 
-    private func timePicker(_ title: String, minute: Binding<Int>, range: any Sequence<Int>) -> some View {
-        Picker(title, selection: minute) {
-            ForEach(Array(range).filter { $0 % TemplateRules.step == 0 || $0 == 1440 }, id: \.self) {
-                Text(WeekSettingsView.timeLabel($0)).tag($0)
+    private func timePicker(_ title: String, minute: Binding<Int>, range: ClosedRange<Int>) -> some View {
+        let labels = TimeLabels.current
+        return Picker(title, selection: minute) {
+            ForEach(Array(stride(from: range.lowerBound, through: range.upperBound, by: TemplateRules.step)), id: \.self) {
+                Text(labels.label($0)).tag($0)
             }
         }
         .labelsHidden()
@@ -137,11 +143,11 @@ struct WeekSettingsView: View {
         Calendar.current.shortStandaloneWeekdaySymbols[iso % 7]
     }
 
-    private static var uses12Hour: Bool {
+    fileprivate static var uses12Hour: Bool {
         (DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")
     }
 
-    static func timeLabel(_ minute: Int) -> String {
+    fileprivate static func formatTime(_ minute: Int) -> String {
         if minute >= 1440 { return uses12Hour ? L("Midnight") : L("24:00") }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
@@ -149,6 +155,25 @@ struct WeekSettingsView: View {
         let date = base.addingTimeInterval(TimeInterval(minute * 60))
         return date.formatted(.dateTime.hour().minute().locale(.current))
     }
+}
+
+/// Time labels for minutes 0...1440 in 5-minute steps, formatted once per locale / 12-24 h setting.
+private struct TimeLabels {
+    private static var cached: (key: String, value: TimeLabels)?
+    private let labels: [Int: String]
+
+    static var current: TimeLabels {
+        let key = "\(Locale.current.identifier)|\(WeekSettingsView.uses12Hour)"
+        if let cached, cached.key == key { return cached.value }
+        let table = Dictionary(uniqueKeysWithValues: stride(from: 0, through: 1440, by: TemplateRules.step).map {
+            ($0, WeekSettingsView.formatTime($0))
+        })
+        let value = TimeLabels(labels: table)
+        cached = (key, value)
+        return value
+    }
+
+    func label(_ minute: Int) -> String { labels[minute] ?? WeekSettingsView.formatTime(minute) }
 }
 
 private struct CopyDayPopover: View {

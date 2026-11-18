@@ -13,6 +13,13 @@ struct AreasSettingsView: View {
     private var palette: DayViewPalette { DayViewPalette.current(for: scheme) }
 
     var body: some View {
+        VStack(spacing: 0) {
+            if !plan.isPersistent { UnsavedBanner() }
+            content
+        }
+    }
+
+    private var content: some View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
                 List(selection: $selection) {
@@ -87,6 +94,16 @@ struct AreasSettingsView: View {
     }
 }
 
+struct UnsavedBanner: View {
+    var body: some View {
+        Text(L("Changes can't be saved this session."))
+            .font(.callout)
+            .foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding([.horizontal, .top], 12)
+    }
+}
+
 private struct AreaEditor: View {
     @ObservedObject var plan: PlanModel
     let installed: [OnGoalApp]
@@ -147,7 +164,7 @@ private struct AreaEditor: View {
                     DatePicker(L("Deadline"), selection: Binding(
                         get: { deadline },
                         set: { draft.goalDeadline = $0; commit() }
-                    ), displayedComponents: .date)
+                    ), displayedComponents: [.date, .hourAndMinute])
                 }
             }
             Section(L("On-goal apps")) {
@@ -192,11 +209,13 @@ private struct AreaEditor: View {
     private func commit() {
         guard var stored = plan.areas.first(where: { $0.id == draft.id }) else { return }
         let before = stored
-        stored.name = draft.name
+        let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { stored.name = name }
         stored.colorIndex = draft.colorIndex
         stored.goalTitle = draft.goalTitle
         stored.goalDeadline = draft.goalDeadline
         stored.onGoalApps = draft.onGoalApps
+        if draft.name != stored.name { draft.name = stored.name }
         if stored != before { plan.save(stored) }
     }
 }

@@ -16,11 +16,20 @@ public final class PlanStore {
     private let defaults: UserDefaults
     private var context: ModelContext { container.mainContext }
 
+    private static var schema: Schema { Schema([AreaRecord.self, TemplateBlockRecord.self]) }
+
+    /// An in-memory container for tests and the fallback when the store cannot be opened.
+    /// With `inMemory: false` the store lands in the default (shared) location: prefer `makeContainer(url:)`.
     public static func makeContainer(inMemory: Bool) throws -> ModelContainer {
-        let schema = Schema([AreaRecord.self, TemplateBlockRecord.self])
         let configuration = ModelConfiguration(
             "DayPlan", schema: schema, isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none
         )
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    /// A local-only container persisted at `url` (the parent directory must exist).
+    public static func makeContainer(url: URL) throws -> ModelContainer {
+        let configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 

@@ -8,12 +8,12 @@ enum InstalledApps {
     static func scan() -> [OnGoalApp] {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path
-        let folders = ["/Applications", "/Applications/Utilities", "/System/Applications", home]
+        let folders = ["/Applications", "/Applications/Utilities", "/System/Applications",
+                       "/System/Applications/Utilities", home]
         var byID: [String: OnGoalApp] = [:]
         for folder in folders {
-            let names = (try? fm.contentsOfDirectory(atPath: folder)) ?? []
-            for name in names where name.hasSuffix(".app") {
-                guard let app = app(at: URL(fileURLWithPath: folder).appendingPathComponent(name)),
+            for url in appURLs(in: URL(fileURLWithPath: folder), depth: 1) {
+                guard let app = app(at: url),
                       !excluded.contains(app.bundleID), byID[app.bundleID] == nil else { continue }
                 byID[app.bundleID] = app
             }
@@ -21,6 +21,23 @@ enum InstalledApps {
         return byID.values.sorted {
             $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
+    }
+
+    /// `.app` bundles directly in `folder`, plus those in its non-bundle subfolders down to `depth`
+    /// levels (vendor suite folders, Setapp).
+    private static func appURLs(in folder: URL, depth: Int) -> [URL] {
+        let entries = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+        )) ?? []
+        var result: [URL] = []
+        for url in entries {
+            if url.pathExtension == "app" {
+                result.append(url)
+            } else if depth > 0, (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                result += appURLs(in: url, depth: depth - 1)
+            }
+        }
+        return result
     }
 
     private static func app(at url: URL) -> OnGoalApp? {
