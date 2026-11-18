@@ -66,3 +66,16 @@ final class TemplateBlockRecord {
         )
     }
 }
+
+/// Persisted accepted day plan, one per day (`dayKey`). The plan itself is stored unfitted as JSON.
+@Model
+final class AcceptedPlanRecord {
+    /// `"YYYY-MM-DD"`, zero-padded.
+    var dayKey: String = ""
+    var reviewed: Bool = false
+    var acceptedAt: Date = Date.distantPast
+    /// JSON of `DayPlan`.
+    var planData: Data = Data()
+
+    init() {}
+}
