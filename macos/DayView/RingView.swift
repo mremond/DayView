@@ -8,14 +8,9 @@ struct RingView: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var plan: PlanModel
     @ObservedObject var todayPlan: TodayPlanModel
-    @State private var intention: String = ""
-    @State private var goalTitle: String = ""
-    @State private var deadline: Date = Date()
-    @State private var seeded = false
-    @State private var lastPomodoroStatus = "IDLE"
+    @ObservedObject var focus: FocusModel
     @State private var showDetourCapture = false
     @State private var showDetourList = false
-    @State private var showClosureSheet = false
     @State private var selectedFocusSession: FocusSessionSnapshot?
     @State private var showFocusSessionDetail = false
 
@@ -29,10 +24,6 @@ struct RingView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: DayViewPalette { DayViewPalette.current(for: colorScheme) }
-    private var sessionIsOpen: Bool {
-        let status = model.snapshot.pomodoroStatus
-        return status == "ACTIVE" || status == "OVERTIME"
-    }
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
@@ -52,23 +43,15 @@ struct RingView: View {
                             .buttonStyle(.borderless)
                             Spacer()
                         }
-                        if model.snapshot.showResumeRitual {
-                            resumeRitual
-                        } else if model.snapshot.showDriftReminder {
-                            driftBanner
-                        }
                         ringSection
                         UpcomingDaysView(days: model.snapshot.upcomingDays)
                         detourSection
                         MustDosView(model: model)
-                        // A running detour and a focus are mutually exclusive in the core, so the
-                        // panel that is live replaces the other rather than stacking with it.
                         if model.snapshot.detourOpenRunning {
                             OpenDetourBanner(model: model)
-                        } else {
-                            focusSection
                         }
-                        goalSection
+                        FocusPanel(focus: focus, plan: plan, todayPlan: todayPlan)
+                        ActiveAreaGoalCard(focus: focus)
                         HeroQuoteView(
                             hasStarted: model.snapshot.hasStarted,
                             isFinished: model.snapshot.isFinished,
@@ -89,43 +72,10 @@ struct RingView: View {
         )
         .sheet(isPresented: $showDetourCapture) { DetourCaptureSheet(model: model, isPresented: $showDetourCapture) }
         .sheet(isPresented: $showDetourList) { DetourListSheet(model: model, isPresented: $showDetourList) }
-        .sheet(isPresented: $showClosureSheet) { FocusClosureSheet(model: model, isPresented: $showClosureSheet) }
         .sheet(isPresented: $showFocusSessionDetail) {
             if let selectedFocusSession {
                 FocusSessionDetailSheet(session: selectedFocusSession, isPresented: $showFocusSessionDetail)
             }
-        }
-        .onChange(of: model.snapshot.showResumeRitual) { _, showing in
-            // The ritual is deliberately interruptive: surface the window it lives in.
-            if showing { NSApplication.shared.activate(ignoringOtherApps: true) }
-        }
-        .onAppear {
-            // The window may be created with a ritual already pending (the mini→main swap):
-            // onChange does not fire for an initial value, so surface it here too.
-            if model.snapshot.showResumeRitual { NSApplication.shared.activate(ignoringOtherApps: true) }
-        }
-        .onReceive(model.$snapshot) { snap in
-            // Seed the local text/date fields once from persisted state.
-            if !seeded {
-                intention = snap.focusIntention
-                goalTitle = snap.goalTitle
-                if snap.goalHasDeadline {
-                    deadline = Date(timeIntervalSince1970: Double(snap.goalDeadlineEpochMillis) / 1000)
-                }
-                seeded = true
-            }
-            // A session just ended (closure or stop): the persisted intention is the
-            // source of truth — Completed/Progressed cleared it, Resume later kept it —
-            // so re-sync the field. Scoped to the transition out of an open session, not
-            // to arriving at IDLE: a closure now lands on BREAK, and watching for IDLE
-            // would leave the field holding the closed session's text. Still a transition,
-            // so it never clobbers mid-typing edits during normal ticks.
-            let wasOpen = lastPomodoroStatus == "ACTIVE" || lastPomodoroStatus == "OVERTIME"
-            let isOpen = snap.pomodoroStatus == "ACTIVE" || snap.pomodoroStatus == "OVERTIME"
-            if wasOpen && !isOpen {
-                intention = snap.focusIntention
-            }
-            lastPomodoroStatus = snap.pomodoroStatus
         }
     }
 
@@ -137,7 +87,7 @@ struct RingView: View {
                     remainingRatio: model.snapshot.remainingRatio,
                     isFinished: model.snapshot.isFinished,
                     hasStarted: model.snapshot.hasStarted,
-                    hasGoal: !model.snapshot.goalTitle.isEmpty || model.snapshot.goalHasDeadline,
+                    hasGoal: focus.activeArea.map { !$0.goalTitle.isEmpty || $0.goalDeadline != nil } ?? false,
                     busyArcs: model.snapshot.busyArcs,
                     detourBodies: model.snapshot.detourBodies,
                     focusArcs: model.snapshot.focusArcs,
@@ -223,136 +173,6 @@ struct RingView: View {
             .buttonStyle(.bordered)
             .tint(palette.muted)
         }
-    }
-
-    // Shared by the "IDLE" and "BREAK" cases below: entering a session is free in both.
-    @ViewBuilder
-    private var focusEntryButtons: some View {
-        Button("Start focus") {
-            model.startFocus(intention: intention)
-        }
-        .tint(palette.amber)
-        .keyboardShortcut(.return, modifiers: .command)
-        Button("5 min") {
-            model.quickStartFocus(intention: intention)
-        }
-        .buttonStyle(.bordered)
-        .tint(palette.muted)
-    }
-
-    private var focusSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("FOCUS")
-                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.amber)
-            TextField("What are you focusing on?", text: $intention)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { model.setFocusIntention(intention) }
-            HStack {
-                // A duration preference only means something before a session opens; once
-                // one is running (or overtime), showing it beside a counting-down clock set
-                // by the 5-min preset would contradict what's actually playing.
-                if !sessionIsOpen {
-                    Stepper(LF("Duration: %lld min", model.snapshot.pomodoroMinutes),
-                            onIncrement: { model.changePomodoroDuration(5) },
-                            onDecrement: { model.changePomodoroDuration(-5) })
-                }
-                Spacer()
-                switch model.snapshot.pomodoroStatus {
-                case "ACTIVE":
-                    Button("Stop focus") { showClosureSheet = true }
-                        .tint(palette.red)
-                case "OVERTIME":
-                    // Past the term the session is still running and still counted; closing
-                    // is the invitation, so the button is named for what it does.
-                    Button("Close this focus") { showClosureSheet = true }
-                        .tint(palette.red)
-                case "BREAK":
-                    // A break offers both a fresh entry and a one-tap return to the
-                    // intention that was just closed — no session is open, so this is safe.
-                    focusEntryButtons
-                    Button("Relaunch") {
-                        model.startFocus(intention: model.snapshot.focusIntention)
-                    }
-                    .tint(palette.amber)
-                default: // "IDLE" — entering is free
-                    focusEntryButtons
-                }
-            }
-            Text(model.snapshot.focusLine.isEmpty ? L("Idle") : model.snapshot.focusLine)
-                .foregroundStyle(.secondary)
-        }
-        .dayViewPanel(palette)
-    }
-
-    // Drift nudge: an amber panel restating the intention, dismissable in one click.
-    private var driftBanner: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("BACK TO THE ESSENTIAL")
-                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.amber)
-            Text(model.snapshot.focusIntention.isEmpty ? "One thing at a time." : model.snapshot.focusIntention)
-                .foregroundStyle(palette.cloud)
-            HStack {
-                Spacer()
-                Button("BACK AT IT") { model.dismissDriftReminder() }
-                    .buttonStyle(.bordered)
-                    .tint(palette.amber)
-            }
-        }
-        .dayViewPanel(palette)
-    }
-
-    // Resumption ritual: a still-running session found at launch or after a wake.
-    private var resumeRitual: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("YOUR RESUME POINT")
-                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.mint)
-            Text(model.snapshot.focusIntention.isEmpty ? "One thing at a time." : model.snapshot.focusIntention)
-                .foregroundStyle(palette.cloud)
-            if !model.snapshot.resumeRitualLine.isEmpty {
-                Text(model.snapshot.resumeRitualLine)
-                    .font(.caption).foregroundStyle(palette.muted)
-            }
-            HStack {
-                Spacer()
-                Button("Stop") { model.dismissResumeRitual(); showClosureSheet = true }
-                    .buttonStyle(.bordered)
-                    .tint(palette.red)
-                Button("Resume") { model.dismissResumeRitual() }
-                    .buttonStyle(.bordered)
-                    .tint(palette.mint)
-            }
-        }
-        .dayViewPanel(palette)
-    }
-
-    private var goalSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("LONG-TERM GOAL")
-                .font(.caption2).bold().kerning(1.2).foregroundStyle(palette.mint)
-            TextField("Long-term goal", text: $goalTitle)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { model.setGoalTitle(goalTitle) }
-            HStack {
-                DatePicker("Deadline", selection: $deadline)
-                    .onChange(of: deadline) { _, newValue in
-                        let millis = Int64(newValue.timeIntervalSince1970 * 1000)
-                        // Only persist a genuine user change. Seeding `deadline` from the
-                        // snapshot also fires .onChange (with `seeded` already true); guard
-                        // on the value so that seed round-trip isn't written back.
-                        if seeded && millis != model.snapshot.goalDeadlineEpochMillis {
-                            model.setGoalDeadline(epochMillis: millis)
-                        }
-                    }
-                if model.snapshot.goalHasDeadline {
-                    Button("Clear") { model.clearGoalDeadline() }
-                }
-            }
-            if model.snapshot.goalHasDeadline {
-                Text(model.snapshot.goalTimeLabel)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .dayViewPanel(palette)
     }
 
     // Geometry half of the hit test (angular containment is Kotlin's angularArcIndexAt):

@@ -6,16 +6,25 @@ struct MenuBarContent: View {
     @ObservedObject var model: TodayModel
     @ObservedObject var windows: WindowVisibility
     @ObservedObject var todayPlan: TodayPlanModel
+    @ObservedObject var focus: FocusModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         Text(model.snapshot.dayStatus)
-        if !model.snapshot.focusLine.isEmpty {
-            Text(model.snapshot.focusLine)
+        if let line = focus.menuLine(at: Date()) {
+            Text(line)
+            if focus.keepGoing != nil {
+                Button("Keep going (+15 min)") { focus.keepGoingNow() }
+            }
+            Button("Stop focus") { focus.stop() }
         }
-        if model.snapshot.goalHasDeadline {
-            Text(model.snapshot.goalTimeLabel)
+        if !focus.pendingClosures.isEmpty {
+            Button("Close last focus…") {
+                openWindow(id: "main")
+                dismissWindow(id: "mini")
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
         }
         Divider()
         Button("History") {
@@ -41,13 +50,5 @@ struct MenuBarContent: View {
             todayPlan.presentMorningCheck()
         }
         Button("Quit DayView") { NSApplication.shared.terminate(nil) }
-        .onChange(of: model.snapshot.showResumeRitual) { _, showing in
-            // The menu scene stays alive when both windows are closed. Surface a recovered
-            // Focus immediately instead of waiting for the user to reopen DayView.
-            if showing && !windows.isMainOpen && !windows.isMiniOpen {
-                openWindow(id: "main")
-                NSApplication.shared.activate(ignoringOtherApps: true)
-            }
-        }
     }
 }

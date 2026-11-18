@@ -11,6 +11,11 @@ final class FocusModel: ObservableObject {
     @Published private(set) var keepGoing: KeepGoingOffer?
     /// The events of the last tick that produced any, for cues.
     @Published private(set) var lastEvents: [FocusEvent] = []
+    /// Idle panel preferences (last used area / duration), shared by the panel and the Focus menu.
+    @Published private(set) var lastAreaID: AreaID?
+    @Published private(set) var lastMinutes: Int = 25
+    /// Idle intention draft, shared by the Start focus button and the menu command; not persisted.
+    @Published var draftIntention: String = ""
 
     /// Cue pipeline hook (Task 5): due cues, the tick's events and the plan state.
     /// Cues from ticks that ran before this was set are buffered and delivered when it is assigned,
@@ -47,6 +52,9 @@ final class FocusModel: ObservableObject {
         self.calendar = calendar
         self.defaults = defaults
         self.now = now
+        lastAreaID = defaults.string(forKey: Self.lastAreaKey).flatMap(UUID.init(uuidString:)).map { AreaID($0) }
+        let storedMinutes = defaults.integer(forKey: Self.lastMinutesKey)
+        lastMinutes = FocusEngine.manualMinutes.contains(storedMinutes) ? storedMinutes : 25
         if let data = defaults.data(forKey: Self.engineKey) {
             do {
                 engine = try JSONDecoder().decode(FocusEngine.self, from: data)
@@ -75,13 +83,10 @@ final class FocusModel: ObservableObject {
         current.flatMap { session in plan.areas.first { $0.id == session.areaID } }
     }
 
-    var lastAreaID: AreaID? {
-        defaults.string(forKey: Self.lastAreaKey).flatMap(UUID.init(uuidString:)).map { AreaID($0) }
-    }
-
-    var lastMinutes: Int {
-        let stored = defaults.integer(forKey: Self.lastMinutesKey)
-        return FocusEngine.manualMinutes.contains(stored) ? stored : 25
+    /// The preferred area if it still exists, else the first area.
+    var effectiveAreaID: AreaID? {
+        if let id = lastAreaID, plan.areas.contains(where: { $0.id == id }) { return id }
+        return plan.areas.first?.id
     }
 
     // MARK: Actions
@@ -100,19 +105,37 @@ final class FocusModel: ObservableObject {
         if !due.isEmpty || !events.isEmpty { deliver(due, events, state) }
     }
 
-    func startManual(areaID: AreaID, intention: String, minutes: Int) {
-        let minutes = min(max(minutes, FocusEngine.manualMinutes.lowerBound), FocusEngine.manualMinutes.upperBound)
-        defaults.set(areaID.raw.uuidString, forKey: Self.lastAreaKey)
-        defaults.set(minutes, forKey: Self.lastMinutesKey)
-        apply(engine.startManual(areaID: areaID, intention: intention, minutes: minutes, now: now()))
+    func setPreferredMinutes(_ minutes: Int) {
+        let range = FocusEngine.manualMinutes
+        let clamped = min(max(minutes, range.lowerBound), range.upperBound)
+        defaults.set(clamped, forKey: Self.lastMinutesKey)
+        lastMinutes = clamped
     }
 
-    /// Five minutes in the last used area (or the first area).
-    func quickStart(intention: String) {
-        guard let area = lastAreaID ?? plan.areas.first?.id else { return }
-        let areaID = plan.areas.contains { $0.id == area } ? area : (plan.areas.first?.id ?? area)
-        defaults.set(areaID.raw.uuidString, forKey: Self.lastAreaKey)
-        apply(engine.startManual(areaID: areaID, intention: intention, minutes: 5, now: now()))
+    func setPreferredArea(_ id: AreaID) {
+        defaults.set(id.raw.uuidString, forKey: Self.lastAreaKey)
+        lastAreaID = id
+    }
+
+    func startManual(areaID: AreaID, intention: String, minutes: Int) {
+        setPreferredArea(areaID)
+        setPreferredMinutes(minutes)
+        apply(engine.startManual(areaID: areaID, intention: intention, minutes: lastMinutes, now: now()))
+        draftIntention = ""
+    }
+
+    /// Starts with the panel's current values (preferred area, duration and draft intention).
+    func startPreferred() {
+        guard let area = effectiveAreaID else { return }
+        startManual(areaID: area, intention: draftIntention, minutes: lastMinutes)
+    }
+
+    /// Five minutes in the preferred area (or the first area) with the draft intention.
+    func quickStart() {
+        guard let area = effectiveAreaID else { return }
+        setPreferredArea(area)
+        apply(engine.startManual(areaID: area, intention: draftIntention, minutes: 5, now: now()))
+        draftIntention = ""
     }
 
     func stop() {

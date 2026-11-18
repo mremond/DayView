@@ -6,11 +6,11 @@ import DayViewKit
 /// window; observes the same TodayModel as the main window and menu bar.
 struct MiniView: View {
     @ObservedObject var model: TodayModel
+    @ObservedObject var plan: PlanModel
+    @ObservedObject var todayPlan: TodayPlanModel
+    @ObservedObject var focus: FocusModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
-    @State private var showIntentionSheet = false
-    @State private var draftIntention = ""
-    @State private var showClosureSheet = false
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: DayViewPalette { DayViewPalette.current(for: colorScheme) }
@@ -25,7 +25,7 @@ struct MiniView: View {
                             remainingRatio: model.snapshot.remainingRatio,
                             isFinished: model.snapshot.isFinished,
                             hasStarted: model.snapshot.hasStarted,
-                            hasGoal: !model.snapshot.goalTitle.isEmpty || model.snapshot.goalHasDeadline,
+                            hasGoal: focus.activeArea.map { !$0.goalTitle.isEmpty || $0.goalDeadline != nil } ?? false,
                             busyArcs: model.snapshot.busyArcs,
                             lineWidth: 12,
                             inset: 20
@@ -46,13 +46,12 @@ struct MiniView: View {
                     .frame(maxHeight: .infinity)
                     // Height-gated like the JVM mini (showGoalInMiniWindow: 400 at font scale 1).
                     if proxy.size.height >= 400 {
-                        goalCard
+                        ActiveAreaGoalCard(focus: focus, compact: true)
                     }
                     if model.snapshot.detourOpenRunning {
                         OpenDetourBanner(model: model)
-                    } else {
-                        focusCard
                     }
+                    FocusPanel(focus: focus, plan: plan, todayPlan: todayPlan, compact: true)
                 }
                 .padding(16)
                 // Expand back to the full window (mirrors the JVM's expand glyph).
@@ -74,99 +73,5 @@ struct MiniView: View {
                 .ignoresSafeArea()
             )
         }
-        .sheet(isPresented: $showIntentionSheet) { intentionSheet }
-        .sheet(isPresented: $showClosureSheet) { FocusClosureSheet(model: model, isPresented: $showClosureSheet) }
-        .onChange(of: model.snapshot.showResumeRitual) { _, showing in
-            // A ritual while in mini mode restores full mode (JVM parity), where the
-            // ritual panel is rendered.
-            if showing {
-                openWindow(id: "main")
-                dismissWindow(id: "mini")
-            }
-        }
-    }
-
-    private var goalCard: some View {
-        HStack {
-            Text(model.snapshot.goalTitle.isEmpty ? L("No goal yet") : model.snapshot.goalTitle)
-                .foregroundStyle(model.snapshot.goalTitle.isEmpty ? Color.secondary : Color.primary)
-                .lineLimit(1)
-            Spacer()
-            if model.snapshot.goalHasDeadline {
-                Text(model.snapshot.goalTimeLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .dayViewPanel(palette)
-    }
-
-    private var focusCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            switch model.snapshot.pomodoroStatus {
-            case "ACTIVE", "OVERTIME":
-                HStack(spacing: 8) {
-                    // focusLine is computed in Kotlin and already says "+N min" past the
-                    // term; composing the row here is what used to print "Break · …" for a
-                    // session that was still running.
-                    Text(model.snapshot.focusLine)
-                        .lineLimit(1)
-                    Spacer()
-                    Button(model.snapshot.pomodoroStatus == "OVERTIME" ? "Close" : "Stop") {
-                        showClosureSheet = true
-                    }
-                    .tint(palette.red)
-                }
-            case "BREAK":
-                // Compose's mini window shows the break label/clock plus a relaunch as its
-                // only affordance; the "Start focus" entry this phase added stays reachable
-                // alongside it, exactly as it is in the "IDLE" case below.
-                HStack(spacing: 8) {
-                    Text(model.snapshot.focusLine)
-                        .lineLimit(1)
-                    Spacer()
-                    Button("Relaunch") {
-                        model.startFocus(intention: model.snapshot.focusIntention)
-                    }
-                    .tint(palette.amber)
-                    Button("Start focus") {
-                        draftIntention = model.snapshot.focusIntention
-                        showIntentionSheet = true
-                    }
-                    .tint(palette.amber)
-                }
-            default: // "IDLE" — entering is free
-                Button("Start focus") {
-                    draftIntention = model.snapshot.focusIntention
-                    showIntentionSheet = true
-                }
-                .tint(palette.amber)
-            }
-        }
-        .dayViewPanel(palette)
-    }
-
-    private var intentionSheet: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("What are you focusing on?")
-                .font(.headline)
-            TextField("Focus intention", text: $draftIntention)
-                .textFieldStyle(.roundedBorder)
-            HStack {
-                Spacer()
-                Button("Cancel") { showIntentionSheet = false }
-                Button("5 min") {
-                    model.quickStartFocus(intention: draftIntention)
-                    showIntentionSheet = false
-                }
-                Button("Start") {
-                    model.startFocus(intention: draftIntention)
-                    showIntentionSheet = false
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(20)
-        .frame(width: 320)
     }
 }

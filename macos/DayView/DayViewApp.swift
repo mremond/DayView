@@ -26,41 +26,31 @@ struct DayViewApp: App {
         _speaker = StateObject(wrappedValue: speaker)
     }
 
+    private var focusRunning: Bool { focus.current != nil }
+
     var body: some Scene {
         Window("DayView", id: "main") {
-            MainWindowRoot(model: model, windows: windows, plan: plan, todayPlan: todayPlan)
+            MainWindowRoot(model: model, windows: windows, plan: plan, todayPlan: todayPlan, focus: focus)
         }
         .commands {
             CommandMenu("Focus") {
-                Button("Start focus") {
-                    model.startFocus(intention: model.snapshot.focusIntention)
-                }
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(
-                    model.snapshot.detourOpenRunning ||
-                    model.snapshot.pomodoroStatus == "ACTIVE" ||
-                    model.snapshot.pomodoroStatus == "OVERTIME"
-                )
+                Button("Start focus") { focus.startPreferred() }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(focusRunning || focus.effectiveAreaID == nil)
                 Divider()
-                Button("Shorter focus") { model.changePomodoroDuration(-5) }
+                Button("Shorter focus") { focus.setPreferredMinutes(focus.lastMinutes - 5) }
                     .keyboardShortcut(.leftArrow, modifiers: [])
-                    .disabled(
-                        model.snapshot.pomodoroStatus == "ACTIVE" ||
-                        model.snapshot.pomodoroStatus == "OVERTIME"
-                    )
-                Button("Longer focus") { model.changePomodoroDuration(5) }
+                    .disabled(focusRunning)
+                Button("Longer focus") { focus.setPreferredMinutes(focus.lastMinutes + 5) }
                     .keyboardShortcut(.rightArrow, modifiers: [])
-                    .disabled(
-                        model.snapshot.pomodoroStatus == "ACTIVE" ||
-                        model.snapshot.pomodoroStatus == "OVERTIME"
-                    )
+                    .disabled(focusRunning)
             }
         }
-        MenuBarExtra(model.snapshot.menuBarTitle) {
-            MenuBarContent(model: model, windows: windows, todayPlan: todayPlan)
+        MenuBarExtra(focus.remaining(at: Date()).map(FocusFormat.clock) ?? model.snapshot.dayStatus) {
+            MenuBarContent(model: model, windows: windows, todayPlan: todayPlan, focus: focus)
         }
         Window("DayView Mini", id: "mini") {
-            MiniView(model: model)
+            MiniView(model: model, plan: plan, todayPlan: todayPlan, focus: focus)
                 .frame(minWidth: 200, minHeight: 300)
                 .background(MiniWindowBehavior())
                 .onAppear { windows.isMiniOpen = true }
@@ -85,12 +75,13 @@ private struct MainWindowRoot: View {
     @ObservedObject var windows: WindowVisibility
     @ObservedObject var plan: PlanModel
     @ObservedObject var todayPlan: TodayPlanModel
+    @ObservedObject var focus: FocusModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            RingView(model: model, plan: plan, todayPlan: todayPlan)
+            RingView(model: model, plan: plan, todayPlan: todayPlan, focus: focus)
             Button {
                 openWindow(id: "mini")
                 dismissWindow(id: "main")

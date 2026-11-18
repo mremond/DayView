@@ -155,3 +155,14 @@
 "Volume" = "Volume";
 "Use a chime instead of voice" = "Use a chime instead of voice";
 "Test" = "Test";
+"Keep going (+15 min)" = "Keep going (+15 min)";
+"Paused for a meeting" = "Paused for a meeting";
+"Break since %@" = "Break since %@";
+"Close: %@ · %@" = "Close: %@ · %@";
+"Close last focus…" = "Close last focus…";
+"Add an area in Settings to start a focus" = "Add an area in Settings to start a focus";
+"%lld days left" = "%lld days left";
+"1 day left" = "1 day left";
+"Due today" = "Due today";
+"%lld days overdue" = "%lld days overdue";
+"1 day overdue" = "1 day overdue";

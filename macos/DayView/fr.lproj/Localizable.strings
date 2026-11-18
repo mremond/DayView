@@ -154,3 +154,14 @@
 "Volume" = "Volume";
 "Use a chime instead of voice" = "Utiliser un carillon plutôt que la voix";
 "Test" = "Tester";
+"Keep going (+15 min)" = "Continuer (+15 min)";
+"Paused for a meeting" = "En pause pendant une réunion";
+"Break since %@" = "Pause depuis %@";
+"Close: %@ · %@" = "Clôturer : %@ · %@";
+"Close last focus…" = "Clôturer le dernier Focus…";
+"Add an area in Settings to start a focus" = "Ajoutez un domaine dans Réglages pour démarrer un focus";
+"%lld days left" = "%lld jours restants";
+"1 day left" = "1 jour restant";
+"Due today" = "Échéance aujourd'hui";
+"%lld days overdue" = "%lld jours de retard";
+"1 day overdue" = "1 jour de retard";
