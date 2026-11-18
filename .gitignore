@@ -22,3 +22,4 @@ macos/Packages/DayViewKit/.build/
 server/sync-store.json
 server/sync-store.json.tmp
 server/sync-endpoint
+macos/Packages/DayPlanKit/.build/
