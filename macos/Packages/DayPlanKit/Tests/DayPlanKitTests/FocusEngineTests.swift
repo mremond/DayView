@@ -97,7 +97,9 @@ struct FocusEngineTests {
         #expect(session.origin == .manual)
         #expect(session.end == at("14:25"))
 
-        let record = try #require(endedRecord(engine.advance(to: at("14:25"), plan: [])))
+        #expect(engine.advance(to: at("14:25"), plan: []) == [])
+        #expect(engine.current == session)
+        let record = try #require(endedRecord(engine.stop(now: at("14:25"), plan: [])))
         #expect(record.reason == .completed)
         #expect(record.actualEnd == at("14:25"))
         #expect(record.focused == 1500)
@@ -155,19 +157,18 @@ struct FocusEngineTests {
         #expect(engine.current == by)
     }
 
-    @Test func manualEndedBeforeBlockCompletes() {
+    @Test func manualPastTermIsTakenOverByBlock() {
         let health = block("14:00", "15:00", intention: "Health")
         let plan = fitted([health])
         var engine = FocusEngine()
         _ = engine.startManual(areaID: AreaID(), intention: "Write", minutes: 30, now: at("13:00"))
 
         let events = engine.advance(to: at("14:00"), plan: plan)
-        #expect(events.count == 2)
-        guard events.count == 2,
-              case let .ended(record) = events[0],
-              case let .started(session) = events[1] else { return }
-        #expect(record.reason == .completed)
-        #expect(record.actualEnd == at("13:30"))
+        #expect(events.count == 1)
+        guard events.count == 1, case let .tookOver(record, session) = events[0] else { return }
+        #expect(record.reason == .tookOver)
+        #expect(record.actualEnd == at("14:00"))
+        #expect(record.focused == 3600)
         #expect(session.origin == .planned(health.id))
         #expect(engine.breakStartedAt == nil)
     }
@@ -231,7 +232,7 @@ struct FocusEngineTests {
     @Test func closeRemovesPendingRecord() throws {
         var engine = FocusEngine()
         _ = engine.startManual(areaID: AreaID(), intention: "", minutes: 25, now: at("14:00"))
-        let record = try #require(endedRecord(engine.advance(to: at("14:25"), plan: [])))
+        let record = try #require(endedRecord(engine.stop(now: at("14:25"), plan: [])))
         #expect(engine.close(recordID: record.session.id) == record)
         #expect(engine.pendingClosures.isEmpty)
         #expect(engine.close(recordID: record.session.id) == nil)

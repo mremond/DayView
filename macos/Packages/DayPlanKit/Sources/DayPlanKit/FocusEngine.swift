@@ -78,7 +78,7 @@ public struct FocusEngine: Codable, Sendable, Equatable {
     public private(set) var current: FocusSession?
     /// Closing ritual queue: every ended or taken-over Focus, until closed.
     public private(set) var pendingClosures: [FocusRecord] = []
-    /// Set when a manual Focus completes; cleared when any Focus starts.
+    /// Set when a manual Focus is stopped; cleared when any Focus starts.
     public private(set) var breakStartedAt: Date?
 
     /// Blocks whose Focus has started once; they never start again.
@@ -150,7 +150,15 @@ public struct FocusEngine: Codable, Sendable, Equatable {
     /// session, time outside the block's parts (paused for a meeting) is excluded. 0 when idle.
     public func focusedSoFar(at now: Date) -> TimeInterval {
         guard let current else { return 0 }
+        if case .manual = current.origin { return max(0, now.timeIntervalSince(current.start)) }
         return focusedTime(of: current, until: min(now, current.end))
+    }
+
+    /// How long the running manual Focus has gone past its term; nil for a planned session, when
+    /// idle, or before the term.
+    public func overtime(at now: Date) -> TimeInterval? {
+        guard let current, case .manual = current.origin, now > current.end else { return nil }
+        return now.timeIntervalSince(current.end)
     }
 
     public mutating func startManual(areaID: AreaID, intention: String, minutes: Int, now: Date) -> [FocusEvent] {
@@ -172,6 +180,10 @@ public struct FocusEngine: Codable, Sendable, Equatable {
         guard let current else { return [] }
         if case let .planned(id) = current.origin, let fitted = kept(id, in: plan) {
             refresh(with: fitted)
+        }
+        if case .manual = current.origin {
+            breakStartedAt = now
+            return [.ended(finish(at: now, reason: now >= current.end ? .completed : .stopped))]
         }
         return [.ended(finish(at: now, reason: .stopped))]
     }
@@ -214,15 +226,14 @@ public struct FocusEngine: Codable, Sendable, Equatable {
 
     // MARK: - State transitions
 
-    /// Plan wins: a block that started while the manual Focus was still on (its end included)
-    /// interrupts it at the block's start, even when the manual Focus is already due. A block that
-    /// appears later (plan edited mid-Focus) interrupts it at the previous advance, not retroactively.
+    /// Plan wins: a block that started while the manual Focus was still open (in overtime too)
+    /// interrupts it at the block's start. A block that appears later (plan edited mid-Focus) interrupts it at the previous advance, not retroactively.
     private mutating func takeOverManual(at now: Date, plan: [FittedBlock]) -> FocusEvent? {
         guard let manual = current, manual.origin == .manual,
               let running = nextBlockToStart(at: now, plan: plan),
-              let blockStart = running.start, blockStart <= manual.end
+              let blockStart = running.start
         else { return nil }
-        let actualEnd = min(max(blockStart, lastAdvance ?? blockStart, manual.start), manual.end)
+        let actualEnd = max(blockStart, lastAdvance ?? blockStart, manual.start)
         let interrupted = finish(at: actualEnd, reason: .tookOver)
         let planned = startPlanned(running, now: now)
         lastTakeover = Takeover(interrupted: interrupted, blockID: running.block.id)
@@ -234,9 +245,7 @@ public struct FocusEngine: Codable, Sendable, Equatable {
         guard let current else { return nil }
         switch current.origin {
         case .manual:
-            guard now >= current.end else { return nil }
-            breakStartedAt = current.end
-            return finish(at: current.end, reason: .completed)
+            return nil
         case let .planned(id):
             guard let fitted = kept(id, in: plan) else { return finish(at: now, reason: .stopped) }
             refresh(with: fitted)
@@ -296,5 +305,33 @@ public struct FocusEngine: Codable, Sendable, Equatable {
 
     private func kept(_ id: BlockID, in plan: [FittedBlock]) -> FittedBlock? {
         plan.first { $0.block.id == id && !$0.isDropped }
+    }
+}
+
+/// Nudges once when a manual Focus has run twice its planned duration (term plus the planned
+/// duration). Fires only when the threshold is crossed between two observations and not more than
+/// 90 s ago, so a wake-up or relaunch long after it stays silent.
+public struct OvertimeReminder: Sendable, Codable, Equatable {
+    public static let lateTolerance: TimeInterval = 90
+
+    private var sessionID: UUID?
+    private var previous: Date?
+    private var fired = false
+
+    public init() {}
+
+    public mutating func observe(now: Date, session: FocusSession?) -> Bool {
+        if session?.id != sessionID {
+            sessionID = session?.id
+            previous = nil
+            fired = false
+        }
+        defer { previous = now }
+        guard let session, case .manual = session.origin, !fired, let previous else { return false }
+        let threshold = session.end.addingTimeInterval(session.end.timeIntervalSince(session.start))
+        guard threshold > previous, threshold <= now, now.timeIntervalSince(threshold) <= Self.lateTolerance
+        else { return false }
+        fired = true
+        return true
     }
 }

@@ -35,7 +35,8 @@ struct FocusPersistenceTests {
         var restored = try roundTrip(engine)
 
         #expect(restored.current == engine.current)
-        let events = restored.advance(to: at("10:25"), plan: [])
+        #expect(restored.advance(to: at("10:25"), plan: []) == [])
+        let events = restored.stop(now: at("10:25"), plan: [])
         guard events.count == 1, case let .ended(record) = events[0] else {
             Issue.record("expected one ended event, got \(events)")
             return
@@ -151,7 +152,7 @@ struct FocusPersistenceTests {
         var engine = FocusEngine()
         engine.beginDay(.nov18, calendar: paris)
         _ = engine.startManual(areaID: AreaID(), intention: "Read", minutes: 25, now: at("23:00"))
-        _ = engine.advance(to: at("23:25"), plan: [])
+        _ = engine.stop(now: at("23:25"), plan: [])
         #expect(engine.breakStartedAt == at("23:25"))
 
         engine.beginDay(Self.day2, calendar: paris)
