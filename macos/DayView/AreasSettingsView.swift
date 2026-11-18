@@ -154,9 +154,16 @@ private struct AreaEditor: View {
         }
     }
 
+    /// Editable fields only: `order` is owned by the store (drag-reorder), so the draft's
+    /// stale copy must never be written back.
     private func commit() {
-        guard plan.areas.contains(where: { $0.id == draft.id }),
-              plan.areas.first(where: { $0.id == draft.id }) != draft else { return }
-        plan.save(draft)
+        guard var stored = plan.areas.first(where: { $0.id == draft.id }) else { return }
+        let before = stored
+        stored.name = draft.name
+        stored.colorIndex = draft.colorIndex
+        stored.goalTitle = draft.goalTitle
+        stored.goalDeadline = draft.goalDeadline
+        stored.onGoalApps = draft.onGoalApps
+        if stored != before { plan.save(stored) }
     }
 }
