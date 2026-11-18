@@ -70,9 +70,10 @@ public enum ClosureOutcome: String, Codable, Sendable {
 
 /// Runs the Focus: a planned block's Focus starts by itself, a manual Focus can start anytime,
 /// and when a block starts during a manual Focus the plan wins.
-public struct FocusEngine: Sendable {
+public struct FocusEngine: Codable, Sendable {
     public static let manualMinutes = 5...180
-    private static let keepGoingExtension: TimeInterval = 900
+    /// The single source of the Keep going extension: 15 minutes.
+    public static let keepGoingExtension: TimeInterval = 900
 
     public private(set) var current: FocusSession?
     /// Closing ritual queue: every ended or taken-over Focus, until closed.
@@ -85,11 +86,31 @@ public struct FocusEngine: Sendable {
     /// The parts of the current planned session's block, as last seen in the plan.
     private var currentParts: [DateInterval] = []
     /// The manual Focus the plan just took over, and the block that took over; cleared by any later transition.
-    private var lastTakeover: (interrupted: FocusRecord, blockID: BlockID)?
+    private var lastTakeover: Takeover?
+    /// The `now` of the previous `advance`; a takeover cannot reach back before it.
+    private var lastAdvance: Date?
+    /// The day the engine is running; see `beginDay`.
+    private var day: LocalDay?
+
+    private struct Takeover: Codable, Sendable {
+        let interrupted: FocusRecord
+        let blockID: BlockID
+    }
 
     public init() {}
 
+    /// Scopes the engine to `day`. A new day clears started blocks and the last takeover, because
+    /// planned block IDs repeat from day to day. Current, pending and break state are kept.
+    public mutating func beginDay(_ day: LocalDay) {
+        if let stored = self.day, stored != day {
+            startedBlockIDs = []
+            lastTakeover = nil
+        }
+        self.day = day
+    }
+
     public mutating func advance(to now: Date, plan: [FittedBlock]) -> [FocusEvent] {
+        defer { lastAdvance = now }
         if let takeover = takeOverManual(at: now, plan: plan) { return [takeover] }
         var events: [FocusEvent] = []
         if let ended = endCurrentIfDue(now: now, plan: plan) {
@@ -163,16 +184,17 @@ public struct FocusEngine: Sendable {
     // MARK: - State transitions
 
     /// Plan wins: a block that started while the manual Focus was still on (its end included)
-    /// interrupts it at the block's start, even when the manual Focus is already due.
+    /// interrupts it at the block's start, even when the manual Focus is already due. A block that
+    /// appears later (plan edited mid-Focus) interrupts it at the previous advance, not retroactively.
     private mutating func takeOverManual(at now: Date, plan: [FittedBlock]) -> FocusEvent? {
         guard let manual = current, manual.origin == .manual,
               let running = nextBlockToStart(at: now, plan: plan),
               let blockStart = running.start, blockStart <= manual.end
         else { return nil }
-        let actualEnd = min(max(blockStart, manual.start), manual.end)
+        let actualEnd = min(max(blockStart, lastAdvance ?? blockStart, manual.start), manual.end)
         let interrupted = finish(at: actualEnd, reason: .tookOver)
         let planned = startPlanned(running, now: now)
-        lastTakeover = (interrupted, running.block.id)
+        lastTakeover = Takeover(interrupted: interrupted, blockID: running.block.id)
         return .tookOver(interrupted: interrupted, by: planned)
     }
 
