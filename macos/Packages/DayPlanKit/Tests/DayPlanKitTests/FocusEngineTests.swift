@@ -72,6 +72,22 @@ struct FocusEngineTests {
         #expect(record.focused == 9000)
     }
 
+    @Test func focusedSoFarExcludesMeetingPause() {
+        let a = block("09:00", "12:00")
+        let plan = fitted([a], meetings: [DateInterval(start: at("10:00"), end: at("10:30"))])
+        var engine = FocusEngine()
+        #expect(engine.focusedSoFar(at: at("09:00")) == 0)
+        _ = engine.advance(to: at("09:00"), plan: plan)
+        _ = engine.advance(to: at("11:00"), plan: plan)
+        #expect(engine.focusedSoFar(at: at("11:00")) == 5400)
+    }
+
+    @Test func focusedSoFarManualIsElapsed() {
+        var engine = FocusEngine()
+        _ = engine.startManual(areaID: AreaID(), intention: "", minutes: 25, now: at("14:00"))
+        #expect(engine.focusedSoFar(at: at("14:10")) == 600)
+    }
+
     @Test func manualThenBreak() throws {
         var engine = FocusEngine()
         let area = AreaID()

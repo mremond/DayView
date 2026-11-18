@@ -133,3 +133,19 @@ private func feed(
     let second = feed(&m, .offGoal, area: a, from: at("10:03") + 2, through: at("10:13") + 5)
     #expect(second.map(\.0) == [at("10:13")])
 }
+
+/// A planned block paused for a meeting (or a locked screen) is sampled as neutral: off-goal time
+/// before the pause does not carry over into a reminder, and the pause clears an ignored-cue watch.
+@Test func pauseSampledAsNeutralNeverDriftsAndBreaksWatch() {
+    var m = DriftMonitor()
+    let a = AreaID()
+    m.cueDelivered(areaID: a, measurable: true, at: at("10:00"))
+    let before = feed(&m, .offGoal, area: a, from: at("10:00"), through: at("10:02"))
+    #expect(before.isEmpty)
+    let paused = feed(&m, .neutral, area: a, from: at("10:02") + 1, through: at("10:30"))
+    #expect(paused.isEmpty)
+    // Back from the meeting, off-goal again: a fresh 3-minute streak, and no ignored cue.
+    let after = feed(&m, .offGoal, area: a, from: at("10:30") + 1, through: at("10:33") + 1)
+    #expect(after.map(\.0) == [at("10:33") + 1])
+    #expect(!after.contains { if case .cueIgnored = $0.1 { return true } else { return false } })
+}

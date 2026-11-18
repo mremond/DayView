@@ -146,6 +146,13 @@ public struct FocusEngine: Codable, Sendable, Equatable {
         startedBlockIDs.contains(id)
     }
 
+    /// Time focused so far in the running session, as its record would count it: for a planned
+    /// session, time outside the block's parts (paused for a meeting) is excluded. 0 when idle.
+    public func focusedSoFar(at now: Date) -> TimeInterval {
+        guard let current else { return 0 }
+        return focusedTime(of: current, until: min(now, current.end))
+    }
+
     public mutating func startManual(areaID: AreaID, intention: String, minutes: Int, now: Date) -> [FocusEvent] {
         var events: [FocusEvent] = []
         if current != nil {
