@@ -42,8 +42,7 @@ final class CueSpeaker: ObservableObject {
             sound?.play()
             return
         }
-        let voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
-            ?? AVSpeechSynthesisVoice(language: Locale.current.language.languageCode?.identifier ?? "en")
+        let voice = Self.voice(for: Self.language)
         for sentence in sentences {
             let utterance = AVSpeechUtterance(string: sentence)
             utterance.voice = voice
@@ -69,9 +68,28 @@ final class CueSpeaker: ObservableObject {
         if !wasEnabled { defaults.set(false, forKey: Self.enabledKey) }
     }
 
+    /// The cue language: the system language when it is French, else English.
+    private static var language: CueLanguage {
+        CueLanguage(languageCode: Locale.current.language.languageCode?.identifier)
+    }
+
+    /// A voice that speaks the cue language, so a German system gets English text read by an
+    /// English voice: the system locale (BCP-47, keeping its region) when its language matches,
+    /// else "en-US" / "fr-FR".
+    private static func voice(for language: CueLanguage) -> AVSpeechSynthesisVoice? {
+        let fallback = language == .fr ? "fr-FR" : "en-US"
+        let code = language == .fr ? "fr" : "en"
+        let locale = Locale.current
+        guard locale.language.languageCode?.identifier == code else {
+            return AVSpeechSynthesisVoice(language: fallback)
+        }
+        return AVSpeechSynthesisVoice(language: locale.identifier(.bcp47))
+            ?? AVSpeechSynthesisVoice(language: fallback)
+    }
+
     private static func text(areas: [Area]) -> CueText {
         CueText(
-            language: CueLanguage(languageCode: Locale.current.language.languageCode?.identifier),
+            language: language,
             areaName: { id in areas.first { $0.id == id }?.name ?? "" },
             time: { $0.formatted(.dateTime.hour().minute()) }
         )
