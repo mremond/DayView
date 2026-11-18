@@ -16,7 +16,7 @@ public final class PlanStore {
     private let defaults: UserDefaults
     private var context: ModelContext { container.mainContext }
 
-    private static var schema: Schema { Schema(versionedSchema: DayPlanSchemaV4.self) }
+    private static var schema: Schema { Schema(versionedSchema: DayPlanSchemaV5.self) }
 
     /// An in-memory container for tests and the fallback when the store cannot be opened.
     /// With `inMemory: false` the store lands in the default (shared) location: prefer `makeContainer(url:)`.
@@ -259,6 +259,63 @@ public final class PlanStore {
         var result: [LocalDay: Int] = [:]
         for entry in (try? context.fetch(descriptor)) ?? [] {
             if let day = LocalDay(isoKey: entry.dayKey) { result[day, default: 0] += 1 }
+        }
+        return result
+    }
+
+    // MARK: Focus metrics
+
+    /// Stores the metrics of a Focus session, replacing any earlier ones and that session's stretches.
+    public func saveFocusMetrics(_ metrics: FocusMetrics) throws {
+        let id = metrics.sessionID
+        let key = metrics.day.isoKey
+        let existing = (try? context.fetch(
+            FetchDescriptor<FocusMetricsEntry>(predicate: #Predicate { $0.sessionID == id })
+        )) ?? []
+        let entry = existing.first ?? FocusMetricsEntry()
+        if existing.isEmpty { context.insert(entry) }
+        for duplicate in existing.dropFirst() { context.delete(duplicate) }
+        entry.sessionID = id
+        entry.dayKey = key
+        entry.areaID = metrics.areaID.raw
+        entry.engagedSeconds = metrics.engaged
+        entry.deepMeasured = metrics.deep != nil
+        entry.deepSeconds = metrics.deep ?? 0
+        let stale = (try? context.fetch(
+            FetchDescriptor<FocusPresenceEntry>(predicate: #Predicate { $0.sessionID == id })
+        )) ?? []
+        for old in stale { context.delete(old) }
+        for stretch in metrics.deepStretches {
+            let presence = FocusPresenceEntry()
+            presence.sessionID = id
+            presence.dayKey = key
+            presence.start = stretch.start
+            presence.end = stretch.end
+            context.insert(presence)
+        }
+        try commit()
+    }
+
+    /// The metrics of the sessions that started in `from...through`, by session id.
+    public func focusMetrics(from: LocalDay, through: LocalDay) -> [UUID: FocusMetrics] {
+        let lower = from.isoKey, upper = through.isoKey
+        let entries = (try? context.fetch(FetchDescriptor<FocusMetricsEntry>(
+            predicate: #Predicate { $0.dayKey >= lower && $0.dayKey <= upper }
+        ))) ?? []
+        let presences = (try? context.fetch(FetchDescriptor<FocusPresenceEntry>(
+            predicate: #Predicate { $0.dayKey >= lower && $0.dayKey <= upper }
+        ))) ?? []
+        let stretches = Dictionary(grouping: presences, by: \.sessionID)
+        var result: [UUID: FocusMetrics] = [:]
+        for entry in entries where result[entry.sessionID] == nil {
+            guard let day = LocalDay(isoKey: entry.dayKey) else { continue }
+            let intervals = (stretches[entry.sessionID] ?? []).sorted { $0.start < $1.start }
+                .map { DateInterval(start: $0.start, end: max($0.start, $0.end)) }
+            result[entry.sessionID] = FocusMetrics(
+                sessionID: entry.sessionID, areaID: AreaID(entry.areaID), day: day,
+                engaged: entry.engagedSeconds, deep: entry.deepMeasured ? entry.deepSeconds : nil,
+                deepStretches: intervals
+            )
         }
         return result
     }

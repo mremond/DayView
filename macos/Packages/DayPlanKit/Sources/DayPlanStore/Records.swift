@@ -157,3 +157,52 @@ public struct ClosedFocus: Sendable, Hashable {
         self.outcome = outcome
     }
 }
+
+/// Engaged and deep-focus time stored for a closed Focus session.
+@Model
+final class FocusMetricsEntry {
+    var sessionID: UUID = UUID()
+    /// `"YYYY-MM-DD"` of the session.
+    var dayKey: String = ""
+    var areaID: UUID = UUID()
+    var engagedSeconds: Double = 0
+    /// 0 when `deepMeasured` is false.
+    var deepSeconds: Double = 0
+    var deepMeasured: Bool = false
+
+    init() {}
+}
+
+/// One deep-focus stretch of a closed Focus session.
+@Model
+final class FocusPresenceEntry {
+    var sessionID: UUID = UUID()
+    var dayKey: String = ""
+    var start: Date = Date.distantPast
+    var end: Date = Date.distantPast
+
+    init() {}
+}
+
+/// The engaged and deep-focus time of a closed Focus session.
+public struct FocusMetrics: Sendable, Hashable {
+    public var sessionID: UUID
+    public var areaID: AreaID
+    public var day: LocalDay
+    public var engaged: TimeInterval
+    /// Nil when deep focus was not measured (the area has no on-goal apps).
+    public var deep: TimeInterval?
+    public var deepStretches: [DateInterval]
+
+    public init(
+        sessionID: UUID, areaID: AreaID, day: LocalDay, engaged: TimeInterval, deep: TimeInterval?,
+        deepStretches: [DateInterval]
+    ) {
+        self.sessionID = sessionID
+        self.areaID = areaID
+        self.day = day
+        self.engaged = engaged
+        self.deep = deep
+        self.deepStretches = deepStretches
+    }
+}
