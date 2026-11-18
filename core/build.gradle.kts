@@ -58,10 +58,17 @@ tasks.withType<Test>().configureEach {
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }
 
-val syncXCFramework by tasks.registering(Sync::class) {
+// rsync -a (not Gradle's Sync) so the framework's Versions/Current symlinks survive;
+// flattened symlinks make Release codesigning of DayViewKit.framework fail.
+val syncXCFramework by tasks.registering(Exec::class) {
     dependsOn("assembleDayViewKitReleaseXCFramework")
-    from(layout.buildDirectory.dir("XCFrameworks/release/DayViewKit.xcframework"))
-    into(rootProject.layout.projectDirectory.dir("macos/Packages/DayViewKit/DayViewKit.xcframework"))
+    onlyIf { System.getProperty("os.name").startsWith("Mac", ignoreCase = true) }
+    val source = layout.buildDirectory.dir("XCFrameworks/release/DayViewKit.xcframework")
+    val target = rootProject.layout.projectDirectory.dir("macos/Packages/DayViewKit/DayViewKit.xcframework")
+    inputs.dir(source)
+    outputs.dir(target)
+    doFirst { target.asFile.mkdirs() }
+    commandLine("rsync", "-a", "--delete", "${source.get().asFile}/", "${target.asFile}/")
 }
 
 // One-command build+run for the native SwiftUI macOS app: assemble and sync the
