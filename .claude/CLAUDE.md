@@ -56,6 +56,21 @@ Debugging a "no prompt" regression: read `tccd`'s unified log from a **real** Te
 tccd logs nothing for the app, the request was blocked client-side → a hardened-runtime
 entitlement is missing.
 
+### Native macOS app (packaging)
+
+`scripts/package-native-macos.sh <version> [--skip-notarize]` produces a signed, notarized,
+stapled `dist/DayView-<version>.dmg` of the SwiftUI app (Release config in `macos/project.yml`:
+hardened runtime, `macos/DayView/DayView.entitlements`, no sandbox).
+
+- Needs `dayview.macos.signingIdentity` in `local.properties` (or `DAYVIEW_SIGNING_IDENTITY`).
+- Notarization needs a keychain profile, created once:
+  `xcrun notarytool store-credentials dayview-notary --apple-id <id> --team-id <team>`
+  (override the name with `dayview.macos.notaryProfile` / `DAYVIEW_NOTARY_PROFILE`).
+  The script fails in preflight, with this command, when the profile is missing.
+- `--skip-notarize` signs only. Build products go to `macos/build/native-release`.
+- `:core:syncXCFramework` uses `rsync -a` on purpose: flattening the framework's symlinks
+  breaks codesigning of `DayViewKit.framework`.
+
 ## Commit Messages and Pull Requests
 
 - Write all commit messages and pull requests in English.

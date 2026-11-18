@@ -134,6 +134,32 @@ This assembles the Kotlin/Native XCFramework, generates the Xcode project from
 `macos/DayView.xcodeproj` and the synced `.xcframework` are not checked in — they are
 reproduced from `macos/project.yml` and `macos/Packages/DayViewKit/Package.swift` on each run.
 
+### Packaging the native macOS app
+
+`scripts/package-native-macos.sh` builds the native app in Release, signs it (hardened runtime,
+calendar entitlement), wraps it in a DMG, then notarizes and staples it.
+
+Prerequisites:
+
+- A Developer ID Application identity, set in `local.properties`
+  (`dayview.macos.signingIdentity=Developer ID Application: Your Name (TEAMID)`).
+- A notarytool keychain profile, created once (the profile name defaults to `dayview-notary`
+  and can be changed with `dayview.macos.notaryProfile` in `local.properties`):
+
+```bash
+xcrun notarytool store-credentials dayview-notary --apple-id <id> --team-id <team>
+```
+
+Then run:
+
+```bash
+scripts/package-native-macos.sh 1.4.0              # sign, notarize, staple
+scripts/package-native-macos.sh 1.4.0 --skip-notarize   # signed only, no Apple credentials needed
+```
+
+The result is `dist/DayView-<version>.dmg` (git-ignored); build products go to
+`macos/build/native-release`. The script never installs anything or touches `/Applications`.
+
 ## Icon
 
 The master SVG, intended as the reference for the Android and macOS variants, can be regenerated without external dependencies:
