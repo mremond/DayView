@@ -114,6 +114,18 @@ final class FocusRecordEntry {
     }
 }
 
+/// A block-start or takeover cue the user ignored: they stayed off-goal for the area afterwards.
+@Model
+final class IgnoredCueEntry {
+    var id: UUID = UUID()
+    /// `"YYYY-MM-DD"` of the cue.
+    var dayKey: String = ""
+    var at: Date = Date.distantPast
+    var areaID: UUID = UUID()
+
+    init() {}
+}
+
 /// A closed Focus as read back from the store.
 public struct ClosedFocus: Sendable, Hashable {
     public let id: UUID

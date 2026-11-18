@@ -16,7 +16,7 @@ public final class PlanStore {
     private let defaults: UserDefaults
     private var context: ModelContext { container.mainContext }
 
-    private static var schema: Schema { Schema(versionedSchema: DayPlanSchemaV3.self) }
+    private static var schema: Schema { Schema(versionedSchema: DayPlanSchemaV4.self) }
 
     /// An in-memory container for tests and the fallback when the store cannot be opened.
     /// With `inMemory: false` the store lands in the default (shared) location: prefer `makeContainer(url:)`.
@@ -135,6 +135,27 @@ public final class PlanStore {
         return AcceptedPlan(plan: plan, reviewed: record.reviewed)
     }
 
+    /// The accepted plan of each day in `from...through` that has one (latest `acceptedAt` wins).
+    public func acceptedPlans(from: LocalDay, through: LocalDay) -> [LocalDay: AcceptedPlan] {
+        let lower = from.isoKey, upper = through.isoKey
+        let descriptor = FetchDescriptor<AcceptedPlanRecord>(
+            predicate: #Predicate { $0.dayKey >= lower && $0.dayKey <= upper }
+        )
+        var latest: [String: AcceptedPlanRecord] = [:]
+        for record in (try? context.fetch(descriptor)) ?? [] {
+            if let kept = latest[record.dayKey], kept.acceptedAt >= record.acceptedAt { continue }
+            latest[record.dayKey] = record
+        }
+        var result: [LocalDay: AcceptedPlan] = [:]
+        for (key, record) in latest {
+            guard let day = LocalDay(isoKey: key),
+                  let plan = try? JSONDecoder().decode(DayPlan.self, from: record.planData)
+            else { continue }
+            result[day] = AcceptedPlan(plan: plan, reviewed: record.reviewed)
+        }
+        return result
+    }
+
     /// Stores `plan` as the accepted plan for its day, replacing any earlier one.
     public func saveAccepted(_ plan: DayPlan, reviewed: Bool, at date: Date) throws {
         let key = plan.day.isoKey
@@ -202,6 +223,44 @@ public final class PlanStore {
         )
         let entries = (try? context.fetch(descriptor)) ?? []
         return entries.compactMap { $0.value(day: day) }
+    }
+
+    /// The closed Focus records that started in `from...through`, by start time.
+    public func closedFocus(from: LocalDay, through: LocalDay) -> [ClosedFocus] {
+        let lower = from.isoKey, upper = through.isoKey
+        let descriptor = FetchDescriptor<FocusRecordEntry>(
+            predicate: #Predicate { $0.dayKey >= lower && $0.dayKey <= upper },
+            sortBy: [SortDescriptor(\.start)]
+        )
+        let entries = (try? context.fetch(descriptor)) ?? []
+        return entries.compactMap { entry in
+            LocalDay(isoKey: entry.dayKey).flatMap { entry.value(day: $0) }
+        }
+    }
+
+    // MARK: Ignored cues
+
+    /// Records a cue the user ignored, on the local day of `at`.
+    public func saveIgnoredCue(areaID: AreaID, at: Date, calendar: Calendar) throws {
+        let entry = IgnoredCueEntry()
+        entry.dayKey = LocalDay(containing: at, calendar: calendar).isoKey
+        entry.at = at
+        entry.areaID = areaID.raw
+        context.insert(entry)
+        try commit()
+    }
+
+    /// The number of ignored cues for each day in `from...through` that has any.
+    public func ignoredCues(from: LocalDay, through: LocalDay) -> [LocalDay: Int] {
+        let lower = from.isoKey, upper = through.isoKey
+        let descriptor = FetchDescriptor<IgnoredCueEntry>(
+            predicate: #Predicate { $0.dayKey >= lower && $0.dayKey <= upper }
+        )
+        var result: [LocalDay: Int] = [:]
+        for entry in (try? context.fetch(descriptor)) ?? [] {
+            if let day = LocalDay(isoKey: entry.dayKey) { result[day, default: 0] += 1 }
+        }
+        return result
     }
 
     private static func reasonName(_ reason: FocusEndReason) -> String {
