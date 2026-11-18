@@ -135,7 +135,16 @@
 "Split around the %@ meeting" = "Coupé autour de la réunion de %@";
 "Shortened by a meeting" = "Raccourci par une réunion";
 "Covered by meetings" = "Couvert par des réunions";
-"Last 7 days: plan reviewed %lld/%lld days" = "7 derniers jours : plan revu %lld/%lld jours";
+"Last 7 days: plan reviewed %lld/%lld days · %lld cues ignored" = "7 derniers jours : plan revu %lld/%lld jours · %lld annonces ignorées";
+"Last 7 days: plan reviewed %lld/%lld days · 1 cue ignored" = "7 derniers jours : plan revu %lld/%lld jours · 1 annonce ignorée";
+"This week" = "Cette semaine";
+"Nothing yet this week" = "Rien encore cette semaine";
+"Planned %@ · Focus %@" = "Prévu %@ · Focus %@";
+"Plan reviewed" = "Plan revu";
+"Auto-accepted" = "Accepté automatiquement";
+"No plan" = "Pas de plan";
+"%lld cues ignored" = "%lld annonces ignorées";
+"1 cue ignored" = "1 annonce ignorée";
 "Deleted area" = "Domaine supprimé";
 "Spoken cues" = "Annonces vocales";
 "Volume" = "Volume";

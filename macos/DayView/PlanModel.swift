@@ -122,6 +122,18 @@ final class PlanModel: ObservableObject {
         store.reviewHistory(from: from, through: through)
     }
 
+    func ignoredCues(from: LocalDay, through: LocalDay) -> [LocalDay: Int] {
+        store.ignoredCues(from: from, through: through)
+    }
+
+    func acceptedPlans(from: LocalDay, through: LocalDay) -> [LocalDay: AcceptedPlan] {
+        store.acceptedPlans(from: from, through: through)
+    }
+
+    func closedFocus(from: LocalDay, through: LocalDay) -> [ClosedFocus] {
+        store.closedFocus(from: from, through: through)
+    }
+
     func addArea() {
         let area = Area(
             id: AreaID(),

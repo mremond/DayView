@@ -110,7 +110,7 @@ final class TodayPlanModel: ObservableObject {
         return saved
     }
 
-    var reviewSummary: (reviewed: Int, days: Int)? {
+    var reviewSummary: (reviewed: Int, days: Int, ignored: Int)? {
         let today = state.day
         let start = today.start(in: calendar)
         guard let from = calendar.date(byAdding: .day, value: -7, to: start),
@@ -119,10 +119,14 @@ final class TodayPlanModel: ObservableObject {
             from: LocalDay(containing: from, calendar: calendar),
             through: LocalDay(containing: through, calendar: calendar)
         )
+        let ignored = plan.ignoredCues(
+            from: LocalDay(containing: from, calendar: calendar),
+            through: LocalDay(containing: through, calendar: calendar)
+        )
         guard let summary = ReviewSummary.lastSevenDays(
-            before: today, history: history, ignored: [:], calendar: calendar
+            before: today, history: history, ignored: ignored, calendar: calendar
         ) else { return nil }
-        return (summary.reviewed, summary.days)
+        return (summary.reviewed, summary.days, summary.ignored)
     }
 
     // MARK: Helpers

@@ -53,6 +53,10 @@ struct DayViewApp: App {
         MenuBarExtra(focus.remaining(at: Date()).map(FocusFormat.clock) ?? model.snapshot.dayStatus) {
             MenuBarContent(model: model, windows: windows, todayPlan: todayPlan, focus: focus)
         }
+        Window(L("This week"), id: "week") {
+            WeekView(plan: plan, focus: focus)
+        }
+        .defaultSize(width: 420, height: 520)
         Window("DayView Mini", id: "mini") {
             MiniView(model: model, plan: plan, todayPlan: todayPlan, focus: focus)
                 .frame(minWidth: 200, minHeight: 300)

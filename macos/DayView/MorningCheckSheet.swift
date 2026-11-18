@@ -65,7 +65,10 @@ struct MorningCheckSheet: View {
             Text(state.day.start(in: calendar).formatted(.dateTime.weekday(.wide).day().month(.wide).year()))
                 .font(.title2.bold())
             if let summary = todayPlan.reviewSummary {
-                Text(LF("Last 7 days: plan reviewed %lld/%lld days", summary.reviewed, summary.days))
+                Text(summary.ignored == 1
+                    ? LF("Last 7 days: plan reviewed %lld/%lld days · 1 cue ignored", summary.reviewed, summary.days)
+                    : LF("Last 7 days: plan reviewed %lld/%lld days · %lld cues ignored",
+                         summary.reviewed, summary.days, summary.ignored))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

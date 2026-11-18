@@ -32,6 +32,10 @@ struct MenuBarContent: View {
             openWindow(id: "main")
             dismissWindow(id: "mini")
         }
+        Button(L("This week")) {
+            openWindow(id: "week")
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
         if windows.isMiniOpen {
             Button("Open full window") {
                 openWindow(id: "main")
